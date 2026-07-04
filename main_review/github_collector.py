@@ -99,6 +99,8 @@ def collect_github_comments(
         path = _optional_str(item.get("path") or item.get("file") or item.get("filename"))
         line = _optional_int(item.get("line") or item.get("original_line") or item.get("position"))
         url = _optional_str(item.get("html_url") or item.get("url") or item.get("display_url"))
+        classification = _optional_str(item.get("classification")) or "unclassified"
+        reason = str(item.get("reason", ""))
         source = detect_reviewer_source(author, body)
         tags = ["github-pr-comment", source]
         if path:
@@ -114,6 +116,8 @@ def collect_github_comments(
                 line=line,
                 author=author,
                 url=url,
+                classification=classification,
+                reason=reason,
                 tags=tags,
                 raw_type=str(item.get("type") or item.get("event") or "github-comment"),
             )
