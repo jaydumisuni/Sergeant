@@ -15,6 +15,7 @@ from .review_batch import batch_summary, run_review_learning_batch
 from .review_ingestion import ingest_external_review_file
 from .scanner import scan_repository
 from .verdict import review_repository
+from .verification import verify_repository_standard
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,6 +33,10 @@ def build_parser() -> argparse.ArgumentParser:
     review_parser = subparsers.add_parser("review", help="Run static evidence collection and produce a verdict.")
     review_parser.add_argument("path", nargs="?", default=".", help="Repository path to review.")
     review_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
+
+    verify_parser = subparsers.add_parser("verify-standard", help="Check THETECHGUY engineering verification evidence.")
+    verify_parser.add_argument("path", nargs="?", default=".", help="Repository path to verify.")
+    verify_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
 
     diff_parser = subparsers.add_parser("diff-review", help="Review a changed-file list without executing project code.")
     diff_source = diff_parser.add_mutually_exclusive_group(required=True)
@@ -117,6 +122,10 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "review":
         _print_json(review_repository(Path(args.path)), pretty=args.pretty)
+        return 0
+
+    if args.command == "verify-standard":
+        _print_json(verify_repository_standard(Path(args.path)).to_dict(), pretty=args.pretty)
         return 0
 
     if args.command == "diff-review":
