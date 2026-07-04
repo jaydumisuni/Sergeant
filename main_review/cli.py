@@ -6,6 +6,7 @@ import argparse
 import json
 from pathlib import Path
 
+from .evidence import collect_evidence
 from .memory import ReviewMemoryStore, default_memory_path, new_memory_record
 from .scanner import scan_repository
 
@@ -17,6 +18,10 @@ def build_parser() -> argparse.ArgumentParser:
     scan_parser = subparsers.add_parser("scan", help="Build a static repository intelligence packet.")
     scan_parser.add_argument("path", nargs="?", default=".", help="Repository path to scan.")
     scan_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
+
+    evidence_parser = subparsers.add_parser("evidence", help="Collect static review evidence without executing project code.")
+    evidence_parser.add_argument("path", nargs="?", default=".", help="Repository path to inspect.")
+    evidence_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
 
     memory_parser = subparsers.add_parser("memory", help="Manage review memory records.")
     memory_subparsers = memory_parser.add_subparsers(dest="memory_command", required=True)
@@ -60,6 +65,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "scan":
         insight = scan_repository(Path(args.path))
         _print_json(insight.to_dict(), pretty=args.pretty)
+        return 0
+
+    if args.command == "evidence":
+        _print_json(collect_evidence(Path(args.path)), pretty=args.pretty)
         return 0
 
     if args.command == "memory":
