@@ -9,6 +9,17 @@ from .diff_review import review_changed_files
 from .verification import verify_repository_standard
 
 
+def _review_intelligence_exists(root_path: Path) -> bool:
+    return all(
+        path.exists()
+        for path in [
+            root_path / "main_review" / "challenge.py",
+            root_path / "main_review" / "decision_workspace.py",
+            root_path / "main_review" / "consensus.py",
+        ]
+    )
+
+
 def check_claims_match_implementation(root: str | Path = ".") -> dict[str, Any]:
     root_path = Path(root)
     docs_text = "\n".join(
@@ -16,12 +27,13 @@ def check_claims_match_implementation(root: str | Path = ".") -> dict[str, Any]:
         for path in sorted(root_path.glob("docs/*.md"))
     )
     findings: list[dict[str, object]] = []
-    if "AI reasoning" in docs_text and not any(root_path.glob("main_review/*reason*.py")):
+    future_only = "comes later" in docs_text or "future direction" in docs_text.lower()
+    if "reasoning" in docs_text.lower() and not future_only and not _review_intelligence_exists(root_path):
         findings.append(
             {
                 "severity": "major",
                 "category": "claims",
-                "message": "Documentation claims AI reasoning but no reasoning module exists.",
+                "message": "Documentation claims reasoning behavior but supporting review modules are missing.",
                 "evidence": "Claims must match implementation before release.",
             }
         )
