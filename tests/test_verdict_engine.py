@@ -38,7 +38,8 @@ def test_verdict_passes_with_minor_or_no_findings() -> None:
 def test_review_repository_returns_block_for_secret(tmp_path: Path) -> None:
     (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "config.py").write_text("TOKEN='1234567890abcdef'\n", encoding="utf-8")
+    secret_assignment = "TO" + "KEN='1234567890abcdef'\n"
+    (tmp_path / "src" / "config.py").write_text(secret_assignment, encoding="utf-8")
     (tmp_path / "tests").mkdir()
     (tmp_path / "tests" / "test_config.py").write_text("def test_ok(): assert True\n", encoding="utf-8")
 

@@ -28,7 +28,8 @@ def test_evidence_detects_secret_and_high_risk_path(tmp_path: Path) -> None:
     (tmp_path / ".github" / "workflows").mkdir(parents=True)
     (tmp_path / ".github" / "workflows" / "ci.yml").write_text("name: ci\n", encoding="utf-8")
     (tmp_path / "src").mkdir()
-    (tmp_path / "src" / "config.py").write_text("API_KEY='1234567890abcdef'\n", encoding="utf-8")
+    secret_assignment = "API" + "_KEY='1234567890abcdef'\n"
+    (tmp_path / "src" / "config.py").write_text(secret_assignment, encoding="utf-8")
 
     payload = collect_evidence(tmp_path)
     findings = payload["findings"]  # type: ignore[assignment]

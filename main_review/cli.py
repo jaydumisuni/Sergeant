@@ -8,6 +8,7 @@ from pathlib import Path
 
 from .diff_review import parse_changed_files_text, review_changed_files, review_changed_files_file
 from .evidence import collect_evidence
+from .final_proof import assert_final_proof, run_final_proof
 from .github_collector import collect_github_comments_file
 from .memory import ReviewMemoryStore, default_memory_path, new_memory_record
 from .memory_ingestion import write_learning_candidates_to_memory
@@ -37,6 +38,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify_parser = subparsers.add_parser("verify-standard", help="Check THETECHGUY engineering verification evidence.")
     verify_parser.add_argument("path", nargs="?", default=".", help="Repository path to verify.")
     verify_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
+
+    final_parser = subparsers.add_parser("final-proof", help="Run final PASS + verified proof gate.")
+    final_parser.add_argument("path", nargs="?", default=".", help="Repository path to prove.")
+    final_parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
+    final_parser.add_argument("--no-fail", action="store_true", help="Return JSON without exiting non-zero on failed proof.")
 
     diff_parser = subparsers.add_parser("diff-review", help="Review a changed-file list without executing project code.")
     diff_source = diff_parser.add_mutually_exclusive_group(required=True)
@@ -126,6 +132,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "verify-standard":
         _print_json(verify_repository_standard(Path(args.path)).to_dict(), pretty=args.pretty)
+        return 0
+
+    if args.command == "final-proof":
+        payload = run_final_proof(Path(args.path)) if args.no_fail else assert_final_proof(Path(args.path))
+        _print_json(payload, pretty=args.pretty)
         return 0
 
     if args.command == "diff-review":
