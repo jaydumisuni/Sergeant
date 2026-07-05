@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="docs/assets/sergeant-sgt.svg" alt="SGT. Sergeant - open-source engineering reviewer" width="860">
+  <img src="docs/assets/sergeant-sgt.svg" alt="SGT. Sergeant - open-source engineering reviewer" width="960">
 </p>
 
 # Sergeant
 
-**Sergeant (SGT.)** is an open-source engineering reviewer created by **THETECHGUYDS**.
+**Sergeant (SGT.)** is an open-source engineering reviewer created by **THETECHGUY DIGITAL SOLUTIONS**.
 
 Sergeant reviews repositories, pull requests, and change sets before code is merged. It does not write patches by itself. It inspects evidence, compares the work against standards, and returns a clear review outcome.
 
@@ -186,4 +186,6 @@ Useful areas for community help:
 
 ## Identity
 
-Sergeant / SGT. is created by **THETECHGUYDS**.
+Sergeant / SGT. is created by **THETECHGUY DIGITAL SOLUTIONS**.
+
+> Observe. Analyze. Verify.
