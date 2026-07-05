@@ -50,3 +50,5 @@ jobs:
         run: main-review final-proof --pretty
       - name: Prove end-to-end review suite
         run: main-review proof-suite --pretty
+      - name: Prove independent reviewer module
+        run: python -m pytest tests/test_pr_reviewer.py -q
