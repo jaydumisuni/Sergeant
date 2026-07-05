@@ -48,6 +48,8 @@ jobs:
         run: main-review app-review . --mode pull_request --files "main_review/app_bridge.py,tests/test_app_bridge.py" --pretty
       - name: Prove IDE Bench contract
         run: main-review ide-bench-contract --pretty
+      - name: Prove battle-test fixtures
+        run: main-review battle-tests --pretty
       - name: Prove THETECHGUY verification standard
         run: main-review verify-standard --pretty
       - name: Prove final gate
