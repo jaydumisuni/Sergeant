@@ -32,7 +32,7 @@ def _text(value: object) -> str:
 
 def _norm_verdict(value: object) -> str:
     raw = _text(value).upper().replace("_", " ")
-    aliases = {"FIX": "NEEDS WORK", "CONSIDER": "NEEDS WORK", "APPROVE": "PASS", "COMMENT": "NEEDS WORK", "REQUEST CHANGES": "BLOCK"}
+    aliases = {"FIX": "NEEDS WORK", "CONSIDER": "NEEDS WORK", "APPROVE": "PASS", "COMMENT": "NEEDS WORK", "REQUEST CHANGES": "BLOCK", "MAJOR": "NEEDS WORK", "MINOR": "NEEDS WORK", "NOTE": "PASS", "BLOCKER": "BLOCK"}
     return aliases.get(raw, raw or "UNKNOWN")
 
 def _key(message: str, path: str | None) -> tuple[str, str]:
@@ -52,11 +52,11 @@ def _flatten_provider(provider: dict[str, Any]) -> list[dict[str, Any]]:
         return rows
     return [{"source": source, "verdict": verdict, "message": _text(provider.get("message") or verdict), "evidence": _text(provider.get("reason") or provider.get("evidence"))}]
 
-def _classify(source: str, verdict: str, message: str, internal_keys: set[tuple[str, str]], duplicate_sources: list[str]) -> str:
+def _classify(source: str, verdict: str, message: str, path: str | None, internal_keys: set[tuple[str, str]], duplicate_sources: list[str]) -> str:
+    if len(duplicate_sources) > 1 or _key(message, path) in internal_keys or _key(message, None) in internal_keys:
+        return "correct"
     if source.lower() in TRUSTED_INTERNAL:
         return "internal"
-    if _key(message, None) in internal_keys or len(duplicate_sources) > 1:
-        return "correct"
     if verdict in {"BLOCK", "NEEDS WORK"}:
         return "investigate"
     if verdict == "PASS":
@@ -90,7 +90,7 @@ def build_evidence_consensus(internal_packet: dict[str, Any], external_providers
         message = _text(primary.get("message"))
         path = primary.get("path")
         sources = sorted({_text(row.get("source")) for row in rows if _text(row.get("source"))})
-        classification = _classify(source, verdict, message, internal_keys, sources)
+        classification = _classify(source, verdict, message, path, internal_keys, sources)
         confidence = float(primary.get("confidence") or 0.55)
         if len(sources) > 1:
             confidence = min(0.99, confidence + 0.1)
