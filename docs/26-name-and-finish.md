@@ -2,11 +2,13 @@
 
 ## Final project name
 
-**Sentinel Review**
+**Sergeant**
 
 ## Why this name
 
-Sentinel means a guard that watches, checks, and protects before damage reaches users.
+Sergeant describes the role better than a generic reviewer name.
+
+A good sergeant does not simply block people or shout instructions. It inspects, trains, challenges, raises standards, and earns trust through evidence.
 
 That matches the intended reviewer:
 
@@ -16,14 +18,17 @@ That matches the intended reviewer:
 - it uses the THETECHGUY engineering standard
 - it learns from accepted reviewer/human feedback
 - it treats external reviewers as optional teachers, not authorities
+- it belongs inside Hunter as the engineering review division
 
 ## Product identity
 
-Public name: **Sentinel Review**
+Public name: **Sergeant**
 
-Internal THETECHGUY/Hunter name: **Main Review**
+Internal THETECHGUY/Hunter function: **Sergeant**
 
-Suggested repository name: `sentinel-review`
+Legacy/internal CLI package name for now: `main-review`
+
+Repository name: `Sergeant`
 
 ## Finished scope for v1 foundation
 
@@ -38,6 +43,9 @@ The v1 foundation is considered finished when these are present and proven:
 - memory learning
 - memory verification
 - clean-clone CI proof
+- generic external repository verification
+- planted fake-secret detection test
+- live GitHub PR ingestion test
 
 ## What remains after v1
 
