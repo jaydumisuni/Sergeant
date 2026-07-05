@@ -1,8 +1,8 @@
 # Sergeant
 
-**Sergeant** is an open-source engineering reviewer for repositories and pull requests.
+**Sergeant** is an open-source engineering reviewer that helps developers review repositories and pull requests before code is merged.
 
-It helps developers understand code changes before they are merged by analyzing engineering quality, identifying risks, and providing evidence-based review decisions.
+Instead of writing code, Sergeant focuses on understanding it—analyzing changes, identifying risks, and providing evidence-based review decisions that help teams build with confidence.
 
 ---
 
@@ -25,17 +25,27 @@ It helps developers understand code changes before they are merged by analyzing 
 
 ---
 
+## Why Sergeant?
+
+Most AI coding assistants focus on writing code.
+
+Sergeant focuses on reviewing it.
+
+Rather than replacing your existing tools, Sergeant works alongside them by providing independent engineering reviews before code is merged.
+
+---
+
 ## Works With
 
-Sergeant integrates into existing development workflows.
+Sergeant fits naturally into existing development workflows.
 
-Supported platforms include:
+Platforms:
 
 - GitHub
 - VS Code *(coming soon)*
 - JetBrains IDEs *(coming soon)*
 
-Sergeant can also be used alongside coding assistants such as:
+Compatible with:
 
 - Claude
 - Codex
@@ -44,7 +54,7 @@ Sergeant can also be used alongside coding assistants such as:
 - Gemini
 - Local LLMs
 
-Sergeant reviews independently—it does not depend on any specific coding assistant.
+Sergeant remains an independent reviewer regardless of which coding assistant you use.
 
 ---
 
@@ -58,21 +68,21 @@ NEEDS WORK
 BLOCK
 ```
 
-Along with supporting evidence, affected files, reasoning, confidence, and recommended next steps.
+Each review includes supporting evidence, affected files, reasoning, confidence, and recommended next steps.
 
 ---
 
 ## Safety
 
-Sergeant is a reviewer, not an execution engine.
+Sergeant is a reviewer—not an execution engine.
 
-It will not:
+It deliberately refuses to:
 
-- execute untrusted pull request code
-- automatically modify project code
-- write patches by itself
-- silently ignore review failures
-- use privileged write credentials during analysis
+- Execute untrusted pull request code
+- Automatically modify project code
+- Write patches by itself
+- Use privileged write credentials during analysis
+- Hide review failures or fabricate successful results
 
 ---
 
@@ -82,8 +92,6 @@ It will not:
 git clone https://github.com/jaydumisuni/Sergeant.git
 cd Sergeant
 ```
-
-*(Installation guide will expand as packages become available.)*
 
 ---
 
@@ -111,7 +119,7 @@ main-review live-github-comments owner/repo 12 --pretty
 
 ## Documentation
 
-Documentation is organised by topic:
+Documentation includes:
 
 - Getting Started
 - Installation
@@ -126,7 +134,7 @@ Documentation is organised by topic:
 
 ## Current Status
 
-Sergeant is under active development.
+Sergeant is ready for early adopters and community feedback.
 
 Current capabilities include:
 
