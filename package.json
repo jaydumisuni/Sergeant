@@ -1,0 +1,85 @@
+{
+  "name": "sergeant-reviewer",
+  "displayName": "Sergeant",
+  "description": "Sergeant open-source engineering reviewer for VS Code.",
+  "version": "0.1.1",
+  "publisher": "thetechguyds",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jaydumisuni/Sergeant.git"
+  },
+  "icon": "resources/srg-logo-and-icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./vscode-extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sergeant",
+          "title": "Sergeant",
+          "icon": "resources/sergeant-activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "sergeant": [
+        {
+          "id": "sergeant.actions",
+          "name": "Actions"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "sergeant.actions",
+        "contents": "Sergeant actions load here when the extension activates."
+      }
+    ],
+    "commands": [
+      {
+        "command": "sergeant.reviewWorkspace",
+        "title": "Sergeant: Review Workspace"
+      },
+      {
+        "command": "sergeant.appReviewWorkspace",
+        "title": "Sergeant: App Bridge Review"
+      },
+      {
+        "command": "sergeant.proofSuite",
+        "title": "Sergeant: Run Proof Suite"
+      },
+      {
+        "command": "sergeant.finalProof",
+        "title": "Sergeant: Run Final Proof"
+      },
+      {
+        "command": "sergeant.verifyStandard",
+        "title": "Sergeant: Verify Standard"
+      },
+      {
+        "command": "sergeant.battleTests",
+        "title": "Sergeant: Validate Battle Tests"
+      },
+      {
+        "command": "sergeant.ideBenchContract",
+        "title": "Sergeant: IDE Bench Contract"
+      }
+    ],
+    "configuration": {
+      "title": "Sergeant",
+      "properties": {
+        "sergeant.pythonPath": {
+          "type": "string",
+          "default": "python",
+          "description": "Python executable used to run Sergeant."
+        }
+      }
+    }
+  }
+}
