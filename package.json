@@ -2,7 +2,7 @@
   "name": "sergeant-reviewer",
   "displayName": "Sergeant",
   "description": "Sergeant open-source engineering reviewer for VS Code.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "thetechguyds",
   "license": "MIT",
   "repository": {
@@ -15,16 +15,6 @@
   },
   "categories": [
     "Other"
-  ],
-  "activationEvents": [
-    "onView:sergeant.actions",
-    "onCommand:sergeant.reviewWorkspace",
-    "onCommand:sergeant.appReviewWorkspace",
-    "onCommand:sergeant.proofSuite",
-    "onCommand:sergeant.finalProof",
-    "onCommand:sergeant.verifyStandard",
-    "onCommand:sergeant.battleTests",
-    "onCommand:sergeant.ideBenchContract"
   ],
   "main": "./vscode-extension.js",
   "contributes": {
@@ -48,7 +38,7 @@
     "viewsWelcome": [
       {
         "view": "sergeant.actions",
-        "contents": "Open the Sergeant dashboard to review this workspace."
+        "contents": "Sergeant actions load here when the extension activates."
       }
     ],
     "commands": [

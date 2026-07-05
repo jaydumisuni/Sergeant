@@ -84,3 +84,18 @@ The reviewer must be able to say:
 That is not weakness.
 
 That is how the system improves.
+
+## 9. Do not assume; verify the real surface
+
+Do not assume a feature is useful because code exists.
+
+Verify the actual surface the user will touch:
+
+- installed extension state
+- visible IDE views
+- command execution path
+- output channel results
+- repository status
+- pushed GitHub state
+
+If a screenshot, command result, or live file contradicts the claim, treat the contradiction as the next engineering task.

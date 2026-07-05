@@ -12,6 +12,7 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     commands = {item["command"] for item in package["contributes"]["commands"]}
     containers = package["contributes"]["viewsContainers"]["activitybar"]
 
+    assert "activationEvents" not in package
     assert package["displayName"] == "Sergeant"
     assert package["icon"] == "resources/srg-logo-and-icon.png"
     assert package["main"] == "./vscode-extension.js"
@@ -33,8 +34,10 @@ def test_vscode_extension_runtime_uses_bundled_launcher() -> None:
     runtime = (ROOT / "vscode-extension.js").read_text(encoding="utf-8")
 
     assert 'path.join(__dirname, "sergeant.py")' in runtime
-    assert "registerWebviewViewProvider" in runtime
-    assert "SergeantViewProvider" in runtime
+    assert "registerTreeDataProvider" in runtime
+    assert "SergeantActionProvider" in runtime
+    assert "ACTIONS" in runtime
+    assert "new vscode.ThemeIcon(\"shield\")" in runtime
     assert '"review"' in runtime
     assert '"app-review"' in runtime
     assert '"proof-suite"' in runtime
