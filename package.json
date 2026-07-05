@@ -17,7 +17,13 @@
     "Other"
   ],
   "activationEvents": [
+    "onView:sergeant.actions",
     "onCommand:sergeant.reviewWorkspace",
+    "onCommand:sergeant.appReviewWorkspace",
+    "onCommand:sergeant.proofSuite",
+    "onCommand:sergeant.finalProof",
+    "onCommand:sergeant.verifyStandard",
+    "onCommand:sergeant.battleTests",
     "onCommand:sergeant.ideBenchContract"
   ],
   "main": "./vscode-extension.js",
@@ -42,13 +48,33 @@
     "viewsWelcome": [
       {
         "view": "sergeant.actions",
-        "contents": "Run Sergeant against the current workspace.\n[Review Workspace](command:sergeant.reviewWorkspace)\n[Show IDE Bench Contract](command:sergeant.ideBenchContract)"
+        "contents": "Open the Sergeant dashboard to review this workspace."
       }
     ],
     "commands": [
       {
         "command": "sergeant.reviewWorkspace",
         "title": "Sergeant: Review Workspace"
+      },
+      {
+        "command": "sergeant.appReviewWorkspace",
+        "title": "Sergeant: App Bridge Review"
+      },
+      {
+        "command": "sergeant.proofSuite",
+        "title": "Sergeant: Run Proof Suite"
+      },
+      {
+        "command": "sergeant.finalProof",
+        "title": "Sergeant: Run Final Proof"
+      },
+      {
+        "command": "sergeant.verifyStandard",
+        "title": "Sergeant: Verify Standard"
+      },
+      {
+        "command": "sergeant.battleTests",
+        "title": "Sergeant: Validate Battle Tests"
       },
       {
         "command": "sergeant.ideBenchContract",

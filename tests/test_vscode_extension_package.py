@@ -20,6 +20,11 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     assert containers[0]["icon"] == "resources/sergeant-activity.svg"
     assert (ROOT / containers[0]["icon"]).is_file()
     assert "sergeant.reviewWorkspace" in commands
+    assert "sergeant.appReviewWorkspace" in commands
+    assert "sergeant.proofSuite" in commands
+    assert "sergeant.finalProof" in commands
+    assert "sergeant.verifyStandard" in commands
+    assert "sergeant.battleTests" in commands
     assert "sergeant.ideBenchContract" in commands
     assert (ROOT / package["icon"]).is_file()
 
@@ -28,5 +33,12 @@ def test_vscode_extension_runtime_uses_bundled_launcher() -> None:
     runtime = (ROOT / "vscode-extension.js").read_text(encoding="utf-8")
 
     assert 'path.join(__dirname, "sergeant.py")' in runtime
+    assert "registerWebviewViewProvider" in runtime
+    assert "SergeantViewProvider" in runtime
     assert '"review"' in runtime
+    assert '"app-review"' in runtime
+    assert '"proof-suite"' in runtime
+    assert '"final-proof"' in runtime
+    assert '"verify-standard"' in runtime
+    assert '"battle-tests"' in runtime
     assert '"ide-bench-contract"' in runtime
