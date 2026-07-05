@@ -1,42 +1,50 @@
 <svg width="1200" height="420" viewBox="0 0 1200 420" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
-  <title id="title">SGT. Sergeant identity</title>
-  <desc id="desc">Sergeant open-source engineering reviewer identity by THETECHGUYDS.</desc>
+  <title id="title">Sergeant v1 hero</title>
+  <desc id="desc">Sergeant open-source engineering reviewer by THETECHGUY DIGITAL SOLUTIONS.</desc>
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="420" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#070B16"/>
-      <stop offset="0.48" stop-color="#111A33"/>
-      <stop offset="1" stop-color="#05070D"/>
+      <stop stop-color="#05070d"/>
+      <stop offset="0.55" stop-color="#0b1020"/>
+      <stop offset="1" stop-color="#030408"/>
     </linearGradient>
-    <linearGradient id="brand" x1="260" y1="92" x2="780" y2="305" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#5EE6FF"/>
-      <stop offset="0.52" stop-color="#2F8CFF"/>
-      <stop offset="1" stop-color="#9B7CFF"/>
+    <linearGradient id="brand" x1="90" y1="40" x2="720" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a855f7"/>
+      <stop offset="0.55" stop-color="#168cff"/>
+      <stop offset="1" stop-color="#5ee6ff"/>
     </linearGradient>
-    <filter id="glow" x="-25%" y="-25%" width="150%" height="150%" color-interpolation-filters="sRGB">
-      <feGaussianBlur stdDeviation="8" result="blur"/>
-      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.37 0 0 0 0 0.9 0 0 0 0 1 0 0 0 .7 0"/>
-      <feMerge>
-        <feMergeNode/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
+    <style>
+      .text{font-family:Inter,Segoe UI,Arial,sans-serif;fill:#f5f7fb}.muted{fill:#aebbd6}.small{font-size:18px}.body{font-size:23px}.mono{font-family:SFMono-Regular,Consolas,Menlo,monospace}.ok{fill:#49f26d}.warn{fill:#f7c843}.bad{fill:#ff4d5c}
+    </style>
   </defs>
-  <rect width="1200" height="420" rx="34" fill="url(#bg)"/>
-  <circle cx="1028" cy="94" r="210" fill="#5EE6FF" opacity="0.08"/>
-  <circle cx="122" cy="374" r="190" fill="#9B7CFF" opacity="0.10"/>
-  <g filter="url(#glow)">
-    <path d="M142 218C142 137.9 207.4 73 288 73s146 64.9 146 145c0 54.3-30.1 101.6-74.6 126.4l-70.9 39.5-72.5-40.8C171.6 318.2 142 271.4 142 218Z" fill="#0C1223" stroke="url(#brand)" stroke-width="7"/>
-    <path d="M195 182c18-64 62-91 94-91 32 0 76 27 94 91-35-16-65-23-94-23s-59 7-94 23Z" fill="#121B33" stroke="#AEBBD6" stroke-width="5"/>
-    <path d="M214 190h150c-6 45-35 81-75 81s-69-36-75-81Z" fill="#05070D"/>
-    <path d="M238 158l50-21 51 21" stroke="url(#brand)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M250 126l38-16 39 16" stroke="url(#brand)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="215" y="197" width="48" height="16" rx="8" fill="#EDF3FF"/>
-    <rect x="313" y="197" width="48" height="16" rx="8" fill="#EDF3FF"/>
-    <path d="M263 205h50" stroke="#EDF3FF" stroke-width="8" stroke-linecap="round"/>
+  <rect width="1200" height="420" rx="28" fill="url(#bg)"/>
+  <circle cx="1015" cy="95" r="210" fill="#168cff" opacity="0.10"/>
+  <circle cx="115" cy="360" r="185" fill="#a855f7" opacity="0.11"/>
+  <g transform="translate(62 72)">
+    <path d="M55 128C55 67 105 18 167 18s112 49 112 110c0 42-23 78-57 97l-54 30-55-31c-35-19-58-56-58-96Z" fill="#07101f" stroke="url(#brand)" stroke-width="6"/>
+    <path d="M94 99c14-48 47-68 73-68 25 0 59 20 72 68-27-12-50-17-72-17-23 0-46 5-73 17Z" fill="#111827" stroke="#65758b" stroke-width="4"/>
+    <path d="M110 113h114c-5 34-27 61-57 61s-52-27-57-61Z" fill="#030408"/>
+    <rect x="112" y="120" width="41" height="13" rx="7" fill="#f8fafc"/>
+    <rect x="181" y="120" width="41" height="13" rx="7" fill="#f8fafc"/>
+    <path d="M153 127h28" stroke="#f8fafc" stroke-width="6" stroke-linecap="round"/>
+    <path d="M128 86l38-16 39 16" stroke="url(#brand)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M138 64l28-12 29 12" stroke="url(#brand)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
   </g>
-  <text x="492" y="185" fill="url(#brand)" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="104" font-weight="900" letter-spacing="2">SGT.</text>
-  <text x="500" y="236" fill="#EDF3FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="34" font-weight="800" letter-spacing="1.5">SERGEANT</text>
-  <text x="500" y="283" fill="#AEBBD6" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="27" font-weight="600">Open-source engineering reviewer</text>
-  <text x="500" y="325" fill="#5EE6FF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="23" font-weight="700">Evidence before opinion. One command. Safe by default.</text>
-  <text x="1055" y="360" fill="#9B7CFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="24" font-weight="900" text-anchor="end">THETECHGUYDS</text>
+  <text x="365" y="108" class="text" font-size="76" font-weight="900" fill="url(#brand)">SGT.</text>
+  <text x="365" y="158" class="text" font-size="38" font-weight="850">Sergeant</text>
+  <text x="365" y="194" class="text body">Open-source engineering reviewer</text>
+  <text x="365" y="229" class="muted body">Evidence before opinion. One command. Safe by default.</text>
+  <g transform="translate(365 262)">
+    <rect width="120" height="42" rx="7" fill="#07150c" stroke="#28c45f"/><text x="60" y="28" text-anchor="middle" class="text" font-size="18" font-weight="800" fill="#49f26d">PASS</text>
+    <rect x="136" width="172" height="42" rx="7" fill="#181205" stroke="#d99a18"/><text x="222" y="28" text-anchor="middle" class="text" font-size="18" font-weight="800" fill="#f7c843">NEEDS WORK</text>
+    <rect x="324" width="124" height="42" rx="7" fill="#1a090b" stroke="#ff4d5c"/><text x="386" y="28" text-anchor="middle" class="text" font-size="18" font-weight="800" fill="#ff4d5c">BLOCK</text>
+  </g>
+  <g transform="translate(850 252)">
+    <rect width="285" height="104" rx="10" fill="#101621" stroke="#263244"/>
+    <text x="18" y="32" class="muted small">Quick start</text>
+    <text x="18" y="63" class="text mono" font-size="17">main-review review . --pretty</text>
+    <text x="18" y="88" class="text mono" font-size="17">main-review proof-suite --pretty</text>
+  </g>
+  <text x="64" y="360" class="muted small">Created by</text>
+  <text x="64" y="388" class="text" font-size="22" font-weight="900" fill="url(#brand)">THETECHGUY DIGITAL SOLUTIONS</text>
+  <text x="1135" y="388" text-anchor="end" class="muted small">Observe. Analyze. Verify.</text>
 </svg>
