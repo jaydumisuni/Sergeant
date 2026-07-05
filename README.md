@@ -1,14 +1,8 @@
-# Main Review R&D
+# Sergeant
 
-This repository is the research and design home for the THETECHGUY/Hunter engineering reviewer.
+Sergeant is the THETECHGUY/Hunter engineering reviewer.
 
-The current working name is temporary. The repository may later be renamed to `main-review` or another final identity once the reviewer role and product name are locked.
-
-## Mission
-
-Build an independent engineering reviewer that learns from the best review systems but does not depend on CodeRabbit, Qodo, PR-Agent, or any single third-party product.
-
-The reviewer is not a patch writer. It does not edit code by itself. Its job is to understand the repository, inspect a PR or change set, compare the work against project standards, and return one of three outcomes:
+It is not a patch writer. It does not edit code by itself. Its job is to understand a repository, inspect a pull request or change set, compare the work against project standards, and return one of three outcomes:
 
 ```text
 PASS
@@ -16,33 +10,47 @@ NEEDS WORK
 BLOCK
 ```
 
+## Role inside Hunter
+
+Hunter is the wider engineering brain and orchestrator.
+
+Sergeant is Hunter's engineering review division:
+
+- it inspects before merge
+- it challenges assumptions
+- it compares claims against implementation
+- it checks tests, documentation, boundaries, security, maintainability, and project fit
+- it learns from accepted reviewer and human feedback
+- it treats CodeRabbit, Qodo, PR-Agent, reviewdog, Semgrep, and CodeQL as optional evidence sources, not authorities
+
 ## Core principle
 
 > The reviewer must understand danger, but must not execute danger.
 
 This comes directly from the CodeRabbit/PwnedRabbit security lessons: reviewer systems become dangerous when they execute untrusted pull-request-controlled code, load untrusted tool configuration, or run with powerful secrets/tokens in the same environment.
 
-## What this repo contains
+## Status
 
-```text
-docs/
-  00-product-brief.md
-  01-research-sources.md
-  02-coderabbit-lessons.md
-  03-comparison-matrix.md
-  04-architecture.md
-  05-security-model.md
-  06-review-verdicts.md
-  07-identity-notes.md
-  08-roadmap.md
+Sergeant's v1 foundation is implemented and self-verifying.
 
-.github/
-  pull_request_template.md
+The current self-check target is:
+
+```bash
+main-review verify-standard --pretty
+```
+
+A complete self-check returns:
+
+```json
+{
+  "status": "verified",
+  "next_actions": []
+}
 ```
 
 ## Intended product behavior
 
-The reviewer should behave like the final engineering standard before merge:
+Sergeant should behave like the final engineering standard before merge:
 
 - It understands code and architecture.
 - It checks documentation, tests, public/private boundaries, security, maintainability, and project fit.
@@ -63,7 +71,3 @@ Key starting references:
 - reviewdog — https://github.com/reviewdog/reviewdog
 - Semgrep — https://semgrep.dev/
 - CodeQL — https://codeql.github.com/
-
-## Status
-
-R&D foundation started. Implementation should not begin until the review model, trust boundary, and identity are clear enough to avoid building the wrong thing.
