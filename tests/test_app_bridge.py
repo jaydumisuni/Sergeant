@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from main_review.app_bridge import handle_app_review_request
 from main_review.cli import main
+from main_review.review_contract import CONTRACT_VERSION
 
 
 def _make_repo(root: Path) -> None:
@@ -32,8 +34,12 @@ def test_app_bridge_returns_ui_ready_payload(tmp_path: Path) -> None:
     payload = handle_app_review_request({"root": str(tmp_path), "mode": "pull_request", "changed_files": ["src/app.py", "tests/test_app.py"]})
 
     assert payload["ok"] is True
+    assert payload["schema_version"] == CONTRACT_VERSION
     assert payload["service"] == "Sergeant"
     assert payload["status"] in {"pass", "needs_work", "block"}
+    assert payload["request"]["mode"] == "pull_request"
+    assert payload["capabilities"]["expected"]
+    assert "api_contract" in payload["capabilities"]["expected"]
     assert "markdown" in payload
     assert "packet" in payload
 
@@ -42,5 +48,15 @@ def test_app_bridge_cli_runs(tmp_path: Path) -> None:
     _make_repo(tmp_path)
 
     exit_code = main(["app-review", str(tmp_path), "--mode", "pull_request", "--files", "src/app.py,tests/test_app.py"])
+
+    assert exit_code == 0
+
+
+def test_app_bridge_cli_accepts_request_file(tmp_path: Path) -> None:
+    _make_repo(tmp_path)
+    request_file = tmp_path / "sergeant-request.json"
+    request_file.write_text(json.dumps({"root": str(tmp_path), "mode": "changed_files", "changed_files": ["src/app.py", "tests/test_app.py"]}), encoding="utf-8")
+
+    exit_code = main(["app-review", "--request-file", str(request_file)])
 
     assert exit_code == 0
