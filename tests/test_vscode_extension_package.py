@@ -10,10 +10,15 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     package = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     commands = {item["command"] for item in package["contributes"]["commands"]}
+    containers = package["contributes"]["viewsContainers"]["activitybar"]
 
     assert package["displayName"] == "Sergeant"
     assert package["icon"] == "resources/srg-logo-and-icon.png"
     assert package["main"] == "./vscode-extension.js"
+    assert containers[0]["id"] == "sergeant"
+    assert containers[0]["title"] == "Sergeant"
+    assert containers[0]["icon"] == "resources/sergeant-activity.svg"
+    assert (ROOT / containers[0]["icon"]).is_file()
     assert "sergeant.reviewWorkspace" in commands
     assert "sergeant.ideBenchContract" in commands
     assert (ROOT / package["icon"]).is_file()

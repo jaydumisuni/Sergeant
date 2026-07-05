@@ -22,6 +22,29 @@
   ],
   "main": "./vscode-extension.js",
   "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "sergeant",
+          "title": "Sergeant",
+          "icon": "resources/sergeant-activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "sergeant": [
+        {
+          "id": "sergeant.actions",
+          "name": "Actions"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "sergeant.actions",
+        "contents": "Run Sergeant against the current workspace.\n[Review Workspace](command:sergeant.reviewWorkspace)\n[Show IDE Bench Contract](command:sergeant.ideBenchContract)"
+      }
+    ],
     "commands": [
       {
         "command": "sergeant.reviewWorkspace",
