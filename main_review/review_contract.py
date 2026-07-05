@@ -150,13 +150,17 @@ def github_comments_to_external_provider(live_payload: dict[str, Any]) -> dict[s
                 continue
             findings.append({
                 "message": body[:500],
+                "evidence": body[:500],
                 "path": item.get("path"),
                 "author": (item.get("user") or {}).get("login") if isinstance(item.get("user"), dict) else None,
                 "source_url": item.get("html_url"),
+                "verdict": "COMMENT",
             })
     return {
         "name": "github-live-comments",
+        "source": "github-live-comments",
         "verdict": "COMMENT" if findings else "PASS",
+        "evidence": findings,
         "findings": findings,
         "metadata": {
             "repository": live_payload.get("repository"),
