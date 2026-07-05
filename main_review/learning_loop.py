@@ -17,7 +17,7 @@ LESSON = {"learn", "lesson", "pattern"}
 
 
 def _text(value: object) -> str:
-    return str(value or "").strip()
+    return "" if value is None else str(value).strip()
 
 
 def _decision_status(value: object) -> str:
