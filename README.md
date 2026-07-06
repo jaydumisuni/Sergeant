@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="resources/readme-top-image.png" alt="Sergeant - open-source engineering reviewer" width="860">
+  <img src="resources/readme-top-image.png" alt="Sergeant - open-source engineering reviewer" width="960">
 </p>
 
 # Sergeant
