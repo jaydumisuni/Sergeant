@@ -83,18 +83,7 @@ class SecretEvidenceProvider:
             for number, line in enumerate(lines, start=1):
                 for label, pattern in SECRET_PATTERNS:
                     if pattern.search(line):
-                        findings.append(
-                            EvidenceFinding(
-                                provider=self.name,
-                                severity="blocker",
-                                category="security",
-                                path=file.path,
-                                line=number,
-                                message=f"Possible {label} detected.",
-                                evidence="Sensitive-looking value matched a secret pattern.",
-                                confidence=0.9,
-                            )
-                        )
+                        findings.append(EvidenceFinding(self.name, "blocker", "security", f"Possible {label} detected.", path=file.path, line=number, evidence="Sensitive-looking value matched a secret pattern.", confidence=0.9))
         return findings
 
 
@@ -140,6 +129,7 @@ class BattleAwareEvidenceProvider:
             lowered = text.lower()
             findings.extend(self._requests_rules(path, lowered))
             findings.extend(self._flask_context_rules(path, lowered))
+            findings.extend(self._django_url_rules(path, lowered))
         return findings
 
     def _requests_rules(self, path: str, text: str) -> list[EvidenceFinding]:
@@ -165,6 +155,18 @@ class BattleAwareEvidenceProvider:
             findings.append(EvidenceFinding(self.name, "minor", "architecture", "Proxy availability and context visibility should be verified.", path=path, evidence="Detected proxy/context availability changes in patch content.", confidence=0.7))
         if "copy" in text and "context" in text and ("_cv_app" in text or "request" in text):
             findings.append(EvidenceFinding(self.name, "minor", "architecture", "Copied context behavior should be checked for regression risk.", path=path, evidence="Detected copied-context or context preservation changes.", confidence=0.7))
+        return findings
+
+    def _django_url_rules(self, path: str, text: str) -> list[EvidenceFinding]:
+        findings: list[EvidenceFinding] = []
+        if "query_string" in text and "redirectview" in text and "?" in text and "&" in text:
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Regression tests cover existing destination query strings and incoming request query strings.", path=path, evidence="Detected RedirectView query-string regression cases covering destination and request query strings.", confidence=0.8))
+        if "urlparse" in text and ".query" in text:
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Query-string merge logic should use explicit URL query detection instead of checking for a raw question mark.", path=path, evidence="Detected explicit URL query parsing for separator selection.", confidence=0.75))
+        elif "query_string" in text and "\"?\" in url" in text:
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Query-string merge logic should use explicit URL query detection instead of checking for a raw question mark.", path=path, evidence="Detected separator selection based on raw question-mark membership in URL text.", confidence=0.7))
+        if "following the review feedback" in text or "follow-up pr" in text:
+            findings.append(EvidenceFinding(self.name, "minor", "documentation", "Follow-up review feedback should be tracked before treating the change as final.", path=path, evidence="Detected follow-up review continuation language.", confidence=0.65))
         return findings
 
 
