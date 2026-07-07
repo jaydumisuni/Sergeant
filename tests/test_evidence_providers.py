@@ -89,3 +89,23 @@ def test_battle_aware_provider_detects_flask_context_patterns(tmp_path: Path) ->
     assert "Migration and deprecation documentation is present but should be checked for accuracy." in messages
     assert "Proxy availability and context visibility should be verified." in messages
     assert "Copied context behavior should be checked for regression risk." in messages
+
+
+def test_battle_aware_provider_detects_django_query_string_patterns(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
+    (tmp_path / "django" / "views" / "generic").mkdir(parents=True)
+    (tmp_path / "tests" / "generic_views").mkdir(parents=True)
+    (tmp_path / "django" / "views" / "generic" / "base.py").write_text(
+        'url = "%s%s%s" % (url, "&" if "?" in url else "?", args)\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "generic_views" / "test_base.py").write_text(
+        'def test_redirect_with_query_string_in_destination_and_request():\n'
+        '    response = RedirectView.as_view(url="/bar/?pork=spam", query_string=True)(self.rf.get("/foo/?utm_source=social"))\n',
+        encoding="utf-8",
+    )
+
+    messages = _messages(collect_evidence(tmp_path))
+
+    assert "Query-string merge logic should use explicit URL query detection instead of checking for a raw question mark." in messages
+    assert "Regression tests cover existing destination query strings and incoming request query strings." in messages
