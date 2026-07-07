@@ -179,7 +179,7 @@ def _review_patch_workspace(root: Path) -> dict[str, object]:
 
 
 def _false_positive_candidates(finding_texts: list[str], matches: list[ExpectedFindingMatch]) -> list[str]:
-    matched_texts = {match.best_candidate for match in matches if match.best_candidate}
+    matched_texts = {match.best_candidate for match in matches if match.matched and match.best_candidate}
     return [text for text in finding_texts if text not in matched_texts]
 
 
