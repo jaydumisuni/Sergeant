@@ -53,19 +53,19 @@ def test_run_battle_comparison_scores_expected_matches(tmp_path, monkeypatch):
     def fake_review(root: Path):
         return {
             "verdict": {
-                "major_findings": [
+                "minor_findings": [
                     {
                         "category": "tests",
                         "message": "Duplicate tests should be removed or parameterized.",
                         "path": "tests/test_app.py",
-                        "severity": "major",
+                        "severity": "minor",
                     }
                 ]
             }
         }
 
     monkeypatch.setattr("main_review.battle_compare.fetch_pr_diff_live", fake_fetch)
-    monkeypatch.setattr("main_review.battle_compare.review_repository", fake_review)
+    monkeypatch.setattr("main_review.battle_compare._review_patch_workspace", fake_review)
 
     result = run_battle_comparison(fixture)
 
@@ -101,7 +101,7 @@ def test_run_battle_comparison_reports_missed_and_extra_findings(tmp_path, monke
         return {"verdict": {"minor_findings": [{"message": "style note only", "path": "src/app.py"}]}}
 
     monkeypatch.setattr("main_review.battle_compare.fetch_pr_diff_live", fake_fetch)
-    monkeypatch.setattr("main_review.battle_compare.review_repository", fake_review)
+    monkeypatch.setattr("main_review.battle_compare._review_patch_workspace", fake_review)
 
     result = run_battle_comparison(fixture)
     payload = result.to_dict()
