@@ -43,6 +43,9 @@ SIGNAL_FINDING_RULES = (
     (("documentation", "migration", "deprecation"), ("migration", "deprecation")),
     (("external app", "downstream app", "proxy"), ("proxy", "availability")),
     (("copied", "context", "counter"), ("copied", "context", "regression")),
+    (("urlparse", "query", "separator", "question mark"), ("query", "detection", "question")),
+    (("looked good", "suggestion", "review"), ("follow-up", "feedback", "final")),
+    (("follow-up", "review feedback", "closing"), ("follow-up", "feedback", "final")),
 )
 
 FINAL_VERDICT_TERMS = ("approved", "merged", "passed", "accepted")
@@ -132,12 +135,7 @@ def _find_expected_match(signal: str, findings: list[str]) -> str | None:
 def validate_battle_fixture(path: Path) -> BattleFixtureResult:
     payload, load_issues = _load_fixture(path)
     if payload is None:
-        return BattleFixtureResult(
-            path=str(path),
-            fixture_id=path.stem,
-            status="invalid",
-            issues=load_issues,
-        )
+        return BattleFixtureResult(path=str(path), fixture_id=path.stem, status="invalid", issues=load_issues)
 
     issues: list[str] = []
 
@@ -162,29 +160,14 @@ def validate_battle_fixture(path: Path) -> BattleFixtureResult:
         if verdict not in ALLOWED_VERDICTS:
             issues.append(f"{verdict_field} must be one of: {', '.join(sorted(ALLOWED_VERDICTS))}")
 
-    return BattleFixtureResult(
-        path=str(path),
-        fixture_id=_fixture_id(payload, path),
-        status="valid" if not issues else "invalid",
-        issues=issues,
-    )
+    return BattleFixtureResult(path=str(path), fixture_id=_fixture_id(payload, path), status="valid" if not issues else "invalid", issues=issues)
 
 
 def compare_battle_fixture(path: Path) -> BattleComparisonResult:
     fixture_result = validate_battle_fixture(path)
     payload, load_issues = _load_fixture(path)
     if payload is None:
-        return BattleComparisonResult(
-            path=str(path),
-            fixture_id=path.stem,
-            status="failed",
-            signal_count=0,
-            matched_signal_count=0,
-            finding_count=0,
-            referenced_finding_count=0,
-            matches=[],
-            issues=load_issues,
-        )
+        return BattleComparisonResult(path=str(path), fixture_id=path.stem, status="failed", signal_count=0, matched_signal_count=0, finding_count=0, referenced_finding_count=0, matches=[], issues=load_issues)
 
     review_signals = [signal for signal in payload.get("review_signals", []) if isinstance(signal, str)]
     expected_findings = [finding for finding in payload.get("expected_sergeant_findings", []) if isinstance(finding, str)]
@@ -206,17 +189,7 @@ def compare_battle_fixture(path: Path) -> BattleComparisonResult:
     if expected_findings and len(referenced_findings) < max(1, len(expected_findings) // 2):
         issues.append("review comparison must reference at least half of expected_sergeant_findings")
 
-    return BattleComparisonResult(
-        path=str(path),
-        fixture_id=_fixture_id(payload, path),
-        status="passed" if not issues else "failed",
-        signal_count=len(review_signals),
-        matched_signal_count=len(matches),
-        finding_count=len(expected_findings),
-        referenced_finding_count=len(referenced_findings),
-        matches=matches,
-        issues=issues,
-    )
+    return BattleComparisonResult(path=str(path), fixture_id=_fixture_id(payload, path), status="passed" if not issues else "failed", signal_count=len(review_signals), matched_signal_count=len(matches), finding_count=len(expected_findings), referenced_finding_count=len(referenced_findings), matches=matches, issues=issues)
 
 
 def validate_battle_fixtures(root: Path) -> dict[str, Any]:
