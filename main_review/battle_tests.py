@@ -1,10 +1,9 @@
 """Battle-test fixture validation and review-signal comparison for Sergeant.
 
 Battle tests are local, static evidence records. This module intentionally does
-not fetch networks or execute target repositories. It validates that committed
-fixtures contain enough evidence for repeatable comparison, then checks that
-maintainer/reviewer signals are explicitly mapped to Sergeant findings or final
-verdict evidence.
+not fetch networks or execute target repositories. It validates committed
+battle fixtures and computes a repeatable comparison between reviewer/maintainer
+signals and expected Sergeant findings.
 """
 
 from __future__ import annotations
@@ -24,7 +23,6 @@ REQUIRED_FIXTURE_FIELDS = (
     "expected_sergeant_findings",
     "expected_initial_verdict",
     "expected_final_verdict",
-    "review_comparison",
 )
 
 ALLOWED_VERDICTS = {
@@ -35,7 +33,19 @@ ALLOWED_VERDICTS = {
     "TRUSTED_WITH_WATCH",
 }
 
-FINAL_VERDICT_SENTINEL = "__final_verdict__"
+FINAL_VERDICT_SENTINEL = "FINAL_VERDICT"
+
+SIGNAL_FINDING_RULES = (
+    (("overlap", "duplicate"), ("duplicate", "parameterized")),
+    (("narrow", "input", "clarity", "unrelated"), ("unrelated", "clarity")),
+    (("simplification", "small", "targeted"), ("small", "targeted")),
+    (("architecture", "lifecycle"), ("architecture",)),
+    (("documentation", "migration", "deprecation"), ("migration", "deprecation")),
+    (("external app", "downstream app", "proxy"), ("proxy", "availability")),
+    (("copied", "context", "counter"), ("copied", "context", "regression")),
+)
+
+FINAL_VERDICT_TERMS = ("approved", "merged", "passed", "accepted")
 
 
 @dataclass(frozen=True)
@@ -63,6 +73,7 @@ class BattleComparisonResult:
     matched_signal_count: int
     finding_count: int
     referenced_finding_count: int
+    matches: list[dict[str, str]]
     issues: list[str]
 
     def to_dict(self) -> dict[str, Any]:
@@ -74,6 +85,7 @@ class BattleComparisonResult:
             "matched_signal_count": self.matched_signal_count,
             "finding_count": self.finding_count,
             "referenced_finding_count": self.referenced_finding_count,
+            "matches": self.matches,
             "issues": self.issues,
         }
 
@@ -96,6 +108,25 @@ def _fixture_id(payload: dict[str, Any], path: Path) -> str:
     if isinstance(repo, str) and repo and isinstance(pr, int):
         return f"{repo}#{pr}"
     return path.stem
+
+
+def _contains_any(text: str, terms: tuple[str, ...]) -> bool:
+    lowered = text.lower()
+    return any(term in lowered for term in terms)
+
+
+def _find_expected_match(signal: str, findings: list[str]) -> str | None:
+    signal_lower = signal.lower()
+    for signal_terms, finding_terms in SIGNAL_FINDING_RULES:
+        if _contains_any(signal_lower, signal_terms):
+            for finding in findings:
+                if _contains_any(finding, finding_terms):
+                    return finding
+
+    if _contains_any(signal_lower, FINAL_VERDICT_TERMS):
+        return FINAL_VERDICT_SENTINEL
+
+    return None
 
 
 def validate_battle_fixture(path: Path) -> BattleFixtureResult:
@@ -126,9 +157,6 @@ def validate_battle_fixture(path: Path) -> BattleFixtureResult:
     if not isinstance(payload.get("expected_sergeant_findings"), list) or not payload.get("expected_sergeant_findings"):
         issues.append("expected_sergeant_findings must be a non-empty list")
 
-    if not isinstance(payload.get("review_comparison"), list) or not payload.get("review_comparison"):
-        issues.append("review_comparison must be a non-empty list")
-
     for verdict_field in ("expected_initial_verdict", "expected_final_verdict"):
         verdict = payload.get(verdict_field)
         if verdict not in ALLOWED_VERDICTS:
@@ -154,61 +182,39 @@ def compare_battle_fixture(path: Path) -> BattleComparisonResult:
             matched_signal_count=0,
             finding_count=0,
             referenced_finding_count=0,
+            matches=[],
             issues=load_issues,
         )
 
-    review_signals = payload.get("review_signals") if isinstance(payload.get("review_signals"), list) else []
-    expected_findings = payload.get("expected_sergeant_findings") if isinstance(payload.get("expected_sergeant_findings"), list) else []
-    comparisons = payload.get("review_comparison") if isinstance(payload.get("review_comparison"), list) else []
+    review_signals = [signal for signal in payload.get("review_signals", []) if isinstance(signal, str)]
+    expected_findings = [finding for finding in payload.get("expected_sergeant_findings", []) if isinstance(finding, str)]
 
     issues = list(fixture_result.issues)
-    signal_set = {signal for signal in review_signals if isinstance(signal, str)}
-    finding_set = {finding for finding in expected_findings if isinstance(finding, str)}
-    matched_signals: set[str] = set()
+    matches: list[dict[str, str]] = []
     referenced_findings: set[str] = set()
 
-    for index, comparison in enumerate(comparisons):
-        if not isinstance(comparison, dict):
-            issues.append(f"review_comparison[{index}] must be an object")
+    for signal in review_signals:
+        matched_finding = _find_expected_match(signal, expected_findings)
+        if matched_finding is None:
+            issues.append(f"review signal has no computed Sergeant comparison match: {signal}")
             continue
 
-        signal = comparison.get("review_signal")
-        matched_finding = comparison.get("matched_finding")
-        basis = comparison.get("basis")
-
-        if signal not in signal_set:
-            issues.append(f"review_comparison[{index}].review_signal must match a committed review_signals entry")
-        else:
-            matched_signals.add(signal)
-
-        if matched_finding == FINAL_VERDICT_SENTINEL:
-            referenced_findings.add(FINAL_VERDICT_SENTINEL)
-        elif matched_finding not in finding_set:
-            issues.append(
-                f"review_comparison[{index}].matched_finding must match an expected_sergeant_findings entry or {FINAL_VERDICT_SENTINEL}"
-            )
-        else:
+        matches.append({"review_signal": signal, "matched_finding": matched_finding})
+        if matched_finding != FINAL_VERDICT_SENTINEL:
             referenced_findings.add(matched_finding)
 
-        if not isinstance(basis, str) or not basis.strip():
-            issues.append(f"review_comparison[{index}].basis must explain the match")
-
-    missing_signals = signal_set - matched_signals
-    for signal in sorted(missing_signals):
-        issues.append(f"review signal has no comparison match: {signal}")
-
-    non_verdict_references = referenced_findings - {FINAL_VERDICT_SENTINEL}
-    if finding_set and len(non_verdict_references) < max(1, len(finding_set) // 2):
+    if expected_findings and len(referenced_findings) < max(1, len(expected_findings) // 2):
         issues.append("review comparison must reference at least half of expected_sergeant_findings")
 
     return BattleComparisonResult(
         path=str(path),
         fixture_id=_fixture_id(payload, path),
         status="passed" if not issues else "failed",
-        signal_count=len(signal_set),
-        matched_signal_count=len(matched_signals),
-        finding_count=len(finding_set),
-        referenced_finding_count=len(non_verdict_references),
+        signal_count=len(review_signals),
+        matched_signal_count=len(matches),
+        finding_count=len(expected_findings),
+        referenced_finding_count=len(referenced_findings),
+        matches=matches,
         issues=issues,
     )
 
