@@ -50,6 +50,14 @@ jobs:
         run: main-review ide-bench-contract --pretty
       - name: Prove battle-test fixtures
         run: main-review battle-tests --pretty
+      - name: Prove live battle comparison requests
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: main-review battle-compare battle-tests/psf-requests-7502.json --token "$GITHUB_TOKEN" --pretty
+      - name: Prove live battle comparison flask
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: main-review battle-compare battle-tests/pallets-flask-5812.json --token "$GITHUB_TOKEN" --pretty
       - name: Prove THETECHGUY verification standard
         run: main-review verify-standard --pretty
       - name: Prove final gate
