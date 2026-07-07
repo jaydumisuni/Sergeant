@@ -1,9 +1,9 @@
-"""Battle-test fixture validation for Sergeant.
+"""Battle-test fixture validation and review-signal comparison for Sergeant.
 
 Battle tests are local, static evidence records. This module intentionally does
-not fetch networks or execute target repositories. It only validates that the
-fixtures committed under battle-tests/ have the fields needed for repeatable
-comparison.
+not fetch networks or execute target repositories. It validates committed
+battle fixtures and computes a repeatable comparison between reviewer/maintainer
+signals and expected Sergeant findings.
 """
 
 from __future__ import annotations
@@ -33,6 +33,20 @@ ALLOWED_VERDICTS = {
     "TRUSTED_WITH_WATCH",
 }
 
+FINAL_VERDICT_SENTINEL = "FINAL_VERDICT"
+
+SIGNAL_FINDING_RULES = (
+    (("overlap", "duplicate"), ("duplicate", "parameterized")),
+    (("narrow", "input", "clarity", "unrelated"), ("unrelated", "clarity")),
+    (("simplification", "small", "targeted"), ("small", "targeted")),
+    (("architecture", "lifecycle"), ("architecture",)),
+    (("documentation", "migration", "deprecation"), ("migration", "deprecation")),
+    (("external app", "downstream app", "proxy"), ("proxy", "availability")),
+    (("copied", "context", "counter"), ("copied", "context", "regression")),
+)
+
+FINAL_VERDICT_TERMS = ("approved", "merged", "passed", "accepted")
+
 
 @dataclass(frozen=True)
 class BattleFixtureResult:
@@ -50,6 +64,44 @@ class BattleFixtureResult:
         }
 
 
+@dataclass(frozen=True)
+class BattleComparisonResult:
+    path: str
+    fixture_id: str
+    status: str
+    signal_count: int
+    matched_signal_count: int
+    finding_count: int
+    referenced_finding_count: int
+    matches: list[dict[str, str]]
+    issues: list[str]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "path": self.path,
+            "fixture_id": self.fixture_id,
+            "status": self.status,
+            "signal_count": self.signal_count,
+            "matched_signal_count": self.matched_signal_count,
+            "finding_count": self.finding_count,
+            "referenced_finding_count": self.referenced_finding_count,
+            "matches": self.matches,
+            "issues": self.issues,
+        }
+
+
+def _load_fixture(path: Path) -> tuple[dict[str, Any] | None, list[str]]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return None, [f"invalid json: {error.msg}"]
+
+    if not isinstance(payload, dict):
+        return None, ["fixture root must be an object"]
+
+    return payload, []
+
+
 def _fixture_id(payload: dict[str, Any], path: Path) -> str:
     repo = payload.get("repository")
     pr = payload.get("pull_request")
@@ -58,26 +110,36 @@ def _fixture_id(payload: dict[str, Any], path: Path) -> str:
     return path.stem
 
 
+def _contains_any(text: str, terms: tuple[str, ...]) -> bool:
+    lowered = text.lower()
+    return any(term in lowered for term in terms)
+
+
+def _find_expected_match(signal: str, findings: list[str]) -> str | None:
+    signal_lower = signal.lower()
+    for signal_terms, finding_terms in SIGNAL_FINDING_RULES:
+        if _contains_any(signal_lower, signal_terms):
+            for finding in findings:
+                if _contains_any(finding, finding_terms):
+                    return finding
+
+    if _contains_any(signal_lower, FINAL_VERDICT_TERMS):
+        return FINAL_VERDICT_SENTINEL
+
+    return None
+
+
 def validate_battle_fixture(path: Path) -> BattleFixtureResult:
+    payload, load_issues = _load_fixture(path)
+    if payload is None:
+        return BattleFixtureResult(
+            path=str(path),
+            fixture_id=path.stem,
+            status="invalid",
+            issues=load_issues,
+        )
+
     issues: list[str] = []
-
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as error:
-        return BattleFixtureResult(
-            path=str(path),
-            fixture_id=path.stem,
-            status="invalid",
-            issues=[f"invalid json: {error.msg}"],
-        )
-
-    if not isinstance(payload, dict):
-        return BattleFixtureResult(
-            path=str(path),
-            fixture_id=path.stem,
-            status="invalid",
-            issues=["fixture root must be an object"],
-        )
 
     for field in REQUIRED_FIXTURE_FIELDS:
         if field not in payload:
@@ -108,6 +170,55 @@ def validate_battle_fixture(path: Path) -> BattleFixtureResult:
     )
 
 
+def compare_battle_fixture(path: Path) -> BattleComparisonResult:
+    fixture_result = validate_battle_fixture(path)
+    payload, load_issues = _load_fixture(path)
+    if payload is None:
+        return BattleComparisonResult(
+            path=str(path),
+            fixture_id=path.stem,
+            status="failed",
+            signal_count=0,
+            matched_signal_count=0,
+            finding_count=0,
+            referenced_finding_count=0,
+            matches=[],
+            issues=load_issues,
+        )
+
+    review_signals = [signal for signal in payload.get("review_signals", []) if isinstance(signal, str)]
+    expected_findings = [finding for finding in payload.get("expected_sergeant_findings", []) if isinstance(finding, str)]
+
+    issues = list(fixture_result.issues)
+    matches: list[dict[str, str]] = []
+    referenced_findings: set[str] = set()
+
+    for signal in review_signals:
+        matched_finding = _find_expected_match(signal, expected_findings)
+        if matched_finding is None:
+            issues.append(f"review signal has no computed Sergeant comparison match: {signal}")
+            continue
+
+        matches.append({"review_signal": signal, "matched_finding": matched_finding})
+        if matched_finding != FINAL_VERDICT_SENTINEL:
+            referenced_findings.add(matched_finding)
+
+    if expected_findings and len(referenced_findings) < max(1, len(expected_findings) // 2):
+        issues.append("review comparison must reference at least half of expected_sergeant_findings")
+
+    return BattleComparisonResult(
+        path=str(path),
+        fixture_id=_fixture_id(payload, path),
+        status="passed" if not issues else "failed",
+        signal_count=len(review_signals),
+        matched_signal_count=len(matches),
+        finding_count=len(expected_findings),
+        referenced_finding_count=len(referenced_findings),
+        matches=matches,
+        issues=issues,
+    )
+
+
 def validate_battle_fixtures(root: Path) -> dict[str, Any]:
     fixture_dir = root / "battle-tests"
     if not fixture_dir.exists():
@@ -116,19 +227,38 @@ def validate_battle_fixtures(root: Path) -> dict[str, Any]:
             "fixture_count": 0,
             "valid_count": 0,
             "invalid_count": 0,
+            "review_comparison_status": "missing",
+            "review_comparison_passed_count": 0,
+            "review_comparison_failed_count": 0,
             "fixtures": [],
+            "comparisons": [],
             "next_actions": ["Create battle-tests/ with at least one JSON fixture."],
         }
 
     fixture_paths = sorted(fixture_dir.glob("*.json"))
     results = [validate_battle_fixture(path) for path in fixture_paths]
+    comparisons = [compare_battle_fixture(path) for path in fixture_paths]
     invalid = [result for result in results if result.status != "valid"]
+    failed_comparisons = [comparison for comparison in comparisons if comparison.status != "passed"]
+    passed = bool(results) and not invalid and not failed_comparisons
+
+    next_actions: list[str] = []
+    if not results:
+        next_actions.append("Add at least one battle-test fixture.")
+    if invalid:
+        next_actions.append("Fix invalid battle-test fixtures.")
+    if failed_comparisons:
+        next_actions.append("Fix failed battle review comparisons.")
 
     return {
-        "status": "verified" if results and not invalid else "needs_work",
+        "status": "verified" if passed else "needs_work",
         "fixture_count": len(results),
         "valid_count": len(results) - len(invalid),
         "invalid_count": len(invalid),
+        "review_comparison_status": "passed" if comparisons and not failed_comparisons else "needs_work",
+        "review_comparison_passed_count": len(comparisons) - len(failed_comparisons),
+        "review_comparison_failed_count": len(failed_comparisons),
         "fixtures": [result.to_dict() for result in results],
-        "next_actions": [] if results and not invalid else ["Fix invalid battle-test fixtures."],
+        "comparisons": [comparison.to_dict() for comparison in comparisons],
+        "next_actions": next_actions,
     }
