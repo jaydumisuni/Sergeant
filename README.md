@@ -256,11 +256,12 @@ Current fixtures include:
 
 - `psf/requests#7502` — focused regression and test-clarity review case
 - `pallets/flask#5812` — larger architecture and lifecycle review case
+- `django/django#19610` — held-out URL query-string merge review case
 
 Battle proof has three layers:
 
 1. **Static fixture proof** — verifies committed battle fixtures, review signals, expected findings, and static comparison coverage.
-2. **Battle-aware evidence rules** — deterministic static rules learned from the first Requests and Flask fixture patterns so V1 can recognize those review signals in patch text.
+2. **Battle-aware evidence rules** — deterministic static rules learned from the first real fixture patterns and extended through a held-out Django fixture so V1 can recognize those review signals in patch text.
 3. **Live battle comparison** — fetches real PR patch metadata, runs Sergeant against reviewable patch content, then reports matched expected findings, missed expected findings, false-positive candidates, agreement rate, and caveats.
 
 Current battle status:
@@ -271,9 +272,10 @@ Repository Battles:       Passed
 Pull Request Battles:     Passed
 Review Comparison:        Passed
 Evidence Validation:      Passed
+Held-out Fixture:         Passed
 ```
 
-Important scope note: live battle comparison reviews GitHub PR patch text in a temporary workspace. It is read-only and does not execute target repository code. It is not a full historical checkout of the PR base/head repository state, and the agreement score is keyword-overlap based rather than semantic or LLM-judged. V1 battle-aware evidence rules are deterministic static rules for the first committed fixture patterns, not a broad semantic reviewer.
+Important scope note: live battle comparison reviews GitHub PR patch text in a temporary workspace. It is read-only and does not execute target repository code. It is not a full historical checkout of the PR base/head repository state, and the agreement score is keyword-overlap based with documented synonym expansion rather than semantic or LLM-judged. V1 battle-aware evidence rules are deterministic static rules for committed fixture patterns, not a broad semantic reviewer.
 
 The next proof phase is wider language and ecosystem battle testing across Python, JavaScript / TypeScript, Go, Rust, Java / Kotlin, C#, and C / C++ repositories.
 
