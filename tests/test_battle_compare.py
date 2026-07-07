@@ -21,8 +21,13 @@ class FakeDiff:
     files: list[FakeFile]
 
 
+@dataclass(frozen=True)
+class FakeComments:
+    all_comments: list[dict[str, str]]
+
+
 def _fake_comments(repository: str, pr_number: int, *, token=None, base_url="https://api.github.com"):
-    return []
+    return FakeComments([])
 
 
 def test_run_battle_comparison_scores_expected_matches(tmp_path, monkeypatch):
