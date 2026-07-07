@@ -49,3 +49,43 @@ def test_clean_small_repository_has_no_major_findings(tmp_path: Path) -> None:
     findings = payload["findings"]  # type: ignore[assignment]
 
     assert not [finding for finding in findings if finding["severity"] in {"blocker", "major"}]  # type: ignore[index]
+
+
+def test_battle_aware_provider_detects_requests_file_wrapper_patterns(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "src" / "models.py").write_text(
+        'elif isinstance(fp, _SupportsRead) or hasattr(fp, "read"):\n    fdata = fp.read()\n',
+        encoding="utf-8",
+    )
+    (tmp_path / "tests" / "test_requests.py").write_text(
+        'def test_post_named_tempfile():\n'
+        '    with tempfile.NamedTemporaryFile(mode="w+") as f:\n'
+        '        r = requests.post("/post", files={"file": f})\n',
+        encoding="utf-8",
+    )
+
+    messages = _messages(collect_evidence(tmp_path))
+
+    assert "Implementation is small and targeted." in messages
+    assert "Regression test covers the file wrapper behavior." in messages
+
+
+def test_battle_aware_provider_detects_flask_context_patterns(tmp_path: Path) -> None:
+    (tmp_path / "README.md").write_text("# Demo\n", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "test_context.py").write_text("def test_ok(): assert True\n", encoding="utf-8")
+    (tmp_path / "src" / "ctx.py").write_text(
+        "RequestContext is deprecated and request_ctx has merged with app_ctx. "
+        "copy current context behavior now uses _cv_app proxy visibility.\n",
+        encoding="utf-8",
+    )
+
+    messages = _messages(collect_evidence(tmp_path))
+
+    assert "Architecture lifecycle risk should be reviewed." in messages
+    assert "Migration and deprecation documentation is present but should be checked for accuracy." in messages
+    assert "Proxy availability and context visibility should be verified." in messages
+    assert "Copied context behavior should be checked for regression risk." in messages
