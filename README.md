@@ -145,7 +145,7 @@ Next Phase:    V2
 - Static review-signal comparison
 - Live PR patch fetch for battle comparison
 - Battle comparison harness against Sergeant review output
-- Battle-aware evidence rules for the first real fixture patterns
+- Battle-aware evidence rules for committed fixture patterns
 - CI proof
 - Clean-clone proof
 - App bridge proof
@@ -261,7 +261,7 @@ Current fixtures include:
 Battle proof has three layers:
 
 1. **Static fixture proof** — verifies committed battle fixtures, review signals, expected findings, and static comparison coverage.
-2. **Battle-aware evidence rules** — deterministic static rules learned from the first real fixture patterns and extended through a held-out Django fixture so V1 can recognize those review signals in patch text.
+2. **Battle-aware evidence rules** — deterministic static rules learned from committed fixture patterns and extended through a Django held-out case so V1 can recognize those review signals in patch text.
 3. **Live battle comparison** — fetches real PR patch metadata, runs Sergeant against reviewable patch content, then reports matched expected findings, missed expected findings, false-positive candidates, agreement rate, and caveats.
 
 Current battle status:
@@ -305,7 +305,7 @@ Public:
 
 - review engine
 - static analysis
-- battle-aware evidence rules for first fixture patterns
+- battle-aware evidence rules for committed fixture patterns
 - evidence consensus
 - verified learning framework
 - squad-style review intelligence
@@ -360,7 +360,7 @@ The goal is not to turn the interface into a military game. The goal is to make 
 - App and IDE contracts
 - Proof suite
 - Battle testing
-- Battle-aware evidence rules for first fixture patterns
+- Battle-aware evidence rules for committed fixture patterns
 - Public safety boundaries
 
 ### V2
