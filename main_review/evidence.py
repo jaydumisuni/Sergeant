@@ -179,9 +179,10 @@ class RiskPathEvidenceProvider:
 class BattleAwareEvidenceProvider:
     """Static review rules learned from committed battle fixtures.
 
-    These rules intentionally inspect text only. They are not a substitute for a
-    semantic reviewer, but they let the deterministic engine recognize the first
-    battle-test patterns in real PR patches.
+    These rules intentionally inspect patch text only. They are not a substitute
+    for a semantic reviewer, but they let the deterministic engine recognize the
+    first battle-test patterns in real PR patches without flagging the Sergeant
+    repository just because its tests mention those patterns.
     """
 
     name = "battle-aware-checker"
@@ -190,6 +191,8 @@ class BattleAwareEvidenceProvider:
         findings: list[EvidenceFinding] = []
         for path, text in _read_text_files(root, insight):
             lowered = text.lower()
+            if "@@" not in lowered and "diff --git" not in lowered:
+                continue
             findings.extend(self._requests_rules(path, lowered))
             findings.extend(self._flask_context_rules(path, lowered))
         return findings
@@ -198,56 +201,16 @@ class BattleAwareEvidenceProvider:
         findings: list[EvidenceFinding] = []
 
         if "namedtemporaryfile" in text and "files={" in text and "requests.post" in text:
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="minor",
-                    category="testing",
-                    path=path,
-                    message="Regression test covers the file wrapper behavior.",
-                    evidence="Detected NamedTemporaryFile upload through requests.post files=... .",
-                    confidence=0.8,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Regression test covers the file wrapper behavior.", path, evidence="Detected NamedTemporaryFile upload through requests.post files=... .", confidence=0.8))
 
         if "hasattr" in text and "read" in text and "_supportsread" in text:
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="minor",
-                    category="architecture",
-                    path=path,
-                    message="Implementation is small and targeted.",
-                    evidence="Detected a narrow file-read fallback around _SupportsRead / hasattr(read).",
-                    confidence=0.7,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Implementation is small and targeted.", path, evidence="Detected a narrow file-read fallback around _SupportsRead / hasattr(read).", confidence=0.7))
 
         if "files={" in text and "data=" in text and "requests.post" in text:
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="major",
-                    category="testing",
-                    path=path,
-                    message="Extra unrelated request arguments would reduce test clarity.",
-                    evidence="Detected upload test mixing files= with unrelated request payload arguments.",
-                    confidence=0.75,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Extra unrelated request arguments would reduce test clarity.", path, evidence="Detected upload test mixing files= with unrelated request payload arguments.", confidence=0.75))
 
         if text.count("def test_post_named_tempfile") > 1 or text.count("namedtemporaryfile") > 1:
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="major",
-                    category="testing",
-                    path=path,
-                    message="Duplicate tests should be removed or parameterized.",
-                    evidence="Detected repeated NamedTemporaryFile regression-test pattern.",
-                    confidence=0.65,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Duplicate tests should be removed or parameterized.", path, evidence="Detected repeated NamedTemporaryFile regression-test pattern.", confidence=0.65))
 
         return findings
 
@@ -256,56 +219,16 @@ class BattleAwareEvidenceProvider:
 
         context_terms = ("requestcontext", "appcontext", "request_ctx", "app_ctx", "_cv_request", "_cv_app")
         if any(term in text for term in context_terms):
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="major",
-                    category="architecture",
-                    path=path,
-                    message="Architecture lifecycle risk should be reviewed.",
-                    evidence="Detected app/request context lifecycle changes in patch content.",
-                    confidence=0.8,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Architecture lifecycle risk should be reviewed.", path, evidence="Detected app/request context lifecycle changes in patch content.", confidence=0.8))
 
         if "deprecated" in text and ("requestcontext" in text or "request_ctx" in text):
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="minor",
-                    category="documentation",
-                    path=path,
-                    message="Migration and deprecation documentation is present but should be checked for accuracy.",
-                    evidence="Detected deprecated RequestContext/request_ctx documentation in patch content.",
-                    confidence=0.75,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "documentation", "Migration and deprecation documentation is present but should be checked for accuracy.", path, evidence="Detected deprecated RequestContext/request_ctx documentation in patch content.", confidence=0.75))
 
         if "proxy" in text and ("context" in text or "current_app" in text or "request" in text):
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="minor",
-                    category="architecture",
-                    path=path,
-                    message="Proxy availability and context visibility should be verified.",
-                    evidence="Detected proxy/context availability changes in patch content.",
-                    confidence=0.7,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Proxy availability and context visibility should be verified.", path, evidence="Detected proxy/context availability changes in patch content.", confidence=0.7))
 
         if "copy" in text and "context" in text and ("_cv_app" in text or "request" in text):
-            findings.append(
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="minor",
-                    category="architecture",
-                    path=path,
-                    message="Copied context behavior should be checked for regression risk.",
-                    evidence="Detected copied-context or context preservation changes.",
-                    confidence=0.7,
-                )
-            )
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Copied context behavior should be checked for regression risk.", path, evidence="Detected copied-context or context preservation changes.", confidence=0.7))
 
         return findings
 
