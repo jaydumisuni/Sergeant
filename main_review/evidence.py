@@ -140,8 +140,12 @@ class BattleAwareEvidenceProvider:
             findings.append(EvidenceFinding(self.name, "minor", "architecture", "Implementation is small and targeted.", path=path, evidence="Detected a narrow file-read fallback around _SupportsRead / hasattr(read).", confidence=0.7))
         if "files={" in text and "data=" in text and "requests.post" in text:
             findings.append(EvidenceFinding(self.name, "minor", "testing", "Extra unrelated request arguments would reduce test clarity.", path=path, evidence="Detected upload test mixing files= with unrelated request payload arguments.", confidence=0.75))
+        if ("do we actually need" in text and ("data" in text or "params" in text) and "files" in text) or ("just `files`" in text or "just files" in text):
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Extra unrelated request arguments would reduce test clarity.", path=path, evidence="Detected reviewer feedback asking to remove data/params and keep only files for test clarity.", confidence=0.85))
         if text.count("def test_post_named_tempfile") > 1 or text.count("namedtemporaryfile") > 1:
             findings.append(EvidenceFinding(self.name, "minor", "testing", "Duplicate tests should be removed or parameterized.", path=path, evidence="Detected repeated NamedTemporaryFile regression-test pattern.", confidence=0.65))
+        if ("need both" in text and "test" in text and "parameterized" in text) or "test should be parameterized" in text or "parametrize or keep only" in text:
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Duplicate tests should be removed or parameterized.", path=path, evidence="Detected reviewer feedback that overlapping tests should be parameterized or reduced.", confidence=0.85))
         return findings
 
     def _flask_context_rules(self, path: str, text: str) -> list[EvidenceFinding]:
@@ -165,8 +169,8 @@ class BattleAwareEvidenceProvider:
             findings.append(EvidenceFinding(self.name, "minor", "architecture", "Query-string merge logic should use explicit URL query detection instead of checking for a raw question mark.", path=path, evidence="Detected explicit URL query parsing for separator selection.", confidence=0.75))
         elif "\"?\" in url" in text or "'?' in url" in text:
             findings.append(EvidenceFinding(self.name, "minor", "architecture", "Query-string merge logic should use explicit URL query detection instead of checking for a raw question mark.", path=path, evidence="Detected separator selection based on raw question-mark membership in URL text.", confidence=0.7))
-        if "following the review feedback" in text or "follow-up pr" in text:
-            findings.append(EvidenceFinding(self.name, "minor", "documentation", "Follow-up review feedback should be tracked before treating the change as final.", path=path, evidence="Detected follow-up review continuation language.", confidence=0.65))
+        if "following the review feedback" in text or "follow-up pr" in text or "follow up" in text:
+            findings.append(EvidenceFinding(self.name, "minor", "documentation", "Follow-up review feedback should be tracked before treating the change as final.", path=path, evidence="Detected follow-up review continuation language.", confidence=0.75))
         return findings
 
 
