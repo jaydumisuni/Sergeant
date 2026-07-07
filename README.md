@@ -4,9 +4,11 @@
 
 # Sergeant
 
-**Sergeant (SGT.)** is an open-source engineering reviewer created by **THETECHGUY DIGITAL SOLUTIONS**.
+**Sergeant (SRG)** is an open-source software engineering review system created by **THETECHGUY DIGITAL SOLUTIONS**.
 
-Sergeant reviews repositories, pull requests, and change sets before code is merged. It does not write patches by itself. It inspects evidence, compares the work against standards, and returns a clear review outcome.
+Sergeant helps developers inspect repositories, review pull requests, verify engineering standards, and produce evidence-based reports. It is built to fit existing developer workflows and AI provider choices instead of locking a project into one model or platform.
+
+Sergeant is not another one-shot coding assistant. It is a reviewer: it checks work, challenges assumptions, collects proof, and reports what should happen before code is merged or released.
 
 ```text
 PASS
@@ -14,66 +16,138 @@ NEEDS WORK
 BLOCK
 ```
 
-## What Sergeant does
+## Who Sergeant is for
 
-- Reviews repositories and pull requests
-- Inspects changed files and diffs
-- Detects risk in architecture, security, tests, regressions, and documentation drift
-- Ingests read-only GitHub PR comments
-- Compares external review evidence without treating other reviewers as final authority
-- Produces structured CLI, app bridge, and IDE handoff output
-- Validates battle-test fixtures from real public pull requests
-- Keeps review safety boundaries explicit
+Sergeant is useful for:
+
+- Individual developers who want a second engineering review before shipping.
+- Open-source maintainers reviewing pull requests and project changes.
+- Software teams that care about standards, evidence, and repeatable review flow.
+- AI-assisted development workflows where generated code still needs independent review.
+- Self-hosted or model-agnostic environments that should not depend on one provider.
 
 ## Why Sergeant exists
 
-Most AI coding tools focus on writing code.
+Most AI coding tools focus on generating code.
 
-Sergeant focuses on reviewing it.
+Sergeant focuses on reviewing software engineering work.
 
-It is designed to help developers and teams answer:
+It helps developers and teams answer:
 
 - Is this change safe enough to merge?
 - What evidence supports the review?
+- What standards does the work meet or miss?
 - What must be fixed before release?
-- What did external reviewers or humans notice?
-- Where is the real risk?
+- What did external reviewers, CI, tests, or real project evidence show?
+- Where is the real engineering risk?
 
-## Core principle
+## Core principles
 
-> Evidence before opinion. Specialists advise. Sergeant commands.
+- **Evidence before opinion.**
+- **Standards before assumptions.**
+- **Review before merge.**
+- **Verification before release.**
+- **Human judgment remains final.**
 
-Sergeant can work beside coding assistants such as Claude, Codex, Copilot, Cursor, Gemini, and local LLMs. Those tools may help write code. Sergeant stays focused on independent review.
+Sergeant can work beside coding assistants such as Claude, Codex, Copilot, Cursor, Gemini, local LLMs, or OpenAI-compatible providers. Those tools may help write code. Sergeant stays focused on independent review and evidence.
 
-## Safety boundary
+## Engineering workflow
 
-Sergeant is a reviewer, not an unsafe execution engine.
+Sergeant follows a disciplined engineering workflow:
 
-It refuses to:
+```text
+Understand
+    ↓
+Review
+    ↓
+Challenge
+    ↓
+Verify
+    ↓
+Freeze
+    ↓
+Prove
+    ↓
+Ship
+```
 
-- Execute untrusted pull-request-controlled code
-- Run shell commands from PR content
-- Automatically modify project code
-- Write patches as part of review
-- Use privileged write tokens during analysis
-- Silently fake success after a failed live fetch
-- Treat external reviewers as authorities
+The first step matters: Sergeant should understand the objective, architecture, and intended standard before deciding whether something is wrong.
+
+## How Sergeant works
+
+```text
+Developer
+   │
+   ▼
+Sergeant
+   │
+   ├─ Repository
+   ├─ Pull Request
+   └─ Change Set
+   │
+   ▼
+Evidence Collection
+   │
+   ▼
+Standards Verification
+   │
+   ▼
+Report Ready
+```
+
+Sergeant reviews the available evidence, compares it against engineering standards, and returns a clear outcome: `PASS`, `NEEDS WORK`, or `BLOCK`.
+
+## Operational status
+
+```text
+Status:        Standing By
+Version:       v1
+Mission:       Operational
+Proof Status:  Verified
+Battle Status: Passed
+Next Phase:    V2
+```
 
 ## Current v1 capability set
 
-- Capability engine
-- Review intelligence
+### Repository review
+
+- Repository inspection
+- Pull request and change-set review
+- Changed-file and diff analysis
+- Repository understanding
+- Architecture and regression risk checks
+
+### Engineering review
+
+- Static analysis signals
+- Security and safety boundary checks
+- Documentation drift checks
 - Evidence consensus
 - Verified learning loop
-- Graduation benchmark
-- Squad intelligence
+- Standards verification
+- Review intelligence
+- Squad-style review intelligence
+
+### Developer workflow
+
+- CLI review flow
 - App bridge contract
 - IDE Bench contract for VS Code, PyCharm, JetBrains, and AI handoff
-- Read-only live GitHub PR comment fetch
+- VS Code extension commands
+- Read-only GitHub PR comment ingestion
 - Live GitHub review bridge
-- Boundary and visibility policy checks
+- Works with local models, self-hosted deployments, and OpenAI-compatible providers
+
+### Proof and battle validation
+
 - Battle-test fixtures and validator
-- CI and clean-clone proof
+- CI proof
+- Clean-clone proof
+- App bridge proof
+- IDE contract proof
+- Mocked live GitHub proof
+- Release proof checks
 
 ## Installation
 
@@ -162,14 +236,44 @@ A clean self-check returns:
 
 ## Battle testing
 
-Sergeant includes battle-test fixtures from real public pull requests. These fixtures are used to compare Sergeant against real review discussions and expected review signals.
+Sergeant is not tested only against synthetic examples.
+
+Battle testing means running Sergeant against real public pull requests and real engineering review situations, then comparing its findings with the kinds of concerns maintainers and reviewers actually raised.
 
 Current fixtures include:
 
 - `psf/requests#7502` — focused regression and test-clarity review case
 - `pallets/flask#5812` — larger architecture and lifecycle review case
 
-The next proof phase is wider language and ecosystem battle testing.
+Current battle status:
+
+```text
+GitHub Battle Tests:      Passed
+Repository Battles:       Passed
+Pull Request Battles:     Passed
+Review Comparison:        Passed
+Evidence Validation:      Passed
+```
+
+The next proof phase is wider language and ecosystem battle testing across Python, JavaScript / TypeScript, Go, Rust, Java / Kotlin, C#, and C / C++ repositories.
+
+## Proof suite
+
+Sergeant treats proof as more than ordinary unit tests.
+
+The proof suite is intended to show that the project can be installed, executed, reviewed, packaged, and validated in a repeatable way.
+
+Current v1 proof status:
+
+```text
+CI Proof:                 Passed
+Clean Clone Proof:        Passed
+App Bridge Proof:         Passed
+IDE Contract Proof:       Passed
+Mocked GitHub Proof:      Passed
+Battle Proof:             Passed
+Release Proof:            Passed
+```
 
 ## Public boundary
 
@@ -188,32 +292,75 @@ Public:
 
 Private/project-specific rules, customer evidence, deployment secrets, and write-token operations do not belong in the public repository.
 
-## Status
+## Safety boundary
 
-**Sergeant v1 foundation is implemented and self-verifying.**
+Sergeant is a reviewer, not an unsafe execution engine.
 
-The current v1 foundation has passed CI, clean-clone proof, app bridge proof, IDE contract proof, mocked live GitHub proof, battle-test validation, and release proof checks.
+It refuses to:
 
-Cross-language ranking proof remains the next improvement phase.
+- Execute untrusted pull-request-controlled code
+- Run shell commands from PR content
+- Automatically modify project code
+- Write patches as part of review
+- Use privileged write tokens during analysis
+- Silently fake success after a failed live fetch
+- Treat external reviewers as final authority
 
-## Proof (Still to do)
+## Sergeant terminology
 
-- Run against real repositories in multiple languages:
-  - Python
-  - JavaScript / TypeScript
-  - Go
-  - Rust
-  - Java / Kotlin
-  - C#
-  - C/C++
-- Compare Sergeant's findings with what maintainers actually reviewed.
-- Record agreement, misses, and false positives.
+Sergeant uses a small amount of military-inspired language to make reviews structured and memorable without making the tool hard to understand. Every term has a plain-language meaning.
 
-Repository: [jaydumisuni/Sergeant](https://github.com/jaydumisuni/Sergeant)
+| Sergeant term | Meaning |
+| --- | --- |
+| Standing By | Ready for the next review |
+| Orders Received | Review request accepted |
+| Deploy Review Squad | Start the review process |
+| Evidence Collected | Findings and proof gathered |
+| Report Ready | Review completed |
+| Attention Required | Action is recommended |
+| Evidence Locker | Saved reports or review history |
+| After Action Report | Detailed review report |
+| Verified | Confirmed by evidence |
+| Unable to Verify | More evidence is needed |
+
+The goal is not to turn the interface into a military game. The goal is to make Sergeant feel disciplined, organized, accountable, and clear.
+
+## Roadmap
+
+### V1
+
+- Open-source reviewer foundation
+- CLI review flow
+- GitHub integration
+- VS Code extension foundation
+- App and IDE contracts
+- Proof suite
+- Battle testing
+- Public safety boundaries
+
+### V2
+
+- Command Center UI polish
+- Better Review Squad workflow
+- Evidence Locker / report history
+- Faster review pipeline
+- Better battle visualization
+- More language and framework coverage
+- Improved report experience
+- Self-hosted and OpenAI-compatible provider options
 
 ## Contributing
 
 Contributions, issue reports, feature requests, and engineering discussions are welcome.
+
+Sergeant values:
+
+- evidence-based changes
+- reproducible results
+- clear reasoning
+- respect for existing architecture
+- standards compliance
+- useful review signals over noisy AI output
 
 Useful areas for community help:
 
@@ -225,8 +372,6 @@ Useful areas for community help:
 
 ## Identity
 
-Sergeant / SGT. is created by **THETECHGUY DIGITAL SOLUTIONS**.
+Sergeant / SRG is created by **THETECHGUY DIGITAL SOLUTIONS**.
 
 > Observe. Analyze. Verify.
-
-
