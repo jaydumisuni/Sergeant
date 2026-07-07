@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
 
 from main_review.battle_compare import run_battle_comparison
 
@@ -47,25 +46,15 @@ def test_run_battle_comparison_scores_expected_matches(tmp_path, monkeypatch):
             pr_number=pr_number,
             base_sha="base",
             head_sha="head",
-            files=[FakeFile("tests/test_app.py", "@@\n+duplicate tests should be parameterized")],
+            files=[
+                FakeFile(
+                    "tests/test_app.py",
+                    "@@\n+def test_post_named_tempfile():\n+    NamedTemporaryFile()\n+def test_post_named_tempfile():\n+    NamedTemporaryFile()\n",
+                )
+            ],
         )
 
-    def fake_review(root: Path):
-        return {
-            "verdict": {
-                "minor_findings": [
-                    {
-                        "category": "tests",
-                        "message": "Duplicate tests should be removed or parameterized.",
-                        "path": "tests/test_app.py",
-                        "severity": "minor",
-                    }
-                ]
-            }
-        }
-
     monkeypatch.setattr("main_review.battle_compare.fetch_pr_diff_live", fake_fetch)
-    monkeypatch.setattr("main_review.battle_compare._review_patch_workspace", fake_review)
 
     result = run_battle_comparison(fixture)
 
@@ -75,7 +64,7 @@ def test_run_battle_comparison_scores_expected_matches(tmp_path, monkeypatch):
     assert result.false_positive_candidates == []
 
 
-def test_run_battle_comparison_reports_missed_and_extra_findings(tmp_path, monkeypatch):
+def test_run_battle_comparison_reports_missed_without_repo_noise(tmp_path, monkeypatch):
     fixture = tmp_path / "case.json"
     fixture.write_text(
         json.dumps(
@@ -95,17 +84,43 @@ def test_run_battle_comparison_reports_missed_and_extra_findings(tmp_path, monke
     )
 
     def fake_fetch(repository: str, pr_number: int, *, token=None, base_url="https://api.github.com"):
-        return FakeDiff(repository, pr_number, "base", "head", [FakeFile("src/app.py", "@@\n+change")])
-
-    def fake_review(root: Path):
-        return {"verdict": {"minor_findings": [{"message": "style note only", "path": "src/app.py"}]}}
+        return FakeDiff(repository, pr_number, "base", "head", [FakeFile("src/app.py", "@@\n+plain change")])
 
     monkeypatch.setattr("main_review.battle_compare.fetch_pr_diff_live", fake_fetch)
-    monkeypatch.setattr("main_review.battle_compare._review_patch_workspace", fake_review)
 
     result = run_battle_comparison(fixture)
     payload = result.to_dict()
 
     assert result.agreement_rate == 0.0
     assert payload["missed_expected_findings"] == ["Architecture lifecycle risk should be reviewed."]
-    assert result.false_positive_candidates == ["style note only src/app.py"]
+    assert result.false_positive_candidates == []
+
+
+def test_patch_only_battle_compare_does_not_emit_repo_level_doc_or_test_noise(tmp_path, monkeypatch):
+    fixture = tmp_path / "case.json"
+    fixture.write_text(
+        json.dumps(
+            {
+                "repository": "owner/repo",
+                "pull_request": 12,
+                "url": "https://github.com/owner/repo/pull/12",
+                "title": "Example PR",
+                "outcome": "merged",
+                "review_signals": ["review"],
+                "expected_sergeant_findings": ["Follow-up review feedback should be tracked before treating the change as final."],
+                "expected_initial_verdict": "NEEDS WORK",
+                "expected_final_verdict": "PASS_WITH_WATCH",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    def fake_fetch(repository: str, pr_number: int, *, token=None, base_url="https://api.github.com"):
+        return FakeDiff(repository, pr_number, "base", "head", [FakeFile("src/app.py", "@@\n+plain change")])
+
+    monkeypatch.setattr("main_review.battle_compare.fetch_pr_diff_live", fake_fetch)
+
+    result = run_battle_comparison(fixture)
+
+    assert all("No documentation files were detected" not in text for text in result.sergeant_finding_texts)
+    assert all("Source files exist but no tests were detected" not in text for text in result.sergeant_finding_texts)
