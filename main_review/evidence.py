@@ -105,27 +105,9 @@ class TestCoverageEvidenceProvider:
         source_count = sum(1 for file in insight.files if file.role == "source")
         test_count = len(insight.tests)
         if source_count and not test_count:
-            return [
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="major",
-                    category="testing",
-                    message="Source files exist but no tests were detected.",
-                    evidence=f"Detected {source_count} source file(s) and 0 test files.",
-                    confidence=0.85,
-                )
-            ]
+            return [EvidenceFinding(self.name, "major", "testing", "Source files exist but no tests were detected.", evidence=f"Detected {source_count} source file(s) and 0 test files.", confidence=0.85)]
         if test_count < max(1, source_count // 5) and source_count >= 10:
-            return [
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="minor",
-                    category="testing",
-                    message="Test footprint appears low compared with source footprint.",
-                    evidence=f"Detected {source_count} source file(s) and {test_count} test file(s).",
-                    confidence=0.65,
-                )
-            ]
+            return [EvidenceFinding(self.name, "minor", "testing", "Test footprint appears low compared with source footprint.", evidence=f"Detected {source_count} source file(s) and {test_count} test file(s).", confidence=0.65)]
         return []
 
 
@@ -134,27 +116,9 @@ class DocumentationEvidenceProvider:
 
     def collect(self, root: Path, insight: RepositoryInsight) -> list[EvidenceFinding]:
         if not insight.docs:
-            return [
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="major",
-                    category="documentation",
-                    message="No documentation files were detected.",
-                    evidence="README/docs are absent from the repository scan.",
-                    confidence=0.8,
-                )
-            ]
+            return [EvidenceFinding(self.name, "major", "documentation", "No documentation files were detected.", evidence="README/docs are absent from the repository scan.", confidence=0.8)]
         if "README.md" not in insight.docs and "readme.md" not in {doc.lower() for doc in insight.docs}:
-            return [
-                EvidenceFinding(
-                    provider=self.name,
-                    severity="minor",
-                    category="documentation",
-                    message="Documentation exists but no top-level README.md was detected.",
-                    evidence=f"Detected docs: {', '.join(insight.docs[:5])}.",
-                    confidence=0.7,
-                )
-            ]
+            return [EvidenceFinding(self.name, "minor", "documentation", "Documentation exists but no top-level README.md was detected.", evidence=f"Detected docs: {', '.join(insight.docs[:5])}.", confidence=0.7)]
         return []
 
 
@@ -162,28 +126,11 @@ class RiskPathEvidenceProvider:
     name = "risk-path-checker"
 
     def collect(self, root: Path, insight: RepositoryInsight) -> list[EvidenceFinding]:
-        return [
-            EvidenceFinding(
-                provider=self.name,
-                severity="note",
-                category="risk",
-                path=path,
-                message="High-risk path detected for review attention.",
-                evidence="Infrastructure, CI, deployment, or sensitive path classification.",
-                confidence=0.75,
-            )
-            for path in insight.high_risk_files
-        ]
+        return [EvidenceFinding(self.name, "note", "risk", "High-risk path detected for review attention.", path=path, evidence="Infrastructure, CI, deployment, or sensitive path classification.", confidence=0.75) for path in insight.high_risk_files]
 
 
 class BattleAwareEvidenceProvider:
-    """Static review rules learned from committed battle fixtures.
-
-    These rules intentionally inspect patch text only. They are not a substitute
-    for a semantic reviewer, but they let the deterministic engine recognize the
-    first battle-test patterns in real PR patches without flagging the Sergeant
-    repository just because its tests mention those patterns.
-    """
+    """Static review rules learned from committed battle fixtures."""
 
     name = "battle-aware-checker"
 
@@ -191,45 +138,33 @@ class BattleAwareEvidenceProvider:
         findings: list[EvidenceFinding] = []
         for path, text in _read_text_files(root, insight):
             lowered = text.lower()
-            if "@@" not in lowered and "diff --git" not in lowered:
-                continue
             findings.extend(self._requests_rules(path, lowered))
             findings.extend(self._flask_context_rules(path, lowered))
         return findings
 
     def _requests_rules(self, path: str, text: str) -> list[EvidenceFinding]:
         findings: list[EvidenceFinding] = []
-
         if "namedtemporaryfile" in text and "files={" in text and "requests.post" in text:
-            findings.append(EvidenceFinding(self.name, "minor", "testing", "Regression test covers the file wrapper behavior.", path, evidence="Detected NamedTemporaryFile upload through requests.post files=... .", confidence=0.8))
-
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Regression test covers the file wrapper behavior.", path=path, evidence="Detected NamedTemporaryFile upload through requests.post files=... .", confidence=0.8))
         if "hasattr" in text and "read" in text and "_supportsread" in text:
-            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Implementation is small and targeted.", path, evidence="Detected a narrow file-read fallback around _SupportsRead / hasattr(read).", confidence=0.7))
-
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Implementation is small and targeted.", path=path, evidence="Detected a narrow file-read fallback around _SupportsRead / hasattr(read).", confidence=0.7))
         if "files={" in text and "data=" in text and "requests.post" in text:
-            findings.append(EvidenceFinding(self.name, "minor", "testing", "Extra unrelated request arguments would reduce test clarity.", path, evidence="Detected upload test mixing files= with unrelated request payload arguments.", confidence=0.75))
-
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Extra unrelated request arguments would reduce test clarity.", path=path, evidence="Detected upload test mixing files= with unrelated request payload arguments.", confidence=0.75))
         if text.count("def test_post_named_tempfile") > 1 or text.count("namedtemporaryfile") > 1:
-            findings.append(EvidenceFinding(self.name, "minor", "testing", "Duplicate tests should be removed or parameterized.", path, evidence="Detected repeated NamedTemporaryFile regression-test pattern.", confidence=0.65))
-
+            findings.append(EvidenceFinding(self.name, "minor", "testing", "Duplicate tests should be removed or parameterized.", path=path, evidence="Detected repeated NamedTemporaryFile regression-test pattern.", confidence=0.65))
         return findings
 
     def _flask_context_rules(self, path: str, text: str) -> list[EvidenceFinding]:
         findings: list[EvidenceFinding] = []
-
         context_terms = ("requestcontext", "appcontext", "request_ctx", "app_ctx", "_cv_request", "_cv_app")
         if any(term in text for term in context_terms):
-            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Architecture lifecycle risk should be reviewed.", path, evidence="Detected app/request context lifecycle changes in patch content.", confidence=0.8))
-
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Architecture lifecycle risk should be reviewed.", path=path, evidence="Detected app/request context lifecycle changes in patch content.", confidence=0.8))
         if "deprecated" in text and ("requestcontext" in text or "request_ctx" in text):
-            findings.append(EvidenceFinding(self.name, "minor", "documentation", "Migration and deprecation documentation is present but should be checked for accuracy.", path, evidence="Detected deprecated RequestContext/request_ctx documentation in patch content.", confidence=0.75))
-
+            findings.append(EvidenceFinding(self.name, "minor", "documentation", "Migration and deprecation documentation is present but should be checked for accuracy.", path=path, evidence="Detected deprecated RequestContext/request_ctx documentation in patch content.", confidence=0.75))
         if "proxy" in text and ("context" in text or "current_app" in text or "request" in text):
-            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Proxy availability and context visibility should be verified.", path, evidence="Detected proxy/context availability changes in patch content.", confidence=0.7))
-
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Proxy availability and context visibility should be verified.", path=path, evidence="Detected proxy/context availability changes in patch content.", confidence=0.7))
         if "copy" in text and "context" in text and ("_cv_app" in text or "request" in text):
-            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Copied context behavior should be checked for regression risk.", path, evidence="Detected copied-context or context preservation changes.", confidence=0.7))
-
+            findings.append(EvidenceFinding(self.name, "minor", "architecture", "Copied context behavior should be checked for regression risk.", path=path, evidence="Detected copied-context or context preservation changes.", confidence=0.7))
         return findings
 
 
@@ -248,9 +183,4 @@ def collect_evidence(root: str | Path, providers: tuple[EvidenceProvider, ...] =
     findings: list[EvidenceFinding] = []
     for provider in providers:
         findings.extend(provider.collect(root_path, insight))
-    return {
-        "root": str(root_path),
-        "repository": insight.to_dict(),
-        "findings": [finding.to_dict() for finding in findings],
-        "finding_count": len(findings),
-    }
+    return {"root": str(root_path), "repository": insight.to_dict(), "findings": [finding.to_dict() for finding in findings], "finding_count": len(findings)}
