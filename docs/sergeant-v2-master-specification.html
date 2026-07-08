@@ -1,0 +1,997 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SERGEANT V2 MASTER SPECIFICATION</title>
+<style>
+:root{--bg:#0b1020;--panel:#111a33;--ink:#edf3ff;--muted:#aebbd6;--accent:#5ee6ff;--accent2:#9b7cff;--line:#263657;}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(135deg,#070b16,#111a33 55%,#06070b);color:var(--ink);font-family:Inter,Segoe UI,Arial,sans-serif;line-height:1.62;}
+header{padding:56px 7vw 38px;border-bottom:1px solid var(--line);background:radial-gradient(circle at top right,rgba(94,230,255,.22),transparent 36%);}
+h1{font-size:clamp(34px,6vw,68px);line-height:1;margin:0 0 12px;letter-spacing:-2px}
+.subtitle{font-size:22px;color:var(--accent);font-weight:700;margin-bottom:20px}
+.meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;max-width:1100px}
+.meta div{background:rgba(255,255,255,.06);border:1px solid var(--line);padding:12px 14px;border-radius:14px;color:var(--muted)}
+main{padding:34px 7vw 80px;display:grid;grid-template-columns:minmax(230px,300px) 1fr;gap:28px}
+nav{position:sticky;top:0;align-self:start;max-height:100vh;overflow:auto;background:rgba(17,26,51,.78);border:1px solid var(--line);border-radius:18px;padding:18px}
+nav a{display:block;color:var(--muted);text-decoration:none;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.05);font-size:14px}
+nav a:hover{color:var(--accent)}
+article{max-width:1050px}
+section{background:rgba(17,26,51,.72);border:1px solid var(--line);border-radius:20px;padding:26px 30px;margin-bottom:22px;box-shadow:0 12px 40px rgba(0,0,0,.22)}
+h2{margin:0 0 14px;color:white;font-size:28px}
+p{white-space:pre-line;color:#dbe6ff;font-size:16px}
+.badge{display:inline-block;border:1px solid var(--accent);color:var(--accent);border-radius:999px;padding:4px 10px;font-size:12px;margin-bottom:10px}
+footer{padding:35px 7vw;color:var(--muted);border-top:1px solid var(--line)}
+@media(max-width:900px){main{grid-template-columns:1fr}nav{position:relative;max-height:none}}
+@media print{body{background:#fff;color:#111}header,section,nav{background:#fff;color:#111;box-shadow:none}nav{display:none}main{display:block;padding:0}section{page-break-inside:avoid;border:1px solid #ddd}p{color:#111}.subtitle,h2{color:#111}}
+</style>
+</head>
+<body>
+<header>
+<h1>SERGEANT V2 MASTER SPECIFICATION</h1>
+<div class="subtitle">One Commander. One Squad. Unlimited Weapons. Evidence Before Opinion.</div>
+<div class="meta">
+<div><strong>Version</strong><br>0.1 Working Draft</div>
+<div><strong>Owner</strong><br>THETECHGUY DIGITAL SOLUTIONS</div>
+<div><strong>Status</strong><br>V2 Planning Draft / Phase 0 Pending</div>
+<div><strong>Format</strong><br>Standalone HTML Specification</div>
+</div>
+</header>
+<main>
+<nav>
+<strong>Contents</strong>
+<a href="#s0">0. Executive Purpose</a>
+<a href="#s0a">0A. Phase 0 Hygiene Lock</a>
+<a href="#s1">1. Design Doctrine</a>
+<a href="#s2">2. Existing V1 Baseline Assumptions</a>
+<a href="#s3">3. Command Structure</a>
+<a href="#s4">4. Mission Intake Contract</a>
+<a href="#s5">5. Mission Types</a>
+<a href="#s6">6. Mission Briefing</a>
+<a href="#s7">7. Universal Officer Training</a>
+<a href="#s8">8. Shared Services</a>
+<a href="#s9">9. Shared Armoury</a>
+<a href="#s10">10. Weapon Manifest</a>
+<a href="#s11">11. Weapon Lifecycle</a>
+<a href="#s12">12. Mission Loadout Engine</a>
+<a href="#s13">13. Weapon Slots</a>
+<a href="#s14">14. Adaptive Deployment</a>
+<a href="#s15">15. Officer Blueprint</a>
+<a href="#s16">16. Quartermaster Specification</a>
+<a href="#s17">17. Scout Specification</a>
+<a href="#s18">18. Engineer Specification</a>
+<a href="#s19">19. Medic Specification</a>
+<a href="#s20">20. Mechanic Specification</a>
+<a href="#s21">21. Analyst Specification</a>
+<a href="#s22">22. Challenger Specification</a>
+<a href="#s23">23. Archivist Specification</a>
+<a href="#s24">24. Judge Specification</a>
+<a href="#s25">25. Hermes Specification</a>
+<a href="#s26">26. Officer Experience Model</a>
+<a href="#s27">27. Adaptive Confidence</a>
+<a href="#s28">28. Evidence Model</a>
+<a href="#s29">29. Consensus Model</a>
+<a href="#s30">30. Battle Testing</a>
+<a href="#s31">31. Battle Analytics</a>
+<a href="#s32">32. Enterprise Profiles</a>
+<a href="#s33">33. Domain Knowledge Packs</a>
+<a href="#s34">34. Plugin / Armoury SDK</a>
+<a href="#s35">35. Interface Stability</a>
+<a href="#s36">36. Error Handling</a>
+<a href="#s37">37. Logging and Audit</a>
+<a href="#s38">38. Security Boundaries</a>
+<a href="#s39">39. Testing Requirements</a>
+<a href="#s40">40. Release Gate</a>
+<a href="#s41">41. Migration Strategy</a>
+<a href="#s42">42. Non-Goals</a>
+<a href="#s43">43. Long-Term Vision</a>
+<a href="#s44">44. Branch and Release Hygiene Policy</a>
+</nav>
+<article>
+<section id="s0"><span class="badge">SECTION 00</span><h2>0. Executive Purpose</h2><p>Sergeant V2 is the evolution of Sergeant from a strong independent software reviewer into a full command-based software investigation system. V2 does not replace V1. V2 assumes V1 is released, pinned on main, and protected by the V1 release marker. V2 upgrades the internal operating model of the squad so that each officer becomes more adaptive, better equipped, more measurable, and more useful across real repositories, real pull requests, real languages, real frameworks, and real external-review comparisons.
+
+The highest law remains unchanged: Sergeant commands. Specialists advise. Evidence decides.
+
+Sergeant V2 must preserve the existing public contract wherever possible: one CLI surface, one app bridge, one review request shape, one review response shape, one evidence standard, and one final decision. The system should grow internally without forcing every integration to change whenever the internal squad gains a new weapon, language pack, or experience model.
+
+This specification defines Sergeant V2 as a military-style engineering review system composed of: a Commander, a Mission System, Universal Officer Training, a Shared Armoury, Mission Loadouts, Officer Experience, Adaptive Deployment, Battle Analytics, Weapon Lifecycles, and a stable Interface Layer.</p></section>
+<section id="s0a"><span class="badge">SECTION 0A</span><h2>0A. Phase 0 Hygiene Lock</h2><p>Before V2 implementation begins, Sergeant must be locked from V1 release mode into V2 planning mode.
+
+Phase 0 requirements:
+- main contains the completed V1 release state.
+- release/v1.0.0 is pinned to the V1 release commit.
+- public release wording is clean and does not expose internal process chatter.
+- release notes avoid unnecessary commit shorthand, private workflow details, and manual VSIX filename emphasis unless that is the intended public install path.
+- old merged/superseded branches are deleted or archived after confirmation.
+- one active V2 branch is used for the next phase.
+- one PR is opened per V2 phase.
+- no retry-loop branches, panic branches, or numbered duplicate branches are allowed.
+- every V2 phase must start from understanding, then build, review, freeze, prove, and ship.
+
+V2 work must not begin until Phase 0 is confirmed. Hygiene is not cosmetic; it protects the evidence-first discipline that Sergeant publicly claims.</p></section>
+<section id="s1"><span class="badge">SECTION 01</span><h2>1. Design Doctrine</h2><p>Sergeant V2 follows doctrine rather than random feature accumulation. The doctrine defines how the system thinks and how every future feature must behave.
+
+1. Evidence Before Opinion: every conclusion must be tied to evidence. If evidence is missing, the answer is unknown, not a fake bug and not a fake pass.
+
+2. Understand Before Judging: Sergeant must inspect repository context, changed files, project structure, technology stack, existing patterns, and likely author intent before recommending action.
+
+3. Specialists Advise; Sergeant Commands: officers may report, challenge, compare, and recommend, but the Commander produces the final verdict.
+
+4. External Reviewers Are Witnesses: CodeRabbit, static analyzers, human comments, IDE tools, and third-party bots provide evidence. They never outrank Sergeant.
+
+5. Stable Outside, Adaptive Inside: integrations should not break because internal weapons or squad behavior evolve.
+
+6. Battle-Proven Growth: no weapon, officer behavior, policy, confidence formula, or knowledge pack becomes standard until real battle evidence proves its value.
+
+7. No Blind Automation: Sergeant is not an uncontrolled code modifier. The review system remains evidence-led and bounded by the mission authorization.
+
+8. Explainability Is Required: every decision should be traceable to officer reports, weapon outputs, consensus analysis, and commander logic.</p></section>
+<section id="s2"><span class="badge">SECTION 02</span><h2>2. Existing V1 Baseline Assumptions</h2><p>Sergeant V2 assumes V1 is complete on GitHub main and pinned by the V1 release marker. V1 already provides the core review engine, command authority, app bridge, CLI, IDE contract, evidence consensus, GitHub/live review ingestion, learning memory, benchmark/graduation logic, and an initial squad model.
+
+V2 must not re-implement V1 as a separate system. It extends V1 by adding adaptive internal structure.
+
+V1 already includes a squad concept: Quartermaster, Scout, Engineer, Medic, Mechanic, Analyst, Challenger, Archivist, Judge, and Hermes. V2 keeps these officers and upgrades their internal operating model.
+
+V1 already includes evidence-first review behavior. V2 should not duplicate doctrine as a new module. Instead, it should make every new internal system obey that doctrine automatically.
+
+V1 already includes app-facing response payloads. V2 must extend payloads carefully using versioned optional fields so existing clients keep working.</p></section>
+<section id="s3"><span class="badge">SECTION 03</span><h2>3. Command Structure</h2><p>The command structure is intentionally simple.
+
+Sergeant is the Commander.
+The Mission System prepares the mission.
+The Quartermaster prepares shared context and logistics.
+The Squad investigates.
+The Armoury provides weapons and knowledge packs.
+The Evidence System normalizes all findings.
+The Challenger pressure-tests disagreement.
+The Judge scores confidence and trust.
+Hermes delivers the output.
+Archivist preserves verified learning.
+
+Only Sergeant issues final commands.
+
+The final commands remain:
+PASS
+COMMENT
+NEEDS_WORK
+REQUEST_CHANGES
+BLOCK
+
+All other outputs are advisory.</p></section>
+<section id="s4"><span class="badge">SECTION 04</span><h2>4. Mission Intake Contract</h2><p>Every external source must normalize into one mission request. Supported sources include CLI, GitHub, App Bridge, VS Code, JetBrains, REST API, optional private/internal adapters, future automation, and batch systems.
+
+A mission request should include:
+- schema_version
+- source
+- root or repository locator
+- mission_type
+- mode
+- changed_files
+- branch
+- commit
+- pull_request
+- external_providers
+- human_decisions
+- policy_profile
+- enterprise_profile
+- time_budget
+- execution_permissions
+- output_preferences
+
+Missing fields must not crash the system if safe defaults exist. Invalid fields must fail clearly with structured errors. V2 should prefer explicit mission metadata but still support simple requests such as: review this repo, review these changed files, or compare this PR with CodeRabbit evidence.</p></section>
+<section id="s5"><span class="badge">SECTION 05</span><h2>5. Mission Types</h2><p>V2 supports mission profiles. Each mission profile changes which officers deploy, which weapons load, and how confidence is calculated.
+
+Core profiles:
+- repository_review
+- pull_request_review
+- changed_files_review
+- single_file_review
+- security_review
+- architecture_review
+- performance_review
+- regression_review
+- documentation_review
+- benchmark_review
+- learning_review
+- emergency_review
+- external_review_comparison
+- release_gate_review
+
+Mission profiles are not separate systems. They are loadout strategies over the same review engine.
+
+Emergency review must prioritize speed, blast radius, known failures, recent changes, logs, high-risk files, and likely root cause. It does not replace full review.</p></section>
+<section id="s6"><span class="badge">SECTION 06</span><h2>6. Mission Briefing</h2><p>Before officers investigate, Sergeant prepares a Mission Briefing. The briefing is shared by all officers so each investigation starts from the same context.
+
+Mission briefing should include:
+- repository name/path
+- mission type
+- changed files
+- detected languages
+- detected frameworks
+- package managers
+- build systems
+- testing frameworks
+- CI/CD systems
+- database technologies
+- cloud/platform technologies
+- authentication/payment/security surfaces
+- documentation surfaces
+- known previous findings
+- external evidence sources
+- risk level
+- business/domain clues
+- file roles
+- dependency map summary
+- public/private repository flag
+- allowed operations
+- time budget
+- output target
+
+No officer should invent its own independent version of the mission context unless explicitly asked to challenge the briefing.</p></section>
+<section id="s7"><span class="badge">SECTION 07</span><h2>7. Universal Officer Training</h2><p>Universal Training is the shared baseline every officer receives. It is not a separate translator and not a separate coding-language officer. Every officer is trained to operate across human languages, programming languages, repository structures, Git diffs, documentation, evidence standards, and reporting style.
+
+Human language awareness includes detection and basic normalization for English, French, Spanish, Portuguese, Arabic, Chinese, Japanese, Korean, Russian, German, Italian, Hindi, and future languages.
+
+Programming language awareness includes Python, JavaScript, TypeScript, Java, C#, Go, Rust, C, C++, Swift, Kotlin, PHP, Ruby, Lua, SQL, Bash, PowerShell, HTML, CSS, JSON, YAML, XML, TOML, Markdown, Dockerfile, and configuration formats.
+
+Universal technical training includes:
+- Git and diffs
+- repository layouts
+- file role detection
+- tests and fixtures
+- CI/CD concepts
+- package managers
+- API basics
+- documentation review
+- evidence formatting
+- confidence reporting
+- false-positive discipline
+
+Universal Training should be implemented as shared services and knowledge packs, not duplicated inside every officer.</p></section>
+<section id="s8"><span class="badge">SECTION 08</span><h2>8. Shared Services</h2><p>Shared services are infrastructure used by officers. They are not officers themselves.
+
+Core shared services:
+- language_detection_service
+- programming_language_detection_service
+- framework_detection_service
+- repository_profile_service
+- file_role_classifier
+- diff_parser
+- evidence_formatter
+- mission_cache
+- repository_search
+- memory_lookup
+- policy_loader
+- knowledge_pack_loader
+- armoury_registry
+- confidence_service
+- telemetry_logger
+
+These services must be deterministic where possible. When probabilistic, they must expose confidence and evidence.</p></section>
+<section id="s9"><span class="badge">SECTION 09</span><h2>9. Shared Armoury</h2><p>The Armoury is owned by Sergeant. Officers do not permanently own weapons. Weapons are registered capabilities that can be equipped per mission.
+
+Weapon categories:
+1. Knowledge Weapons
+- language packs
+- framework packs
+- security packs
+- architecture packs
+- database packs
+- cloud packs
+- compliance packs
+- company packs
+- THETECHGUY standards
+- repository-specific packs
+
+2. Analysis Weapons
+- AST parser
+- dependency graph
+- call graph
+- import graph
+- data-flow analysis
+- taint analysis
+- complexity analysis
+- concurrency analysis
+- regression analysis
+- documentation scanner
+- secret detector
+
+3. Reasoning Weapons
+- rule engines
+- specialist LLM prompts/models
+- comparison models
+- risk models
+- architecture reasoning models
+- security reasoning models
+- performance reasoning models
+
+4. Evidence Weapons
+- Git history
+- external reviews
+- human decisions
+- benchmarks
+- runtime logs
+- CI results
+- static analyzer reports
+- previous battle records
+
+5. Delivery Weapons
+- CLI adapter
+- GitHub adapter
+- App Bridge adapter
+- VS Code adapter
+- JetBrains adapter
+- REST adapter
+- Markdown renderer
+- JSON renderer
+- report exporter
+
+A new capability should usually be added as a weapon or knowledge pack, not a new officer.</p></section>
+<section id="s10"><span class="badge">SECTION 10</span><h2>10. Weapon Manifest</h2><p>Every weapon must declare its manifest. The manifest allows Sergeant to decide when it can be used.
+
+Required weapon manifest fields:
+- weapon_id
+- name
+- category
+- version
+- status
+- owner
+- supported_languages
+- supported_frameworks
+- mission_profiles
+- officer_compatibility
+- input_schema
+- output_schema
+- permissions_required
+- executes_code
+- requires_network
+- modifies_files
+- average_runtime_ms
+- confidence_behavior
+- failure_behavior
+- test_requirements
+- evidence_output_type
+- maturity_level
+
+A weapon that executes code must be explicitly marked and must not be used unless mission permissions allow it.</p></section>
+<section id="s11"><span class="badge">SECTION 11</span><h2>11. Weapon Lifecycle</h2><p>Weapons evolve through lifecycle states.
+
+experimental: idea exists, not trusted.
+testing: unit tests exist but little battle evidence.
+field_tested: used on sample repositories.
+battle_proven: successful on real repositories.
+approved: accepted into standard V2 operation.
+standard_issue: default candidate for matching missions.
+legacy: retained for compatibility but not preferred.
+retired: no longer used.
+
+Weapons cannot jump directly from experimental to standard issue. Battle evidence is required.</p></section>
+<section id="s12"><span class="badge">SECTION 12</span><h2>12. Mission Loadout Engine</h2><p>The Loadout Engine selects weapons for officers based on mission briefing, repository profile, officer experience, weapon compatibility, policy constraints, and time budget.
+
+Inputs:
+- mission briefing
+- mission type
+- detected languages/frameworks
+- changed files
+- risk surfaces
+- officer list
+- available weapons
+- policy profile
+- time budget
+- previous battle records
+
+Outputs:
+- deployed officers
+- officer loadouts
+- skipped officers with reason
+- unavailable weapons
+- confidence impact
+- mission readiness report
+
+The loadout engine must prefer minimal effective loadouts. It should not equip every weapon just because it exists.</p></section>
+<section id="s13"><span class="badge">SECTION 13</span><h2>13. Weapon Slots</h2><p>Every officer has weapon slots. Slots prevent uncontrolled tool explosion.
+
+Suggested slots:
+- primary_weapon
+- secondary_weapon
+- tactical_weapon
+- support_weapon
+- intelligence_weapon
+- reserve_weapon
+
+Some missions may allow fewer slots for speed or more slots for deep audits. A weapon can be shared across officers if outputs are reusable.</p></section>
+<section id="s14"><span class="badge">SECTION 14</span><h2>14. Adaptive Deployment</h2><p>Not every officer must deploy every mission.
+
+Small documentation change may deploy:
+- Quartermaster
+- Scout
+- Analyst
+- Hermes
+
+Security-sensitive authentication PR may deploy:
+- Quartermaster
+- Scout
+- Engineer
+- Medic
+- Analyst
+- Challenger
+- Judge
+- Hermes
+
+Large release gate may deploy all officers.
+
+Skipped officers must be recorded with reasons so the final report remains auditable.</p></section>
+<section id="s15"><span class="badge">SECTION 15</span><h2>15. Officer Blueprint</h2><p>Every officer follows one internal structure:
+- identity
+- mission
+- authority
+- restrictions
+- universal_training_access
+- loadout
+- inputs
+- outputs
+- investigation_pipeline
+- evidence_rules
+- confidence_model
+- failure_handling
+- report_format
+- experience_record
+- test_requirements
+
+This makes future officers consistent.</p></section>
+<section id="s16"><span class="badge">SECTION 16</span><h2>16. Quartermaster Specification</h2><p>Mission: prepare the mission environment and logistics.
+
+Responsibilities:
+- build repository index
+- prepare file map
+- build cache
+- load mission briefing
+- load knowledge packs
+- validate weapon availability
+- prepare shared context
+- distribute mission resources
+- record missing dependencies
+
+Typical weapons:
+- repository index
+- search index
+- file role classifier
+- dependency index
+- cache engine
+- knowledge pack loader
+
+Quartermaster does not decide review verdicts. Quartermaster reports readiness, missing context, and logistics risks.</p></section>
+<section id="s17"><span class="badge">SECTION 17</span><h2>17. Scout Specification</h2><p>Mission: understand the battlefield.
+
+Responsibilities:
+- scan repository
+- detect languages
+- detect frameworks
+- identify file roles
+- detect package managers
+- detect CI/CD
+- identify high-risk surfaces
+- summarize repository shape
+- map changed-file context
+
+Typical weapons:
+- repository scanner
+- language detector
+- framework detector
+- dependency scanner
+- git analyzer
+- repo graph
+
+Scout output should be used by all other officers as mission terrain intelligence.</p></section>
+<section id="s18"><span class="badge">SECTION 18</span><h2>18. Engineer Specification</h2><p>Mission: protect system design.
+
+Responsibilities:
+- architecture boundary review
+- API contract review
+- dependency impact review
+- call graph review
+- cross-file reasoning
+- design consistency
+- layering risks
+- integration risks
+
+Typical weapons:
+- dependency graph
+- call graph
+- import graph
+- API contract checker
+- architecture rules
+- framework architecture packs
+- architecture reasoning model
+
+Engineer should report design risks with affected files, related modules, contract impact, and likely blast radius.</p></section>
+<section id="s19"><span class="badge">SECTION 19</span><h2>19. Medic Specification</h2><p>Mission: protect security and unsafe data flow.
+
+Responsibilities:
+- authentication review
+- authorization review
+- secrets detection
+- injection risk
+- taint/data-flow review
+- cryptography risk
+- dependency vulnerability review
+- unsafe execution/shell/eval detection
+
+Typical weapons:
+- security rules
+- taint engine
+- secret scanner
+- OWASP pack
+- dependency CVE pack
+- auth/JWT pack
+- security reasoning model
+
+Medic must be conservative with claims. If a pattern is risky but not proven vulnerable, report it as risk requiring verification, not as confirmed exploit.</p></section>
+<section id="s20"><span class="badge">SECTION 20</span><h2>20. Mechanic Specification</h2><p>Mission: protect runtime behavior.
+
+Responsibilities:
+- performance review
+- memory risk review
+- concurrency review
+- blocking operation review
+- scaling risk
+- caching risk
+- runtime regression risk
+
+Typical weapons:
+- complexity analyzer
+- concurrency analyzer
+- performance rules
+- memory rules
+- runtime knowledge packs
+- benchmark evidence
+
+Mechanic should distinguish between theoretical performance concerns and mission-critical runtime risks.</p></section>
+<section id="s21"><span class="badge">SECTION 21</span><h2>21. Analyst Specification</h2><p>Mission: understand reality and organize findings.
+
+Responsibilities:
+- group findings by root cause
+- remove duplicates
+- rank priorities
+- connect related evidence
+- identify systemic issues
+- produce review narrative
+- translate officer findings into decision-ready evidence
+
+Typical weapons:
+- root cause engine
+- priority engine
+- evidence correlation engine
+- impact analyzer
+- risk calculator
+- reasoning model
+
+Analyst helps prevent the final report from becoming a random list of disconnected issues.</p></section>
+<section id="s22"><span class="badge">SECTION 22</span><h2>22. Challenger Specification</h2><p>Mission: question everyone.
+
+Responsibilities:
+- compare Sergeant with external reviewers
+- challenge officer findings
+- detect disagreement
+- classify external evidence
+- identify false positives
+- identify missed findings
+- pressure-test assumptions
+- request re-check when evidence conflicts
+
+Typical weapons:
+- comparison engine
+- consensus engine
+- external review loader
+- conflict detector
+- evidence verifier
+- CodeRabbit comparison pack
+
+Challenger is not negative by default. Challenger improves trust by forcing evidence quality.</p></section>
+<section id="s23"><span class="badge">SECTION 23</span><h2>23. Archivist Specification</h2><p>Mission: never forget verified lessons.
+
+Responsibilities:
+- store verified human decisions
+- track accepted/rejected findings
+- preserve repository learning
+- manage knowledge evolution
+- retire obsolete lessons
+- supply memory to future missions
+
+Typical weapons:
+- memory store
+- learning engine
+- knowledge graph
+- lesson verifier
+- policy history
+- repository history
+
+Archivist must not turn every comment into memory. Only verified evidence becomes durable learning.</p></section>
+<section id="s24"><span class="badge">SECTION 24</span><h2>24. Judge Specification</h2><p>Mission: measure trust.
+
+Responsibilities:
+- benchmark Sergeant against reference reviewers
+- score officer reliability
+- score weapon reliability
+- track false positives
+- track false negatives
+- produce confidence adjustments
+- determine graduation/trust state
+
+Typical weapons:
+- benchmark engine
+- confidence engine
+- metrics engine
+- evaluation models
+- comparison packs
+
+Judge does not command. Judge quantifies trust so Sergeant can command better.</p></section>
+<section id="s25"><span class="badge">SECTION 25</span><h2>25. Hermes Specification</h2><p>Mission: communicate accurately.
+
+Responsibilities:
+- format reports
+- prepare GitHub summaries
+- prepare CLI output
+- prepare App Bridge payloads
+- prepare IDE messages
+- preserve evidence links
+- avoid misleading language
+- adapt output to audience
+
+Typical weapons:
+- GitHub adapter
+- CLI adapter
+- App Bridge adapter
+- IDE adapter
+- Markdown renderer
+- JSON renderer
+- report exporter
+
+Hermes must never hide blocking evidence for presentation purposes.</p></section>
+<section id="s26"><span class="badge">SECTION 26</span><h2>26. Officer Experience Model</h2><p>Officer experience is measurable. It is not decorative.
+
+Tracked dimensions:
+- missions_completed
+- reviewed_languages
+- reviewed_frameworks
+- domains_reviewed
+- accepted_findings
+- rejected_findings
+- false_positives
+- false_negatives
+- missed_issues
+- confidence_by_language
+- confidence_by_framework
+- confidence_by_mission_type
+- last_battle_result
+- improvement_notes
+
+Experience affects report weighting. It must not silence low-experience officers; it only calibrates confidence.</p></section>
+<section id="s27"><span class="badge">SECTION 27</span><h2>27. Adaptive Confidence</h2><p>Confidence is mission-specific. An officer may be strong in Python and weak in Rust, strong in APIs and weak in embedded systems.
+
+Confidence inputs:
+- officer historical accuracy
+- weapon maturity
+- evidence quality
+- mission fit
+- repository familiarity
+- external agreement
+- human validation
+- time budget
+- missing context
+
+Confidence output:
+- finding_confidence
+- officer_confidence
+- mission_confidence
+- final_decision_confidence
+
+Confidence must be explainable. Reports should show why confidence rose or dropped.</p></section>
+<section id="s28"><span class="badge">SECTION 28</span><h2>28. Evidence Model</h2><p>Every finding should follow a common evidence shape:
+- finding_id
+- source
+- officer
+- weapon
+- category
+- severity
+- message
+- path
+- line
+- related_paths
+- evidence
+- reasoning
+- confidence
+- recommended_action
+- verification_status
+- external_sources
+- created_at
+
+Evidence should be structured enough for UI, CLI, GitHub comments, JSON reports, and learning memory.</p></section>
+<section id="s29"><span class="badge">SECTION 29</span><h2>29. Consensus Model</h2><p>Consensus combines officer reports, weapon outputs, external reviews, benchmark signals, and historical memory.
+
+Consensus must handle:
+- duplicate findings
+- conflicting findings
+- external reviewer disagreement
+- low-confidence evidence
+- high-severity low-confidence risks
+- repeated historical patterns
+- missing tests
+- changed critical surfaces
+
+Consensus output should include:
+- final evidence summary
+- blocking findings
+- needs-work findings
+- informational findings
+- conflicts
+- unresolved unknowns
+- confidence
+- recommended command
+
+Consensus advises Sergeant. Sergeant commands.</p></section>
+<section id="s30"><span class="badge">SECTION 30</span><h2>30. Battle Testing</h2><p>Battle testing is the proof system for V2.
+
+Battle test process:
+1. Select real repository or PR.
+2. Run Sergeant.
+3. Run CodeRabbit or other external reviewer when available.
+4. Compare findings.
+5. Classify each finding:
+   - Sergeant only
+   - External only
+   - Both
+   - False positive
+   - False negative
+   - Missed by both
+   - Needs human decision
+6. Update battle record.
+7. Patch engine only when evidence justifies change.
+8. Add regression tests.
+9. Update officer/weapon experience.
+
+Battle tests should include multiple languages, frameworks, repo sizes, domains, and risk levels.</p></section>
+<section id="s31"><span class="badge">SECTION 31</span><h2>31. Battle Analytics</h2><p>Battle analytics measure system growth.
+
+Metrics:
+- total missions
+- pass/needs_work/block distribution
+- average confidence
+- false-positive rate
+- false-negative rate
+- external agreement rate
+- officer accuracy
+- weapon accuracy
+- time per mission
+- evidence density
+- repeat issue detection
+- missed critical issues
+- user acceptance rate
+
+Analytics should drive improvement, not vanity.</p></section>
+<section id="s32"><span class="badge">SECTION 32</span><h2>32. Enterprise Profiles</h2><p>Enterprise profiles allow companies to load standards without changing Sergeant.
+
+Profile may include:
+- coding standards
+- architecture rules
+- security policies
+- compliance rules
+- naming conventions
+- required tests
+- banned dependencies
+- approved frameworks
+- output requirements
+- severity mapping
+- release gate rules
+
+Enterprise rules must be evidence-visible. Sergeant should report when a finding comes from an enterprise profile.</p></section>
+<section id="s33"><span class="badge">SECTION 33</span><h2>33. Domain Knowledge Packs</h2><p>Domain packs specialize reviews for industry context.
+
+Possible packs:
+- finance
+- healthcare
+- automotive
+- embedded
+- gaming
+- AI/ML
+- cloud infrastructure
+- government
+- education
+- telecommunications
+- e-commerce
+- device repair/tooling
+
+Domain packs should not create fake expertise. They provide risk priorities, standards, terminology, and common failure modes.</p></section>
+<section id="s34"><span class="badge">SECTION 34</span><h2>34. Plugin / Armoury SDK</h2><p>Future external weapons should use a plugin SDK.
+
+Plugin requirements:
+- manifest
+- input schema
+- output schema
+- permission declaration
+- test suite
+- sample outputs
+- versioning
+- compatibility declaration
+- security boundaries
+- deterministic mode if possible
+- timeout behavior
+- failure behavior
+
+Plugins must be sandboxed or permission-gated if they execute code, call network services, or access secrets.</p></section>
+<section id="s35"><span class="badge">SECTION 35</span><h2>35. Interface Stability</h2><p>External integrations should remain stable.
+
+Interfaces:
+- CLI
+- App Bridge
+- GitHub
+- VS Code
+- JetBrains
+- REST API
+- optional private/internal adapter surfaces
+
+Hunter, or any other private orchestration system, must remain an optional internal adapter and must not become a public dependency of the Sergeant repository.
+
+V2 may add optional fields but should not break V1 consumers without a version bump and migration path.
+
+All outputs should preserve:
+- ok
+- schema_version
+- service
+- request
+- status
+- action
+- confidence
+- reason
+- required_actions
+- evidence
+- markdown/report
+- packet/debug payload</p></section>
+<section id="s36"><span class="badge">SECTION 36</span><h2>36. Error Handling</h2><p>Errors must be explicit and structured.
+
+Error categories:
+- invalid_request
+- unsupported_language
+- unsupported_framework
+- missing_weapon
+- weapon_failed
+- timeout
+- permission_denied
+- unsafe_operation_blocked
+- external_provider_failed
+- repository_unreadable
+- malformed_evidence
+- confidence_too_low
+
+Fallback behavior must be safe. If a weapon fails, Sergeant may continue with reduced confidence if the mission allows. It must not pretend the failed weapon passed.</p></section>
+<section id="s37"><span class="badge">SECTION 37</span><h2>37. Logging and Audit</h2><p>Every mission should produce an audit trail.
+
+Audit entries:
+- mission_received
+- briefing_created
+- officers_deployed
+- weapons_equipped
+- weapon_started
+- weapon_completed
+- weapon_failed
+- officer_reported
+- evidence_normalized
+- conflict_detected
+- consensus_created
+- command_issued
+- report_delivered
+- learning_candidate_created
+- experience_updated
+
+Audit logs must not leak secrets in public outputs.</p></section>
+<section id="s38"><span class="badge">SECTION 38</span><h2>38. Security Boundaries</h2><p>Sergeant V2 must preserve safety.
+
+Default:
+- read-only
+- no repository modification
+- no shell execution unless authorized
+- no untrusted code execution unless sandboxed and authorized
+- no secrets exfiltration
+- no hidden network calls from weapons
+- no write tokens required for review
+
+Any weapon needing elevated permissions must declare them in its manifest and be disabled unless the mission explicitly permits them.</p></section>
+<section id="s39"><span class="badge">SECTION 39</span><h2>39. Testing Requirements</h2><p>Every V2 subsystem requires tests.
+
+Required tests:
+- unit tests
+- contract tests
+- mocked external provider tests
+- loadout selection tests
+- weapon manifest tests
+- officer report tests
+- confidence model tests
+- evidence normalization tests
+- consensus tests
+- CLI tests
+- app bridge tests
+- IDE contract tests
+- regression tests from battle failures
+
+No battle-proven feature without regression tests.</p></section>
+<section id="s40"><span class="badge">SECTION 40</span><h2>40. Release Gate</h2><p>V2 release gate:
+- CI green
+- CLI proof green
+- App Bridge proof green
+- IDE contract proof green
+- GitHub integration proof green
+- mocked external providers green
+- real repository battle tests complete
+- CodeRabbit comparison complete where available
+- false positives reviewed
+- false negatives reviewed
+- README updated
+- architecture docs updated
+- release notes prepared
+- known limitations documented
+
+Branding and public release happen only after proof.</p></section>
+<section id="s41"><span class="badge">SECTION 41</span><h2>41. Migration Strategy</h2><p>V2 migration should be internal-first.
+
+Step 1: keep existing squad output.
+Step 2: add mission briefing payload.
+Step 3: add shared services.
+Step 4: add armoury registry.
+Step 5: add basic loadout engine.
+Step 6: add officer blueprint metadata.
+Step 7: add experience records.
+Step 8: add adaptive confidence.
+Step 9: add battle analytics.
+Step 10: expose optional V2 fields publicly.
+
+At every step, the existing CLI/App/IDE contract should still work.</p></section>
+<section id="s42"><span class="badge">SECTION 42</span><h2>42. Non-Goals</h2><p>V2 is not:
+- a rewrite of V1
+- a replacement for human review
+- a blind auto-fixer
+- a code execution engine
+- a patch generator by default
+- a voting system where officers override Sergeant
+- a wrapper around CodeRabbit
+- a single model pretending to know everything
+
+V2 is the internal evolution of Sergeant&#x27;s command system.</p></section>
+<section id="s43"><span class="badge">SECTION 43</span><h2>43. Long-Term Vision</h2><p>Long-term, Sergeant becomes an operating system for software investigation.
+
+It receives a mission.
+It understands the environment.
+It equips the squad.
+It gathers evidence.
+It challenges assumptions.
+It weighs findings.
+It commands.
+It learns only from verified outcomes.
+It improves with every battle.
+
+The goal is not more noise. The goal is better command.</p></section>
+<section id="s44"><span class="badge">SECTION 44</span><h2>44. Branch and Release Hygiene Policy</h2><p>Sergeant V2 branch policy:
+- main is the public truth branch.
+- release/v1.0.0 is the V1 release marker.
+- V2 work starts from one active phase branch.
+- Each V2 phase gets one PR.
+- Merged branches are deleted after proof.
+- Superseded branches are closed and deleted after their replacement is merged.
+- Retry-loop branches are not allowed.
+- Branch names must describe the phase and purpose.
+- Release pages must use public wording only.
+
+Public release wording must avoid:
+- unnecessary commit shorthand as headline content.
+- private process language.
+- internal workflow chatter.
+- unsupported installation artifacts.
+- misleading proof claims.
+
+If a release page or branch list makes Sergeant look less disciplined than the code is, hygiene is incomplete.</p></section>
+</article>
+</main>
+<footer>
+Sergeant V2 Master Specification v0.1 — drafted as a long-form HTML engineering specification for review and expansion.
+</footer>
+</body>
+</html>
