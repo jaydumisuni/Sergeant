@@ -21,10 +21,19 @@ jobs:
       - name: Install test runner
         run: python -m pip install --upgrade pip pytest
       - name: Run tests
-        run: pytest -q
+        run: |
+          set -o pipefail
+          pytest -q -ra 2>&1 | tee pytest-output.txt
+      - name: Upload pytest output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output
+          path: pytest-output.txt
 
   clean-clone-proof:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -37,7 +46,15 @@ jobs:
           python -m pip install --upgrade pip pytest
           python -m pip install -e .
       - name: Run tests
-        run: pytest -q
+        run: |
+          set -o pipefail
+          pytest -q -ra 2>&1 | tee pytest-output.txt
+      - name: Upload pytest output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-clone-pytest-output
+          path: pytest-output.txt
       - name: Prove CLI scan
         run: main-review scan --pretty
       - name: Prove CLI evidence
@@ -50,6 +67,23 @@ jobs:
         run: main-review ide-bench-contract --pretty
       - name: Prove battle-test fixtures
         run: main-review battle-tests --pretty
+      - name: Generate live battle outputs
+        timeout-minutes: 5
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p live-battle-output
+          main-review battle-compare battle-tests/psf-requests-7502.json --token "$GITHUB_TOKEN" --pretty > live-battle-output/psf-requests-7502.json
+          main-review battle-compare battle-tests/pallets-flask-5812.json --token "$GITHUB_TOKEN" --pretty > live-battle-output/pallets-flask-5812.json
+          main-review battle-compare battle-tests/django-19610.json --token "$GITHUB_TOKEN" --pretty > live-battle-output/django-19610.json
+          cat live-battle-output/psf-requests-7502.json
+          cat live-battle-output/pallets-flask-5812.json
+          cat live-battle-output/django-19610.json
+      - name: Upload live battle outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-battle-output
+          path: live-battle-output/*.json
       - name: Prove THETECHGUY verification standard
         run: main-review verify-standard --pretty
       - name: Prove final gate

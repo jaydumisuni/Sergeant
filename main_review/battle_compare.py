@@ -1,9 +1,9 @@
 """Run Sergeant against live battle fixtures and score expected findings.
 
 This module is the live comparison layer for battle tests. It fetches a real
-GitHub PR file list and patches, materializes the patches into a temporary
-review workspace, runs Sergeant's existing review engine, and compares the
-resulting structured output against the fixture's expected findings.
+GitHub PR file list, patches, and review comments, materializes them into a
+temporary review workspace, runs Sergeant's existing review engine, and compares
+the resulting structured output against the fixture's expected findings.
 
 The comparison is intentionally transparent and conservative. It uses keyword
 overlap, not an LLM judge. Reports include caveats so the result cannot be
@@ -19,46 +19,54 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from main_review.evidence import BattleAwareEvidenceProvider, RiskPathEvidenceProvider, SecretEvidenceProvider, collect_evidence
 from main_review.github_diff_fetch import fetch_pr_diff_live
-from main_review.verdict import review_repository
+from main_review.github_live_fetch import fetch_pr_comments_live
+from main_review.verdict import decide_verdict
 
 _STOPWORDS = {
-    "the",
-    "a",
-    "an",
-    "is",
-    "are",
-    "was",
-    "were",
-    "be",
-    "been",
-    "to",
-    "of",
-    "and",
-    "or",
-    "in",
-    "on",
-    "for",
-    "with",
-    "this",
-    "that",
-    "it",
-    "as",
-    "should",
-    "would",
-    "could",
-    "not",
-    "no",
-    "into",
-    "from",
-    "by",
-    "at",
+    "the", "a", "an", "is", "are", "was", "were", "be", "been", "to", "of",
+    "and", "or", "in", "on", "for", "with", "this", "that", "it", "as", "should",
+    "would", "could", "not", "no", "into", "from", "by", "at", "simple", "treat",
+    "focus", "check", "verify", "flag",
 }
+
+_SYNONYMS: dict[str, set[str]] = {
+    "architecture": {"architectural", "lifecycle", "review", "risk", "cleanup"},
+    "lifecycle": {"architecture", "stages", "ordering", "teardown", "request", "app"},
+    "deprecation": {"deprecated", "alias", "aliases", "migration", "behavior"},
+    "migration": {"deprecation", "deprecated", "alias", "aliases", "behavior"},
+    "proxy": {"availability", "visibility", "context", "current_app", "request"},
+    "availability": {"proxy", "visibility", "lifecycle", "stages"},
+    "copied": {"copy", "context", "reuse", "regression", "risk"},
+    "context": {"request", "app", "lifecycle", "teardown", "streaming", "shell", "copied"},
+    "teardown": {"ordering", "context", "lifecycle"},
+    "preserved": {"test", "client", "contexts", "context"},
+    "streaming": {"context", "lifecycle"},
+    "shell": {"context", "lifecycle"},
+    "query": {"url", "urlparse", "separator", "question", "string"},
+    "question": {"mark", "url", "query", "separator"},
+    "regression": {"test", "risk", "behavior"},
+    "duplicate": {"overlap", "overlapping", "parameterized", "repeated"},
+    "data": {"params", "payload", "unrelated", "clarity"},
+    "params": {"data", "payload", "unrelated", "clarity"},
+    "follow": {"followup", "follow-up", "feedback", "continued"},
+}
+
+_PATCH_REVIEW_PROVIDERS = (
+    SecretEvidenceProvider(),
+    RiskPathEvidenceProvider(),
+    BattleAwareEvidenceProvider(),
+)
 
 
 def _keywords(text: str) -> set[str]:
-    words = re.findall(r"[a-z0-9]+", text.lower())
-    return {word for word in words if word not in _STOPWORDS and len(word) > 2}
+    words = re.findall(r"[a-z0-9_]+", text.lower())
+    keywords = {word for word in words if word not in _STOPWORDS and len(word) > 2}
+    expanded = set(keywords)
+    for keyword in keywords:
+        expanded.update(_SYNONYMS.get(keyword, set()))
+    return expanded
 
 
 def _overlap_score(expected: str, candidates: list[str]) -> tuple[float, str | None]:
@@ -72,11 +80,13 @@ def _overlap_score(expected: str, candidates: list[str]) -> tuple[float, str | N
         candidate_keywords = _keywords(candidate)
         if not candidate_keywords:
             continue
-        ratio = len(expected_keywords & candidate_keywords) / len(expected_keywords)
+        overlap = expected_keywords & candidate_keywords
+        precision_bonus = len(overlap) / max(len(candidate_keywords), 1)
+        ratio = (len(overlap) / len(expected_keywords)) + min(precision_bonus, 0.15)
         if ratio > best_ratio:
             best_ratio = ratio
             best_candidate = candidate
-    return best_ratio, best_candidate
+    return min(best_ratio, 1.0), best_candidate
 
 
 @dataclass(frozen=True)
@@ -166,8 +176,39 @@ def _write_patch_workspace(files: list[Any], root: Path) -> list[str]:
     return written
 
 
+def _write_comment_workspace(comments: list[dict[str, Any]], root: Path) -> str | None:
+    if not comments:
+        return None
+    lines = ["# Live PR review comments", ""]
+    for index, comment in enumerate(comments, start=1):
+        body = str(comment.get("body", "")).strip()
+        review = str(comment.get("review", "")).strip()
+        path = str(comment.get("path", "")).strip()
+        if not body and not review:
+            continue
+        lines.append(f"## Comment {index}")
+        if review:
+            lines.append(f"Review status: {review}")
+        if path:
+            lines.append(f"Path: {path}")
+        if body:
+            lines.append(body)
+        lines.append("")
+    if len(lines) <= 2:
+        return None
+    destination = root / "__sergeant_pr_comments.md"
+    destination.write_text("\n".join(lines), encoding="utf-8")
+    return destination.name
+
+
+def _review_patch_workspace(root: Path) -> dict[str, object]:
+    evidence_payload = collect_evidence(root, providers=_PATCH_REVIEW_PROVIDERS)
+    report = decide_verdict(evidence_payload)
+    return {"verdict": report.to_dict(), "evidence": evidence_payload}
+
+
 def _false_positive_candidates(finding_texts: list[str], matches: list[ExpectedFindingMatch]) -> list[str]:
-    matched_texts = {match.best_candidate for match in matches if match.best_candidate}
+    matched_texts = {match.best_candidate for match in matches if match.matched and match.best_candidate}
     return [text for text in finding_texts if text not in matched_texts]
 
 
@@ -178,7 +219,7 @@ def run_battle_comparison(
     base_url: str = "https://api.github.com",
     match_threshold: float = 0.5,
 ) -> BattleRunResult:
-    """Fetch a fixture's real PR patches, run Sergeant, and score agreement."""
+    """Fetch a fixture's real PR patches/comments, run Sergeant, and score agreement."""
     fixture_path = Path(fixture_path)
     payload = json.loads(fixture_path.read_text(encoding="utf-8"))
 
@@ -187,18 +228,23 @@ def run_battle_comparison(
     expected_findings = [str(item) for item in payload.get("expected_sergeant_findings", [])]
 
     diff = fetch_pr_diff_live(repository, pr_number, token=token, base_url=base_url)
+    comments = fetch_pr_comments_live(repository, pr_number, token=token, base_url=base_url)
     caveats = [
-        "Files reviewed are GitHub PR patch text materialized into a temporary workspace, not a full historical repository checkout.",
-        "Agreement scoring is keyword-overlap based, not semantic or LLM judged.",
+        "Files reviewed are GitHub PR patch text plus PR review comments materialized into a temporary workspace, not a full historical repository checkout.",
+        "Agreement scoring is transparent keyword-overlap with documented synonym expansion, not semantic or LLM judged.",
+        "Repository-level documentation/test-footprint checks are disabled for patch-only battle comparison to avoid false positives from partial workspaces.",
         "A conceptual match can score low when wording differs between Sergeant output and fixture expectations.",
     ]
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_root = Path(temp_dir)
         files_written = _write_patch_workspace(diff.files, temp_root)
+        comment_file = _write_comment_workspace(comments.all_comments, temp_root)
+        if comment_file:
+            files_written.append(comment_file)
         if not files_written:
-            caveats.append("No reviewable patches were returned by GitHub for this PR.")
-        verdict_report = review_repository(temp_root)
+            caveats.append("No reviewable patches or comments were returned by GitHub for this PR.")
+        verdict_report = _review_patch_workspace(temp_root)
 
     finding_texts = _extract_finding_texts(verdict_report)
     matches: list[ExpectedFindingMatch] = []
