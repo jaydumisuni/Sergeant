@@ -12,7 +12,8 @@ class ReviewProjectAction : AnAction() {
             val result = SergeantRunner.review(project)
             ApplicationManager.getApplication().invokeLater {
                 val title = if (result.exitCode == 0) "Sergeant Review" else "Sergeant Review Failed"
-                Messages.showTextAreaDialog(result.output, title, null, null, null)
+                val icon = if (result.exitCode == 0) Messages.getInformationIcon() else Messages.getErrorIcon()
+                Messages.showMessageDialog(project, result.output, title, icon)
             }
         }
     }
