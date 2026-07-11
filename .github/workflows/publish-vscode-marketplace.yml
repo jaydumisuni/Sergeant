@@ -6,7 +6,7 @@ on:
     types: [published]
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: vscode-marketplace-publish
@@ -20,11 +20,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Read extension metadata
         id: metadata
@@ -56,9 +58,18 @@ jobs:
             exit 1
           }
 
-      - name: Package VSIX
+      - name: Verify publishing secrets exist
         shell: bash
-        run: npx --yes @vscode/vsce@latest package --out "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix"
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: |
+          test -n "$VSCE_PAT" || { echo "Repository secret VSCE_PAT is missing."; exit 1; }
+          test -n "$OVSX_PAT" || { echo "Repository secret OVSX_PAT is missing."; exit 1; }
+
+      - name: Package VSIX once
+        shell: bash
+        run: npx --yes @vscode/vsce@latest package --no-dependencies --out "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix"
 
       - name: Upload packaged VSIX as workflow artifact
         uses: actions/upload-artifact@v4
@@ -71,9 +82,18 @@ jobs:
         shell: bash
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: |
-          test -n "$VSCE_PAT" || {
-            echo "Repository secret VSCE_PAT is missing."
-            exit 1
-          }
-          npx --yes @vscode/vsce@latest publish --pat "$VSCE_PAT"
+        run: npx --yes @vscode/vsce@latest publish --packagePath "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix" --pat "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        shell: bash
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx --yes ovsx@latest publish "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix" --pat "$OVSX_PAT"
+
+      - name: Attach VSIX to GitHub Release
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$RELEASE_TAG" "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix" --clobber
