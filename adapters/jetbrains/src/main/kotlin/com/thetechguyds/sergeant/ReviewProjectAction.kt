@@ -11,6 +11,7 @@ class ReviewProjectAction : AnAction() {
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = SergeantRunner.review(project)
             ApplicationManager.getApplication().invokeLater {
+                if (project.isDisposed) return@invokeLater
                 val title = if (result.exitCode == 0) "Sergeant Review" else "Sergeant Review Failed"
                 val icon = if (result.exitCode == 0) Messages.getInformationIcon() else Messages.getErrorIcon()
                 Messages.showMessageDialog(project, result.output, title, icon)
