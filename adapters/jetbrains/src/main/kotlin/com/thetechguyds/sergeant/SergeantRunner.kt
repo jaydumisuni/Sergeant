@@ -2,6 +2,7 @@ package com.thetechguyds.sergeant
 
 import com.intellij.openapi.project.Project
 import java.nio.charset.StandardCharsets
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.TimeUnit
 
 internal object SergeantRunner {
@@ -21,12 +22,16 @@ internal object SergeantRunner {
                 .directory(java.io.File(root))
                 .redirectErrorStream(true)
                 .start()
+            val outputFuture = CompletableFuture.supplyAsync {
+                process.inputStream.readBytes().toString(StandardCharsets.UTF_8)
+            }
             val finished = process.waitFor(5, TimeUnit.MINUTES)
             if (!finished) {
                 process.destroyForcibly()
+                outputFuture.cancel(true)
                 Result(124, "Sergeant review timed out after five minutes.")
             } else {
-                Result(process.exitValue(), process.inputStream.readBytes().toString(StandardCharsets.UTF_8))
+                Result(process.exitValue(), outputFuture.get())
             }
         } catch (error: Exception) {
             Result(
