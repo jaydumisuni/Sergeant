@@ -1,27 +1,35 @@
 name: Publish Python Package to PyPI
 
 on:
+  push:
+    branches: [release-v0.3.0]
   release:
     types: [published]
   workflow_dispatch:
 
+concurrency:
+  group: sergeant-v0.3.0-coordinated-release
+  cancel-in-progress: false
+
 permissions:
-  contents: read
+  contents: write
+  id-token: write
 
 jobs:
   publish:
-    name: Publish sergeant-reviewer to PyPI
+    name: Publish Sergeant 0.3.0 everywhere
     runs-on: ubuntu-latest
     environment:
       name: pypi
     permissions:
-      contents: read
+      contents: write
       id-token: write
 
     steps:
-      - name: Check out repository
+      - name: Check out release source from main
         uses: actions/checkout@v4
         with:
+          ref: main
           persist-credentials: false
 
       - name: Set up Python
@@ -29,28 +37,116 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Verify release tag matches package version
-        if: github.event_name == 'release'
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Verify coordinated versions and publishing credentials
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
         run: |
-          PACKAGE_VERSION=$(python - <<'PY'
-          import pathlib, tomllib
-          print(tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']['version'])
-          PY
+          python - <<'PY'
+          import json, pathlib, tomllib
+          npm = json.loads(pathlib.Path('package.json').read_text(encoding='utf-8'))['version']
+          py = tomllib.loads(pathlib.Path('pyproject.toml').read_text(encoding='utf-8'))['project']['version']
+          props = dict(
+              line.split('=', 1)
+              for line in pathlib.Path('adapters/jetbrains/gradle.properties').read_text(encoding='utf-8').splitlines()
+              if '=' in line
           )
-          TAG_VERSION="${RELEASE_TAG#v}"
-          test "$TAG_VERSION" = "$PACKAGE_VERSION" || {
-            echo "Release tag '$RELEASE_TAG' does not match pyproject.toml version '$PACKAGE_VERSION'."
-            exit 1
-          }
+          jb = props['pluginVersion']
+          assert npm == py == '0.3.0', (npm, py)
+          assert jb == '0.3.0-preview', jb
+          PY
+          test -n "$VSCE_PAT" || { echo "Repository secret VSCE_PAT is missing."; exit 1; }
+          test -n "$OVSX_PAT" || { echo "Repository secret OVSX_PAT is missing."; exit 1; }
+          test -n "$JETBRAINS_MARKETPLACE_TOKEN" || { echo "Repository secret JETBRAINS_MARKETPLACE_TOKEN is missing."; exit 1; }
 
-      - name: Build distribution artifacts
+      - name: Run tests and build PyPI distributions
         run: |
-          python -m pip install --upgrade build twine
+          python -m pip install --upgrade build twine pytest
+          python -m pytest -q
           python -m build
           python -m twine check dist/*
 
+      - name: Package VS Code extension
+        run: npx --yes @vscode/vsce@latest package --no-dependencies --out sergeant-reviewer-0.3.0.vsix
+
+      - name: Build JetBrains preview plugin
+        run: gradle -p adapters/jetbrains clean buildPlugin
+
+      - name: Publish to Visual Studio Marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx --yes @vscode/vsce@latest publish --packagePath sergeant-reviewer-0.3.0.vsix --pat "$VSCE_PAT"
+
+      - name: Publish to Open VSX
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: npx --yes ovsx@latest publish sergeant-reviewer-0.3.0.vsix --pat "$OVSX_PAT"
+
+      - name: Publish JetBrains preview
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: gradle -p adapters/jetbrains publishPlugin
+
       - name: Publish to PyPI with trusted publishing
         uses: pypa/gh-action-pypi-publish@release/v1
+
+      - name: Create GitHub Release and attach artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          JETBRAINS_ZIP=$(find adapters/jetbrains/build/distributions -maxdepth 1 -type f -name '*.zip' -print -quit)
+          test -n "$JETBRAINS_ZIP" || { echo "JetBrains plugin ZIP was not produced."; exit 1; }
+          cat > release-notes.md <<'EOF'
+          ## Sergeant v0.3.0
+
+          Sergeant expands beyond its verified VS Code integration with a coordinated multiplatform release foundation.
+
+          ### Available
+
+          - VS Code Marketplace extension 0.3.0
+          - Open VSX extension 0.3.0
+          - `sergeant-reviewer` Python package on PyPI
+          - GitHub release artifacts
+
+          ### Preview
+
+          - JetBrains plugin 0.3.0-preview
+          - Native Sergeant Command Center tool window
+          - Project review action using the shared Sergeant CLI
+
+          ### Quality and proof
+
+          - Coordinated package-version verification
+          - Python wheel and source-package validation
+          - VSIX build verification
+          - JetBrains plugin compilation and ZIP packaging
+          - Credential-free PyPI publishing through OIDC
+
+          The JetBrains integration remains marked preview until installation and runtime verification across the advertised IDEs is complete.
+          EOF
+          gh release create v0.3.0 \
+            --target main \
+            --title "Sergeant v0.3.0 — Multiplatform Preview" \
+            --notes-file release-notes.md \
+            sergeant-reviewer-0.3.0.vsix \
+            "$JETBRAINS_ZIP" \
+            dist/*
