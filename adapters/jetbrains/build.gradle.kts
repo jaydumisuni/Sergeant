@@ -4,8 +4,8 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.2.1"
 }
 
-group = providers.gradleProperty("pluginGroup").get()
-version = providers.gradleProperty("pluginVersion").get()
+group = "com.thetechguyds.sergeant"
+version = "0.3.0-preview"
 
 repositories {
     mavenCentral()
@@ -16,7 +16,7 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdeaCommunity(providers.gradleProperty("platformVersion"))
+        intellijIdeaCommunity("2024.3")
         pluginVerifier()
         zipSigner()
     }
@@ -28,8 +28,8 @@ kotlin {
 
 intellijPlatform {
     pluginConfiguration {
-        name = providers.gradleProperty("pluginName")
-        version = providers.gradleProperty("pluginVersion")
+        name = "Sergeant"
+        version = "0.3.0-preview"
         ideaVersion {
             sinceBuild = "243"
         }
