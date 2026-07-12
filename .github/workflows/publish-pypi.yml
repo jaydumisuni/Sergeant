@@ -1,6 +1,10 @@
 name: Publish Python Package to PyPI
 
 on:
+  push:
+    branches: [force-pypi-0.3.2]
+    paths:
+      - .github/workflows/publish-pypi.yml
   release:
     types: [published]
   workflow_dispatch:
