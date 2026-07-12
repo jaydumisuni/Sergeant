@@ -198,6 +198,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
         }
         return resource("sergeant-command-center-v2.html")
             .replace("/* SERGEANT_CSS */", resource("sergeant-command-center-v2.css"))
+            .replace("/* SERGEANT_RESPONSIVE_CSS */", resource("sergeant-command-center-v2-responsive.css"))
             .replace("// SERGEANT_JS", resource("sergeant-command-center-v2.js"))
     }
 
