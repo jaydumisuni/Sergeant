@@ -2,6 +2,11 @@ name: Publish VS Code Extension
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub release tag to verify and receive assets
+        required: false
+        type: string
   release:
     types: [published]
 
@@ -26,37 +31,42 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: "22"
 
-      - name: Read extension metadata
+      - name: Read extension and release metadata
         id: metadata
         shell: bash
+        env:
+          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
+          DISPATCH_TAG: ${{ inputs.release_tag }}
         run: |
-          echo "name=$(node -p "require('./package.json').name")" >> "$GITHUB_OUTPUT"
-          echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
-          echo "publisher=$(node -p "require('./package.json').publisher")" >> "$GITHUB_OUTPUT"
+          NAME=$(node -p "require('./package.json').name")
+          VERSION=$(node -p "require('./package.json').version")
+          PUBLISHER=$(node -p "require('./package.json').publisher")
+          RELEASE_TAG="${RELEASE_EVENT_TAG:-$DISPATCH_TAG}"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "publisher=$PUBLISHER" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
-      - name: Verify publisher identity
-        shell: bash
-        run: |
-          test "${{ steps.metadata.outputs.publisher }}" = "thetechguyds" || {
-            echo "Expected publisher 'thetechguyds', found '${{ steps.metadata.outputs.publisher }}'."
-            exit 1
-          }
-
-      - name: Verify release tag matches package version
-        if: github.event_name == 'release'
+      - name: Verify publisher and release identity
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          PUBLISHER: ${{ steps.metadata.outputs.publisher }}
           PACKAGE_VERSION: ${{ steps.metadata.outputs.version }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
         run: |
-          TAG_VERSION="${RELEASE_TAG#v}"
-          test "$TAG_VERSION" = "$PACKAGE_VERSION" || {
-            echo "Release tag '$RELEASE_TAG' does not match package.json version '$PACKAGE_VERSION'."
-            echo "Update package.json first, then publish a matching v$PACKAGE_VERSION release."
+          test "$PUBLISHER" = "thetechguyds" || {
+            echo "Expected publisher 'thetechguyds', found '$PUBLISHER'."
             exit 1
           }
+          if [ -n "$RELEASE_TAG" ]; then
+            TAG_VERSION="${RELEASE_TAG#v}"
+            test "$TAG_VERSION" = "$PACKAGE_VERSION" || {
+              echo "Release tag '$RELEASE_TAG' does not match package.json version '$PACKAGE_VERSION'."
+              exit 1
+            }
+          fi
 
       - name: Verify publishing secrets exist
         shell: bash
@@ -69,31 +79,60 @@ jobs:
 
       - name: Package VSIX once
         shell: bash
-        run: npx --yes @vscode/vsce@latest package --no-dependencies --out "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix"
+        run: |
+          PACKAGE="${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix"
+          npx --yes @vscode/vsce@latest package --no-dependencies --out "$PACKAGE"
+          sha256sum "$PACKAGE" > "$PACKAGE.sha256"
 
       - name: Upload packaged VSIX as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}-vsix
-          path: ${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix
+          path: |
+            ${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix
+            ${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix.sha256
           if-no-files-found: error
 
-      - name: Publish to Visual Studio Marketplace
+      - name: Publish or confirm Visual Studio Marketplace version
         shell: bash
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx --yes @vscode/vsce@latest publish --packagePath "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix" --pat "$VSCE_PAT"
+        run: |
+          PACKAGE="${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix"
+          set +e
+          OUTPUT=$(npx --yes @vscode/vsce@latest publish --packagePath "$PACKAGE" --pat "$VSCE_PAT" 2>&1)
+          STATUS=$?
+          set -e
+          printf '%s\n' "$OUTPUT"
+          if [ "$STATUS" -eq 0 ]; then
+            exit 0
+          fi
+          printf '%s' "$OUTPUT" | grep -Eqi 'already exists|already been published|version .* exists|version .* was already published' && exit 0
+          exit "$STATUS"
 
-      - name: Publish to Open VSX
+      - name: Publish or confirm Open VSX version
         shell: bash
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx --yes ovsx@latest publish "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix" --pat "$OVSX_PAT"
+        run: |
+          PACKAGE="${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix"
+          set +e
+          OUTPUT=$(npx --yes ovsx@latest publish "$PACKAGE" --pat "$OVSX_PAT" 2>&1)
+          STATUS=$?
+          set -e
+          printf '%s\n' "$OUTPUT"
+          if [ "$STATUS" -eq 0 ]; then
+            exit 0
+          fi
+          printf '%s' "$OUTPUT" | grep -Eqi 'already exists|already published|version .* exists|extension version.*exists' && exit 0
+          exit "$STATUS"
 
-      - name: Attach VSIX to GitHub Release
-        if: github.event_name == 'release'
+      - name: Attach VSIX and checksum to GitHub Release
+        if: steps.metadata.outputs.release_tag != ''
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$RELEASE_TAG" "${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix" --clobber
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+        run: |
+          PACKAGE="${{ steps.metadata.outputs.name }}-${{ steps.metadata.outputs.version }}.vsix"
+          gh release upload "$RELEASE_TAG" "$PACKAGE" "$PACKAGE.sha256" --clobber
