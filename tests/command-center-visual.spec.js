@@ -22,11 +22,16 @@ async function assertCommandCenter(page, screenshotName) {
   await page.goto(previewUrl);
   await expect(page.locator('h1')).toContainText('SGT');
   await expect(page.locator('#dashboardOfficers .officer')).toHaveCount(5);
+
   for (const [label, id] of pages) {
     await page.getByRole('button', { name: label, exact: true }).first().click();
     await expect(page.locator(`#${id}`)).toBeVisible();
   }
+
+  await page.getByRole('button', { name: 'Mission Planner', exact: true }).first().click();
   await expect(page.locator('#providerSelect')).toBeVisible();
+  await expect(page.locator('#deployBtn')).toBeVisible();
+
   await page.locator('[data-page="dashboard"]').first().click();
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
