@@ -13,53 +13,48 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.10.2"
-
-      - name: Verify JetBrains token is available
+      - name: Verify public registries
         shell: bash
-        env:
-          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
-        run: test -n "$JETBRAINS_MARKETPLACE_TOKEN" || { echo 'JETBRAINS_TOKEN_MISSING'; exit 1; }
-
-      - name: Build JetBrains plugin
-        run: gradle -p adapters/jetbrains clean buildPlugin
-
-      - name: Attempt JetBrains preview publication
-        id: publish
-        continue-on-error: true
-        shell: bash
-        env:
-          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
         run: |
-          set +e
-          gradle -p adapters/jetbrains publishPlugin --stacktrace > jetbrains-publish.log 2>&1
-          status=$?
-          echo "status=$status" >> "$GITHUB_OUTPUT"
-          exit "$status"
+          set -euo pipefail
+          curl -fsSL https://pypi.org/pypi/sergeant-reviewer/json -o pypi.json
+          python - <<'PY'
+          import json
+          d=json.load(open('pypi.json'))
+          assert d['info']['version']=='0.3.0'
+          assert any(x['filename'].endswith('.whl') for x in d['releases']['0.3.0'])
+          assert any(x['filename'].endswith('.tar.gz') for x in d['releases']['0.3.0'])
+          print('PYPI_OK')
+          PY
+          cat > query.json <<'JSON'
+          {"filters":[{"criteria":[{"filterType":7,"value":"thetechguyds.sergeant-reviewer"}]}],"flags":914}
+          JSON
+          curl -fsSL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json;api-version=7.2-preview.1' --data @query.json https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery -o vsmarket.json
+          python - <<'PY'
+          import json
+          d=json.load(open('vsmarket.json'))
+          e=[x for r in d['results'] for x in r['extensions']][0]
+          assert '0.3.0' in [v['version'] for v in e['versions']]
+          print('VSMARKET_OK')
+          PY
+          curl -fsSL https://open-vsx.org/api/thetechguyds/sergeant-reviewer -o openvsx.json
+          python - <<'PY'
+          import json
+          d=json.load(open('openvsx.json'))
+          assert d.get('version')=='0.3.0' or '0.3.0' in d.get('allVersions',{})
+          print('OPENVSX_OK')
+          PY
 
-      - name: Upload JetBrains publication log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: jetbrains-publish-log
-          path: jetbrains-publish.log
-          if-no-files-found: error
-
-      - name: Report JetBrains publication result
-        if: always()
+      - name: Verify GitHub release assets
         shell: bash
-        run: echo "JETBRAINS_PUBLISH_EXIT=${{ steps.publish.outputs.status }}"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ASSETS=$(gh api repos/jaydumisuni/Sergeant/releases/tags/v0.3.0 --jq '.assets[].name')
+          printf '%s\n' "$ASSETS"
+          grep -Fx 'sergeant-reviewer-0.3.0.vsix' <<<"$ASSETS"
+          grep -E '^sergeant.*0\.3\.0.*\.zip$' <<<"$ASSETS"
+          grep -E '^sergeant_reviewer-0\.3\.0-.*\.whl$' <<<"$ASSETS"
+          grep -Fx 'sergeant_reviewer-0.3.0.tar.gz' <<<"$ASSETS"
+          grep -Fx 'SHA256SUMS.txt' <<<"$ASSETS"
