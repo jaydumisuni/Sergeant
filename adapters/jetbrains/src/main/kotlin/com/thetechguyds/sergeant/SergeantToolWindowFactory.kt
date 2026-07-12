@@ -1,6 +1,7 @@
 package com.thetechguyds.sergeant
 
 import com.google.gson.Gson
+import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.ide.util.PropertiesComponent
 import com.intellij.openapi.application.ApplicationManager
@@ -47,9 +48,10 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
     private var status = "Standing By"
     private var running = ""
     private var runningTitle = ""
+    private var currentMission: Map<String, Any?>? = null
     private var lastOutput = ""
-    private var lastResult: Map<String, Any?>? = null
-    private val history = mutableListOf<Map<String, Any?>>()
+    private val history = loadHistory()
+    private var lastResult: Map<String, Any?>? = history.firstOrNull()
 
     init {
         border = JBUI.Borders.empty()
@@ -72,13 +74,16 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
             val message = JsonParser.parseString(payload).asJsonObject
             when (message.get("type")?.asString.orEmpty()) {
                 "ready", "refresh" -> sendState()
-                "run" -> runMission(message.get("action")?.asString.orEmpty())
+                "run" -> runMission(
+                    message.get("action")?.asString.orEmpty(),
+                    parseMissionContext(message.getAsJsonObject("mission")),
+                )
                 "openLast" -> openLastReport()
                 "copyLast" -> copyLastReport()
                 "exportLast" -> exportLastReport()
                 "saveSettings" -> {
                     val provider = message.getAsJsonObject("settings")?.get("provider")?.asString
-                    if (!provider.isNullOrBlank()) PropertiesComponent.getInstance(project).setValue("sergeant.provider", provider)
+                    if (!provider.isNullOrBlank()) PropertiesComponent.getInstance(project).setValue("sergeant.provider", provider.take(120))
                     sendState()
                 }
                 "selectWorkspace" -> sendState()
@@ -89,16 +94,49 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
         }
     }
 
-    private fun runMission(action: String) {
+    private fun parseMissionContext(mission: JsonObject?): Map<String, Any?> {
+        fun string(name: String, fallback: String, maxLength: Int): String {
+            val value = mission?.get(name)?.takeIf { it.isJsonPrimitive }?.asString ?: fallback
+            return value.take(maxLength)
+        }
+        val loadout = mutableListOf<String>()
+        mission?.getAsJsonArray("loadout")?.forEach { item ->
+            if (loadout.size < 32 && item.isJsonPrimitive) loadout.add(item.asString.take(160))
+        }
+        return mapOf(
+            "type" to string("type", "JetBrains Mission", 120),
+            "briefing" to string("briefing", "", 2000),
+            "priority" to string("priority", "Normal", 80),
+            "provider" to string(
+                "provider",
+                PropertiesComponent.getInstance(project).getValue("sergeant.provider") ?: "Local Model",
+                120,
+            ),
+            "loadout" to loadout,
+        )
+    }
+
+    private fun runMission(action: String, missionContext: Map<String, Any?>) {
         if (action.isBlank()) return
         status = "Running"
         running = action
         runningTitle = missionTitle(action)
+        currentMission = missionContext
         sendState()
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = SergeantRunner.run(project, action)
             ApplicationManager.getApplication().invokeLater {
-                lastOutput = result.output
+                lastOutput = buildString {
+                    appendLine("Mission: ${missionContext["type"]}")
+                    appendLine("Priority: ${missionContext["priority"]}")
+                    appendLine("Provider context: ${missionContext["provider"]}")
+                    val briefing = missionContext["briefing"].toString()
+                    if (briefing.isNotBlank()) appendLine("Briefing: $briefing")
+                    val loadout = missionContext["loadout"] as? List<*>
+                    if (!loadout.isNullOrEmpty()) appendLine("Loadout: ${loadout.joinToString(", ")}")
+                    appendLine()
+                    append(result.output)
+                }
                 val verdict = if (result.exitCode == 0) "PASS" else "NEEDS ATTENTION"
                 val summary = mapOf(
                     "verdict" to verdict,
@@ -110,7 +148,8 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
                 val item = mapOf<String, Any?>(
                     "id" to "#${System.currentTimeMillis().toString().takeLast(6)}",
                     "title" to result.title,
-                    "mission" to result.title,
+                    "mission" to (missionContext["type"] ?: result.title),
+                    "missionContext" to missionContext,
                     "result" to verdict,
                     "verdict" to verdict,
                     "finishedAt" to Instant.now().toString(),
@@ -122,6 +161,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
                 )
                 history.add(0, item)
                 while (history.size > 50) history.removeLast()
+                saveHistory()
                 lastResult = item
                 status = if (result.exitCode == 0) "Complete" else "Needs Attention"
                 running = ""
@@ -139,9 +179,11 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
             "status" to status,
             "running" to running,
             "runningTitle" to runningTitle,
+            "currentMission" to currentMission,
             "progress" to if (running.isNotBlank()) 36 else if (lastResult != null) 100 else 0,
             "platform" to "JetBrains",
             "workspace" to project.name,
+            "workspaces" to listOf(project.name),
             "root" to root,
             "branch" to branch,
             "changedFilesCount" to changed,
@@ -161,7 +203,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
 
     private fun openLastReport() {
         if (lastOutput.isBlank()) {
-            sendState("No Sergeant report is available yet.")
+            sendState("The current session has no report body to open. Run a mission first.")
             return
         }
         val file = LightVirtualFile("sergeant-report.txt", PlainTextFileType.INSTANCE, lastOutput)
@@ -170,7 +212,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
 
     private fun copyLastReport() {
         if (lastOutput.isBlank()) {
-            sendState("No Sergeant report is available to copy.")
+            sendState("The current session has no report body to copy. Run a mission first.")
             return
         }
         CopyPasteManager.getInstance().setContents(StringSelection(lastOutput))
@@ -180,7 +222,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
     private fun exportLastReport() {
         val root = project.basePath
         if (root.isNullOrBlank() || lastOutput.isBlank()) {
-            sendState("No Sergeant report is available to export.")
+            sendState("The current session has no report body to export. Run a mission first.")
             return
         }
         val target = File(root, "sergeant-report.txt")
@@ -190,13 +232,34 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
         sendState("Sergeant report exported to ${target.path}.")
     }
 
+    private fun loadHistory(): MutableList<Map<String, Any?>> {
+        val raw = PropertiesComponent.getInstance(project).getValue("sergeant.commandCenter.history") ?: return mutableListOf()
+        return try {
+            JsonParser.parseString(raw).asJsonArray
+                .take(50)
+                .map { element ->
+                    @Suppress("UNCHECKED_CAST")
+                    (gson.fromJson(element, Map::class.java) as Map<String, Any?>)
+                }
+                .toMutableList()
+        } catch (_: Exception) {
+            mutableListOf()
+        }
+    }
+
+    private fun saveHistory() {
+        PropertiesComponent.getInstance(project).setValue("sergeant.commandCenter.history", gson.toJson(history))
+    }
+
     private fun loadCommandCenterHtml(): String {
         fun resource(name: String): String {
             val stream = javaClass.getResourceAsStream("/$name")
                 ?: error("Bundled Sergeant resource '$name' is missing.")
             return stream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
         }
+        val csp = "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';\">"
         return resource("sergeant-command-center-v2.html")
+            .replace("<head>", "<head>$csp")
             .replace("/* SERGEANT_CSS */", resource("sergeant-command-center-v2.css"))
             .replace("/* SERGEANT_RESPONSIVE_CSS */", resource("sergeant-command-center-v2-responsive.css"))
             .replace("// SERGEANT_JS", resource("sergeant-command-center-v2.js"))
