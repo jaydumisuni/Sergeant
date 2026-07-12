@@ -156,9 +156,13 @@ jobs:
         run: |
           PACKAGE=$(find adapters/jetbrains/build/distributions -maxdepth 1 -type f -name '*.zip' -print -quit)
           test -n "$PACKAGE"
-          unzip -l "$PACKAGE" | grep -F 'sergeant-command-center-v2.html'
-          unzip -l "$PACKAGE" | grep -F 'sergeant-command-center-v2.css'
-          unzip -l "$PACKAGE" | grep -F 'sergeant-command-center-v2.js'
+          EXTRACTED=$(mktemp -d)
+          unzip -q "$PACKAGE" -d "$EXTRACTED"
+          PLUGIN_JAR=$(find "$EXTRACTED" -type f -name '*.jar' -print -quit)
+          test -n "$PLUGIN_JAR"
+          unzip -l "$PLUGIN_JAR" | grep -F 'sergeant-command-center-v2.html'
+          unzip -l "$PLUGIN_JAR" | grep -F 'sergeant-command-center-v2.css'
+          unzip -l "$PLUGIN_JAR" | grep -F 'sergeant-command-center-v2.js'
       - uses: actions/upload-artifact@v4
         with:
           name: sergeant-0.3.2-jetbrains-preview
