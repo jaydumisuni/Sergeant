@@ -14,66 +14,41 @@ jobs:
   inspect:
     runs-on: ubuntu-latest
     steps:
-      - name: Inspect recent publish-pypi workflow runs
+      - name: Inspect pypi environment policy
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -u
-          gh run list \
-            --repo jaydumisuni/Sergeant \
-            --workflow publish-pypi.yml \
-            --limit 20 \
-            --json databaseId,event,status,conclusion,headBranch,headSha,displayTitle,createdAt,url \
-            > pypi-runs.json
-          cat pypi-runs.json
-          echo
-          RUN_ID=$(python - <<'PY'
-          import json
-          runs=json.load(open('pypi-runs.json'))
-          preferred=[r for r in runs if r['event']=='workflow_dispatch' and r.get('headBranch')=='main']
-          fallback=[r for r in runs if r['event'] in {'workflow_dispatch','push'}]
-          chosen=(preferred or fallback or runs)
-          print(chosen[0]['databaseId'] if chosen else '')
-          PY
-          )
-          echo "INSPECTING_RUN_ID=$RUN_ID"
-          if [ -n "$RUN_ID" ]; then
-            gh run view "$RUN_ID" --repo jaydumisuni/Sergeant --json databaseId,event,status,conclusion,headBranch,headSha,jobs,url || true
-            gh api "repos/jaydumisuni/Sergeant/actions/runs/$RUN_ID" || true
-            echo 'FAILED_LOG_BEGIN'
-            gh run view "$RUN_ID" --repo jaydumisuni/Sergeant --log-failed || true
-            echo 'FAILED_LOG_END'
-          fi
+          echo 'ENVIRONMENT_POLICY'
+          gh api repos/jaydumisuni/Sergeant/environments/pypi \
+            --jq '{name,protection_rules,deployment_branch_policy}' || true
+          echo 'CUSTOM_BRANCH_POLICIES'
+          gh api repos/jaydumisuni/Sergeant/environments/pypi/deployment-branch-policies \
+            --jq '{total_count,branch_policies}' || true
 
-      - name: Inspect pypi environment and deployments
+      - name: Inspect recent pypi deployments
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -u
-          echo 'ENVIRONMENT_BEGIN'
-          gh api repos/jaydumisuni/Sergeant/environments/pypi || true
-          echo 'ENVIRONMENT_END'
-          echo 'BRANCH_POLICIES_BEGIN'
-          gh api repos/jaydumisuni/Sergeant/environments/pypi/deployment-branch-policies || true
-          echo 'BRANCH_POLICIES_END'
-          echo 'DEPLOYMENTS_BEGIN'
-          gh api 'repos/jaydumisuni/Sergeant/deployments?environment=pypi&per_page=30' > deployments.json || true
+          gh api 'repos/jaydumisuni/Sergeant/deployments?environment=pypi&per_page=15' \
+            --jq '[.[] | {id,ref,sha,environment,task,created_at,creator:.creator.login}]' \
+            > deployments.json || true
           cat deployments.json || true
-          echo 'DEPLOYMENTS_END'
           python - <<'PY' > deployment-ids.txt
           import json
           try:
-              data=json.load(open('deployments.json'))
+              items=json.load(open('deployments.json'))
           except Exception:
-              data=[]
-          for item in data[:10]:
+              items=[]
+          for item in items:
               print(item.get('id',''))
           PY
           while read -r DEPLOYMENT_ID; do
             [ -z "$DEPLOYMENT_ID" ] && continue
-            echo "DEPLOYMENT_STATUS_BEGIN $DEPLOYMENT_ID"
-            gh api "repos/jaydumisuni/Sergeant/deployments/$DEPLOYMENT_ID/statuses" || true
-            echo "DEPLOYMENT_STATUS_END $DEPLOYMENT_ID"
+            echo "STATUS $DEPLOYMENT_ID"
+            gh api "repos/jaydumisuni/Sergeant/deployments/$DEPLOYMENT_ID/statuses" \
+              --jq '[.[] | {state,description,environment,created_at,creator:.creator.login}]' || true
           done < deployment-ids.txt
