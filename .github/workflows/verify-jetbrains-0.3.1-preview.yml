@@ -13,20 +13,44 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe JetBrains Marketplace API
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.0.0"
+
+      - name: Verify JetBrains token
         shell: bash
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: test -n "$JETBRAINS_MARKETPLACE_TOKEN" || { echo JETBRAINS_TOKEN_MISSING; exit 1; }
+
+      - name: Build corrected preview
+        run: gradle -p adapters/jetbrains clean buildPlugin
+
+      - name: Publish or confirm 0.3.1 preview
+        shell: bash
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
         run: |
-          set -euo pipefail
-          found=0
-          for url in \
-            'https://plugins.jetbrains.com/api/plugins/32862/updates?channel=preview' \
-            'https://plugins.jetbrains.com/api/plugins/32862/updates' \
-            'https://plugins.jetbrains.com/api/plugins/32862'; do
-            echo "PROBE $url"
-            code=$(curl -sSL -o response.json -w '%{http_code}' "$url")
-            echo "HTTP $code"
-            cat response.json
-            echo
-            if grep -q '0.3.1-preview' response.json; then found=1; fi
-          done
-          test "$found" = 1
+          set +e
+          OUTPUT=$(gradle -p adapters/jetbrains publishPlugin --stacktrace 2>&1)
+          STATUS=$?
+          set -e
+          printf '%s\n' "$OUTPUT"
+          if [ "$STATUS" -eq 0 ]; then
+            echo JETBRAINS_0_3_1_UPLOAD_ACCEPTED
+            exit 0
+          fi
+          printf '%s' "$OUTPUT" | grep -Eqi 'already exists|already uploaded|version .* exists|plugin version.*exists' && {
+            echo JETBRAINS_0_3_1_ALREADY_PRESENT
+            exit 0
+          }
+          exit "$STATUS"
