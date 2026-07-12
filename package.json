@@ -16,7 +16,7 @@
   "categories": [
     "Other"
   ],
-  "main": "./vscode-extension.js",
+  "main": "./src/vscode/extension.js",
   "contributes": {
     "viewsContainers": {
       "activitybar": [
