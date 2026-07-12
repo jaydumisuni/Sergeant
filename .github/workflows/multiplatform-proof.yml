@@ -69,8 +69,14 @@ jobs:
         with:
           gradle-version: "8.10.2"
       - name: Build JetBrains plugin
-        run: gradle -p adapters/jetbrains clean buildPlugin
+        shell: bash
+        run: |
+          set +e
+          gradle -p adapters/jetbrains clean buildPlugin > jetbrains-build.log 2>&1
+          status=$?
+          tail -n 120 jetbrains-build.log
+          exit "$status"
       - uses: actions/upload-artifact@v4
         with:
-          name: sergeant-0.3.0-jetbrains-preview
+          name: sergeant-0.3.1-jetbrains-preview
           path: adapters/jetbrains/build/distributions/*.zip
