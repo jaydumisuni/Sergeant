@@ -149,9 +149,14 @@ class SergeantCommandCenterProvider {
     const resourceRoot = path.join(this.context.extensionPath, "resources");
     const html = fs.readFileSync(path.join(resourceRoot, "sergeant-command-center-v2.html"), "utf8");
     const css = fs.readFileSync(path.join(resourceRoot, "sergeant-command-center-v2.css"), "utf8");
+    const responsiveCss = fs.readFileSync(path.join(resourceRoot, "sergeant-command-center-v2-responsive.css"), "utf8");
     const script = fs.readFileSync(path.join(resourceRoot, "sergeant-command-center-v2.js"), "utf8");
     const bootstrap = `<script>const __sergeantVsCode=acquireVsCodeApi();window.sergeantHostSend=(payload)=>{const value=typeof payload==='string'?JSON.parse(payload):payload;__sergeantVsCode.postMessage(value);};</script>`;
-    return html.replace("/* SERGEANT_CSS */", css).replace("// SERGEANT_JS", script).replace("<!-- SERGEANT_HOST_BOOTSTRAP -->", bootstrap);
+    return html
+      .replace("/* SERGEANT_CSS */", css)
+      .replace("/* SERGEANT_RESPONSIVE_CSS */", responsiveCss)
+      .replace("// SERGEANT_JS", script)
+      .replace("<!-- SERGEANT_HOST_BOOTSTRAP -->", bootstrap);
   }
 }
 
