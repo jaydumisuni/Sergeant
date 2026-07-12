@@ -64,6 +64,16 @@ async function changedFilesCsv() {
   throw new Error("No changed files were found in this workspace.");
 }
 
+function normalizeMissionContext(value = {}) {
+  return {
+    type: String(value.type || "Command Palette Mission").slice(0, 120),
+    briefing: String(value.briefing || "").slice(0, 2000),
+    priority: String(value.priority || "Normal").slice(0, 80),
+    provider: String(value.provider || vscode.workspace.getConfiguration("sergeant").get("provider") || "Local Model").slice(0, 120),
+    loadout: Array.isArray(value.loadout) ? value.loadout.slice(0, 32).map((item) => String(item).slice(0, 160)) : [],
+  };
+}
+
 const ACTIONS = createActions({ workspaceRoot, activeRelativeFile, changedFilesCsv });
 
 async function actionArgs(action) {
@@ -71,18 +81,24 @@ async function actionArgs(action) {
   return Array.isArray(value) ? value : await value;
 }
 
-async function runAction(actionId) {
+async function runAction(actionId, missionContext = {}) {
   const action = ACTIONS.find((item) => item.id === actionId || item.command === actionId);
   if (!action) throw new Error(`Unknown Sergeant action: ${actionId}`);
-  return runSergeant(await actionArgs(action), action.title, action.id);
+  const context = normalizeMissionContext({ type: action.label, ...missionContext });
+  return runSergeant(await actionArgs(action), action.title, action.id, context);
 }
 
-function runSergeant(args, title, actionId = "") {
+function runSergeant(args, title, actionId = "", missionContext = {}) {
   const output = vscode.window.createOutputChannel("Sergeant");
   output.clear();
   output.appendLine(`$ ${pythonPath()} sergeant.py ${args.join(" ")}`);
+  output.appendLine(`Mission: ${missionContext.type}`);
+  output.appendLine(`Priority: ${missionContext.priority}`);
+  output.appendLine(`Provider context: ${missionContext.provider}`);
+  if (missionContext.briefing) output.appendLine(`Briefing: ${missionContext.briefing}`);
+  if (missionContext.loadout.length) output.appendLine(`Loadout: ${missionContext.loadout.join(", ")}`);
   output.appendLine("");
-  commandCenterProvider?.setRunning(actionId, title);
+  commandCenterProvider?.setRunning(actionId, title, missionContext);
 
   const child = cp.spawn(pythonPath(), [path.join(extensionRoot, "sergeant.py"), ...args], { cwd: workspaceRoot(), shell: false });
   let stdout = "";
@@ -96,7 +112,7 @@ function runSergeant(args, title, actionId = "") {
   });
   child.on("close", async (code) => {
     const payload = parseJsonOutput(stdout);
-    lastResult = { title, actionId, args, payload, stdout, stderr, exitCode: code, finishedAt: new Date().toISOString() };
+    lastResult = { title, actionId, args, missionContext, payload, stdout, stderr, exitCode: code, finishedAt: new Date().toISOString() };
     await commandCenterProvider?.setResult(lastResult);
     showResultPanel(title, args, payload, stdout, stderr, code);
     if (code === 0) vscode.window.showInformationMessage(`${title} completed.`);
@@ -145,7 +161,7 @@ function activate(context) {
     selectWorkspace: (name) => { selectedWorkspaceName = name; },
   });
   context.subscriptions.push(vscode.window.registerWebviewViewProvider("sergeant.actions", commandCenterProvider));
-  for (const action of ACTIONS) context.subscriptions.push(vscode.commands.registerCommand(action.command, () => runAction(action.id)));
+  for (const action of ACTIONS) context.subscriptions.push(vscode.commands.registerCommand(action.command, () => runAction(action.id, { type: action.label })));
   context.subscriptions.push(vscode.commands.registerCommand("sergeant.openCommandCenter", () => commandCenterProvider.openFullCommandCenter()));
   context.subscriptions.push(vscode.commands.registerCommand("sergeant.openLastReport", openLastReport));
   context.subscriptions.push(vscode.commands.registerCommand("sergeant.copyLastReport", copyLastReport));
