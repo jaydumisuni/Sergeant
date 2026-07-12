@@ -1,0 +1,122 @@
+name: Verify Sergeant 0.3.2 Publication
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/verify-sergeant-0.3.2-publication.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.0.0"
+
+      - name: Wait for GitHub release and public registries
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            echo "Publication verification attempt $attempt/40"
+            ok=1
+
+            if gh api repos/jaydumisuni/Sergeant/releases/tags/v0.3.2 > github-release.json 2>/dev/null; then
+              python - <<'PY' || ok=0
+          import json
+          data=json.load(open('github-release.json'))
+          assert data['tag_name']=='v0.3.2', data.get('tag_name')
+          assert data['draft'] is False
+          assert data['prerelease'] is False
+          print('GITHUB_RELEASE_OK', data['name'])
+          PY
+            else
+              ok=0
+            fi
+
+            if curl -fsSL https://pypi.org/pypi/sergeant-reviewer/json -o pypi.json; then
+              python - <<'PY' || ok=0
+          import json
+          data=json.load(open('pypi.json'))
+          files=data.get('releases',{}).get('0.3.2',[])
+          names={item['filename'] for item in files}
+          assert any(name.endswith('.whl') for name in names), names
+          assert any(name.endswith('.tar.gz') for name in names), names
+          print('PYPI_0_3_2_OK', sorted(names))
+          PY
+            else
+              ok=0
+            fi
+
+            cat > vs-query.json <<'JSON'
+          {"filters":[{"criteria":[{"filterType":7,"value":"thetechguyds.sergeant-reviewer"}]}],"flags":914}
+          JSON
+            if curl -fsSL -X POST -H 'Content-Type: application/json' -H 'Accept: application/json;api-version=7.2-preview.1' --data @vs-query.json https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery -o vsmarket.json; then
+              python - <<'PY' || ok=0
+          import json
+          data=json.load(open('vsmarket.json'))
+          extensions=[item for result in data.get('results',[]) for item in result.get('extensions',[])]
+          assert extensions, data
+          versions=[item.get('version') for item in extensions[0].get('versions',[])]
+          assert '0.3.2' in versions, versions[:20]
+          print('VSMARKET_0_3_2_OK', versions[:10])
+          PY
+            else
+              ok=0
+            fi
+
+            if curl -fsSL https://open-vsx.org/api/thetechguyds/sergeant-reviewer -o openvsx.json; then
+              python - <<'PY' || ok=0
+          import json
+          data=json.load(open('openvsx.json'))
+          versions=data.get('allVersions',{})
+          assert data.get('version')=='0.3.2' or '0.3.2' in versions, (data.get('version'), sorted(versions))
+          print('OPENVSX_0_3_2_OK', data.get('version'))
+          PY
+            else
+              ok=0
+            fi
+
+            if [ "$ok" -eq 1 ]; then
+              exit 0
+            fi
+            sleep 15
+          done
+          echo 'Timed out waiting for all public 0.3.2 publications.'
+          exit 1
+
+      - name: Publish or independently confirm JetBrains 0.3.2 preview
+        shell: bash
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: |
+          test -n "$JETBRAINS_MARKETPLACE_TOKEN" || { echo 'JETBRAINS_MARKETPLACE_TOKEN is missing'; exit 1; }
+          set +e
+          OUTPUT=$(gradle -p adapters/jetbrains publishPlugin --stacktrace 2>&1)
+          STATUS=$?
+          set -e
+          printf '%s\n' "$OUTPUT"
+          if [ "$STATUS" -eq 0 ]; then
+            echo 'JETBRAINS_0_3_2_UPLOAD_ACCEPTED'
+            exit 0
+          fi
+          printf '%s' "$OUTPUT" | grep -Fqi 'already contains version 0.3.2-preview in channel preview' && {
+            echo 'JETBRAINS_0_3_2_ALREADY_PRESENT'
+            exit 0
+          }
+          exit "$STATUS"
