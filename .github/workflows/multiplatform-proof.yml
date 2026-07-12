@@ -36,7 +36,15 @@ jobs:
           npm install --no-save @playwright/test@1.52.0
           npx playwright install --with-deps chromium
       - name: Run Python and package-contract tests
-        run: python -m pytest -q
+        id: python_tests
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q 2>&1 | tee python-tests.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
       - name: Check JavaScript syntax
         shell: bash
         run: |
@@ -71,7 +79,7 @@ jobs:
           npx playwright test tests/command-center-visual.spec.js --reporter=line > command-center-playwright.log 2>&1
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          tail -n 160 command-center-playwright.log
+          tail -n 200 command-center-playwright.log
           exit "$status"
       - name: Upload Command Center proof evidence
         if: always()
@@ -79,14 +87,17 @@ jobs:
         with:
           name: sergeant-command-center-proof-evidence
           path: |
+            python-tests.log
             command-center-playwright.log
             artifacts/*.png
             test-results/**
           if-no-files-found: warn
-      - name: Enforce Command Center browser proof
+      - name: Enforce Python and browser proof
         if: always()
         shell: bash
-        run: test "${{ steps.ui_proof.outputs.status }}" = "0"
+        run: |
+          test "${{ steps.python_tests.outputs.status }}" = "0"
+          test "${{ steps.ui_proof.outputs.status }}" = "0"
       - name: Build and verify PyPI artifacts
         run: |
           python -m build
