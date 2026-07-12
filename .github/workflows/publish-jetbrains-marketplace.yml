@@ -2,6 +2,11 @@ name: Publish JetBrains Plugin
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing GitHub release tag to verify and receive assets
+        required: false
+        type: string
   release:
     types: [published]
 
@@ -34,19 +39,25 @@ jobs:
         with:
           gradle-version: "9.0.0"
 
-      - name: Read plugin metadata
+      - name: Read plugin and release metadata
         id: metadata
         shell: bash
+        env:
+          RELEASE_EVENT_TAG: ${{ github.event.release.tag_name }}
+          DISPATCH_TAG: ${{ inputs.release_tag }}
         run: |
           VERSION=$(grep '^pluginVersion=' adapters/jetbrains/gradle.properties | cut -d= -f2-)
+          RELEASE_VERSION="${VERSION%-preview}"
+          RELEASE_TAG="${RELEASE_EVENT_TAG:-$DISPATCH_TAG}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "release_version=${VERSION%-preview}" >> "$GITHUB_OUTPUT"
+          echo "release_version=$RELEASE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Verify release tag matches plugin release line
-        if: github.event_name == 'release'
+        if: steps.metadata.outputs.release_tag != ''
         shell: bash
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
           PLUGIN_RELEASE_VERSION: ${{ steps.metadata.outputs.release_version }}
         run: |
           TAG_VERSION="${RELEASE_TAG#v}"
@@ -68,20 +79,24 @@ jobs:
       - name: Build JetBrains plugin
         run: gradle -p adapters/jetbrains clean buildPlugin
 
-      - name: Verify plugin package exists
+      - name: Verify plugin package and create checksum
         id: package
         shell: bash
         run: |
           PACKAGE=$(find adapters/jetbrains/build/distributions -maxdepth 1 -type f -name '*.zip' -print -quit)
           test -n "$PACKAGE" || { echo "JetBrains plugin ZIP was not produced."; exit 1; }
+          sha256sum "$PACKAGE" > "$PACKAGE.sha256"
           echo "path=$PACKAGE" >> "$GITHUB_OUTPUT"
+          echo "checksum=$PACKAGE.sha256" >> "$GITHUB_OUTPUT"
           echo "name=$(basename "$PACKAGE")" >> "$GITHUB_OUTPUT"
 
       - name: Upload plugin package as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: sergeant-${{ steps.metadata.outputs.version }}-jetbrains
-          path: ${{ steps.package.outputs.path }}
+          path: |
+            ${{ steps.package.outputs.path }}
+            ${{ steps.package.outputs.checksum }}
           if-no-files-found: error
 
       - name: Publish or confirm preview on JetBrains Marketplace
@@ -101,10 +116,10 @@ jobs:
           printf '%s' "$OUTPUT" | grep -Fqi "already contains version $PLUGIN_VERSION in channel preview" && exit 0
           exit "$STATUS"
 
-      - name: Attach JetBrains ZIP to GitHub Release
-        if: github.event_name == 'release'
+      - name: Attach JetBrains ZIP and checksum to GitHub Release
+        if: steps.metadata.outputs.release_tag != ''
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-        run: gh release upload "$RELEASE_TAG" "${{ steps.package.outputs.path }}" --clobber
+          RELEASE_TAG: ${{ steps.metadata.outputs.release_tag }}
+        run: gh release upload "$RELEASE_TAG" "${{ steps.package.outputs.path }}" "${{ steps.package.outputs.checksum }}" --clobber
