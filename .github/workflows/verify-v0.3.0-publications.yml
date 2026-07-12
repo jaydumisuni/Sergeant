@@ -38,13 +38,29 @@ jobs:
       - name: Build JetBrains plugin
         run: gradle -p adapters/jetbrains clean buildPlugin
 
-      - name: Publish JetBrains preview and expose registry response
+      - name: Attempt JetBrains preview publication
+        id: publish
+        continue-on-error: true
         shell: bash
         env:
           JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
         run: |
           set +e
-          gradle -p adapters/jetbrains publishPlugin --stacktrace 2>&1 | tee jetbrains-publish.log
-          status=${PIPESTATUS[0]}
-          echo "JETBRAINS_PUBLISH_EXIT=$status"
+          gradle -p adapters/jetbrains publishPlugin --stacktrace > jetbrains-publish.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
           exit "$status"
+
+      - name: Print concise JetBrains registry response
+        if: always()
+        shell: bash
+        run: |
+          echo 'JETBRAINS_PUBLISH_LOG_TAIL_BEGIN'
+          tail -n 120 jetbrains-publish.log || true
+          echo 'JETBRAINS_PUBLISH_LOG_TAIL_END'
+          echo "JETBRAINS_PUBLISH_EXIT=${{ steps.publish.outputs.status }}"
+
+      - name: Enforce JetBrains publication result
+        if: always()
+        shell: bash
+        run: test "${{ steps.publish.outputs.status }}" = "0"
