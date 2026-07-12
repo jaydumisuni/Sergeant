@@ -304,7 +304,7 @@ Sergeant treats proof as more than ordinary unit tests.
 
 The proof suite is intended to show that the project can be installed, executed, reviewed, packaged, and validated in a repeatable way.
 
-Current v1 proof status:
+Current proof status:
 
 ```text
 CI Proof:                 Passed
