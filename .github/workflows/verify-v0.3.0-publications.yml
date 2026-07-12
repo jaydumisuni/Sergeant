@@ -13,22 +13,38 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - name: Probe JetBrains Marketplace APIs
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
+      - name: Verify JetBrains token is available
         shell: bash
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: test -n "$JETBRAINS_MARKETPLACE_TOKEN" || { echo 'JETBRAINS_TOKEN_MISSING'; exit 1; }
+
+      - name: Build JetBrains plugin
+        run: gradle -p adapters/jetbrains clean buildPlugin
+
+      - name: Publish JetBrains preview and expose registry response
+        shell: bash
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
         run: |
-          set -u
-          endpoints=(
-            'https://plugins.jetbrains.com/api/searchPlugins?search=Sergeant'
-            'https://plugins.jetbrains.com/api/plugins?pluginId=com.thetechguyds.sergeant'
-            'https://plugins.jetbrains.com/api/plugin/com.thetechguyds.sergeant'
-          )
-          i=0
-          for url in "${endpoints[@]}"; do
-            i=$((i+1))
-            echo "=== PROBE_$i $url ==="
-            code=$(curl -sSL -o "body-$i.txt" -w '%{http_code}' "$url")
-            echo "HTTP_STATUS=$code"
-            cat "body-$i.txt"
-            echo
-            echo "=== END_PROBE_$i ==="
-          done
+          set +e
+          gradle -p adapters/jetbrains publishPlugin --stacktrace 2>&1 | tee jetbrains-publish.log
+          status=${PIPESTATUS[0]}
+          echo "JETBRAINS_PUBLISH_EXIT=$status"
+          exit "$status"
