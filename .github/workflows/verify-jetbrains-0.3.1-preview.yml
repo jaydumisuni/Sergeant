@@ -35,22 +35,27 @@ jobs:
       - name: Build corrected preview
         run: gradle -p adapters/jetbrains clean buildPlugin
 
-      - name: Publish or confirm 0.3.1 preview
+      - name: Attempt 0.3.1 preview publication
+        id: publish
+        continue-on-error: true
         shell: bash
         env:
           JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
         run: |
           set +e
-          OUTPUT=$(gradle -p adapters/jetbrains publishPlugin --stacktrace 2>&1)
-          STATUS=$?
-          set -e
-          printf '%s\n' "$OUTPUT"
-          if [ "$STATUS" -eq 0 ]; then
-            echo JETBRAINS_0_3_1_UPLOAD_ACCEPTED
-            exit 0
-          fi
-          printf '%s' "$OUTPUT" | grep -Eqi 'already exists|already uploaded|version .* exists|plugin version.*exists' && {
-            echo JETBRAINS_0_3_1_ALREADY_PRESENT
-            exit 0
-          }
-          exit "$STATUS"
+          gradle -p adapters/jetbrains publishPlugin --stacktrace > jetbrains-0.3.1-publish.log 2>&1
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Upload JetBrains publication response
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jetbrains-0.3.1-publish-log
+          path: jetbrains-0.3.1-publish.log
+          if-no-files-found: error
+
+      - name: Report publication exit code
+        if: always()
+        run: echo "JETBRAINS_0_3_1_PUBLISH_EXIT=${{ steps.publish.outputs.status }}"
