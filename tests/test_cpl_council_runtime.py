@@ -13,14 +13,32 @@ from main_review.memory import ReviewMemoryStore, default_memory_path, new_memor
 from main_review.squad import run_squad_review
 
 
-def _payload(*, verdict: str = "PASS", confidence: float = 0.9, findings: list[dict] | None = None) -> dict:
-    return {
+def _payload(
+    *,
+    verdict: str = "PASS",
+    confidence: float = 0.9,
+    findings: list[dict] | None = None,
+    resolution: dict | None = None,
+    questions: list[str] | None = None,
+) -> dict:
+    payload = {
         "verdict": verdict,
         "confidence": confidence,
         "summary": f"{verdict} report",
         "findings": findings or [],
-        "unanswered_questions": [],
+        "unanswered_questions": questions or [],
         "coverage": {"files_reviewed": ["src/app.py"], "areas": ["correctness"]},
+    }
+    if resolution is not None:
+        payload["council_resolution"] = resolution
+    return payload
+
+
+def _resolution(disposition: str, answer: str, *, status: str = "answered") -> dict:
+    return {
+        "status": status,
+        "disposition": disposition,
+        "answer": answer,
     }
 
 
@@ -62,9 +80,13 @@ def _route() -> LLMRoute:
     )
 
 
-def test_cpl_runs_repeated_multi_model_council_until_named_gaps_are_answered(tmp_path: Path, monkeypatch) -> None:
+def _repo(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "app.py").write_text("def run():\n    return False\n", encoding="utf-8")
+
+
+def test_cpl_runs_repeated_multi_model_council_until_named_gaps_are_answered(tmp_path: Path, monkeypatch) -> None:
+    _repo(tmp_path)
     monkeypatch.setenv("SERGEANT_CPL_DEPTH", "deep")
     monkeypatch.setenv("SERGEANT_CPL_MAX_PASSES", "2")
     monkeypatch.setenv("SERGEANT_CPL_MAX_ROUNDS", "3")
@@ -75,8 +97,12 @@ def test_cpl_runs_repeated_multi_model_council_until_named_gaps_are_answered(tmp
         _payload(verdict="NEEDS WORK", findings=[_major_finding()]),
     ])
     later_rounds = iter([
-        _payload(),
-        _payload(verdict="NEEDS WORK", findings=[_major_finding()]),
+        _payload(resolution=_resolution("not_applicable", "The disagreement is resolved by the grounded defect evidence.")),
+        _payload(
+            verdict="NEEDS WORK",
+            findings=[_major_finding()],
+            resolution=_resolution("confirmed", "A second independent model confirmed the same line and behavior."),
+        ),
     ])
     monkeypatch.setattr(llm_review_module, "invoke_json", lambda *args, **kwargs: next(first_round))
     monkeypatch.setattr(cpl_runtime_module, "invoke_json", lambda *args, **kwargs: next(later_rounds))
@@ -99,8 +125,74 @@ def test_cpl_runs_repeated_multi_model_council_until_named_gaps_are_answered(tmp
     assert result["council"]["final_gaps"] == []
     assert [item["admission"] for item in result["council"]["recruitment"]] == ["new_member", "new_member"]
     assert result["passes"][2]["resolution_status"] == "answered"
-    assert result["passes"][3]["resolution_status"] == "answered"
+    assert result["passes"][3]["council_resolution"]["disposition"] == "confirmed"
     assert result["passes"][3]["supported_officer"] == "Engineer"
+    assert result["findings"][0]["council_confirmed_by"] == ["model-d"]
+
+
+def test_cpl_retries_same_unresolved_gap_until_round_limit_or_answer(tmp_path: Path, monkeypatch) -> None:
+    _repo(tmp_path)
+    monkeypatch.setenv("SERGEANT_CPL_DEPTH", "deep")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_PASSES", "2")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_ROUNDS", "3")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_COUNCIL_MEMBERS", "4")
+
+    first_round = iter([_payload(), _payload(verdict="NEEDS WORK", findings=[_major_finding()])])
+    later_rounds = iter([
+        _payload(
+            resolution=_resolution("unresolved", "The evidence is still incomplete.", status="unresolved"),
+            questions=["Need another independent trace."],
+        ),
+        _payload(resolution=_resolution("not_applicable", "The second follow-up resolved the verdict disagreement.")),
+    ])
+    monkeypatch.setattr(llm_review_module, "invoke_json", lambda *args, **kwargs: next(first_round))
+    monkeypatch.setattr(cpl_runtime_module, "invoke_json", lambda *args, **kwargs: next(later_rounds))
+
+    result = run_cpl_review(tmp_path, ["src/app.py"], {}, settings=_settings(), route=_route())
+
+    assert result["council"]["round_count"] == 3
+    assert result["passes"][2]["resolution_status"] == "unresolved"
+    assert result["passes"][3]["resolution_status"] == "answered"
+    assert any(item["type"] == "independent_confirmation" for item in result["council"]["final_gaps"])
+
+
+def test_cpl_can_reject_a_false_earlier_finding(tmp_path: Path, monkeypatch) -> None:
+    _repo(tmp_path)
+    monkeypatch.setenv("SERGEANT_CPL_DEPTH", "deep")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_PASSES", "2")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_ROUNDS", "3")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_COUNCIL_MEMBERS", "4")
+
+    first_round = iter([_payload(), _payload(verdict="NEEDS WORK", findings=[_major_finding()])])
+    later_rounds = iter([
+        _payload(resolution=_resolution("not_applicable", "The council isolated the disputed claim for verification.")),
+        _payload(resolution=_resolution("rejected", "The cited line is intentional and the caller contract proves success is represented elsewhere.")),
+    ])
+    monkeypatch.setattr(llm_review_module, "invoke_json", lambda *args, **kwargs: next(first_round))
+    monkeypatch.setattr(cpl_runtime_module, "invoke_json", lambda *args, **kwargs: next(later_rounds))
+
+    result = run_cpl_review(tmp_path, ["src/app.py"], {}, settings=_settings(), route=_route())
+
+    assert result["verdict"] == "PASS"
+    assert result["findings"] == []
+    assert result["council"]["effective_findings"] == []
+    assert result["council"]["complete"] is True
+    assert result["passes"][3]["council_resolution"]["disposition"] == "rejected"
+
+
+def test_council_member_cap_applies_to_core_specialists(tmp_path: Path, monkeypatch) -> None:
+    _repo(tmp_path)
+    monkeypatch.setenv("SERGEANT_CPL_DEPTH", "maximum")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_PASSES", "8")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_ROUNDS", "1")
+    monkeypatch.setenv("SERGEANT_CPL_MAX_COUNCIL_MEMBERS", "2")
+    monkeypatch.setattr(llm_review_module, "invoke_json", lambda *args, **kwargs: _payload())
+
+    result = run_cpl_review(tmp_path, ["src/app.py"], {}, settings=_settings(), route=_route())
+
+    assert result["council"]["member_count"] <= 2
+    assert {item["model"] for item in result["passes"]} <= {"model-a", "model-b"}
+    assert result["council"]["max_members"] == 2
 
 
 def test_answered_council_gap_does_not_reappear() -> None:
