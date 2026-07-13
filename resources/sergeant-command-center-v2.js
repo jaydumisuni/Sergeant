@@ -12,6 +12,7 @@
     'Custom Mission': 'v2Mission',
   };
   const officers = [
+    ['Cpl', 'Corporal Specialist reasoning'],
     ['Quartermaster', 'Weapons + loadout'],
     ['Scout', 'Repository discovery'],
     ['Engineer', 'Architecture check'],
@@ -27,7 +28,7 @@
     'Static Analysis',
     'Regression Tests',
     'Security Scanner',
-    'Semantic Open-Model Review',
+    'Cpl Specialist Reasoning',
     'Battle Compare',
     'Evidence Export',
     'IDE Contract Probe',
@@ -78,7 +79,7 @@
     $('#progressBar').style.width = `${percentage}%`;
     $('#dashboardPhase').style.width = `${percentage}%`;
     $('#progressPct').textContent = `${percentage}%`;
-    const labels = ['Mission Started', 'Evidence Collected', 'Verification', 'Consensus', 'Report Generated'];
+    const labels = ['Mission Started', 'Evidence Collected', 'Cpl Reasoning', 'Consensus', 'Report Generated'];
     $('#timeline').innerHTML = labels.map((label, index) => {
       const cutoff = (index + 1) * 20;
       const className = percentage >= cutoff ? 'done' : percentage > index * 20 ? 'running' : '';
@@ -97,17 +98,17 @@
     };
   }
 
-  function semanticRouteLabel(settings = selectedSettings()) {
+  function cplRouteLabel(settings = selectedSettings()) {
     const provider = settings.provider || 'auto';
-    const model = settings.model || 'best open model';
+    const model = settings.model || 'best available model';
     if (settings.policy === 'disabled' || provider === 'disabled') return 'Deterministic only';
-    return `${provider} · ${model}`;
+    return `Cpl · ${provider} · ${model}`;
   }
 
-  function saveSemanticSettings() {
+  function saveCplSettings() {
     const settings = selectedSettings();
     state.settings = { ...state.settings, ...settings };
-    $('#semanticRoute').textContent = semanticRouteLabel(settings);
+    $('#semanticRoute').textContent = cplRouteLabel(settings);
     missionSummary();
     send({ type: 'saveSettings', settings });
   }
@@ -125,21 +126,24 @@
     for (const [selector, key] of mappings) {
       const element = $(selector);
       if (element && state.settings[key] !== undefined && state.settings[key] !== null) {
-        element.value = String(state.settings[key]);
+        const requested = String(state.settings[key]);
+        // Normalize the briefly exposed legacy gateway value without displaying
+        // the upstream identity in Sergeant's product UI.
+        element.value = key === 'provider' && requested === 'fcc' ? 'cpl' : requested;
       }
     }
-    $('#semanticRoute').textContent = semanticRouteLabel(state.settings);
+    $('#semanticRoute').textContent = cplRouteLabel(state.settings);
   }
 
   function missionSummary() {
     const mission = $('input[name="level"]:checked')?.value || 'Repository Review';
-    const semantic = semanticRouteLabel();
+    const route = cplRouteLabel();
     $('#missionSummary').innerHTML = [
       ['Mission', mission],
       ['Workspace', state.workspace],
       ['Priority', $('#priority').value],
       ['Permissions', 'Read + Proof'],
-      ['Semantic Review', semantic],
+      ['Cpl Reasoning', route],
       ['Commander', 'Ready', 'pass'],
     ].map(([label, value, className = '']) => (
       `<div class="row"><span>${label}</span><b class="${className}">${value}</b></div>`
@@ -147,7 +151,7 @@
   }
 
   function renderOfficers() {
-    const card = (officer, index) => `<div class="officer"><b>${officer[0]}</b><small>${officer[1]}</small><div class="row"><span>Status</span><b class="${index < 6 ? 'pass' : 'work'}">${index < 6 ? 'READY' : 'IDLE'}</b></div></div>`;
+    const card = (officer, index) => `<div class="officer"><b>${officer[0]}</b><small>${officer[1]}</small><div class="row"><span>Status</span><b class="${index < 7 ? 'pass' : 'work'}">${index < 7 ? 'READY' : 'IDLE'}</b></div></div>`;
     $('#officers').innerHTML = officers.map(card).join('');
     $('#dashboardOfficers').innerHTML = officers.slice(0, 5).map(card).join('');
     $('#armoury').innerHTML = weapons.map((weapon) => `<div class="weapon"><b>${weapon}</b><small>Available weapon · permission gated · evidence output.</small><div class="row"><span>Status</span><b class="pass">READY</b></div></div>`).join('');
@@ -158,7 +162,7 @@
       ['Deterministic Evidence', 98],
       ['Architecture', 93],
       ['Security', 96],
-      ['Semantic Grounding', 94],
+      ['Cpl Grounding', 94],
       ['Commander', 95],
     ];
     $('#confidence').innerHTML = rows.map((row) => `<div class="confidence-line"><span>${row[0]}</span><span class="bar"><i style="width:${row[1]}%"></i></span><b>${row[1]}%</b></div>`).join('');
@@ -166,8 +170,9 @@
 
   function renderDoctrine() {
     const cards = [
-      ['Evidence First', 'Static findings, runtime proof, semantic findings, UI behavior, docs proof, API results and conflicts are gathered before claims.'],
-      ['Grounded Semantic Review', 'Every semantic blocker or major finding must point to supplied repository text, path and line range. Unsupported claims are rejected.'],
+      ['Evidence First', 'Static findings, runtime proof, Cpl findings, UI behavior, docs proof, API results and conflicts are gathered before claims.'],
+      ['Grounded Cpl Reasoning', 'Every Cpl blocker or major finding must point to supplied repository text, path and line range. Unsupported claims are rejected.'],
+      ['Specialist Decomposition', 'Cpl assigns correctness, security, architecture, tests/contracts and performance specialists only when the mission justifies them.'],
       ['Cross Verification', 'Evidence sources are compared and disagreements are investigated rather than averaged away.'],
       ['Confidence', 'Confidence reflects evidence quality, coverage and unresolved conflicts.'],
       ['Human Authority', 'Writer mode creates draft patches only. Human approval is required and Sergeant never auto-merges.'],
@@ -177,22 +182,24 @@
     $('#doctrineCards').innerHTML = cards.map((card) => `<div class="evidence"><h3>${card[0]}</h3><p>${card[1]}</p></div>`).join('');
     const roadmap = [
       ['Operations', 'Live mission monitoring, reusable templates and multi-repository operations.'],
+      ['Cpl Reasoning', 'Richer context graphs, specialist memory, verifier loops, role-specific models and disagreement analysis.'],
       ['Review Collaboration', 'Collaborative reviews, replay and shared audit trails.'],
       ['Knowledge / Learning', 'Knowledge base integration, analytics and recurring-issue trends.'],
       ['Plugin / Weapon SDK', 'Permission-gated analysis weapons with defined inputs, outputs and evidence formats.'],
     ];
     $('#roadmapCards').innerHTML = roadmap.map((card) => `<div class="evidence"><h3>${card[0]}</h3><p>${card[1]}</p><b class="work">POST‑V2</b></div>`).join('');
-    const guide = ['What is Sergeant?', 'Review Doctrine', 'How Sergeant Reviews', 'Mission System', 'Open-Model Router', 'Officers', 'Armoury', 'Evidence', 'Battle Testing', 'Post‑V2 Roadmap', 'Safety', 'FAQ'];
-    $('#guideCards').innerHTML = guide.map((title) => `<div class="guide"><b>${title}</b><p>Explains how ${title.toLowerCase()} fits Commander → Mission → Officers → Weapon Manifest → Deterministic Evidence → Semantic Evidence → Verification → Commander Verdict → Audit Trail.</p></div>`).join('');
+    const guide = ['What is Sergeant?', 'Review Doctrine', 'How Sergeant Reviews', 'Mission System', 'Cpl — Corporal Specialist', 'Reasoning Depth', 'Engine Routes', 'Officers', 'Armoury', 'Evidence', 'Battle Testing', 'Post‑V2 Roadmap', 'Safety', 'FAQ'];
+    $('#guideCards').innerHTML = guide.map((title) => `<div class="guide"><b>${title}</b><p>Explains how ${title.toLowerCase()} fits Commander → Mission → Officers → Weapon Manifest → Deterministic Evidence → Cpl Reasoning Evidence → Verification → Commander Verdict → Audit Trail.</p></div>`).join('');
   }
 
   function settings(tab = 'general') {
     const providerDetails = [
+      'Officer: Cpl — Corporal Specialist',
       `Policy: ${state.settings.policy || 'preferred'}`,
-      `Provider: ${state.settings.provider || 'auto'}`,
-      `Model: ${state.settings.model || 'Automatic open-model preference'}`,
+      `Engine route: ${state.settings.provider || 'auto'}`,
+      `Model: ${state.settings.model || 'Cpl automatic selection'}`,
       `Protocol: ${state.settings.protocol || 'auto'}`,
-      `Council: ${state.settings.council || 'adaptive'}`,
+      `Reasoning depth: ${state.settings.council || 'adaptive'}`,
       'API credentials: environment only',
     ];
     const map = {
@@ -203,19 +210,19 @@
       ide: ['Workspace awareness', 'Active file', 'Git branch', 'Changed files', 'Python / Git / virtual environment'],
       github: ['Repository status', 'PR comments planned', 'Commit evidence'],
       battle: ['Battle comparison', 'UI proof checks', 'Regression baseline'],
-      debug: ['Runtime logs', 'Bridge diagnostics', 'LLM route available through sergeant llm-status'],
-      advanced: ['Export UI contract', 'Reset local evidence', 'Required semantic-review policy'],
+      debug: ['Runtime logs', 'Bridge diagnostics', 'Cpl route available through sergeant cpl-status'],
+      advanced: ['Export UI contract', 'Reset local evidence', 'Required Cpl policy', 'Maximum specialist reasoning'],
     };
     $$('#settingTabs button').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
     $('#settingsContent').innerHTML = (map[tab] || []).map((item) => `<div class="setting"><span>${item}</span><span class="toggle"></span></div>`).join('');
   }
 
   function renderEvidence() {
-    const findings = state.last?.findings || [];
+    const findings = state.last?.findings || state.last?.payload?.cpl_review?.findings || [];
     const defaults = [
       ['Static Evidence', 'Repository structure, changed files and source findings.'],
       ['Runtime Evidence', 'Command exit status and captured runtime output.'],
-      ['Semantic Evidence', 'Evidence-grounded findings from the selected open model and optional challenger.'],
+      ['Cpl Reasoning Evidence', 'Grounded findings from Cpl general and specialist passes using replaceable model engines.'],
       ['UI Evidence', 'Command Center controls and rendered behavior.'],
       ['Docs Verification', 'README, release notes and workflow claims.'],
       ['Battle Evidence', 'Comparison fixtures, regressions and disagreements.'],
@@ -261,7 +268,7 @@
         ? `${state.last.summary?.verdict || state.last.verdict} — report ready.`
         : 'Waiting for runtime…';
     $('#liveLog').textContent = running
-      ? `[${new Date().toLocaleTimeString()}] Mission running through ${state.platform} host using ${semanticRouteLabel(state.settings)}…`
+      ? `[${new Date().toLocaleTimeString()}] Cpl mission running through ${state.platform} host using ${cplRouteLabel(state.settings)}…`
       : state.last
         ? `[${new Date().toLocaleTimeString()}] Mission completed. Evidence Locker updated.`
         : '';
@@ -277,7 +284,7 @@
   function launch(action) {
     page('progress');
     phase(12);
-    $('#operation').textContent = 'Commander accepted the mission. Waiting for deterministic and semantic evidence…';
+    $('#operation').textContent = 'Commander accepted the mission. Waiting for deterministic and Cpl evidence…';
     send({
       type: 'run',
       action,
@@ -310,7 +317,7 @@
   $('#priority').onchange = missionSummary;
   $('#deployBtn').onclick = () => launch(missionMap[$('input[name="level"]:checked').value]);
   for (const selector of ['#llmPolicySelect', '#providerSelect', '#llmBaseUrlInput', '#llmModelInput', '#llmProtocolSelect', '#llmCouncilSelect']) {
-    $(selector).addEventListener('change', saveSemanticSettings);
+    $(selector).addEventListener('change', saveCplSettings);
   }
   $('#workspaceSelect').onchange = () => send({ type: 'selectWorkspace', workspace: $('#workspaceSelect').value });
   $('#openLatestReport').onclick = () => send({ type: 'openLast' });
