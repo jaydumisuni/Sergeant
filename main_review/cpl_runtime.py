@@ -5,7 +5,17 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from .cpl_council import agreement, assess, available_models, instruction, max_members, max_rounds
+from .cpl_council import (
+    CATEGORY_SPECIALIST,
+    agreement,
+    assess,
+    available_models,
+    gap_signature,
+    instruction,
+    max_members,
+    max_rounds,
+    specialist_for_text,
+)
 from .cpl_council_prompt import follow_up_prompt, member_records, report_table
 from .cpl_experience import detect_recurrences, retrieve_experience
 from .cpl_reasoning import SPECIALISTS, specialist_system_prompt
@@ -40,6 +50,42 @@ def _coverage(passes: list[dict[str, Any]], original: dict[str, Any]) -> dict[st
     files = sorted({path for item in passes for path in item.get("coverage", {}).get("files_reviewed", [])})
     areas = sorted({area for item in passes for area in item.get("coverage", {}).get("areas", [])})
     return {**original, "files_reviewed": files, "areas": areas}
+
+
+def _resolved(passes: list[dict[str, Any]]) -> set[tuple[str, str, str]]:
+    return {
+        tuple(str(part) for part in item.get("resolved_gap_signature", []))
+        for item in passes
+        if item.get("resolution_status") == "answered" and len(item.get("resolved_gap_signature", [])) == 3
+    }
+
+
+def _recurrence_gaps(passes: list[dict[str, Any]], experience: dict[str, Any]) -> list[dict[str, Any]]:
+    findings, _, _ = _merge_passes(passes)
+    resolved = _resolved(passes)
+    gaps: list[dict[str, Any]] = []
+    for recurrence in detect_recurrences(findings, experience):
+        specialist = specialist_for_text(recurrence.get("current_finding"))
+        if specialist == "correctness":
+            matching = next((item for item in findings if item.get("message") == recurrence.get("current_finding")), {})
+            specialist = CATEGORY_SPECIALIST.get(str(matching.get("category") or "other"), "correctness")
+        gap = {
+            "type": "recurrence",
+            "specialist": specialist,
+            "officer": SPECIALISTS[specialist].officer,
+            "reason": (
+                f"Possible recurrence of {recurrence.get('previous_event_id')}: "
+                f"{recurrence.get('current_finding')}. Determine why prior prevention did not stop it."
+            ),
+            "recurrence": recurrence,
+        }
+        if gap_signature(gap) not in resolved:
+            gaps.append(gap)
+    return gaps
+
+
+def _all_gaps(passes: list[dict[str, Any]], plan: list[dict[str, Any]], errors: list[str], models: list[str], experience: dict[str, Any]) -> list[dict[str, Any]]:
+    return [*_recurrence_gaps(passes, experience), *assess(passes, plan, errors, len(models))]
 
 
 def run_cpl_review(
@@ -86,10 +132,10 @@ def run_cpl_review(
     base_prompt = _build_user_prompt(changed_files, excerpts, enriched_context)
 
     for round_number in range(2, max_rounds() + 1):
-        gaps_before = assess(passes, plan, errors, len(models))
+        gaps_before = _all_gaps(passes, plan, errors, models, experience)
         if not gaps_before:
             break
-        signature = tuple((str(item.get("type")), str(item.get("specialist")), str(item.get("reason"))) for item in gaps_before)
+        signature = tuple(gap_signature(item) for item in gaps_before)
         if signature == previous_signature:
             break
         previous_signature = signature
@@ -117,12 +163,15 @@ def run_cpl_review(
                 user_prompt=follow_up_prompt(base_prompt, table, command, experience, round_number),
             )
             officer_report = _validate_pass(payload, files, route=selected_route, assignment=assignment)
+            answered = not officer_report.get("unanswered_questions")
             officer_report.update({
                 "council_round": round_number,
                 "council_member_role": "recruited_gap_specialist",
                 "supported_officer": assignment.officer,
                 "instruction_received": command,
                 "admission": admission,
+                "resolved_gap_signature": command.get("gap_signature", []),
+                "resolution_status": "answered" if answered else "unresolved",
             })
             passes.append(officer_report)
             used.add(selected_model)
@@ -135,11 +184,11 @@ def run_cpl_review(
             "instructions": [command],
             "recruitment": recruited,
             "officer_report": officer_report,
-            "gaps_after": assess(passes, plan, errors, len(models)),
+            "gaps_after": _all_gaps(passes, plan, errors, models, experience),
         })
 
     findings, verdict, confidence = _merge_passes(passes)
-    final_gaps = assess(passes, plan, errors, len(models))
+    final_gaps = _all_gaps(passes, plan, errors, models, experience)
     unique_models = {str(item.get("model")) for item in passes if item.get("model")}
     independence = round(len(unique_models) / max(1, len(passes)), 3)
     if final_gaps:
