@@ -9,8 +9,9 @@ from main_review.cpl_runtime import run_cpl_review
 from main_review.llm_provider import LLMRoute, LLMSettings
 
 
-def _outcome(finding_id: str, status: str, model: str, category: str = "correctness") -> dict:
+def _outcome(finding_id: str, status: str, model: str, category: str = "correctness", mission_id: str | None = None) -> dict:
     return {
+        "mission_id": mission_id,
         "finding_id": finding_id,
         "status": status,
         "category": category,
@@ -46,6 +47,20 @@ def test_verified_service_records_rank_future_council_members() -> None:
     assert ranked[0] == "model-c"
     assert ranked[-1] == "model-a"
     assert model_score("model-c", experience, "correctness") > model_score("model-b", experience, "correctness")
+
+
+def test_same_finding_in_different_missions_creates_distinct_experience(tmp_path: Path) -> None:
+    first = record_human_outcomes(tmp_path, [_outcome("F-1", "verified", "model-a", mission_id="SGT-001")])
+    second = record_human_outcomes(tmp_path, [_outcome("F-1", "verified", "model-a", mission_id="SGT-002")])
+    duplicate = record_human_outcomes(tmp_path, [_outcome("F-1", "verified", "model-a", mission_id="SGT-002")])
+    experience = retrieve_experience(tmp_path, ["src/app.py"], officers=["Engineer"])
+
+    assert len(first) == 3
+    assert len(second) == 3
+    assert duplicate == []
+    assert {item["mission_id"] for item in experience["events"]} == {"SGT-001", "SGT-002"}
+    assert experience["profiles"]["model:model-a"]["missions_recorded"] == 2
+    assert experience["profiles"]["model:model-a"]["outcomes_recorded"] == 2
 
 
 def test_automatic_cpl_primary_model_uses_verified_reliability(tmp_path: Path, monkeypatch) -> None:
