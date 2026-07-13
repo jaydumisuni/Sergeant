@@ -22,6 +22,7 @@ async function assertCommandCenter(page, screenshotName) {
   await page.goto(previewUrl);
   await expect(page.locator('h1')).toContainText('SGT');
   await expect(page.locator('#dashboardOfficers .officer')).toHaveCount(5);
+  await expect(page.locator('#dashboardOfficers .officer').first()).toContainText('Cpl');
 
   for (const [label, id] of pages) {
     await page.getByRole('button', { name: label, exact: true }).first().click();
@@ -29,6 +30,7 @@ async function assertCommandCenter(page, screenshotName) {
   }
 
   await page.getByRole('button', { name: 'Mission Planner', exact: true }).first().click();
+  await expect(page.getByRole('heading', { name: 'Cpl — Corporal Specialist' })).toBeVisible();
   await expect(page.locator('#llmPolicySelect')).toBeVisible();
   await expect(page.locator('#providerSelect')).toBeVisible();
   await expect(page.locator('#llmModelInput')).toBeVisible();
@@ -41,7 +43,7 @@ async function assertCommandCenter(page, screenshotName) {
   await expect(page.locator('#llmCouncilSelect')).toHaveValue('adaptive');
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).first().click();
-  await expect(page.locator('#semanticRoute')).toContainText('auto');
+  await expect(page.locator('#semanticRoute')).toContainText('Cpl · auto');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
   expect(pageErrors).toEqual([]);
@@ -58,7 +60,7 @@ test('compact IDE width remains usable', async ({ page }) => {
   await assertCommandCenter(page, 'command-center-420.png');
 });
 
-test('semantic router persists an explicit FCC-compatible configuration', async ({ page }) => {
+test('Cpl router persists an explicit maximum-reasoning configuration', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto(previewUrl);
   await page.evaluate(() => {
@@ -71,13 +73,13 @@ test('semantic router persists an explicit FCC-compatible configuration', async 
 
   await page.getByRole('button', { name: 'Mission Planner', exact: true }).first().click();
   await page.locator('#llmPolicySelect').selectOption('required');
-  await page.locator('#providerSelect').selectOption('fcc');
+  await page.locator('#providerSelect').selectOption('cpl');
   await page.locator('#llmModelInput').fill('provider/qwen3-coder-next');
   await page.locator('#llmModelInput').dispatchEvent('change');
   await page.locator('#llmBaseUrlInput').fill('http://127.0.0.1:8082/v1');
   await page.locator('#llmBaseUrlInput').dispatchEvent('change');
   await page.locator('#llmProtocolSelect').selectOption('responses');
-  await page.locator('#llmCouncilSelect').selectOption('always');
+  await page.locator('#llmCouncilSelect').selectOption('maximum');
 
   const savePayloads = await page.evaluate(() => window.__sergeantPayloads.filter((item) => item.type === 'saveSettings'));
   expect(savePayloads.length).toBeGreaterThanOrEqual(6);
@@ -85,15 +87,15 @@ test('semantic router persists an explicit FCC-compatible configuration', async 
     type: 'saveSettings',
     settings: {
       policy: 'required',
-      provider: 'fcc',
+      provider: 'cpl',
       baseUrl: 'http://127.0.0.1:8082/v1',
       model: 'provider/qwen3-coder-next',
       protocol: 'responses',
-      council: 'always',
+      council: 'maximum',
     },
   });
 
-  await expect(page.locator('#missionSummary')).toContainText('fcc · provider/qwen3-coder-next');
+  await expect(page.locator('#missionSummary')).toContainText('Cpl · cpl · provider/qwen3-coder-next');
 });
 
 test('Command Center sends only one mission while a run is active', async ({ page }) => {
