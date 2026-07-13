@@ -136,7 +136,7 @@ def test_required_cpl_review_blocks_when_no_route_is_available(tmp_path: Path, m
     assert result["officer"] == "Cpl"
 
 
-def test_adaptive_cpl_deploys_a_specialist_on_a_second_open_model(tmp_path: Path, monkeypatch) -> None:
+def test_adaptive_cpl_deploys_architecture_specialist_for_workflow_change(tmp_path: Path, monkeypatch) -> None:
     (tmp_path / ".github" / "workflows").mkdir(parents=True)
     (tmp_path / ".github" / "workflows" / "review.yml").write_text(
         "permissions:\n  contents: read\n",
@@ -171,7 +171,7 @@ def test_adaptive_cpl_deploys_a_specialist_on_a_second_open_model(tmp_path: Path
 
     assert [model for model, _ in calls] == ["provider/glm-5.2", "provider/qwen3-coder-next"]
     assert len(result["passes"]) == 2
-    assert result["passes"][1]["specialist"] == "security"
+    assert result["passes"][1]["specialist"] == "architecture"
     assert "CPL SPECIALIST ASSIGNMENT" in calls[1][1]
     assert result["reasoning_plan"][0]["model"] == "provider/qwen3-coder-next"
     assert result["verdict"] == "PASS"
