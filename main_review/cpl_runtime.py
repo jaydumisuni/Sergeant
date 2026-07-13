@@ -21,6 +21,7 @@ from .cpl_council import (
 from .cpl_council_prompt import follow_up_prompt, member_records, report_table
 from .cpl_experience import detect_recurrences, retrieve_experience
 from .cpl_reasoning import SPECIALISTS, specialist_system_prompt
+from .cpl_reliability import attach_model_profiles, model_score, rank_models
 from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, discover_route, invoke_json
 from .llm_review import (
     SYSTEM_PROMPT,
@@ -48,6 +49,14 @@ def _bounded_route(route: LLMRoute, member_limit: int) -> LLMRoute:
     if route.model not in models:
         models.insert(0, route.model)
     return replace(route, discovered_models=tuple(models[:member_limit]))
+
+
+def _reliability_route(route: LLMRoute, settings: LLMSettings, experience: dict[str, Any]) -> LLMRoute:
+    ranked = rank_models(available_models(route), experience)
+    primary = route.model
+    if not str(settings.model or "").strip() and ranked:
+        primary = ranked[0]
+    return replace(route, model=primary, discovered_models=tuple(ranked))
 
 
 def _choose_model(models: list[str], used: set[str], fallback: str, member_limit: int) -> tuple[str, str]:
@@ -189,12 +198,14 @@ def run_cpl_review(
         "cpl_verified_experience": {
             "events": experience.get("events", [])[:12],
             "canonical_lessons": experience.get("canonical_lessons", [])[:8],
+            "profiles": experience.get("profiles", {}),
             "anti_repeat_rule": experience.get("anti_repeat_rule"),
         },
     }
     discovered_route = route or (discover_route(settings) if settings.enabled else None)
     member_limit = max_members()
-    resolved_route = _bounded_route(discovered_route, member_limit) if discovered_route is not None else None
+    reliability_route = _reliability_route(discovered_route, settings, experience) if discovered_route is not None else None
+    resolved_route = _bounded_route(reliability_route, member_limit) if reliability_route is not None else None
     result = run_cpl_review_once(root_path, changed_files, enriched_context, settings=settings, route=resolved_route)
     result["experience"] = experience
     result["memory_checked"] = True
@@ -223,7 +234,8 @@ def run_cpl_review(
         specialist = str(gap.get("specialist") or "correctness")
         assignment = SPECIALISTS.get(specialist, SPECIALISTS["correctness"])
         command = instruction(gap, round_number)
-        selected_model, admission = _choose_model(models, used, resolved_route.model, member_limit)
+        ranked_candidates = rank_models(models, experience, specialist)
+        selected_model, admission = _choose_model(ranked_candidates, used, resolved_route.model, member_limit)
         selected_route = replace(resolved_route, model=selected_model)
         recruited = {
             "round": round_number,
@@ -231,6 +243,7 @@ def run_cpl_review(
             "admission": admission,
             "required_capability": specialist,
             "reason": gap.get("reason"),
+            "selection_score": model_score(selected_model, experience, specialist),
             "temporary": True,
         }
         recruitment.append(recruited)
@@ -250,6 +263,7 @@ def run_cpl_review(
                 "supported_officer": assignment.officer,
                 "instruction_received": command,
                 "admission": admission,
+                "selection_score": recruited["selection_score"],
                 "council_resolution": resolution,
                 "resolved_gap_signature": resolution.get("gap_signature", []),
                 "resolution_status": resolution.get("status"),
@@ -297,7 +311,7 @@ def run_cpl_review(
         "coverage": _coverage(effective_passes, result.get("coverage", {})),
         "unanswered_questions": unresolved_questions,
         "errors": errors,
-        "reason": "Cpl retrieved verified experience, tabled officer reports, recruited council support for named gaps, explicitly adjudicated earlier findings, and returned grounded evidence to Sergeant.",
+        "reason": "Cpl retrieved verified experience, selected council members from proven service records, tabled officer reports, explicitly adjudicated earlier findings, and returned grounded evidence to Sergeant.",
     })
     result["recurrences"] = detect_recurrences(findings, experience)
     result["council"] = {
@@ -306,7 +320,7 @@ def run_cpl_review(
         "rounds": rounds,
         "round_count": round_count,
         "max_rounds": max_rounds(),
-        "members": member_records(passes),
+        "members": attach_model_profiles(member_records(passes), experience),
         "member_count": len(unique_models),
         "max_members": member_limit,
         "recruitment": recruitment,
