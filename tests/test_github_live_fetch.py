@@ -21,6 +21,10 @@ def _pr_payload(repository: str = "owner/repo", pr_number: int = 12, *, private:
     }
 
 
+def _fake_classic_token() -> str:
+    return "ghp_" + ("a" * 26)
+
+
 class _FakeResponse:
     def __init__(self, payload: object, *, url: str, headers: dict[str, str] | None = None, status: int = 200) -> None:
         self.payload = payload
@@ -126,11 +130,11 @@ def test_live_github_fetch_rejects_advertised_write_scope(monkeypatch: pytest.Mo
 
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
     with pytest.raises(GitHubFetchError, match="write-capable"):
-        fetch_pr_comments_live("owner/repo", 12, token="ghp_abcdefghijklmnopqrstuvwxyz", base_url="https://example.test", allowed_hosts=["example.test"])
+        fetch_pr_comments_live("owner/repo", 12, token=_fake_classic_token(), base_url="https://example.test", allowed_hosts=["example.test"])
 
 
 def test_live_github_fetch_redacts_secrets_and_proof_omits_bodies(monkeypatch: pytest.MonkeyPatch) -> None:
-    secret = "ghp_abcdefghijklmnopqrstuvwxyz"
+    secret = _fake_classic_token()
 
     def fake_urlopen(request, timeout: int):  # type: ignore[no-untyped-def]
         payload = _pr_payload() if request.full_url.endswith("/pulls/12") else [{"id": 1, "body": f"leaked {secret}"}]
