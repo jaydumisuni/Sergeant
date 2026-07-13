@@ -125,13 +125,16 @@ def test_fcc_responses_route_discovers_best_open_model_and_returns_grounded_revi
         assert result["verdict"] == "NEEDS WORK"
         assert result["findings"][0]["evidence_verified"] is True
         assert result["route"]["model"] == "gateway/glm-5.2"
-        assert len(_FCCHandler.requests) == 1
-        request = _FCCHandler.requests[0]
-        assert request["path"] == "/v1/responses"
-        assert request["payload"]["model"] == "gateway/glm-5.2"
-        assert request["payload"]["input"][0]["role"] == "system"
-        assert request["payload"]["input"][1]["role"] == "user"
-        assert "src/math.py" in request["payload"]["input"][1]["content"][0]["text"]
+        assert [request["payload"]["model"] for request in _FCCHandler.requests] == [
+            "gateway/glm-5.2",
+            "gateway/qwen3-coder-next",
+        ]
+        assert len(result["passes"]) == 2
+        for request in _FCCHandler.requests:
+            assert request["path"] == "/v1/responses"
+            assert request["payload"]["input"][0]["role"] == "system"
+            assert request["payload"]["input"][1]["role"] == "user"
+            assert "src/math.py" in request["payload"]["input"][1]["content"][0]["text"]
     finally:
         server.shutdown()
         server.server_close()
