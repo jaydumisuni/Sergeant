@@ -37,13 +37,18 @@ async function assertCommandCenter(page, screenshotName) {
   await expect(page.locator('#llmBaseUrlInput')).toBeVisible();
   await expect(page.locator('#llmProtocolSelect')).toBeVisible();
   await expect(page.locator('#llmCouncilSelect')).toBeVisible();
+  await expect(page.locator('#cplMaxRoundsInput')).toBeVisible();
+  await expect(page.locator('#cplMaxMembersInput')).toBeVisible();
   await expect(page.locator('#deployBtn')).toBeVisible();
   await expect(page.locator('#providerSelect')).toHaveValue('auto');
   await expect(page.locator('#llmPolicySelect')).toHaveValue('preferred');
   await expect(page.locator('#llmCouncilSelect')).toHaveValue('adaptive');
+  await expect(page.locator('#cplMaxRoundsInput')).toHaveValue('2');
+  await expect(page.locator('#cplMaxMembersInput')).toHaveValue('5');
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).first().click();
-  await expect(page.locator('#semanticRoute')).toContainText('Cpl · auto');
+  await expect(page.locator('#semanticRoute')).toContainText('Cpl · adaptive council · auto');
+  await expect(page.locator('#semanticRoute')).toContainText('2r/5m');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
   expect(pageErrors).toEqual([]);
@@ -80,9 +85,13 @@ test('Cpl router persists an explicit maximum-reasoning configuration', async ({
   await page.locator('#llmBaseUrlInput').dispatchEvent('change');
   await page.locator('#llmProtocolSelect').selectOption('responses');
   await page.locator('#llmCouncilSelect').selectOption('maximum');
+  await page.locator('#cplMaxRoundsInput').fill('4');
+  await page.locator('#cplMaxRoundsInput').dispatchEvent('change');
+  await page.locator('#cplMaxMembersInput').fill('9');
+  await page.locator('#cplMaxMembersInput').dispatchEvent('change');
 
   const savePayloads = await page.evaluate(() => window.__sergeantPayloads.filter((item) => item.type === 'saveSettings'));
-  expect(savePayloads.length).toBeGreaterThanOrEqual(6);
+  expect(savePayloads.length).toBeGreaterThanOrEqual(8);
   expect(savePayloads.at(-1)).toEqual({
     type: 'saveSettings',
     settings: {
@@ -92,10 +101,13 @@ test('Cpl router persists an explicit maximum-reasoning configuration', async ({
       model: 'provider/qwen3-coder-next',
       protocol: 'responses',
       council: 'maximum',
+      maxRounds: 4,
+      maxMembers: 9,
     },
   });
 
-  await expect(page.locator('#missionSummary')).toContainText('Cpl · cpl · provider/qwen3-coder-next');
+  await expect(page.locator('#missionSummary')).toContainText('Cpl · maximum council · cpl · provider/qwen3-coder-next · 4r/9m');
+  await expect(page.locator('#missionSummary')).toContainText('4 rounds · 9 members');
 });
 
 test('Command Center sends only one mission while a run is active', async ({ page }) => {
@@ -128,6 +140,8 @@ test('Command Center sends only one mission while a run is active', async ({ pag
     model: '',
     protocol: 'auto',
     council: 'adaptive',
+    maxRounds: 2,
+    maxMembers: 5,
   });
 
   await page.evaluate(() => {
@@ -145,6 +159,8 @@ test('Command Center sends only one mission while a run is active', async ({ pag
           model: '',
           protocol: 'auto',
           council: 'adaptive',
+          maxRounds: 2,
+          maxMembers: 5,
         },
       },
     }, '*');

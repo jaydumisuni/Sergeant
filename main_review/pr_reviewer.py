@@ -9,10 +9,10 @@ from .capability_engine import run_capability_engine
 from .capability_policy import normalize_capability_review
 from .challenge import run_challenge_mode
 from .consensus import build_consensus
+from .cpl_runtime import run_cpl_review
 from .decision_workspace import build_decision_workspace
 from .diff_policy import normalize_diff_review
 from .diff_review import review_changed_files
-from .llm_review import run_cpl_review
 from .review_ingestion import ingest_external_review_file
 from .review_intelligence import run_review_intelligence
 from .semantic_scope import semantic_review_files
@@ -77,16 +77,19 @@ def _decide(
     intelligence_verdict = intelligence.get("verdict")
     cpl_verdict = cpl.get("verdict")
     notes = ["External reviewer comments are optional learning inputs, not required gates."]
-    if cpl.get("status") in {"unavailable", "disabled"} and cpl.get("policy") != "required":
+    if cpl.get("status") in {"unavailable", "disabled", "error"} and cpl.get("policy") != "required":
         notes.append("Cpl reasoning was not available; deterministic Sergeant evidence remained authoritative.")
     if cpl.get("status") == "completed_with_warnings":
-        notes.append("Cpl completed its primary reasoning pass, but one specialist assignment returned a warning.")
+        notes.append("Cpl completed with one or more council or officer-support warnings.")
+    council_state = cpl.get("council", {})
+    if council_state.get("mode") not in {None, "not_deployed"} and council_state.get("complete") is False:
+        notes.append("Cpl preserved unresolved council gaps for Sergeant instead of inventing certainty.")
 
     if actions or consensus_value == "BLOCK" or intelligence_verdict == "BLOCK" or cpl_verdict == "BLOCK":
         return ReviewVerdict(
             "REQUEST_CHANGES",
             0.92,
-            "Blocking evidence, Cpl reasoning risk, review-intelligence risk, or a required action remains unanswered.",
+            "Blocking evidence, Cpl council risk, review-intelligence risk, or a required action remains unanswered.",
             actions,
             notes,
         )
@@ -105,7 +108,7 @@ def _decide(
     return ReviewVerdict(
         "APPROVE",
         confidence,
-        "Repository evidence, capability analysis, review intelligence, Cpl specialist reasoning, standard checks, diff review, challenge mode, and consensus are satisfied.",
+        "Repository evidence, capability analysis, review intelligence, Cpl council reasoning, standard checks, diff review, challenge mode, and consensus are satisfied.",
         notes=notes,
     )
 
@@ -244,6 +247,7 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Review quality score: {packet.get('review_intelligence', {}).get('quality_score')}")
     cpl = packet.get("cpl_review", packet.get("semantic_review", {}))
     route = cpl.get("route", {}) if isinstance(cpl, dict) else {}
+    council = cpl.get("council", {}) if isinstance(cpl, dict) else {}
     lines.append(f"- Cpl status: {cpl.get('status')}")
     lines.append(f"- Cpl role: {cpl.get('role', 'Corporal Specialist')}")
     lines.append(f"- Cpl depth: {cpl.get('depth')}")
@@ -251,6 +255,10 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Cpl verdict: {cpl.get('verdict')}")
     lines.append(f"- Cpl confidence: {cpl.get('confidence')}")
     lines.append(f"- Cpl specialist passes: {len(cpl.get('passes', []))}")
+    lines.append(f"- Cpl council members: {council.get('member_count', 0)}")
+    lines.append(f"- Cpl council rounds: {council.get('round_count', 0)}")
+    lines.append(f"- Cpl memory checked: {cpl.get('memory_checked', False)}")
+    lines.append(f"- Cpl council complete: {council.get('complete', False)}")
     lines.append(f"- Semantic files supplied: {len(packet.get('semantic_files', []))}")
     lines.append(f"- High-risk assurance adjustments: {len(packet.get('diff_review_policy', []))}")
     lines.append(f"- Standard passed: {packet.get('standard', {}).get('passed')}")
@@ -279,6 +287,27 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
                 f"- **{assignment.get('title')}** using `{assignment.get('model')}`: {assignment.get('mission')}"
             )
 
+    rounds = council.get("rounds", []) if isinstance(council, dict) else []
+    if rounds:
+        lines.extend(["", "## Cpl council rounds"])
+        for round_item in rounds:
+            recruitment = round_item.get("recruitment", {})
+            lines.append(
+                f"- Round {round_item.get('round')}: recruited `{recruitment.get('model')}` "
+                f"for {recruitment.get('required_capability')} because {recruitment.get('reason')}"
+            )
+            for command in round_item.get("instructions", []):
+                lines.append(f"  - To {command.get('to_officer')}: {command.get('instruction')}")
+
+    recurrences = cpl.get("recurrences", []) if isinstance(cpl, dict) else []
+    if recurrences:
+        lines.extend(["", "## Recurrence review"])
+        for recurrence in recurrences:
+            lines.append(
+                f"- `{recurrence.get('previous_event_id')}` may have recurred: {recurrence.get('current_finding')}"
+            )
+            lines.append(f"  - Required response: {recurrence.get('required_response')}")
+
     assurance = packet.get("diff_review_policy", [])
     if assurance:
         lines.extend(["", "## High-risk change assurance"])
@@ -302,6 +331,6 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
             lines.append(f"  - Safer alternative: {finding.get('safer_alternative')}")
     lines.extend(["", "## Rule"])
     lines.append(
-        "Sergeant is the reviewer. Main Review is the reviewer core. Cpl is Sergeant's Corporal Specialist reasoning officer. Models and gateways are replaceable engines beneath Cpl; deterministic evidence remains authoritative. External reviewer comments are optional learning inputs, not required gates."
+        "Sergeant is the reviewer. Main Review is the reviewer core. Cpl is the council-led Corporal Specialist. Permanent officers own their specialties; models and gateways are replaceable engines beneath Cpl; deterministic evidence remains authoritative. External reviewer comments are optional learning inputs, not required gates."
     )
     return "\n".join(lines) + "\n"

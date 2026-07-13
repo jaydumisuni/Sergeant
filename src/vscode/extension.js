@@ -25,6 +25,8 @@ function cplSettings() {
     model: configuration.get("llmModel") || "",
     protocol: configuration.get("llmProtocol") || "auto",
     council: configuration.get("llmCouncil") || "adaptive",
+    maxRounds: Number(configuration.get("cplMaxRounds") || 2),
+    maxMembers: Number(configuration.get("cplMaxCouncilMembers") || 5),
   };
 }
 
@@ -39,6 +41,8 @@ function cplEnvironment() {
     SERGEANT_CPL_PROVIDER: provider,
     SERGEANT_CPL_PROTOCOL: settings.protocol,
     SERGEANT_CPL_DEPTH: settings.council,
+    SERGEANT_CPL_MAX_ROUNDS: String(settings.maxRounds),
+    SERGEANT_CPL_MAX_COUNCIL_MEMBERS: String(settings.maxMembers),
   };
   if (settings.baseUrl) environment.SERGEANT_CPL_BASE_URL = settings.baseUrl;
   else delete environment.SERGEANT_CPL_BASE_URL;
@@ -134,7 +138,7 @@ function runSergeant(args, title, actionId = "") {
   output.appendLine(`$ ${pythonPath()} sergeant.py ${args.join(" ")}`);
   output.appendLine("");
   const settings = cplSettings();
-  output.appendLine(`Cpl reasoning: ${settings.policy} · ${settings.council} · ${settings.provider} · ${settings.model || "automatic model selection"}`);
+  output.appendLine(`Cpl council: ${settings.policy} · ${settings.council} · ${settings.provider} · ${settings.model || "automatic model selection"} · ${settings.maxRounds} rounds · ${settings.maxMembers} members`);
   output.appendLine("");
   commandCenterProvider?.setRunning(actionId, title);
 
