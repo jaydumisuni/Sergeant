@@ -10,6 +10,7 @@ from .capability_policy import normalize_capability_review
 from .challenge import run_challenge_mode
 from .consensus import build_consensus
 from .decision_workspace import build_decision_workspace
+from .diff_policy import normalize_diff_review
 from .diff_review import review_changed_files
 from .llm_review import run_llm_review
 from .review_ingestion import ingest_external_review_file
@@ -136,9 +137,9 @@ def run_independent_pr_review(
     changed = changed_files or []
     semantic_files = semantic_review_files(root_path, changed)
     repository_review = review_repository(root_path)
-    diff = review_changed_files(changed)
+    diff = normalize_diff_review(review_changed_files(changed), root_path, changed)
     standard = run_standard_engine(root_path, changed)
-    capabilities = normalize_capability_review(run_capability_engine(root_path, changed))
+    capabilities = normalize_capability_review(run_capability_engine(root_path, changed), root_path)
     intelligence = run_review_intelligence({"capability_review": capabilities})
     challenge = run_challenge_mode(repository_review)
 
@@ -201,6 +202,7 @@ def run_independent_pr_review(
         "verdict": verdict.to_dict(),
         "repository_review": repository_review.get("verdict", {}),
         "diff_review": diff.get("verdict", {}),
+        "diff_review_policy": diff.get("policy_adjustments", []),
         "capability_review": capabilities,
         "review_intelligence": intelligence,
         "semantic_review": semantic,
@@ -244,6 +246,7 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Semantic verdict: {semantic.get('verdict')}")
     lines.append(f"- Semantic confidence: {semantic.get('confidence')}")
     lines.append(f"- Semantic files supplied: {len(packet.get('semantic_files', []))}")
+    lines.append(f"- High-risk assurance adjustments: {len(packet.get('diff_review_policy', []))}")
     lines.append(f"- Standard passed: {packet.get('standard', {}).get('passed')}")
     lines.append(f"- Challenge trusted: {packet.get('challenge', {}).get('trusted')}")
     lines.append(f"- Consensus: {packet.get('consensus', {}).get('consensus')}")
@@ -260,6 +263,15 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
             lines.append(f"  - Evidence: {finding.get('evidence')}")
             lines.append(f"  - Why it matters: {finding.get('why_it_matters')}")
             lines.append(f"  - Safer alternative: {finding.get('safer_alternative')}")
+
+    assurance = packet.get("diff_review_policy", [])
+    if assurance:
+        lines.extend(["", "## High-risk change assurance"])
+        for adjustment in assurance:
+            lines.append(
+                f"- `{adjustment.get('path')}` reviewed in `{adjustment.get('assurance_document')}`: "
+                f"{adjustment.get('reason')}"
+            )
 
     capability_status = packet.get("capability_review", {}).get("capability_status", {})
     if capability_status:
