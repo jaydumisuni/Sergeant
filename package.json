@@ -13,9 +13,7 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": [
-    "Other"
-  ],
+  "categories": ["Other"],
   "main": "./src/vscode/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -42,62 +40,20 @@
       }
     ],
     "commands": [
-      {
-        "command": "sergeant.openCommandCenter",
-        "title": "Sergeant: Open Full Command Center"
-      },
-      {
-        "command": "sergeant.reviewWorkspace",
-        "title": "Sergeant: Review Workspace"
-      },
-      {
-        "command": "sergeant.appReviewWorkspace",
-        "title": "Sergeant: App Bridge Review"
-      },
-      {
-        "command": "sergeant.reviewCurrentFile",
-        "title": "Sergeant: Review Current File"
-      },
-      {
-        "command": "sergeant.reviewChangedFiles",
-        "title": "Sergeant: Review Changed Files"
-      },
-      {
-        "command": "sergeant.v2Mission",
-        "title": "Sergeant: Build V2 Mission"
-      },
-      {
-        "command": "sergeant.proofSuite",
-        "title": "Sergeant: Run Proof Suite"
-      },
-      {
-        "command": "sergeant.finalProof",
-        "title": "Sergeant: Run Final Proof"
-      },
-      {
-        "command": "sergeant.verifyStandard",
-        "title": "Sergeant: Verify Standard"
-      },
-      {
-        "command": "sergeant.battleTests",
-        "title": "Sergeant: Validate Battle Tests"
-      },
-      {
-        "command": "sergeant.ideBenchContract",
-        "title": "Sergeant: IDE Bench Contract"
-      },
-      {
-        "command": "sergeant.openLastReport",
-        "title": "Sergeant: Open Last Report"
-      },
-      {
-        "command": "sergeant.copyLastReport",
-        "title": "Sergeant: Copy Last Report"
-      },
-      {
-        "command": "sergeant.exportLastReport",
-        "title": "Sergeant: Export Last Report"
-      }
+      {"command": "sergeant.openCommandCenter", "title": "Sergeant: Open Full Command Center"},
+      {"command": "sergeant.reviewWorkspace", "title": "Sergeant: Review Workspace"},
+      {"command": "sergeant.appReviewWorkspace", "title": "Sergeant: App Bridge Review"},
+      {"command": "sergeant.reviewCurrentFile", "title": "Sergeant: Review Current File"},
+      {"command": "sergeant.reviewChangedFiles", "title": "Sergeant: Review Changed Files"},
+      {"command": "sergeant.v2Mission", "title": "Sergeant: Build V2 Mission"},
+      {"command": "sergeant.proofSuite", "title": "Sergeant: Run Proof Suite"},
+      {"command": "sergeant.finalProof", "title": "Sergeant: Run Final Proof"},
+      {"command": "sergeant.verifyStandard", "title": "Sergeant: Verify Standard"},
+      {"command": "sergeant.battleTests", "title": "Sergeant: Validate Battle Tests"},
+      {"command": "sergeant.ideBenchContract", "title": "Sergeant: IDE Bench Contract"},
+      {"command": "sergeant.openLastReport", "title": "Sergeant: Open Last Report"},
+      {"command": "sergeant.copyLastReport", "title": "Sergeant: Copy Last Report"},
+      {"command": "sergeant.exportLastReport", "title": "Sergeant: Export Last Report"}
     ],
     "configuration": {
       "title": "Sergeant",
@@ -109,82 +65,70 @@
         },
         "sergeant.provider": {
           "type": "string",
-          "default": "Automatic Open-Source Review",
+          "default": "Cpl Automatic Reasoning",
           "enum": [
-            "Automatic Open-Source Review",
-            "Free Claude Code (FCC)",
+            "Cpl Automatic Reasoning",
+            "Cpl Local Gateway",
             "Ollama",
             "LM Studio",
             "OpenAI-compatible Endpoint",
             "Disabled"
           ],
-          "description": "Legacy display preference retained for compatibility. New routing uses the llmProvider setting."
+          "description": "Legacy display preference. Cpl is Sergeant's Corporal Specialist reasoning officer; models and gateways are replaceable engines beneath it."
         },
         "sergeant.llmPolicy": {
           "type": "string",
           "default": "preferred",
-          "enum": [
-            "preferred",
-            "required",
-            "disabled"
-          ],
+          "enum": ["preferred", "required", "disabled"],
           "enumDescriptions": [
-            "Use semantic LLM review by default and fall back to deterministic Sergeant evidence when no route is available.",
-            "Require semantic LLM review before Sergeant can approve.",
-            "Disable semantic LLM review."
+            "Deploy Cpl by default and fall back to deterministic Sergeant evidence when no route is available.",
+            "Require Cpl reasoning before Sergeant can approve.",
+            "Disable Cpl reasoning and use deterministic review only."
           ],
-          "description": "Semantic-review gate policy."
+          "description": "Cpl reasoning gate policy."
         },
         "sergeant.llmProvider": {
           "type": "string",
           "default": "auto",
-          "enum": [
-            "auto",
-            "fcc",
-            "ollama",
-            "lm-studio",
-            "openai-compatible",
-            "disabled"
-          ],
+          "enum": ["auto", "cpl", "ollama", "lm-studio", "openai-compatible", "disabled"],
           "enumDescriptions": [
-            "Discover FCC, Ollama, or LM Studio on loopback and prefer the strongest discovered open model.",
-            "Use Free Claude Code at its configured local port.",
-            "Use Ollama's OpenAI-compatible endpoint.",
-            "Use LM Studio's OpenAI-compatible endpoint.",
-            "Use the explicitly configured llmBaseUrl.",
-            "Disable semantic review."
+            "Let Cpl discover its local gateway, Ollama, or LM Studio and select the strongest available model.",
+            "Use the Sergeant-native Cpl local gateway.",
+            "Use Ollama as one engine beneath Cpl.",
+            "Use LM Studio as one engine beneath Cpl.",
+            "Use the explicitly configured endpoint as one engine beneath Cpl.",
+            "Disable Cpl reasoning."
           ],
-          "description": "Semantic-review provider route."
+          "description": "Engine route beneath Cpl."
         },
         "sergeant.llmBaseUrl": {
           "type": "string",
           "default": "",
-          "description": "Explicit OpenAI-compatible endpoint. Remote endpoints are never auto-discovered; API credentials remain in SERGEANT_LLM_API_KEY."
+          "description": "Explicit OpenAI-compatible endpoint beneath Cpl. Remote endpoints are never auto-discovered; credentials remain in SERGEANT_CPL_API_KEY or the legacy SERGEANT_LLM_API_KEY."
         },
         "sergeant.llmModel": {
           "type": "string",
           "default": "",
-          "description": "Optional provider model slug. Blank uses Sergeant's open-model preference: GLM-5.2, Qwen3-Coder-Next, Kimi K2.5, then provider fallback."
+          "description": "Optional model slug. Blank lets Cpl choose using Sergeant's model policy and specialist assignments."
         },
         "sergeant.llmProtocol": {
           "type": "string",
           "default": "auto",
-          "enum": [
-            "auto",
-            "responses",
-            "chat_completions"
-          ],
-          "description": "Wire protocol. FCC uses OpenAI Responses; most generic providers use Chat Completions."
+          "enum": ["auto", "responses", "chat_completions"],
+          "description": "Transport protocol beneath Cpl. The local Cpl gateway uses OpenAI Responses; generic engines commonly use Chat Completions."
         },
         "sergeant.llmCouncil": {
           "type": "string",
           "default": "adaptive",
-          "enum": [
-            "adaptive",
-            "always",
-            "single"
+          "enum": ["adaptive", "deep", "maximum", "single", "always"],
+          "enumDescriptions": [
+            "Cpl deploys only the specialists justified by risk and evidence.",
+            "Cpl always adds correctness, architecture, and tests/contracts specialists.",
+            "Cpl deploys every specialist up to the configured pass budget.",
+            "Run one Cpl generalist pass only.",
+            "Legacy alias for maximum specialist deployment."
           ],
-          "description": "Adaptive uses a second discovered open model for high-risk or disputed changes."
+          "description": "Cpl reasoning depth."
         }
       }
     }
