@@ -93,8 +93,21 @@ def _env(primary: str, legacy: str, default: str) -> str:
 
 
 def cpl_depth() -> CplDepth:
-    value = _env("SERGEANT_CPL_DEPTH", "SERGEANT_LLM_DEPTH", "adaptive").strip().lower()
-    aliases = {"max": "maximum", "full": "maximum", "off": "single"}
+    explicit = os.getenv("SERGEANT_CPL_DEPTH")
+    if explicit is None:
+        explicit = os.getenv("SERGEANT_LLM_DEPTH")
+    if explicit is None:
+        explicit = os.getenv("SERGEANT_CPL_COUNCIL")
+    if explicit is None:
+        explicit = os.getenv("SERGEANT_LLM_COUNCIL", "adaptive")
+    value = explicit.strip().lower()
+    aliases = {
+        "max": "maximum",
+        "full": "maximum",
+        "always": "maximum",
+        "off": "single",
+        "disabled": "single",
+    }
     value = aliases.get(value, value)
     return value if value in {"adaptive", "deep", "maximum", "single"} else "adaptive"  # type: ignore[return-value]
 
@@ -158,7 +171,6 @@ def plan_cpl_assignments(
         add("security")
         add("performance_concurrency")
 
-    # The primary generalist pass already consumes one slot.
     limit = max(0, cpl_max_passes() - 1)
     return [SPECIALISTS[name] for name in selected[:limit]]
 
@@ -207,7 +219,7 @@ def specialist_system_prompt(base_prompt: str, assignment: CplAssignment) -> str
     return (
         f"{base_prompt}\n\n"
         "CPL SPECIALIST ASSIGNMENT\n"
-        f"Officer: Cpl — Corporal Specialist\n"
+        "Officer: Cpl — Corporal Specialist\n"
         f"Specialty: {assignment.title}\n"
         f"Mission: {assignment.mission}\n"
         f"Focus: {focus}.\n"
