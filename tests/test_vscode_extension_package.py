@@ -42,11 +42,13 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     }:
         assert command in commands
     assert (ROOT / package["icon"]).is_file()
-    assert properties["sergeant.provider"]["default"] == "Automatic Open-Source Review"
+    assert properties["sergeant.provider"]["default"] == "Cpl Automatic Reasoning"
     assert properties["sergeant.llmPolicy"]["default"] == "preferred"
     assert properties["sergeant.llmProvider"]["default"] == "auto"
     assert properties["sergeant.llmCouncil"]["default"] == "adaptive"
-    assert "fcc" in properties["sergeant.llmProvider"]["enum"]
+    assert "cpl" in properties["sergeant.llmProvider"]["enum"]
+    assert "fcc" not in properties["sergeant.llmProvider"]["enum"]
+    assert "maximum" in properties["sergeant.llmCouncil"]["enum"]
     assert "openai-compatible" in properties["sergeant.llmProvider"]["enum"]
 
 
@@ -93,23 +95,26 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
         "Mission Planner",
         "Evidence Locker",
         "Officer System / Armoury",
-        "Semantic Review Router",
-        "Free Claude Code (FCC)",
+        "Cpl — Corporal Specialist",
+        "Cpl Local Gateway",
         "GLM-5.2",
         "Qwen3-Coder-Next",
         "Kimi K2.5",
+        "Maximum reasoning",
         "Pass to Writer",
         "Sergeant V2 Review Doctrine",
         "Post‑V2 Roadmap",
         "◇ What is Sergeant?",
         "Commander → Mission → Officers → Weapon Manifest → Evidence → Verdict → Audit Trail",
-        "Semantic Evidence",
+        "Cpl Reasoning Evidence",
     ]:
         assert expected in command_center
+    assert "Free Claude Code" not in command_center
     assert "sergeantHostSend" in command_center_js
-    assert "saveSemanticSettings" in command_center_js
+    assert "saveCplSettings" in command_center_js
     assert "window.addEventListener('message'" in command_center_js
-    assert "Deterministic Evidence → Semantic Evidence → Verification" in command_center_js
+    assert "Deterministic Evidence → Cpl Reasoning Evidence → Verification" in command_center_js
+    assert "Cpl — Corporal Specialist" in command_center_js
     assert "grid-template-columns:270px" in command_center_css
     assert "Math.random" not in command_center_js
     assert "sgtTimer" not in command_center_js
