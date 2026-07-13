@@ -74,7 +74,7 @@
             "OpenAI-compatible Endpoint",
             "Disabled"
           ],
-          "description": "Legacy display preference. Cpl is Sergeant's Corporal Specialist reasoning officer; models and gateways are replaceable engines beneath it."
+          "description": "Legacy display preference. Cpl is Sergeant's council-led Corporal Specialist; models and gateways are replaceable engines beneath it."
         },
         "sergeant.llmPolicy": {
           "type": "string",
@@ -92,7 +92,7 @@
           "default": "auto",
           "enum": ["auto", "cpl", "ollama", "lm-studio", "openai-compatible", "disabled"],
           "enumDescriptions": [
-            "Let Cpl discover its local gateway, Ollama, or LM Studio and select the strongest available model.",
+            "Let Cpl discover its local gateway, Ollama, or LM Studio and select the strongest available models.",
             "Use the Sergeant-native Cpl local gateway.",
             "Use Ollama as one engine beneath Cpl.",
             "Use LM Studio as one engine beneath Cpl.",
@@ -109,7 +109,7 @@
         "sergeant.llmModel": {
           "type": "string",
           "default": "",
-          "description": "Optional model slug. Blank lets Cpl choose using Sergeant's model policy and specialist assignments."
+          "description": "Optional primary model slug. Blank lets Cpl form its council from the strongest available models and specialist assignments."
         },
         "sergeant.llmProtocol": {
           "type": "string",
@@ -122,13 +122,27 @@
           "default": "adaptive",
           "enum": ["adaptive", "deep", "maximum", "single", "always"],
           "enumDescriptions": [
-            "Cpl deploys only the specialists justified by risk and evidence.",
-            "Cpl always adds correctness, architecture, and tests/contracts specialists.",
-            "Cpl deploys every specialist up to the configured pass budget.",
-            "Run one Cpl generalist pass only.",
-            "Legacy alias for maximum specialist deployment."
+            "Cpl deploys the smallest sufficient council and adds members only for named evidence gaps.",
+            "Cpl starts with deeper specialist coverage and allows more council rounds.",
+            "Cpl deploys every specialist and the largest bounded council.",
+            "Run one Cpl generalist council member only.",
+            "Legacy alias for maximum council deployment."
           ],
-          "description": "Cpl reasoning depth."
+          "description": "Cpl council formation mode."
+        },
+        "sergeant.cplMaxRounds": {
+          "type": "integer",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 6,
+          "description": "Maximum evidence → officer report → council rebrief rounds before unresolved gaps are returned to Sergeant."
+        },
+        "sergeant.cplMaxCouncilMembers": {
+          "type": "integer",
+          "default": 5,
+          "minimum": 1,
+          "maximum": 12,
+          "description": "Maximum distinct model council members Cpl may recruit for one mission."
         }
       }
     }
