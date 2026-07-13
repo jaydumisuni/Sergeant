@@ -78,6 +78,7 @@ def build_learning_candidates(review_result: dict[str, Any], human_decisions: li
             "tags": _tags(finding, status),
             "applies_to": _applies_to(finding),
             "confidence": float(decision.get("confidence") or finding.get("confidence") or 0.7),
+            "mission_id": decision.get("mission_id") or finding.get("mission_id") or review_result.get("mission_id"),
             "finding_id": finding.get("finding_id") or finding.get("id") or _text(finding.get("message")),
             "category": finding.get("category") or finding.get("root_cause") or "other",
             "officer": finding.get("officer"),
@@ -109,6 +110,7 @@ def apply_learning_candidates(root: str | Path, learning_packet: dict[str, Any])
         store.add(record)
         written.append(record.__dict__)
         outcomes.append({
+            "mission_id": candidate.get("mission_id"),
             "finding_id": candidate.get("finding_id") or record.id,
             "status": candidate.get("status"),
             "category": candidate.get("category"),
