@@ -64,9 +64,19 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
     assert 'path.join(extensionRoot, "sergeant.py")' in extension
     assert "registerWebviewViewProvider" in extension
     assert "SergeantCommandCenterProvider" in extension
+    assert "cplEnvironment" in extension
+    assert "cplSettings" in extension
     assert "semanticEnvironment" in extension
-    assert "SERGEANT_LLM_PROVIDER" in extension
-    assert "SERGEANT_LLM_COUNCIL" in extension
+    for environment_name in [
+        "SERGEANT_CPL_ENABLED",
+        "SERGEANT_CPL_POLICY",
+        "SERGEANT_CPL_PROVIDER",
+        "SERGEANT_CPL_BASE_URL",
+        "SERGEANT_CPL_MODEL",
+        "SERGEANT_CPL_PROTOCOL",
+        "SERGEANT_CPL_DEPTH",
+    ]:
+        assert environment_name in extension
     assert "openFullCommandCenter" in provider
     assert "saveSemanticSettings" in provider
     assert "LLM_SETTING_KEYS" in provider
