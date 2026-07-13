@@ -12,7 +12,7 @@ from .consensus import build_consensus
 from .decision_workspace import build_decision_workspace
 from .diff_policy import normalize_diff_review
 from .diff_review import review_changed_files
-from .llm_review import run_llm_review
+from .llm_review import run_cpl_review
 from .review_ingestion import ingest_external_review_file
 from .review_intelligence import run_review_intelligence
 from .semantic_scope import semantic_review_files
@@ -37,7 +37,7 @@ def _required_actions(
     standard: dict[str, Any],
     diff: dict[str, Any],
     intelligence: dict[str, Any],
-    semantic: dict[str, Any],
+    cpl: dict[str, Any],
 ) -> list[str]:
     actions: list[str] = []
     repo_verdict = repository_review.get("verdict", {})
@@ -53,13 +53,13 @@ def _required_actions(
             if finding.get("severity") in {"blocker", "major"}:
                 actions.append(f"Answer {finding.get('root_cause')} finding: {finding.get('message')}")
 
-    if semantic.get("policy") == "required" and semantic.get("status") in {"unavailable", "error"}:
-        actions.append("Configure a reachable FCC or OpenAI-compatible semantic-review model and rerun Sergeant.")
-    if semantic.get("verdict") in {"BLOCK", "NEEDS WORK"}:
-        for finding in semantic.get("findings", []):
+    if cpl.get("policy") == "required" and cpl.get("status") in {"unavailable", "error"}:
+        actions.append("Configure a reachable Cpl reasoning route and rerun Sergeant.")
+    if cpl.get("verdict") in {"BLOCK", "NEEDS WORK"}:
+        for finding in cpl.get("findings", []):
             if finding.get("severity") in {"blocker", "major"}:
                 location = f"{finding.get('path')}:{finding.get('line_start')}-{finding.get('line_end')}"
-                actions.append(f"Answer semantic {finding.get('severity')} finding at {location}: {finding.get('message')}")
+                actions.append(f"Answer Cpl {finding.get('severity')} finding at {location}: {finding.get('message')}")
     return sorted(set(action for action in actions if action))
 
 
@@ -69,28 +69,28 @@ def _decide(
     diff: dict[str, Any],
     intelligence: dict[str, Any],
     challenge: dict[str, Any],
-    semantic: dict[str, Any],
+    cpl: dict[str, Any],
     consensus: dict[str, Any],
 ) -> ReviewVerdict:
-    actions = _required_actions(repository_review, standard, diff, intelligence, semantic)
+    actions = _required_actions(repository_review, standard, diff, intelligence, cpl)
     consensus_value = consensus.get("consensus")
     intelligence_verdict = intelligence.get("verdict")
-    semantic_verdict = semantic.get("verdict")
+    cpl_verdict = cpl.get("verdict")
     notes = ["External reviewer comments are optional learning inputs, not required gates."]
-    if semantic.get("status") in {"unavailable", "disabled"} and semantic.get("policy") != "required":
-        notes.append("Semantic LLM review was not available; deterministic Sergeant evidence remained authoritative.")
-    if semantic.get("status") == "completed_with_warnings":
-        notes.append("The primary semantic pass completed, but one council route returned a warning.")
+    if cpl.get("status") in {"unavailable", "disabled"} and cpl.get("policy") != "required":
+        notes.append("Cpl reasoning was not available; deterministic Sergeant evidence remained authoritative.")
+    if cpl.get("status") == "completed_with_warnings":
+        notes.append("Cpl completed its primary reasoning pass, but one specialist assignment returned a warning.")
 
-    if actions or consensus_value == "BLOCK" or intelligence_verdict == "BLOCK" or semantic_verdict == "BLOCK":
+    if actions or consensus_value == "BLOCK" or intelligence_verdict == "BLOCK" or cpl_verdict == "BLOCK":
         return ReviewVerdict(
             "REQUEST_CHANGES",
             0.92,
-            "Blocking evidence, semantic risk, review-intelligence risk, or a required action remains unanswered.",
+            "Blocking evidence, Cpl reasoning risk, review-intelligence risk, or a required action remains unanswered.",
             actions,
             notes,
         )
-    if consensus_value == "NEEDS WORK" or intelligence_verdict == "NEEDS WORK" or semantic_verdict == "NEEDS WORK":
+    if consensus_value == "NEEDS WORK" or intelligence_verdict == "NEEDS WORK" or cpl_verdict == "NEEDS WORK":
         return ReviewVerdict(
             "COMMENT",
             0.8,
@@ -100,29 +100,29 @@ def _decide(
         )
 
     challenge_confidence = float(challenge.get("confidence_after_challenge", 0.8))
-    semantic_confidence = float(semantic.get("confidence", challenge_confidence))
-    confidence = min(challenge_confidence, semantic_confidence) if semantic.get("status", "").startswith("completed") else challenge_confidence
+    cpl_confidence = float(cpl.get("confidence", challenge_confidence))
+    confidence = min(challenge_confidence, cpl_confidence) if cpl.get("status", "").startswith("completed") else challenge_confidence
     return ReviewVerdict(
         "APPROVE",
         confidence,
-        "Repository evidence, capability analysis, review intelligence, semantic review, standard checks, diff review, challenge mode, and consensus are satisfied.",
+        "Repository evidence, capability analysis, review intelligence, Cpl specialist reasoning, standard checks, diff review, challenge mode, and consensus are satisfied.",
         notes=notes,
     )
 
 
-def _semantic_consensus_source(semantic: dict[str, Any]) -> dict[str, Any] | None:
-    status = semantic.get("status")
+def _cpl_consensus_source(cpl: dict[str, Any]) -> dict[str, Any] | None:
+    status = cpl.get("status")
     if status in {"completed", "completed_with_warnings"}:
         return {
-            "source": "semantic-llm-review",
-            "verdict": semantic.get("verdict"),
-            "evidence": semantic.get("findings", []),
+            "source": "cpl-reasoning",
+            "verdict": cpl.get("verdict"),
+            "evidence": cpl.get("findings", []),
         }
-    if semantic.get("policy") == "required" and status in {"unavailable", "error"}:
+    if cpl.get("policy") == "required" and status in {"unavailable", "error"}:
         return {
-            "source": "semantic-llm-review",
+            "source": "cpl-reasoning",
             "verdict": "NEEDS WORK",
-            "evidence": [semantic.get("reason", "Required semantic review did not complete.")],
+            "evidence": [cpl.get("reason", "Required Cpl reasoning did not complete.")],
         }
     return None
 
@@ -143,7 +143,7 @@ def run_independent_pr_review(
     intelligence = run_review_intelligence({"capability_review": capabilities})
     challenge = run_challenge_mode(repository_review)
 
-    semantic_context = {
+    cpl_context = {
         "review_scope": {
             "changed_files": changed,
             "semantic_files": semantic_files,
@@ -158,7 +158,7 @@ def run_independent_pr_review(
         "review_intelligence": intelligence,
         "challenge": challenge,
     }
-    semantic = run_llm_review(root_path, semantic_files, semantic_context)
+    cpl = run_cpl_review(root_path, semantic_files, cpl_context)
 
     external_workspace = {"summary": {"total": 0}, "decisions": [], "ready_for_memory": []}
     if external_review_file is not None:
@@ -193,11 +193,11 @@ def run_independent_pr_review(
             "evidence": challenge.get("challenges", []),
         },
     ]
-    semantic_source = _semantic_consensus_source(semantic)
-    if semantic_source is not None:
-        consensus_sources.append(semantic_source)
+    cpl_source = _cpl_consensus_source(cpl)
+    if cpl_source is not None:
+        consensus_sources.append(cpl_source)
     consensus = build_consensus(consensus_sources)
-    verdict = _decide(repository_review, standard, diff, intelligence, challenge, semantic, consensus)
+    verdict = _decide(repository_review, standard, diff, intelligence, challenge, cpl, consensus)
     return {
         "verdict": verdict.to_dict(),
         "repository_review": repository_review.get("verdict", {}),
@@ -205,7 +205,10 @@ def run_independent_pr_review(
         "diff_review_policy": diff.get("policy_adjustments", []),
         "capability_review": capabilities,
         "review_intelligence": intelligence,
-        "semantic_review": semantic,
+        "cpl_review": cpl,
+        # Compatibility alias for 0.4.0 integrations. Product-facing output and
+        # new code should use cpl_review.
+        "semantic_review": cpl,
         "semantic_files": semantic_files,
         "standard": standard,
         "challenge": challenge,
@@ -239,22 +242,25 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Capability verdict: {packet.get('capability_review', {}).get('verdict')}")
     lines.append(f"- Review intelligence verdict: {packet.get('review_intelligence', {}).get('verdict')}")
     lines.append(f"- Review quality score: {packet.get('review_intelligence', {}).get('quality_score')}")
-    semantic = packet.get("semantic_review", {})
-    route = semantic.get("route", {}) if isinstance(semantic, dict) else {}
-    lines.append(f"- Semantic review status: {semantic.get('status')}")
-    lines.append(f"- Semantic model: {route.get('model', 'unavailable')}")
-    lines.append(f"- Semantic verdict: {semantic.get('verdict')}")
-    lines.append(f"- Semantic confidence: {semantic.get('confidence')}")
+    cpl = packet.get("cpl_review", packet.get("semantic_review", {}))
+    route = cpl.get("route", {}) if isinstance(cpl, dict) else {}
+    lines.append(f"- Cpl status: {cpl.get('status')}")
+    lines.append(f"- Cpl role: {cpl.get('role', 'Corporal Specialist')}")
+    lines.append(f"- Cpl depth: {cpl.get('depth')}")
+    lines.append(f"- Cpl model: {route.get('model', 'unavailable')}")
+    lines.append(f"- Cpl verdict: {cpl.get('verdict')}")
+    lines.append(f"- Cpl confidence: {cpl.get('confidence')}")
+    lines.append(f"- Cpl specialist passes: {len(cpl.get('passes', []))}")
     lines.append(f"- Semantic files supplied: {len(packet.get('semantic_files', []))}")
     lines.append(f"- High-risk assurance adjustments: {len(packet.get('diff_review_policy', []))}")
     lines.append(f"- Standard passed: {packet.get('standard', {}).get('passed')}")
     lines.append(f"- Challenge trusted: {packet.get('challenge', {}).get('trusted')}")
     lines.append(f"- Consensus: {packet.get('consensus', {}).get('consensus')}")
 
-    semantic_findings = semantic.get("findings", []) if isinstance(semantic, dict) else []
-    if semantic_findings:
-        lines.extend(["", "## Semantic findings"])
-        for finding in semantic_findings[:5]:
+    cpl_findings = cpl.get("findings", []) if isinstance(cpl, dict) else []
+    if cpl_findings:
+        lines.extend(["", "## Cpl findings"])
+        for finding in cpl_findings[:5]:
             lines.append(
                 f"- **{finding.get('severity')} / {finding.get('category')}** "
                 f"`{finding.get('path')}:{finding.get('line_start')}-{finding.get('line_end')}`: "
@@ -263,6 +269,15 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
             lines.append(f"  - Evidence: {finding.get('evidence')}")
             lines.append(f"  - Why it matters: {finding.get('why_it_matters')}")
             lines.append(f"  - Safer alternative: {finding.get('safer_alternative')}")
+            lines.append(f"  - Specialists: {', '.join(finding.get('supporting_specialists', []))}")
+
+    plan = cpl.get("reasoning_plan", []) if isinstance(cpl, dict) else []
+    if plan:
+        lines.extend(["", "## Cpl specialist plan"])
+        for assignment in plan:
+            lines.append(
+                f"- **{assignment.get('title')}** using `{assignment.get('model')}`: {assignment.get('mission')}"
+            )
 
     assurance = packet.get("diff_review_policy", [])
     if assurance:
@@ -287,6 +302,6 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
             lines.append(f"  - Safer alternative: {finding.get('safer_alternative')}")
     lines.extend(["", "## Rule"])
     lines.append(
-        "Sergeant is the reviewer. Main Review is the reviewer core. Deterministic evidence remains authoritative; provider-routed LLMs are independent, evidence-validated review sources. External reviewer comments are optional learning inputs, not required gates."
+        "Sergeant is the reviewer. Main Review is the reviewer core. Cpl is Sergeant's Corporal Specialist reasoning officer. Models and gateways are replaceable engines beneath Cpl; deterministic evidence remains authoritative. External reviewer comments are optional learning inputs, not required gates."
     )
     return "\n".join(lines) + "\n"
