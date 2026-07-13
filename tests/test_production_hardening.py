@@ -150,7 +150,7 @@ def test_token_scope_policy_rejects_classic_write_tokens_and_redacts_secrets() -
     for scopes in ["repo", "public_repo", "workflow", "write:packages", "admin:org"]:
         with pytest.raises(HardeningError, match="write-capable"):
             assess_token_scopes({"X-OAuth-Scopes": scopes}, token_supplied=True)
-    secret = "ghp_abcdefghijklmnopqrstuvwxyz"
+    secret = "ghp_" + ("a" * 26)
     assert secret not in redact_secrets(f"Authorization: Bearer {secret}")
 
 
