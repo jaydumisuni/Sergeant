@@ -22,8 +22,8 @@ def test_select_model_prefers_open_source_deep_coding_route() -> None:
 
 def test_cpl_settings_are_enabled_by_default_but_do_not_expose_api_key(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_CPL_API_KEY", "secret-value")
-    monkeypatch.delenv("SERGEANT_CPL_ENABLED", raising=False)
-    monkeypatch.delenv("SERGEANT_CPL_POLICY", raising=False)
+    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "auto")
+    monkeypatch.setenv("SERGEANT_CPL_POLICY", "preferred")
 
     settings = LLMSettings.from_environment()
 
