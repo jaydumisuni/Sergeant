@@ -8,7 +8,12 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from .production_hardening import enforce_mission_permissions, normalize_changed_files, normalize_time_budget
+from .production_hardening import (
+    enforce_mission_permissions,
+    normalize_changed_files,
+    normalize_input_file,
+    normalize_time_budget,
+)
 
 CONTRACT_VERSION = "sergeant.review.v1"
 REVIEW_MODES = {"repository", "pull_request", "changed_files"}
@@ -57,6 +62,15 @@ def clean_human_decisions(value: object) -> list[dict[str, Any]]:
     raise TypeError("human_decisions must be a list of dictionaries or null")
 
 
+def _optional_dict(request: dict[str, Any], key: str) -> dict[str, Any] | None:
+    value = request.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, dict):
+        raise TypeError(f"{key} must be a dictionary or null")
+    return value
+
+
 def normalize_review_request(request: dict[str, Any]) -> dict[str, Any]:
     """Normalize every caller into Sergeant's one fail-closed request shape."""
 
@@ -68,15 +82,17 @@ def normalize_review_request(request: dict[str, Any]) -> dict[str, Any]:
     root_path = Path(str(request.get("root") or ".")).resolve()
     profile = str(request.get("policy_profile") or "default").strip().lower()
     changed_files = normalize_changed_files(root_path, clean_changed_files(request.get("changed_files")))
-    permissions = enforce_mission_permissions(profile, request.get("execution_permissions") if isinstance(request.get("execution_permissions"), dict) else None)
-    time_budget = normalize_time_budget(request.get("time_budget") if isinstance(request.get("time_budget"), dict) else None)
+    permissions = enforce_mission_permissions(profile, _optional_dict(request, "execution_permissions"))
+    time_budget = normalize_time_budget(_optional_dict(request, "time_budget"))
+    external_review_file = request.get("external_review_file")
+    safe_external_review_file = normalize_input_file(root_path, external_review_file) if external_review_file else None
 
     normalized = {
         "schema_version": CONTRACT_VERSION,
         "root": str(root_path),
         "mode": mode,
         "changed_files": changed_files,
-        "external_review_file": request.get("external_review_file"),
+        "external_review_file": safe_external_review_file,
         "external_providers": clean_external_providers(request.get("external_providers")),
         "human_decisions": clean_human_decisions(request.get("human_decisions")),
         "write_learning": bool(request.get("write_learning")),
