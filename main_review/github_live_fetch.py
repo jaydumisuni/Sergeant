@@ -74,6 +74,7 @@ class GitHubFetchResult:
                 "network_fetch_completed": True,
                 "get_only": all(item.get("method") == "GET" for item in self.request_evidence),
                 "repository_identity_verified": True,
+                "redirects_refused": True,
                 "pagination_verified": True,
                 "comment_bodies_omitted_from_proof": True,
             },
@@ -133,6 +134,12 @@ def _request_json(
         raise GitHubFetchError(f"GitHub API returned HTTP {error.code} for {url}: {safe_body}") from error
     except urllib.error.URLError as error:
         raise GitHubFetchError(f"Network error reaching {url}: {redact_secrets(error.reason)}") from error
+
+    final = urlparse(final_url)
+    requested_identity = (parsed.scheme, parsed.hostname, parsed.port, parsed.path, parsed.query)
+    final_identity = (final.scheme, final.hostname, final.port, final.path, final.query)
+    if final_identity != requested_identity:
+        raise GitHubFetchError("GitHub API redirected the request; redirects are refused by the live-ingestion boundary.")
     try:
         payload = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -172,10 +179,14 @@ def _validate_pagination_url(next_url: str, base_url: str, repository: str, pr_n
     base = urlparse(base_url)
     if (parsed.scheme, parsed.hostname, parsed.port) != (base.scheme, base.hostname, base.port):
         raise GitHubFetchError("GitHub pagination attempted to leave the trusted API host.")
-    expected = f"/repos/{repository}/"
     path = parsed.path.removeprefix("/api/v3") if base.path == "/api/v3" else parsed.path
-    if not path.startswith(expected) or str(pr_number) not in path:
-        raise GitHubFetchError("GitHub pagination URL does not match the requested repository and pull request.")
+    allowed_paths = {
+        f"/repos/{repository}/issues/{pr_number}/comments",
+        f"/repos/{repository}/pulls/{pr_number}/comments",
+        f"/repos/{repository}/pulls/{pr_number}/files",
+    }
+    if path not in allowed_paths:
+        raise GitHubFetchError("GitHub pagination URL does not match an allowed endpoint for the requested repository and pull request.")
     return candidate
 
 
@@ -240,8 +251,13 @@ def _verify_pr_identity(payload: object, repository: str, pr_number: int, *, all
     if not isinstance(payload, dict):
         raise GitHubFetchError("Unexpected pull-request metadata payload shape.")
     number = payload.get("number")
-    if number is not None and int(number) != pr_number:
-        raise GitHubFetchError("GitHub pull-request number does not match the requested PR.")
+    if number is not None:
+        try:
+            payload_number = int(number)
+        except (TypeError, ValueError) as error:
+            raise GitHubFetchError("GitHub pull-request payload contains an invalid PR number.") from error
+        if payload_number != pr_number:
+            raise GitHubFetchError("GitHub pull-request number does not match the requested PR.")
     base = _safe_ref(payload.get("base"))
     base_repo = base.get("repo", {})
     if base_repo.get("full_name") != repository:
@@ -261,12 +277,14 @@ def _verify_pr_identity(payload: object, repository: str, pr_number: int, *, all
 
 def _safe_comment(comment: dict[str, Any]) -> tuple[dict[str, Any], int]:
     body = str(comment.get("body") or "")
-    safe_body = redact_secrets(body)
-    redactions = int(safe_body != body)
+    truncated = len(body) > 65536
+    safe_body = redact_secrets(body[:65536])
+    redactions = int(safe_body != body[:65536])
     user = comment.get("user") if isinstance(comment.get("user"), dict) else {}
     safe = {
         "id": comment.get("id"),
         "body": safe_body,
+        "body_truncated": truncated,
         "path": comment.get("path"),
         "line": comment.get("line"),
         "start_line": comment.get("start_line"),
