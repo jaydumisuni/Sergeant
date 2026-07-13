@@ -16,7 +16,7 @@ function pythonPath() {
   return vscode.workspace.getConfiguration("sergeant").get("pythonPath") || "python";
 }
 
-function semanticSettings() {
+function cplSettings() {
   const configuration = vscode.workspace.getConfiguration("sergeant");
   return {
     policy: configuration.get("llmPolicy") || "preferred",
@@ -28,23 +28,28 @@ function semanticSettings() {
   };
 }
 
-function semanticEnvironment() {
-  const settings = semanticSettings();
+function cplEnvironment() {
+  const settings = cplSettings();
   const disabled = settings.policy === "disabled" || settings.provider === "disabled";
+  const provider = settings.provider === "openai-compatible" ? "configured" : settings.provider;
   const environment = {
     ...process.env,
-    SERGEANT_LLM_ENABLED: disabled ? "false" : "true",
-    SERGEANT_LLM_POLICY: settings.policy,
-    SERGEANT_LLM_PROVIDER: settings.provider === "openai-compatible" ? "configured" : settings.provider,
-    SERGEANT_LLM_PROTOCOL: settings.protocol,
-    SERGEANT_LLM_COUNCIL: settings.council,
+    SERGEANT_CPL_ENABLED: disabled ? "false" : "true",
+    SERGEANT_CPL_POLICY: settings.policy,
+    SERGEANT_CPL_PROVIDER: provider,
+    SERGEANT_CPL_PROTOCOL: settings.protocol,
+    SERGEANT_CPL_DEPTH: settings.council,
   };
-  if (settings.baseUrl) environment.SERGEANT_LLM_BASE_URL = settings.baseUrl;
-  else delete environment.SERGEANT_LLM_BASE_URL;
-  if (settings.model) environment.SERGEANT_LLM_MODEL = settings.model;
-  else delete environment.SERGEANT_LLM_MODEL;
+  if (settings.baseUrl) environment.SERGEANT_CPL_BASE_URL = settings.baseUrl;
+  else delete environment.SERGEANT_CPL_BASE_URL;
+  if (settings.model) environment.SERGEANT_CPL_MODEL = settings.model;
+  else delete environment.SERGEANT_CPL_MODEL;
   return environment;
 }
+
+// Compatibility exports for integrations written against Sergeant 0.4.0.
+const semanticSettings = cplSettings;
+const semanticEnvironment = cplEnvironment;
 
 function workspaceFolder() {
   const folders = vscode.workspace.workspaceFolders || [];
@@ -128,15 +133,15 @@ function runSergeant(args, title, actionId = "") {
   output.clear();
   output.appendLine(`$ ${pythonPath()} sergeant.py ${args.join(" ")}`);
   output.appendLine("");
-  const settings = semanticSettings();
-  output.appendLine(`Semantic review: ${settings.policy} · ${settings.provider} · ${settings.model || "automatic open model"}`);
+  const settings = cplSettings();
+  output.appendLine(`Cpl reasoning: ${settings.policy} · ${settings.council} · ${settings.provider} · ${settings.model || "automatic model selection"}`);
   output.appendLine("");
   commandCenterProvider?.setRunning(actionId, title);
 
   const child = cp.spawn(
     pythonPath(),
     [path.join(extensionRoot, "sergeant.py"), ...args],
-    { cwd: workspaceRoot(), shell: false, env: semanticEnvironment() },
+    { cwd: workspaceRoot(), shell: false, env: cplEnvironment() },
   );
   activeRun = { child, title, actionId };
   let stdout = "";
@@ -230,4 +235,11 @@ function deactivate() {
   activeRun = null;
 }
 
-module.exports = { activate, deactivate, semanticEnvironment, semanticSettings };
+module.exports = {
+  activate,
+  deactivate,
+  cplEnvironment,
+  cplSettings,
+  semanticEnvironment,
+  semanticSettings,
+};

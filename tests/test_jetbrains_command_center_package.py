@@ -53,18 +53,20 @@ def test_jetbrains_plugin_bundles_shared_command_center() -> None:
     assert 'listOf("pr-review", root, "--pretty")' in runner
     assert 'listOf("pr-review", root, "--files", it, "--pretty")' in runner
     assert "PropertiesComponent" in runner
-    assert "applySemanticEnvironment" in runner
+    assert "applyCplEnvironment" in runner
     for environment_name in [
-        "SERGEANT_LLM_ENABLED",
-        "SERGEANT_LLM_POLICY",
-        "SERGEANT_LLM_PROVIDER",
-        "SERGEANT_LLM_BASE_URL",
-        "SERGEANT_LLM_MODEL",
-        "SERGEANT_LLM_PROTOCOL",
-        "SERGEANT_LLM_COUNCIL",
+        "SERGEANT_CPL_ENABLED",
+        "SERGEANT_CPL_POLICY",
+        "SERGEANT_CPL_PROVIDER",
+        "SERGEANT_CPL_BASE_URL",
+        "SERGEANT_CPL_MODEL",
+        "SERGEANT_CPL_PROTOCOL",
+        "SERGEANT_CPL_DEPTH",
     ]:
         assert environment_name in runner
 
+    # Stored property names remain stable so existing IDE settings survive the
+    # product-facing promotion from generic LLM routing to Cpl.
     assert "semanticSettingKeys" in panel
     assert "saveSemanticSettings" in panel
     assert "semanticSettings" in panel

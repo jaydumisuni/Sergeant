@@ -11,6 +11,7 @@ from .battle_compare import run_battle_comparison
 from .battle_tests import validate_battle_fixtures
 from .boundary import check_action_boundary, repository_visibility_policy
 from .capability_engine import run_capability_engine
+from .cpl_reasoning import cpl_depth, cpl_max_passes
 from .diff_review import parse_changed_files_text, review_changed_files, review_changed_files_file
 from .evidence import collect_evidence
 from .final_proof import assert_final_proof, run_final_proof
@@ -31,6 +32,11 @@ from .verification import verify_repository_standard
 from .v2_mission import MISSION_TYPES, run_v2_mission
 
 
+def _add_status_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--require", action="store_true", help="Return a failure code when no Cpl model route is available.")
+    parser.add_argument("--pretty", action="store_true")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="sergeant")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -49,7 +55,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     pr_review_parser = subparsers.add_parser(
         "pr-review",
-        help="Run the full independent Sergeant reviewer, including semantic LLM review when available.",
+        help="Run the full independent Sergeant reviewer, including Cpl specialist reasoning when available.",
     )
     pr_review_parser.add_argument("path", nargs="?", default=".")
     pr_review_source = pr_review_parser.add_mutually_exclusive_group()
@@ -58,12 +64,17 @@ def build_parser() -> argparse.ArgumentParser:
     pr_review_parser.add_argument("--external-review-file")
     pr_review_parser.add_argument("--pretty", action="store_true")
 
+    cpl_status_parser = subparsers.add_parser(
+        "cpl-status",
+        help="Show Cpl policy, reasoning depth, specialist budget, and resolved model route.",
+    )
+    _add_status_arguments(cpl_status_parser)
+
     llm_status_parser = subparsers.add_parser(
         "llm-status",
-        help="Show the semantic-review policy and resolved FCC/OpenAI-compatible/local model route.",
+        help="Compatibility alias for cpl-status.",
     )
-    llm_status_parser.add_argument("--require", action="store_true", help="Return a failure code when no model route is available.")
-    llm_status_parser.add_argument("--pretty", action="store_true")
+    _add_status_arguments(llm_status_parser)
 
     v2_parser = subparsers.add_parser("v2-mission", help="Build the Sergeant V2 mission, briefing, loadout, confidence, and audit packet.")
     v2_parser.add_argument("path", nargs="?", default=".")
@@ -224,20 +235,26 @@ def _changed_from_args(files: str | None, file_list: str | None) -> list[str]:
     return parse_changed_files_text(files or "")
 
 
-def _llm_status_payload() -> dict[str, object]:
+def _cpl_status_payload() -> dict[str, object]:
     settings = LLMSettings.from_environment()
     route = discover_route(settings)
     return {
+        "officer": "Cpl",
+        "role": "Corporal Specialist",
         "enabled": settings.enabled,
         "policy": settings.policy,
+        "depth": cpl_depth(),
+        "max_passes": cpl_max_passes(),
         "status": "ready" if route is not None else "disabled" if not settings.enabled else "unavailable",
         "settings": settings.public_dict(),
         "route": route.public_dict() if route is not None else None,
         "default_model_policy": ["GLM-5.2", "Qwen3-Coder-Next", "Kimi K2.5", "provider fallback"],
+        "specialists": ["correctness", "security", "architecture", "tests_contracts", "performance_concurrency"],
         "safety": {
             "automatic_discovery": "loopback endpoints only",
             "remote_endpoint": "must be explicitly configured",
             "api_key_output": "never emitted",
+            "authority": "Sergeant Main Review remains final",
         },
     }
 
@@ -265,8 +282,8 @@ def main(argv: list[str] | None = None) -> int:
             pretty=args.pretty,
         )
         return 0
-    if args.command == "llm-status":
-        payload = _llm_status_payload()
+    if args.command in {"cpl-status", "llm-status"}:
+        payload = _cpl_status_payload()
         _print_json(payload, pretty=args.pretty)
         return 2 if args.require and payload["status"] != "ready" else 0
     if args.command == "v2-mission":
