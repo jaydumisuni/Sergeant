@@ -98,7 +98,10 @@ def _shared_cpl_support(cpl: dict[str, Any]) -> list[dict[str, Any]]:
         "status": cpl.get("status", "unknown"),
         "model": general.get("model") or route.get("model"),
         "provider": general.get("provider") or route.get("provider"),
+        "verdict": general.get("verdict") or cpl.get("verdict", "PASS"),
         "confidence": cpl.get("confidence", 0.0),
+        "summary": general.get("summary") or cpl.get("summary", ""),
+        "findings": general.get("findings", []),
         "coverage": cpl.get("coverage", {}),
         "unanswered_questions": cpl.get("unanswered_questions", []),
     }]
