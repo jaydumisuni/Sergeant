@@ -1,23 +1,7 @@
-<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sergeant">
-  <defs>
-    <linearGradient id="srg-border" x1="3" y1="2" x2="21" y2="22" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#d946ef"/>
-      <stop offset="0.5" stop-color="#38bdf8"/>
-      <stop offset="1" stop-color="#7c3aed"/>
-    </linearGradient>
-    <linearGradient id="srg-chevron" x1="6" y1="5" x2="18" y2="18" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#67e8f9"/>
-      <stop offset="0.48" stop-color="#3b82f6"/>
-      <stop offset="1" stop-color="#a855f7"/>
-    </linearGradient>
-    <linearGradient id="srg-star" x1="9" y1="15" x2="15" y2="22" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#9ca3af"/>
-    </linearGradient>
-  </defs>
-  <path d="M12 2.2 20.2 5.9v6.4c0 4.8-3.2 8.4-8.2 9.9-5-1.5-8.2-5.1-8.2-9.9V5.9L12 2.2Z" fill="#050816" stroke="url(#srg-border)" stroke-width="1.5" stroke-linejoin="round"/>
-  <path d="m6.9 8.4 5.1-2.5 5.1 2.5v2.1L12 8 6.9 10.5V8.4Z" fill="url(#srg-chevron)"/>
-  <path d="m6.9 11.5 5.1-2.4 5.1 2.4v2.1L12 11.2l-5.1 2.4v-2.1Z" fill="url(#srg-chevron)"/>
-  <path d="m6.9 14.6 5.1-2.4 5.1 2.4v2.1L12 14.3l-5.1 2.4v-2.1Z" fill="url(#srg-chevron)"/>
-  <path d="m12 15.4 1.1 2.6 2.8.2-2.1 1.8.6 2.7-2.4-1.4-2.4 1.4.6-2.7-2.1-1.8 2.8-.2 1.1-2.6Z" fill="url(#srg-star)" stroke="#111827" stroke-width=".25"/>
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Sergeant three-stripe rank mark">
+  <g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 8 12 4l8 4"/>
+    <path d="M4 13 12 9l8 4"/>
+    <path d="M4 18 12 14l8 4"/>
+  </g>
 </svg>
