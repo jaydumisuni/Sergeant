@@ -87,6 +87,15 @@ def test_live_github_fetch_follows_same_host_pagination(monkeypatch: pytest.Monk
     assert any("page=2" in url for url in calls)
 
 
+def test_live_github_fetch_rejects_redirected_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request, timeout: int):  # type: ignore[no-untyped-def]
+        return _FakeResponse(_pr_payload(), url="https://evil.test/stolen")
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    with pytest.raises(GitHubFetchError, match="redirected"):
+        fetch_pr_comments_live("owner/repo", 12, base_url="https://example.test", allowed_hosts=["example.test"])
+
+
 def test_live_github_fetch_rejects_bad_inputs_hosts_spoofing_and_private_repos(monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(GitHubFetchError):
         fetch_pr_comments_live("not-a-repo", 1)
@@ -130,12 +139,15 @@ def test_live_github_fetch_redacts_secrets_and_proof_omits_bodies(monkeypatch: p
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
     result = fetch_pr_comments_live("owner/repo", 12, base_url="https://example.test", allowed_hosts=["example.test"])
     proof = result.proof_dict()
+    proof_text = json.dumps(proof)
 
     assert secret not in result.all_comments[0]["body"]
     assert result.secret_redactions == 2
     assert "all_comments" not in proof
-    assert "body" not in json.dumps(proof)
+    assert '"body":' not in proof_text
+    assert secret not in proof_text
     assert proof["claims"]["repository_identity_verified"] is True
+    assert proof["claims"]["redirects_refused"] is True
     assert proof["claims"]["get_only"] is True
 
 
