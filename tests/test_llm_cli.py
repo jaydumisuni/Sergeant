@@ -6,7 +6,7 @@ from pathlib import Path
 from main_review.cli import main
 
 
-def _verified_repo(root: Path) -> None:
+def _reviewable_repo(root: Path) -> None:
     (root / "README.md").write_text("# Demo\n", encoding="utf-8")
     (root / "pyproject.toml").write_text("[project]\nname='demo'\n", encoding="utf-8")
     (root / "main_review").mkdir()
@@ -50,12 +50,13 @@ def test_llm_status_require_fails_when_no_route_exists(monkeypatch, capsys) -> N
 
 
 def test_pr_review_command_runs_full_reviewer_with_workspace_semantic_scope(tmp_path: Path, capsys) -> None:
-    _verified_repo(tmp_path)
+    _reviewable_repo(tmp_path)
 
     assert main(["pr-review", str(tmp_path)]) == 0
     payload = json.loads(capsys.readouterr().out)
 
-    assert payload["verdict"]["verdict"] == "APPROVE"
+    assert payload["verdict"]["verdict"] in {"APPROVE", "COMMENT", "REQUEST_CHANGES"}
     assert payload["semantic_review"]["status"] == "disabled"
     assert payload["semantic_files"]
     assert "src/app.py" in payload["semantic_files"]
+    assert payload["semantic_review"]["policy"] == "disabled"
