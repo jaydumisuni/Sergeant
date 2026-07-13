@@ -82,24 +82,34 @@ def test_public_mission_permissions_cannot_be_escalated(monkeypatch: pytest.Monk
         enforce_mission_permissions("internal-owner", {"allow_untrusted_code": True})
 
 
-def test_shared_review_contract_blocks_malicious_config(tmp_path: Path) -> None:
+def test_shared_review_contract_blocks_malicious_config_and_external_path_escape(tmp_path: Path) -> None:
     root = tmp_path / "repo"
     root.mkdir()
+    evidence = root / "evidence.json"
+    evidence.write_text("{}", encoding="utf-8")
     normalized = normalize_review_request({
         "root": str(root),
         "mode": "changed_files",
         "changed_files": ["src/app.py"],
+        "external_review_file": str(evidence),
         "execution_permissions": {"read_only": True, "allow_network": False},
         "time_budget": {"seconds": 60},
     })
     assert normalized["root"] == str(root.resolve())
     assert normalized["changed_files"] == ["src/app.py"]
+    assert normalized["external_review_file"] == str(evidence.resolve())
     assert normalized["time_budget"] == {"seconds": 60}
 
     with pytest.raises(HardeningError):
         normalize_review_request({"root": str(root), "changed_files": ["../../etc/passwd"]})
     with pytest.raises(HardeningError):
+        normalize_review_request({"root": str(root), "external_review_file": str(tmp_path / "outside.json")})
+    with pytest.raises(HardeningError):
         normalize_review_request({"root": str(root), "execution_permissions": {"allow_write": True}})
+    with pytest.raises(TypeError, match="execution_permissions"):
+        normalize_review_request({"root": str(root), "execution_permissions": "allow everything"})
+    with pytest.raises(TypeError, match="time_budget"):
+        normalize_review_request({"root": str(root), "time_budget": "forever"})
     with pytest.raises(HardeningError):
         normalize_review_request({"root": str(root), "policy_profile": "disable-all-guards"})
     with pytest.raises(HardeningError):
@@ -114,7 +124,7 @@ def test_time_budget_rejects_unknown_or_unbounded_values() -> None:
             normalize_time_budget(value)
 
 
-def test_github_repository_and_host_validation_blocks_spoofing_and_ssrf() -> None:
+def test_github_repository_and_host_validation_blocks_spoofing_ssrf_and_ports() -> None:
     assert validate_repository_slug("owner/repo") == "owner/repo"
     for value in ["owner/repo/extra", "owner/../repo", "https://github.com/owner/repo", "owner/repo?x=1", "owner/repo.git"]:
         with pytest.raises(HardeningError):
@@ -124,6 +134,7 @@ def test_github_repository_and_host_validation_blocks_spoofing_and_ssrf() -> Non
     assert validate_github_base_url("https://github.example.com/api/v3", allowed_hosts=["github.example.com"]) == "https://github.example.com/api/v3"
     for value in [
         "http://api.github.com",
+        "https://api.github.com:444",
         "https://api.github.com.evil.test",
         "https://user:pass@api.github.com",
         "https://api.github.com/repos/owner/repo",
