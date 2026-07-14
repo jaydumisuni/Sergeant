@@ -81,8 +81,13 @@ class LLMSettings:
         api_key = _env("SERGEANT_CPL_API_KEY", "SERGEANT_LLM_API_KEY", "").strip()
         model = _env("SERGEANT_CPL_MODEL", "SERGEANT_LLM_MODEL", "").strip()
 
+        cloudflare_base, cloudflare_token = cloudflare_environment()
+        # Make Cloudflare the easiest hosted route: valid Cloudflare credentials
+        # are sufficient when no explicit generic provider/base URL was chosen.
+        if provider == "auto" and not base_url and cloudflare_base and cloudflare_token:
+            provider = CLOUDFLARE_PROVIDER
+
         if provider == CLOUDFLARE_PROVIDER:
-            cloudflare_base, cloudflare_token = cloudflare_environment()
             base_url = base_url or cloudflare_base
             api_key = api_key or cloudflare_token
             roster = configured_model_roster(provider)
@@ -276,8 +281,8 @@ def _protocol_for(provider: str, base_url: str, configured: str) -> LLMProtocol:
 def _route_models(provider: str, settings: LLMSettings, base_url: str) -> tuple[str, ...] | None:
     """Return an exact configured roster or endpoint-discovered models.
 
-    An explicit roster is intentionally authoritative. This prevents a provider
-    catalog from silently adding a more expensive model to Cpl's council.
+    An explicit roster is authoritative. This prevents a provider catalog from
+    silently adding a more expensive model to Cpl's council.
     """
 
     roster = configured_model_roster(provider)
@@ -297,6 +302,25 @@ def _route_models(provider: str, settings: LLMSettings, base_url: str) -> tuple[
         return None
 
 
+def _build_route(provider_name: str, base_url: str, settings: LLMSettings) -> LLMRoute | None:
+    models = _route_models(provider_name, settings, base_url)
+    if models is None:
+        return None
+    model = select_model(models, settings.model)
+    if not model:
+        return None
+    return LLMRoute(
+        provider=provider_name,
+        base_url=base_url,
+        model=model,
+        protocol=_protocol_for(provider_name, base_url, settings.protocol),
+        api_key=settings.api_key,
+        timeout_seconds=settings.timeout_seconds,
+        max_output_tokens=settings.max_output_tokens,
+        discovered_models=models,
+    )
+
+
 def discover_route(settings: LLMSettings | None = None) -> LLMRoute | None:
     settings = settings or LLMSettings.from_environment()
     if not settings.enabled:
@@ -304,6 +328,14 @@ def discover_route(settings: LLMSettings | None = None) -> LLMRoute | None:
 
     provider = _normalize_provider(settings.provider)
     explicit_base = _normalize_base_url(settings.base_url)
+
+    # Cloudflare has an exact user-approved roster and does not need /models.
+    # Keep this explicit so no network discovery can block a valid configuration.
+    if provider == CLOUDFLARE_PROVIDER:
+        if not explicit_base or not settings.api_key:
+            return None
+        return _build_route(provider, explicit_base, settings)
+
     if explicit_base:
         candidates = [(provider if provider != "auto" else "configured", explicit_base)]
     else:
@@ -315,22 +347,9 @@ def discover_route(settings: LLMSettings | None = None) -> LLMRoute | None:
         candidates = local_candidates if provider == "auto" else [item for item in local_candidates if item[0] == provider]
 
     for provider_name, base_url in candidates:
-        models = _route_models(provider_name, settings, base_url)
-        if models is None:
-            continue
-        model = select_model(models, settings.model)
-        if not model:
-            continue
-        return LLMRoute(
-            provider=provider_name,
-            base_url=base_url,
-            model=model,
-            protocol=_protocol_for(provider_name, base_url, settings.protocol),
-            api_key=settings.api_key,
-            timeout_seconds=settings.timeout_seconds,
-            max_output_tokens=settings.max_output_tokens,
-            discovered_models=models,
-        )
+        route = _build_route(provider_name, base_url, settings)
+        if route is not None:
+            return route
     return None
 
 
