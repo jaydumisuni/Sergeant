@@ -58,6 +58,16 @@ export SERGEANT_CPL_MAX_INPUT_CHARS=30000
 
 These are review limits, not billing guarantees. Monitor Workers AI usage in Cloudflare and keep the account on Workers Free if hard no-charge behavior is required.
 
+## Proof workflow assurance
+
+The high-risk workflow changed by this feature is `.github/workflows/review-intelligence-proof.yml`.
+
+- **Purpose:** run deterministic proof on every PR and allow an explicit manual one-model or council benchmark.
+- **Permissions:** the workflow remains read-only with `contents: read`; checkout credentials are not persisted.
+- **Secrets:** Cloudflare and generic provider credentials are accepted only through GitHub Actions secrets and are scanned out of generated artifacts.
+- **Rollback:** remove the Cloudflare secrets or dispatch deterministic mode; the existing local and OpenAI-compatible routes remain unchanged.
+- **Proof:** focused connector tests, route-required status, the blind benchmark, installed-wheel proof, and artifact secret scanning must all pass.
+
 ## Prove the route
 
 ```bash
