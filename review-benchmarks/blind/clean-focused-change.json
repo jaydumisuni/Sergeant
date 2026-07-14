@@ -1,0 +1,15 @@
+{
+  "schema_version": "sergeant.blind-benchmark.case.v1",
+  "id": "clean-focused-change",
+  "title": "Small implementation change with focused proof",
+  "changed_files": ["src/math_utils.py", "tests/test_math_utils.py"],
+  "files": [
+    {"path": "pyproject.toml", "content": "[project]\nname='benchmark-case'\nversion='0.0.0'\n"},
+    {"path": "README.md", "content": "# Blind benchmark case\n"},
+    {"path": ".github/workflows/ci.yml", "content": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo test\n"},
+    {"path": "src/math_utils.py", "content": "def add(left, right):\n    return left + right\n"},
+    {"path": "tests/test_math_utils.py", "content": "from src.math_utils import add\n\ndef test_add():\n    assert add(2, 3) == 5\n"}
+  ],
+  "expected_verdict": "APPROVE",
+  "expected_findings": []
+}
