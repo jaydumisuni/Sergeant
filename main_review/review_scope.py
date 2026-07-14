@@ -32,7 +32,10 @@ _BATTLE_CONTROL_PATHS = {
 
 
 def _normalized_path(value: object) -> str:
-    return str(value or "").strip().replace("\\", "/").lstrip("./")
+    normalized = str(value or "").strip().replace("\\", "/")
+    while normalized.startswith("./"):
+        normalized = normalized[2:]
+    return normalized.lstrip("/")
 
 
 def _related_path(left: str, right: str) -> bool:
