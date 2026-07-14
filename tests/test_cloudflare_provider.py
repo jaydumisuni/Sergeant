@@ -41,6 +41,7 @@ def test_cloudflare_settings_use_scoped_environment_without_exposing_secret(monk
 
 
 def test_cloudflare_credentials_auto_select_provider(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "true")
     monkeypatch.delenv("SERGEANT_CPL_PROVIDER", raising=False)
     monkeypatch.delenv("SERGEANT_LLM_PROVIDER", raising=False)
     monkeypatch.delenv("SERGEANT_CPL_BASE_URL", raising=False)
@@ -50,6 +51,7 @@ def test_cloudflare_credentials_auto_select_provider(monkeypatch) -> None:
 
     settings = LLMSettings.from_environment()
 
+    assert settings.enabled is True
     assert settings.provider == "cloudflare"
     assert settings.model == CLOUDFLARE_FREE_BALANCED_MODELS[0]
 
@@ -70,6 +72,7 @@ def test_explicit_roster_wins_over_cloudflare_preset(monkeypatch) -> None:
 
 
 def test_discover_route_uses_cloudflare_roster_without_model_listing(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "true")
     monkeypatch.setenv("SERGEANT_CPL_PROVIDER", "cloudflare")
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "1234567890abcdef")
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "token")
