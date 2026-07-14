@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import urllib.error
 import urllib.request
@@ -29,9 +30,10 @@ DEFAULT_TIMEOUT_SECONDS = 120.0
 DEFAULT_MAX_REQUEST_BYTES = 1_500_000
 DEFAULT_MODELS = (
     "@cf/openai/gpt-oss-120b",
-    "@cf/qwen/qwen3-30b-a3b-fp8",
     "@cf/zai-org/glm-4.7-flash",
+    "@cf/moonshotai/kimi-k2.7-code",
 )
+ACCOUNT_ID_RE = re.compile(r"^[A-Fa-f0-9]{32}$")
 
 
 class CloudflareGatewayError(RuntimeError):
@@ -116,6 +118,8 @@ class CloudflareGatewaySettings:
     def validate(self, *, require_credentials: bool = True) -> None:
         if require_credentials and not self.account_id:
             raise CloudflareGatewayError("Cloudflare Account ID is missing.")
+        if self.account_id and not ACCOUNT_ID_RE.fullmatch(self.account_id):
+            raise CloudflareGatewayError("Cloudflare Account ID must be a 32-character hexadecimal value.")
         if require_credentials and not self.api_token:
             raise CloudflareGatewayError("Cloudflare API token is missing.")
         if not self.models:
