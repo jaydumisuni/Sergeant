@@ -14,13 +14,12 @@ from main_review.cloudflare_gateway import (
     CloudflareGatewaySettings,
     build_server,
     is_loopback_host,
-    make_handler,
 )
 
 
 def settings(**overrides: object) -> CloudflareGatewaySettings:
     values = {
-        "account_id": "account-123",
+        "account_id": "0123456789abcdef0123456789abcdef",
         "api_token": "secret-token",
         "models": (
             "@cf/openai/gpt-oss-120b",
@@ -43,6 +42,11 @@ def test_public_settings_never_expose_credentials() -> None:
     assert payload["api_token_present"] is True
     assert "secret-token" not in json.dumps(payload)
     assert "api_token" not in payload
+
+
+def test_account_id_must_be_32_character_hexadecimal() -> None:
+    with pytest.raises(CloudflareGatewayError, match="32-character hexadecimal"):
+        settings(account_id="account-123").validate()
 
 
 def test_loopback_is_required_by_default() -> None:
