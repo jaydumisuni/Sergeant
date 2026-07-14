@@ -84,8 +84,10 @@ def test_high_blast_radius_remains_major_without_targeted_changed_test(tmp_path:
 
     normalized = normalize_capability_review(packet, tmp_path)
 
+    finding = normalized["findings"][0]
     assert normalized["verdict"] == "NEEDS WORK"
-    assert normalized["findings"] == packet["findings"]
+    assert finding["severity"] == "major"
+    assert finding["direct_evidence"] is True
     assert normalized["policy_adjustments"] == []
 
 
@@ -138,8 +140,13 @@ def test_demonstrated_security_sink_keeps_blocking_severity(tmp_path: Path) -> N
 
     normalized = normalize_capability_review(packet, tmp_path)
 
+    finding = normalized["findings"][0]
     assert normalized["verdict"] == "BLOCK"
-    assert normalized["findings"] == packet["findings"]
+    assert finding["severity"] == "blocker"
+    assert finding["line_start"] == 2
+    assert finding["line_end"] == 2
+    assert finding["evidence_ref"] == "src/auth.py:2"
+    assert finding["direct_evidence"] is True
     assert normalized["policy_adjustments"] == []
 
 
@@ -159,6 +166,8 @@ def test_non_signal_demonstrated_defect_capability_keeps_blocking_severity() -> 
 
     normalized = normalize_capability_review(packet)
 
+    finding = normalized["findings"][0]
     assert normalized["verdict"] == "NEEDS WORK"
-    assert normalized["findings"] == packet["findings"]
+    assert finding["severity"] == "major"
+    assert finding["direct_evidence"] is True
     assert normalized["policy_adjustments"] == []

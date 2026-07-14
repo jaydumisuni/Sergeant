@@ -15,13 +15,67 @@ def test_review_intelligence_ranks_and_groups_findings() -> None:
 
     result = run_review_intelligence(packet)
 
-    assert result["verdict"] == "NEEDS WORK"
+    assert result["verdict"] == "PASS"
     assert result["finding_count"] == 2
+    assert result["promoted_count"] == 0
+    assert result["duplicate_rate"] > 0
     assert "unsafe-data-flow" in result["root_causes"]
     assert result["ranked_findings"][0]["priority"] >= result["ranked_findings"][1]["priority"]
     assert result["ranked_findings"][0]["why_it_matters"]
     assert result["ranked_findings"][0]["safer_alternative"]
     assert result["trace"]
+
+
+def test_generic_structurally_complete_evidence_is_not_promoted() -> None:
+    result = run_review_intelligence({"capability_review": {"findings": [{
+        "capability": "data_flow",
+        "severity": "major",
+        "message": "User-controlled input appears near a risky sink.",
+        "evidence": "Input and sink patterns were both detected in the changed file.",
+        "confidence": 0.92,
+        "path": "src/api.py",
+        "line_start": 7,
+        "line_end": 7,
+        "direct_evidence": True,
+    }]}})
+
+    assert result["verdict"] == "PASS"
+    assert result["promoted_count"] == 0
+    assert result["ranked_findings"][0]["challenge_result"] == "weakened: evidence is too generic"
+
+
+def test_explicit_zero_confidence_is_not_defaulted_to_medium() -> None:
+    result = run_review_intelligence({"capability_review": {"findings": [{
+        "capability": "architecture",
+        "severity": "major",
+        "message": "Possible boundary issue.",
+        "evidence": "web/dashboard.py:1 imports backend/database.py directly.",
+        "confidence": 0.0,
+        "path": "web/dashboard.py",
+        "line_start": 1,
+        "direct_evidence": True,
+    }]}})
+
+    finding = result["ranked_findings"][0]
+    assert finding["confidence"] == 0.08
+    assert finding["challenge_result"] == "weakened: low confidence"
+    assert result["verdict"] == "PASS"
+
+
+def test_completeness_does_not_count_guaranteed_template_text() -> None:
+    result = run_review_intelligence({"capability_review": {"findings": [{
+        "capability": "architecture",
+        "severity": "minor",
+        "message": "Possible boundary issue.",
+        "evidence": "A dependency was observed.",
+        "confidence": 0.7,
+        "path": "web/dashboard.py",
+    }]}})
+
+    finding = result["ranked_findings"][0]
+    assert finding["why_it_matters"]
+    assert finding["verification_test"]
+    assert finding["completeness_score"] < 0.8
 
 
 def _write_project(root: Path) -> None:

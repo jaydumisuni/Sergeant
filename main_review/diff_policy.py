@@ -4,6 +4,9 @@ A high-risk path requires deeper review, but path classification alone is not a
 demonstrated defect. Sergeant accepts that signal only when the same change set
 contains an assurance document that names the path and records purpose,
 permissions, secrets, rollback, and proof.
+
+Diff and capability review also share one canonical proof-gap identity so the
+same missing-test condition is not reported twice.
 """
 
 from __future__ import annotations
@@ -16,6 +19,8 @@ from .verdict import decide_verdict
 
 ASSURANCE_TERMS = ("purpose", "permissions", "secrets", "rollback", "proof")
 HIGH_RISK_MESSAGE = "Changed file is in a high-risk path."
+SOURCE_WITHOUT_TESTS_MESSAGE = "Source files changed without changed tests."
+CANONICAL_TEST_GAP_MESSAGE = "Implementation changed without changed tests in the same PR."
 
 
 def _assurance_documents(root: Path, changed_files: list[str]) -> dict[str, str]:
@@ -45,7 +50,7 @@ def normalize_diff_review(
     root: str | Path,
     changed_files: list[str],
 ) -> dict[str, Any]:
-    """Downgrade generic high-risk path signals only with explicit assurance."""
+    """Normalize duplicate proof gaps and evidence-backed path-risk signals."""
 
     normalized = deepcopy(packet)
     evidence = normalized.get("evidence", {})
@@ -56,6 +61,13 @@ def normalize_diff_review(
     for finding in findings:
         if not isinstance(finding, dict):
             continue
+
+        if finding.get("message") == SOURCE_WITHOUT_TESTS_MESSAGE:
+            finding["category"] = "test_impact"
+            finding["message"] = CANONICAL_TEST_GAP_MESSAGE
+            finding["root_cause"] = "proof-gap"
+            finding["canonical_finding"] = "changed-implementation-without-changed-tests"
+
         if finding.get("message") != HIGH_RISK_MESSAGE or finding.get("severity") not in {"blocker", "major"}:
             continue
         target = str(finding.get("path", ""))

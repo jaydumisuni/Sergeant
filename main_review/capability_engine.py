@@ -41,6 +41,7 @@ SINK_RE = re.compile(r"\b(eval|exec|subprocess|os\.system|innerHTML|dangerouslyS
 N2_LOOP_RE = re.compile(r"\bfor\b[\s\S]{0,160}\bfor\b")
 ASYNC_SHARED_RE = re.compile(r"\b(global|threading|asyncio\.create_task|Promise\.all|setTimeout|setInterval)\b")
 API_KEYWORD_RE = re.compile(r"\b(api|route|client|server|handler|schema|contract|types?)\b", re.I)
+EVALUATION_PREFIXES = ("review-benchmarks/", "battle-tests/")
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,11 @@ class CapabilityFinding:
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
+
+
+def _is_evaluation_path(path: str) -> bool:
+    normalized = path.replace("\\", "/").lstrip("./")
+    return normalized.startswith(EVALUATION_PREFIXES)
 
 
 def _safe_read(root: Path, relative: str) -> str:
@@ -122,7 +128,12 @@ def _extract_text_symbols(path: str, text: str) -> tuple[set[str], set[str]]:
 
 def _build_indexes(root: Path) -> dict[str, Any]:
     insight = scan_repository(root)
-    source_files = [file.path for file in insight.files if file.role in {"source", "ui", "database", "config", "infrastructure"}]
+    source_files = [
+        file.path
+        for file in insight.files
+        if file.role in {"source", "ui", "database", "config", "infrastructure"}
+        and not _is_evaluation_path(file.path)
+    ]
     module_index = {_module_name(path): path for path in source_files}
     imports: dict[str, set[str]] = {path: set() for path in source_files}
     reverse_imports: dict[str, set[str]] = {path: set() for path in source_files}
@@ -176,17 +187,7 @@ def _cross_file_findings(indexes: dict[str, Any], changed: set[str]) -> list[Cap
     for path in sorted(changed):
         dependents = sorted(reverse_imports.get(path, set()))
         if dependents:
-            findings.append(
-                CapabilityFinding(
-                    capability="cross_file",
-                    severity="major" if len(dependents) >= 3 else "minor",
-                    path=path,
-                    message="Changed file has dependent modules that may be affected.",
-                    evidence=f"{len(dependents)} dependent file(s) import this file.",
-                    related_paths=dependents[:10],
-                    confidence=0.76,
-                )
-            )
+            findings.append(CapabilityFinding("cross_file", "major" if len(dependents) >= 3 else "minor", "Changed file has dependent modules that may be affected.", path, f"{len(dependents)} dependent file(s) import this file.", 0.76, dependents[:10]))
     return findings
 
 
@@ -197,161 +198,50 @@ def _architecture_findings(indexes: dict[str, Any], changed: set[str]) -> list[C
         if "/ui/" in f"/{path}" or path.startswith(("frontend/", "web/")):
             backend_deps = [dep for dep in imports.get(path, set()) if dep.startswith(("server/", "backend/", "api/"))]
             if backend_deps:
-                findings.append(
-                    CapabilityFinding(
-                        capability="architecture",
-                        severity="major",
-                        path=path,
-                        message="UI layer imports backend/server layer directly.",
-                        evidence="Layer boundary appears crossed by imports.",
-                        related_paths=backend_deps,
-                        confidence=0.72,
-                    )
-                )
+                findings.append(CapabilityFinding("architecture", "major", "UI layer imports backend/server layer directly.", path, "Layer boundary appears crossed by imports.", 0.72, backend_deps))
         if path.startswith(("src/", "app/")) and "test" in path.lower():
             continue
         if path.startswith(("scripts/", ".github/", "deploy/")):
-            findings.append(
-                CapabilityFinding(
-                    capability="architecture",
-                    severity="note",
-                    path=path,
-                    message="Infrastructure or automation path changed; review deployment impact.",
-                    evidence="Path is in scripts, CI, or deployment surface.",
-                    confidence=0.7,
-                )
-            )
+            findings.append(CapabilityFinding("architecture", "note", "Infrastructure or automation path changed; review deployment impact.", path, "Path is in scripts, CI, or deployment surface.", 0.7))
     return findings
 
 
 def _data_flow_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    findings: list[CapabilityFinding] = []
-    for path in sorted(changed):
-        text = indexes["texts"].get(path, "")
-        if INPUT_RE.search(text) and SINK_RE.search(text):
-            findings.append(
-                CapabilityFinding(
-                    capability="data_flow",
-                    severity="major",
-                    path=path,
-                    message="User-controlled input appears near a risky sink.",
-                    evidence="Input and sink patterns were both detected in the changed file.",
-                    confidence=0.68,
-                )
-            )
-    return findings
+    return [CapabilityFinding("data_flow", "major", "User-controlled input appears near a risky sink.", path, "Input and sink patterns were both detected in the changed file.", 0.68) for path in sorted(changed) if INPUT_RE.search(indexes["texts"].get(path, "")) and SINK_RE.search(indexes["texts"].get(path, ""))]
 
 
 def _call_graph_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
     findings: list[CapabilityFinding] = []
     exports: dict[str, set[str]] = indexes["exports"]
     calls: dict[str, set[str]] = indexes["calls"]
-    changed_exports: dict[str, set[str]] = {path: exports.get(path, set()) for path in changed}
-    for path, symbols in changed_exports.items():
-        if not symbols:
-            continue
-        callers = []
-        for other_path, other_calls in calls.items():
-            if other_path == path:
-                continue
-            if symbols & other_calls:
-                callers.append(other_path)
-        if callers:
-            findings.append(
-                CapabilityFinding(
-                    capability="call_graph",
-                    severity="minor" if len(callers) < 5 else "major",
-                    path=path,
-                    message="Changed exported symbols are called from other files.",
-                    evidence=f"Detected callers for exported symbols: {', '.join(sorted(symbols)[:5])}.",
-                    related_paths=sorted(callers)[:10],
-                    confidence=0.66,
-                )
-            )
+    for path in sorted(changed):
+        symbols = exports.get(path, set())
+        callers = [other for other, other_calls in calls.items() if other != path and symbols & other_calls]
+        if symbols and callers:
+            findings.append(CapabilityFinding("call_graph", "minor" if len(callers) < 5 else "major", "Changed exported symbols are called from other files.", path, f"Detected callers for exported symbols: {', '.join(sorted(symbols)[:5])}.", 0.66, sorted(callers)[:10]))
     return findings
 
 
 def _security_taint_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    findings: list[CapabilityFinding] = []
-    for path in sorted(changed):
-        text = indexes["texts"].get(path, "")
-        if INPUT_RE.search(text) and re.search(r"\b(sql|query|exec|eval|shell|command)\b", text, re.I):
-            findings.append(
-                CapabilityFinding(
-                    capability="security_taint",
-                    severity="major",
-                    path=path,
-                    message="Potential tainted input path needs validation review.",
-                    evidence="Input source and security-sensitive operation are both present.",
-                    confidence=0.7,
-                )
-            )
-    return findings
+    return [CapabilityFinding("security_taint", "major", "Potential tainted input path needs validation review.", path, "Input source and security-sensitive operation are both present.", 0.7) for path in sorted(changed) if INPUT_RE.search(indexes["texts"].get(path, "")) and re.search(r"\b(sql|query|exec|eval|shell|command)\b", indexes["texts"].get(path, ""), re.I)]
 
 
 def _performance_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    findings: list[CapabilityFinding] = []
-    for path in sorted(changed):
-        text = indexes["texts"].get(path, "")
-        if N2_LOOP_RE.search(text) or re.search(r"\.map\([^\)]*=>[\s\S]{0,120}\.map\(", text):
-            findings.append(
-                CapabilityFinding(
-                    capability="performance",
-                    severity="minor",
-                    path=path,
-                    message="Nested iteration pattern may create scaling risk.",
-                    evidence="Nested loop/map pattern detected in changed file.",
-                    confidence=0.62,
-                )
-            )
-    return findings
+    return [CapabilityFinding("performance", "minor", "Nested iteration pattern may create scaling risk.", path, "Nested loop/map pattern detected in changed file.", 0.62) for path in sorted(changed) if N2_LOOP_RE.search(indexes["texts"].get(path, "")) or re.search(r"\.map\([^\)]*=>[\s\S]{0,120}\.map\(", indexes["texts"].get(path, ""))]
 
 
 def _concurrency_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    findings: list[CapabilityFinding] = []
-    for path in sorted(changed):
-        text = indexes["texts"].get(path, "")
-        if ASYNC_SHARED_RE.search(text) and re.search(r"\b(cache|state|global|shared|counter)\b", text, re.I):
-            findings.append(
-                CapabilityFinding(
-                    capability="concurrency",
-                    severity="minor",
-                    path=path,
-                    message="Async or shared-state pattern may need race-condition review.",
-                    evidence="Concurrent execution signal and shared state naming were both detected.",
-                    confidence=0.6,
-                )
-            )
-    return findings
+    return [CapabilityFinding("concurrency", "minor", "Async or shared-state pattern may need race-condition review.", path, "Concurrent execution signal and shared state naming were both detected.", 0.6) for path in sorted(changed) if ASYNC_SHARED_RE.search(indexes["texts"].get(path, "")) and re.search(r"\b(cache|state|global|shared|counter)\b", indexes["texts"].get(path, ""), re.I)]
 
 
 def _api_contract_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
     findings: list[CapabilityFinding] = []
-    routes: dict[str, set[str]] = indexes["routes"]
     for path in sorted(changed):
-        file_routes = routes.get(path, set())
-        if file_routes:
-            findings.append(
-                CapabilityFinding(
-                    capability="api_contract",
-                    severity="major",
-                    path=path,
-                    message="API route contract changed or requires compatibility review.",
-                    evidence=f"Detected routes: {', '.join(sorted(file_routes)[:5])}.",
-                    confidence=0.74,
-                )
-            )
+        routes = indexes["routes"].get(path, set())
+        if routes:
+            findings.append(CapabilityFinding("api_contract", "major", "API route contract changed or requires compatibility review.", path, f"Detected routes: {', '.join(sorted(routes)[:5])}.", 0.74))
         elif API_KEYWORD_RE.search(path) and path.endswith((".ts", ".tsx", ".js", ".py", ".go", ".rs", ".java", ".cs")):
-            findings.append(
-                CapabilityFinding(
-                    capability="api_contract",
-                    severity="minor",
-                    path=path,
-                    message="API-adjacent file changed; check callers and contracts.",
-                    evidence="Path name indicates API, route, client, schema, or contract surface.",
-                    confidence=0.58,
-                )
-            )
+            findings.append(CapabilityFinding("api_contract", "minor", "API-adjacent file changed; check callers and contracts.", path, "Path name indicates API, route, client, schema, or contract surface.", 0.58))
     return findings
 
 
@@ -360,75 +250,38 @@ def _test_impact_findings(indexes: dict[str, Any], changed: set[str]) -> list[Ca
     changed_non_tests = [path for path in changed if path not in insight.tests]
     changed_tests = [path for path in changed if path in insight.tests]
     if changed_non_tests and not changed_tests:
-        return [
-            CapabilityFinding(
-                capability="test_impact",
-                severity="major",
-                message="Implementation changed without changed tests in the same PR.",
-                evidence=f"Detected {len(changed_non_tests)} changed non-test file(s) and 0 changed test files.",
-                related_paths=sorted(changed_non_tests)[:10],
-                confidence=0.78,
-            )
-        ]
+        return [CapabilityFinding("test_impact", "major", "Implementation changed without changed tests in the same PR.", evidence=f"Detected {len(changed_non_tests)} changed non-test file(s) and 0 changed test files.", confidence=0.78, related_paths=sorted(changed_non_tests)[:10])]
     return []
 
 
 def _regression_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
     findings: list[CapabilityFinding] = []
-    reverse_imports: dict[str, set[str]] = indexes["reverse_imports"]
     for path in sorted(changed):
-        blast_radius = len(reverse_imports.get(path, set()))
-        if blast_radius >= 5:
-            findings.append(
-                CapabilityFinding(
-                    capability="regression",
-                    severity="major",
-                    path=path,
-                    message="High blast-radius change may regress dependent behavior.",
-                    evidence=f"At least {blast_radius} files depend on this file.",
-                    related_paths=sorted(reverse_imports.get(path, set()))[:10],
-                    confidence=0.72,
-                )
-            )
+        dependents = sorted(indexes["reverse_imports"].get(path, set()))
+        if len(dependents) >= 5:
+            findings.append(CapabilityFinding("regression", "major", "High blast-radius change may regress dependent behavior.", path, f"At least {len(dependents)} files depend on this file.", 0.72, dependents[:10]))
     return findings
 
 
 def run_capability_engine(root: str | Path = ".", changed_files: list[str] | None = None) -> dict[str, Any]:
     root_path = Path(root).resolve()
     changed = _changed_set(changed_files)
+    evaluation_files = sorted(path for path in changed if _is_evaluation_path(path))
+    reviewable_changed = changed - set(evaluation_files)
     indexes = _build_indexes(root_path)
     findings: list[CapabilityFinding] = []
-    findings.extend(_cross_file_findings(indexes, changed))
-    findings.extend(_architecture_findings(indexes, changed))
-    findings.extend(_data_flow_findings(indexes, changed))
-    findings.extend(_call_graph_findings(indexes, changed))
-    findings.extend(_security_taint_findings(indexes, changed))
-    findings.extend(_performance_findings(indexes, changed))
-    findings.extend(_concurrency_findings(indexes, changed))
-    findings.extend(_api_contract_findings(indexes, changed))
-    findings.extend(_test_impact_findings(indexes, changed))
-    findings.extend(_regression_findings(indexes, changed))
-
+    for provider in (_cross_file_findings, _architecture_findings, _data_flow_findings, _call_graph_findings, _security_taint_findings, _performance_findings, _concurrency_findings, _api_contract_findings, _test_impact_findings, _regression_findings):
+        findings.extend(provider(indexes, reviewable_changed))
     covered = sorted({finding.capability for finding in findings})
-    capability_status = {
-        "cross_file": "active",
-        "architecture": "active",
-        "data_flow": "active",
-        "call_graph": "active",
-        "security_taint": "active",
-        "performance": "active",
-        "concurrency": "active",
-        "api_contract": "active",
-        "test_impact": "active",
-        "regression": "active",
-        "language": "scanner-backed",
-    }
-    severity_rank = {"blocker": 4, "major": 3, "minor": 2, "note": 1}
-    strongest = max((severity_rank[finding.severity] for finding in findings), default=0)
-    verdict = "BLOCK" if strongest == 4 else "NEEDS WORK" if strongest >= 3 else "PASS"
+    capability_status = {name: "active" for name in ("cross_file", "architecture", "data_flow", "call_graph", "security_taint", "performance", "concurrency", "api_contract", "test_impact", "regression")}
+    capability_status["language"] = "scanner-backed"
+    rank = {"blocker": 4, "major": 3, "minor": 2, "note": 1}
+    strongest = max((rank[finding.severity] for finding in findings), default=0)
     return {
-        "verdict": verdict,
+        "verdict": "BLOCK" if strongest == 4 else "NEEDS WORK" if strongest >= 3 else "PASS",
         "changed_files": sorted(changed),
+        "reviewable_changed_files": sorted(reviewable_changed),
+        "evaluation_files_excluded": evaluation_files,
         "capability_status": capability_status,
         "covered_by_findings": covered,
         "finding_count": len(findings),

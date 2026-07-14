@@ -1,0 +1,36 @@
+{
+  "schema_version": "sergeant.blind-benchmark.case.v1",
+  "id": "path-traversal",
+  "title": "Request filename reaches file access without containment",
+  "changed_files": ["src/files.py", "tests/test_files.py"],
+  "files": [
+    {"path": "pyproject.toml", "content": "[project]\nname='benchmark-case'\nversion='0.0.0'\n"},
+    {"path": "README.md", "content": "# Blind benchmark case\n"},
+    {"path": ".github/workflows/ci.yml", "content": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo test\n"},
+    {"path": "src/files.py", "content": "from pathlib import Path\n\nBASE = Path('/srv/files')\n\ndef download(request):\n    name = request.args.get('name')\n    return open(BASE / name, 'rb')\n"},
+    {"path": "tests/test_files.py", "content": "from src.files import download\n\ndef test_symbol_exists():\n    assert download\n"}
+  ],
+  "expected_verdict": "REQUEST_CHANGES",
+  "expected_findings": [
+    {
+      "id": "file-data-flow",
+      "category": "data_flow",
+      "severity": "major",
+      "paths": ["src/files.py"],
+      "line_start": 7,
+      "line_end": 7,
+      "root_cause": "unsafe-file-access",
+      "keywords": ["request", "path", "file", "containment"]
+    },
+    {
+      "id": "file-security",
+      "category": "security_taint",
+      "severity": "major",
+      "paths": ["src/files.py"],
+      "line_start": 7,
+      "line_end": 7,
+      "root_cause": "unsafe-file-access",
+      "keywords": ["path", "input", "file", "validation"]
+    }
+  ]
+}
