@@ -6,6 +6,7 @@ on:
       - "main_review/cloudflare_*.py"
       - "tests/test_cloudflare_gateway.py"
       - "docs/25-cloudflare-workers-ai.md"
+      - "docs/26-cloudflare-connector-assurance.md"
       - "pyproject.toml"
       - ".github/workflows/cloudflare-connector-proof.yml"
   workflow_dispatch:
@@ -25,6 +26,8 @@ jobs:
     steps:
       - name: Checkout exact revision
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Set up Python
         uses: actions/setup-python@v5
