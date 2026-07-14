@@ -32,7 +32,7 @@ PowerShell:
 ```powershell
 $env:SERGEANT_CLOUDFLARE_ACCOUNT_ID="your-account-id"
 $env:SERGEANT_CLOUDFLARE_API_TOKEN="your-scoped-token"
-$env:SERGEANT_CLOUDFLARE_MODELS="@cf/openai/gpt-oss-120b,@cf/zai-org/glm-4.7-flash,@cf/moonshotai/kimi-k2.7-code"
+$env:SERGEANT_CLOUDFLARE_MODELS="@cf/zai-org/glm-4.7-flash,@cf/openai/gpt-oss-120b,@cf/moonshotai/kimi-k2.7-code"
 ```
 
 Bash:
@@ -40,8 +40,13 @@ Bash:
 ```bash
 export SERGEANT_CLOUDFLARE_ACCOUNT_ID="your-account-id"
 export SERGEANT_CLOUDFLARE_API_TOKEN="your-scoped-token"
-export SERGEANT_CLOUDFLARE_MODELS="@cf/openai/gpt-oss-120b,@cf/zai-org/glm-4.7-flash,@cf/moonshotai/kimi-k2.7-code"
+export SERGEANT_CLOUDFLARE_MODELS="@cf/zai-org/glm-4.7-flash,@cf/openai/gpt-oss-120b,@cf/moonshotai/kimi-k2.7-code"
 ```
+
+Roster order matters. Sergeant starts with the first model and recruits later
+members only when the council has work for them. The public starter roster puts
+GLM Flash first as the efficient reasoning route, while GPT-OSS and Kimi remain
+available for independent confirmation and harder coding investigations.
 
 The model roster is explicit. Sergeant does not silently add a newly released
 model to the council or spend against it.
@@ -115,6 +120,10 @@ unresolved objection. That is different from a route failure.
 Cloudflare usage is charged to the user's Cloudflare account and subject to the
 current Workers AI allocation and pricing. Sergeant does not hide model calls or
 silently fall back to another paid provider.
+
+The first model is the default worker. Later roster members are not called merely
+because they are configured: Cpl recruits them when disagreement, missing proof,
+independent confirmation or another unresolved gap requires them.
 
 The gateway sends the bounded repository excerpts and deterministic evidence
 that Cpl normally sends to a configured remote model. Users should not enable a
