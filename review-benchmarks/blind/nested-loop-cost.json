@@ -1,0 +1,26 @@
+{
+  "schema_version": "sergeant.blind-benchmark.case.v1",
+  "id": "nested-loop-cost",
+  "title": "Nested iteration creates scaling risk",
+  "changed_files": ["src/report.py", "tests/test_report.py"],
+  "files": [
+    {"path": "pyproject.toml", "content": "[project]\nname='benchmark-case'\nversion='0.0.0'\n"},
+    {"path": "README.md", "content": "# Blind benchmark case\n"},
+    {"path": ".github/workflows/ci.yml", "content": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo test\n"},
+    {"path": "src/report.py", "content": "def pairs(rows):\n    output = []\n    for left in rows:\n        for right in rows:\n            output.append((left, right))\n    return output\n"},
+    {"path": "tests/test_report.py", "content": "from src.report import pairs\n\ndef test_pairs():\n    assert pairs([1]) == [(1, 1)]\n"}
+  ],
+  "expected_verdict": "APPROVE",
+  "expected_findings": [
+    {
+      "id": "performance-risk",
+      "category": "performance",
+      "severity": "minor",
+      "paths": ["src/report.py"],
+      "line_start": 3,
+      "line_end": 4,
+      "root_cause": "runtime-risk",
+      "keywords": ["nested", "iteration", "scaling", "risk"]
+    }
+  ]
+}
