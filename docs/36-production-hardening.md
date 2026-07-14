@@ -175,6 +175,24 @@ Phase 7 proof covers:
 - body-free proof artifacts;
 - PR patch workspace traversal.
 
+## High-risk workflow assurance
+
+### `.github/workflows/ci.yml`
+
+- **Purpose:** run the complete repository test, clean-clone, live battle, verification, final-proof, end-to-end, independent-reviewer, and mocked-integration gates.
+- **Permissions:** workflow-level `contents: read`; it receives no write, issue, pull-request mutation, package publication, or deployment permission.
+- **Secrets:** `GITHUB_TOKEN` is consumed only through the process environment and passed to Sergeant by environment-variable name; no token value is printed, persisted, or supplied as a command-line argument.
+- **Rollback:** revert the workflow change to the previous token-free battle command or disable the live battle step while preserving unit, verification, and final-proof gates. No repository state or external resource requires migration.
+- **Proof:** CI runs all tests, generates three real battle outputs, uploads them, then enforces THETECHGUY verification, final proof, proof suite, independent reviewer, and mocked GitHub integration.
+
+### `.github/workflows/live-github-ingestion-proof.yml`
+
+- **Purpose:** prove real read-only GitHub API ingestion against the pull request that triggered the workflow.
+- **Permissions:** explicit `contents: read`, `issues: read`, and `pull-requests: read`; no write permission is granted.
+- **Secrets:** the repository-scoped `GITHUB_TOKEN` remains in the environment, is referenced only by variable name, and is excluded from the uploaded artifact. Comment bodies are also omitted.
+- **Rollback:** delete or disable this isolated workflow without changing Sergeant runtime behavior; mocked and adversarial ingestion tests continue to run in normal CI.
+- **Proof:** the job performs real metadata, issue-comment, and review-comment GET requests, verifies repository identity and proof claims, and uploads a sanitized JSON artifact containing counts, hashes, request evidence, and token-scope assessment.
+
 ## Remaining authority
 
 Sergeant remains the reviewer and final deterministic authority. Cpl and the permanent officers operate inside this boundary. Neither model selection nor council agreement can override a production safety refusal.
