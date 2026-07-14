@@ -15,8 +15,10 @@ def test_review_intelligence_ranks_and_groups_findings() -> None:
 
     result = run_review_intelligence(packet)
 
-    assert result["verdict"] == "NEEDS WORK"
+    assert result["verdict"] == "PASS"
     assert result["finding_count"] == 2
+    assert result["promoted_count"] == 0
+    assert result["duplicate_rate"] > 0
     assert "unsafe-data-flow" in result["root_causes"]
     assert result["ranked_findings"][0]["priority"] >= result["ranked_findings"][1]["priority"]
     assert result["ranked_findings"][0]["why_it_matters"]
