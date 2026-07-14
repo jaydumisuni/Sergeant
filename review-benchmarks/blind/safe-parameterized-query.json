@@ -1,0 +1,15 @@
+{
+  "schema_version": "sergeant.blind-benchmark.case.v1",
+  "id": "safe-parameterized-query",
+  "title": "Request input uses explicit SQL parameter binding",
+  "changed_files": ["src/api.py", "tests/test_api.py"],
+  "files": [
+    {"path": "pyproject.toml", "content": "[project]\nname='benchmark-case'\nversion='0.0.0'\n"},
+    {"path": "README.md", "content": "# Blind benchmark case\n"},
+    {"path": ".github/workflows/ci.yml", "content": "name: ci\non: [push]\njobs:\n  test:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo test\n"},
+    {"path": "src/api.py", "content": "def get_user(request, db):\n    user_id = request.args.get('id')\n    return db.query(\"SELECT * FROM users WHERE id = ?\", [user_id])\n"},
+    {"path": "tests/test_api.py", "content": "from src.api import get_user\n\ndef test_get_user_uses_bound_value():\n    assert get_user\n"}
+  ],
+  "expected_verdict": "APPROVE",
+  "expected_findings": []
+}
