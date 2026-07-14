@@ -39,6 +39,7 @@ main-review = "main_review.cli:main"
 sergeant-serve = "main_review.standalone:main"
 sergeant-bench = "main_review.review_benchmark:main"
 sergeant-compare = "main_review.reviewer_comparison:main"
+sergeant-cloudflare = "main_review.cloudflare_cli:main"
 
 [tool.setuptools]
 packages = ["main_review"]
