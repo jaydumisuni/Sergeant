@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import shlex
 from pathlib import Path
 from typing import Any
 
@@ -14,6 +15,9 @@ from .cloudflare_gateway import (
 from .cpl_runtime import run_cpl_review
 from .diff_review import parse_changed_files_text
 from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, invoke_json
+
+REQUIRED_PROOF_CAPABILITIES = ["structured_json", "reasoning"]
+VALID_COUNCIL_VERDICTS = {"PASS", "NEEDS WORK", "BLOCK"}
 
 
 def cloudflare_route(settings: CloudflareGatewaySettings, *, model: str | None = None) -> LLMRoute:
@@ -47,7 +51,7 @@ def _proof_prompt(model: str) -> tuple[str, str]:
                 "required": {
                     "status": "ready",
                     "model": model,
-                    "capabilities": ["structured_json", "reasoning"],
+                    "capabilities": REQUIRED_PROOF_CAPABILITIES,
                 },
             }
         ),
@@ -62,7 +66,11 @@ def test_models(settings: CloudflareGatewaySettings) -> dict[str, Any]:
         system_prompt, user_prompt = _proof_prompt(model)
         try:
             payload = invoke_json(route, system_prompt=system_prompt, user_prompt=user_prompt)
-            passed = payload.get("status") == "ready" and payload.get("model") == model
+            passed = (
+                payload.get("status") == "ready"
+                and payload.get("model") == model
+                and payload.get("capabilities") == REQUIRED_PROOF_CAPABILITIES
+            )
             results.append({"model": model, "passed": passed, "response": payload})
         except LLMProviderError as error:
             results.append({"model": model, "passed": False, "error": str(error)})
@@ -117,10 +125,17 @@ def run_council_proof(
     council = result.get("council", {}) if isinstance(result.get("council"), dict) else {}
     passes = [item for item in result.get("passes", []) if isinstance(item, dict)]
     distinct_models = sorted({str(item.get("model")) for item in passes if item.get("model")})
+    errors = [str(item) for item in result.get("errors", []) if str(item).strip()]
+    final_gaps = council.get("final_gaps", []) if isinstance(council.get("final_gaps"), list) else []
+    verdict = str(result.get("verdict") or "")
     passed = (
-        result.get("status") in {"completed", "completed_with_warnings"}
+        result.get("status") == "completed"
+        and verdict in VALID_COUNCIL_VERDICTS
         and len(distinct_models) > 1
         and council.get("true_model_independence") is True
+        and council.get("complete") is True
+        and not errors
+        and not final_gaps
     )
     return {
         "schema_version": "sergeant.cloudflare-council-proof.v1",
@@ -131,10 +146,10 @@ def run_council_proof(
         "model_call_count": len(passes),
         "true_model_independence": council.get("true_model_independence", False),
         "council_complete": council.get("complete", False),
-        "final_gaps": council.get("final_gaps", []),
+        "final_gaps": final_gaps,
         "status": result.get("status"),
-        "verdict": result.get("verdict"),
-        "errors": result.get("errors", []),
+        "verdict": verdict,
+        "errors": errors,
         "council": council,
     }
 
@@ -167,7 +182,6 @@ def build_parser() -> argparse.ArgumentParser:
     gateway = sub.add_parser("gateway", help="Run the local OpenAI-compatible Cloudflare gateway.")
     gateway.add_argument("--host")
     gateway.add_argument("--port", type=int)
-    gateway.add_argument("--allow-network", action="store_true")
 
     council = sub.add_parser("council-proof", help="Run a live multi-model Cpl proof through Cloudflare.")
     council.add_argument("path", nargs="?", default=".")
@@ -179,12 +193,16 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _powershell_quote(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
 def _render_shell(values: dict[str, str], shell: str) -> str:
     if shell == "json":
         return json.dumps(values, indent=2, sort_keys=True)
     if shell == "powershell":
-        return "\n".join(f'$env:{key}="{value}"' for key, value in values.items())
-    return "\n".join(f"export {key}={json.dumps(value)}" for key, value in values.items())
+        return "\n".join(f"$env:{key}={_powershell_quote(value)}" for key, value in values.items())
+    return "\n".join(f"export {key}={shlex.quote(value)}" for key, value in values.items())
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -193,7 +211,6 @@ def main(argv: list[str] | None = None) -> int:
     settings = CloudflareGatewaySettings.from_environment(
         host=getattr(args, "host", None),
         port=getattr(args, "port", None),
-        allow_network=bool(getattr(args, "allow_network", False)),
     )
 
     if args.command == "status":
