@@ -222,7 +222,9 @@ def _evidence_is_specific(finding: dict[str, Any]) -> bool:
         return False
     if _text(finding.get("capability")) in _PATH_OPTIONAL:
         return len(tokens) >= 6 and (has_concrete_marker or has_related_scope)
-    return len(tokens) >= 6 and (has_location or has_related_scope or has_concrete_marker)
+    if has_related_scope and has_location:
+        return len(tokens) >= 5
+    return len(tokens) >= 6 and (has_location or has_concrete_marker)
 
 
 def _challenge(finding: dict[str, Any], evidence_strength: float) -> str:
