@@ -114,6 +114,12 @@ jobs:
           set +e
           sergeant-cloudflare --pretty council-proof build/live-council-fixture \
             --files src/auth.py \
+            --expected-verdict BLOCK \
+            --expected-path src/auth.py \
+            --expected-category security \
+            --expected-severity blocker \
+            --expected-evidence shell=True \
+            --minimum-supporting-models 2 \
             --output build/cloudflare-council-proof.json \
             --no-fail
           code=$?
@@ -143,15 +149,38 @@ jobs:
           status = json.loads(Path("build/cloudflare-status.json").read_text(encoding="utf-8"))
           models = json.loads(Path("build/cloudflare-model-proof.json").read_text(encoding="utf-8"))
           council = json.loads(Path("build/cloudflare-council-proof.json").read_text(encoding="utf-8"))
+          rows = models.get("models", []) if isinstance(models.get("models"), list) else []
+          certified_models = [
+              str(item.get("model"))
+              for item in rows
+              if isinstance(item, dict) and item.get("passed") is True and item.get("model")
+          ]
+          probationary_models = [
+              {
+                  "model": str(item.get("model")),
+                  "error": item.get("error"),
+                  "response": item.get("response"),
+              }
+              for item in rows
+              if isinstance(item, dict) and item.get("passed") is not True and item.get("model")
+          ]
+          minimum_certified_models = 2
           payload = {
-              "schema_version": "sergeant.cloudflare-live-certification.v1",
+              "schema_version": "sergeant.cloudflare-live-certification.v2",
               "provider": "cloudflare-workers-ai",
               "preset": "${{ inputs.preset }}",
               "route_valid": status.get("valid") is True,
               "configured_model_count": models.get("model_count", 0),
               "structured_model_pass_count": models.get("passed_count", 0),
+              "minimum_certified_models": minimum_certified_models,
+              "sufficient_certified_models": len(certified_models) >= minimum_certified_models,
+              "certified_models": certified_models,
+              "probationary_models": probationary_models,
               "all_configured_models_passed": models.get("all_passed") is True,
+              "preset_status": "fully_certified" if models.get("all_passed") is True else "partially_certified",
               "council_passed": council.get("passed") is True,
+              "expected_finding_passed": council.get("expected_finding", {}).get("passed") is True,
+              "verdict_matches": council.get("verdict_matches") is True,
               "distinct_models": council.get("distinct_models", []),
               "model_call_count": council.get("model_call_count", 0),
               "true_model_independence": council.get("true_model_independence", False),
@@ -161,8 +190,10 @@ jobs:
           }
           payload["passed"] = bool(
               payload["route_valid"]
-              and payload["all_configured_models_passed"]
+              and payload["sufficient_certified_models"]
               and payload["council_passed"]
+              and payload["expected_finding_passed"]
+              and payload["verdict_matches"]
               and payload["true_model_independence"]
               and payload["council_complete"]
           )
