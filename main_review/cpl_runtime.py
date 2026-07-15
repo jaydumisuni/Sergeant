@@ -23,7 +23,7 @@ from .cpl_council_prompt import follow_up_prompt, member_records, report_table
 from .cpl_experience import detect_recurrences, retrieve_experience
 from .cpl_reasoning import SPECIALISTS, specialist_system_prompt
 from .cpl_reliability import attach_model_profiles, model_score, rank_models
-from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, discover_route
+from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, discover_route, invoke_json
 from .llm_review import (
     SYSTEM_PROMPT,
     _build_user_prompt,
@@ -66,6 +66,30 @@ def _choose_model(models: list[str], used: set[str], fallback: str, member_limit
     if unused and len(used) < member_limit:
         return unused[0], "new_member"
     return fallback, "role_separated_reuse"
+
+
+def _invoke_follow_up_with_failover(
+    route: LLMRoute,
+    *,
+    system_prompt: str,
+    user_prompt: str,
+) -> tuple[dict[str, Any], LLMRoute, list[str]]:
+    """Preserve the runtime transport seam while rerouting failed council members."""
+
+    failed_models: list[str] = []
+    for model in available_models(route):
+        candidate = replace(route, model=model)
+        try:
+            return (
+                invoke_json(candidate, system_prompt=system_prompt, user_prompt=user_prompt),
+                candidate,
+                failed_models,
+            )
+        except LLMProviderError:
+            failed_models.append(model)
+    raise LLMProviderError(
+        "No configured Cpl council model completed the follow-up officer pass."
+    )
 
 
 def _coverage(passes: list[dict[str, Any]], original: dict[str, Any]) -> dict[str, Any]:
@@ -264,7 +288,7 @@ def run_cpl_review(
         table = report_table(passes)
         officer_report: dict[str, Any] | None = None
         try:
-            payload, completed_route, failed_models = _invoke_json_with_failover(
+            payload, completed_route, failed_models = _invoke_follow_up_with_failover(
                 selected_route,
                 system_prompt=specialist_system_prompt(SYSTEM_PROMPT, assignment),
                 user_prompt=follow_up_prompt(base_prompt, table, command, experience, round_number),
