@@ -213,7 +213,20 @@ def qualify_models(
                 )
             ]
             verdict_matches = not expected_verdict or report.get("verdict") == expected_verdict
-            passed = verdict_matches and bool(matching)
+            coverage = report.get("coverage", {}) if isinstance(report.get("coverage"), dict) else {}
+            reviewed_files = {
+                str(path) for path in coverage.get("files_reviewed", []) if str(path).strip()
+            } if isinstance(coverage.get("files_reviewed", []), list) else set()
+            reviewed_areas = {
+                str(area).strip().lower()
+                for area in coverage.get("areas", [])
+                if str(area).strip()
+            } if isinstance(coverage.get("areas", []), list) else set()
+            coverage_matches = (
+                (not expected_path or expected_path in reviewed_files)
+                and (not expected_category or expected_category in reviewed_areas)
+            )
+            passed = verdict_matches and bool(matching) and coverage_matches
             results.append({
                 "model": model,
                 "passed": passed,
@@ -224,7 +237,8 @@ def qualify_models(
                     "verdict": report.get("verdict"),
                     "finding_count": len(report.get("findings", [])),
                     "matching_findings": matching,
-                    "coverage": report.get("coverage", {}),
+                    "coverage": coverage,
+                    "coverage_matches": coverage_matches,
                 },
             })
         except LLMProviderError as error:

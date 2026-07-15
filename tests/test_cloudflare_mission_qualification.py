@@ -110,6 +110,40 @@ def test_mission_qualification_rejects_unverified_evidence(
     assert all(item["passed"] is False for item in result["models"])
 
 
+@pytest.mark.parametrize(
+    "coverage",
+    [
+        {"files_reviewed": [], "areas": []},
+        {"files_reviewed": ["src/auth.py"], "areas": ["correctness"]},
+        {"files_reviewed": ["src/other.py"], "areas": ["security"]},
+    ],
+)
+def test_mission_qualification_rejects_missing_or_incorrect_coverage(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    coverage: dict[str, list[str]],
+) -> None:
+    root = fixture(tmp_path)
+    payload = valid_payload()
+    payload["coverage"] = coverage
+    monkeypatch.setattr(cloudflare_cli, "invoke_json", lambda *args, **kwargs: payload)
+
+    result = cloudflare_cli.qualify_models(
+        settings(),
+        root=root,
+        changed_files=["src/auth.py"],
+        expected_verdict="BLOCK",
+        expected_path="src/auth.py",
+        expected_category="security",
+        expected_severity="blocker",
+        expected_evidence="shell=True",
+    )
+
+    assert result["passed_count"] == 0
+    assert all(item["passed"] is False for item in result["models"])
+    assert all(item["response"]["coverage_matches"] is False for item in result["models"])
+
+
 def test_live_workflow_uses_mission_qualified_two_member_roster() -> None:
     workflow = (Path(__file__).parents[1] / ".github" / "workflows" / "cloudflare-live-certification.yml").read_text(encoding="utf-8")
 
