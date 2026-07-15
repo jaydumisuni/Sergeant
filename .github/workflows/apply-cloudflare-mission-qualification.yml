@@ -37,7 +37,7 @@ jobs:
           mkdir -p build
           {
             python -m pip install --upgrade pip
-            python -m pip install -e .
+            python -m pip install -e . pytest
             python -m py_compile main_review/cloudflare_cli.py
             pytest -q \
               tests/test_cloudflare_gateway.py \
