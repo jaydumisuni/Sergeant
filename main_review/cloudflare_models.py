@@ -11,8 +11,14 @@ import re
 from dataclasses import dataclass
 
 CLOUDFLARE_PROVIDER = "cloudflare"
+CLOUDFLARE_PROVIDER_ALIASES = {
+    CLOUDFLARE_PROVIDER,
+    "cloudflare-workers-ai",
+    "workers-ai",
+    "cf",
+}
 CLOUDFLARE_BASE_TEMPLATE = "https://api.cloudflare.com/client/v4/accounts/{account_id}/ai/v1"
-_ACCOUNT_ID_RE = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
+_ACCOUNT_ID_RE = re.compile(r"^[A-Fa-f0-9]{32}$")
 
 # Broad passes use efficient reasoning models. Expensive specialists are placed
 # later so Cpl recruits them only when earlier passes leave a real evidence gap.
@@ -26,6 +32,7 @@ CLOUDFLARE_FREE_BALANCED_MODELS = (
 CLOUDFLARE_FREE_STRONG_MODELS = (
     *CLOUDFLARE_FREE_BALANCED_MODELS,
     "@cf/openai/gpt-oss-120b",
+    "@cf/moonshotai/kimi-k2.7-code",
 )
 
 CLOUDFLARE_FREE_EFFICIENT_MODELS = (
@@ -47,8 +54,8 @@ class CloudflareModelProfile:
     model: str
     tier: str
     purpose: str
-    input_neurons_per_million: int
-    output_neurons_per_million: int
+    input_neurons_per_million: int | None
+    output_neurons_per_million: int | None
 
 
 MODEL_PROFILES: dict[str, CloudflareModelProfile] = {
@@ -94,6 +101,13 @@ MODEL_PROFILES: dict[str, CloudflareModelProfile] = {
         31818,
         68182,
     ),
+    "@cf/moonshotai/kimi-k2.7-code": CloudflareModelProfile(
+        "@cf/moonshotai/kimi-k2.7-code",
+        "examiner",
+        "Rare frontier coding examiner for unresolved agentic code investigations.",
+        None,
+        None,
+    ),
 }
 
 
@@ -104,8 +118,14 @@ def parse_model_list(value: str) -> tuple[str, ...]:
     return tuple(dict.fromkeys(item for item in items if item))
 
 
+def is_cloudflare_provider(provider: str) -> bool:
+    """Return whether a provider name resolves to Cloudflare Workers AI."""
+
+    return provider.strip().lower() in CLOUDFLARE_PROVIDER_ALIASES
+
+
 def cloudflare_base_url(account_id: str) -> str:
-    """Return a Workers AI OpenAI-compatible base URL for a safe Account ID."""
+    """Return a Workers AI OpenAI-compatible base URL for a valid Account ID."""
 
     account_id = account_id.strip()
     if not account_id or not _ACCOUNT_ID_RE.fullmatch(account_id):
@@ -113,20 +133,27 @@ def cloudflare_base_url(account_id: str) -> str:
     return CLOUDFLARE_BASE_TEMPLATE.format(account_id=account_id)
 
 
-def configured_model_roster(provider: str) -> tuple[str, ...]:
-    """Resolve an explicit roster or a named public preset.
+def configured_model_roster(provider: str, explicit: str | None = None) -> tuple[str, ...]:
+    """Resolve an exact roster or a named public preset.
 
-    ``SERGEANT_CPL_MODELS`` always wins. Cloudflare defaults to the balanced
-    free-allocation preset so a user needs only an Account ID and scoped token.
-    Other providers receive no implicit roster.
+    For Cloudflare, ``SERGEANT_CLOUDFLARE_MODELS`` is the most specific public
+    override. ``SERGEANT_CPL_MODELS`` remains the provider-neutral override. A
+    supplied ``explicit`` value is used by callers that already read their own
+    environment contract. The balanced preset is the shared default for the
+    direct route, local gateway, website and IDE connectors.
     """
 
-    explicit = parse_model_list(os.getenv("SERGEANT_CPL_MODELS", ""))
-    if explicit:
-        return explicit
+    candidates = [explicit or ""]
+    if is_cloudflare_provider(provider):
+        candidates.append(os.getenv("SERGEANT_CLOUDFLARE_MODELS", ""))
+    candidates.append(os.getenv("SERGEANT_CPL_MODELS", ""))
+    for value in candidates:
+        roster = parse_model_list(value)
+        if roster:
+            return roster
 
     preset_name = os.getenv("SERGEANT_CPL_MODEL_PRESET", "").strip().lower()
-    if not preset_name and provider.strip().lower() == CLOUDFLARE_PROVIDER:
+    if not preset_name and is_cloudflare_provider(provider):
         preset_name = DEFAULT_CLOUDFLARE_PRESET
     return MODEL_PRESETS.get(preset_name, ())
 
@@ -142,6 +169,6 @@ def cloudflare_environment() -> tuple[str, str]:
 def public_base_url(provider: str, base_url: str) -> str:
     """Mask the Cloudflare Account ID in diagnostics and proof artifacts."""
 
-    if provider.strip().lower() != CLOUDFLARE_PROVIDER:
+    if not is_cloudflare_provider(provider):
         return base_url
     return re.sub(r"/accounts/[^/]+/", "/accounts/***/", base_url)

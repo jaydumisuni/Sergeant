@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import json
 import shlex
+import time
 from pathlib import Path
 from typing import Any
 
@@ -18,9 +19,16 @@ from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, invoke_json
 
 REQUIRED_PROOF_CAPABILITIES = ["structured_json", "reasoning"]
 VALID_COUNCIL_VERDICTS = {"PASS", "NEEDS WORK", "BLOCK"}
+MODEL_PROOF_MAX_OUTPUT_TOKENS = 320
+COUNCIL_PROOF_MAX_OUTPUT_TOKENS = 1200
 
 
-def cloudflare_route(settings: CloudflareGatewaySettings, *, model: str | None = None) -> LLMRoute:
+def cloudflare_route(
+    settings: CloudflareGatewaySettings,
+    *,
+    model: str | None = None,
+    max_output_tokens: int = COUNCIL_PROOF_MAX_OUTPUT_TOKENS,
+) -> LLMRoute:
     settings.validate()
     selected = model or settings.models[0]
     if selected not in settings.models:
@@ -32,7 +40,7 @@ def cloudflare_route(settings: CloudflareGatewaySettings, *, model: str | None =
         protocol="chat_completions",
         api_key=settings.api_token,
         timeout_seconds=settings.timeout_seconds,
-        max_output_tokens=5000,
+        max_output_tokens=max_output_tokens,
         discovered_models=settings.models,
     )
 
@@ -62,8 +70,13 @@ def test_models(settings: CloudflareGatewaySettings) -> dict[str, Any]:
     settings.validate()
     results: list[dict[str, Any]] = []
     for model in settings.models:
-        route = cloudflare_route(settings, model=model)
+        route = cloudflare_route(
+            settings,
+            model=model,
+            max_output_tokens=MODEL_PROOF_MAX_OUTPUT_TOKENS,
+        )
         system_prompt, user_prompt = _proof_prompt(model)
+        started = time.monotonic()
         try:
             payload = invoke_json(route, system_prompt=system_prompt, user_prompt=user_prompt)
             passed = (
@@ -71,9 +84,23 @@ def test_models(settings: CloudflareGatewaySettings) -> dict[str, Any]:
                 and payload.get("model") == model
                 and payload.get("capabilities") == REQUIRED_PROOF_CAPABILITIES
             )
-            results.append({"model": model, "passed": passed, "response": payload})
+            results.append(
+                {
+                    "model": model,
+                    "passed": passed,
+                    "duration_ms": round((time.monotonic() - started) * 1000, 2),
+                    "response": payload,
+                }
+            )
         except LLMProviderError as error:
-            results.append({"model": model, "passed": False, "error": str(error)})
+            results.append(
+                {
+                    "model": model,
+                    "passed": False,
+                    "duration_ms": round((time.monotonic() - started) * 1000, 2),
+                    "error": str(error),
+                }
+            )
     return {
         "provider": "cloudflare-workers-ai",
         "model_count": len(settings.models),
@@ -113,14 +140,17 @@ def run_council_proof(
         protocol="chat_completions",
         api_key=settings.api_token,
         timeout_seconds=settings.timeout_seconds,
-        max_output_tokens=5000,
+        max_output_tokens=COUNCIL_PROOF_MAX_OUTPUT_TOKENS,
     )
     result = run_cpl_review(
         root,
         changed_files,
         context,
         settings=llm_settings,
-        route=cloudflare_route(settings),
+        route=cloudflare_route(
+            settings,
+            max_output_tokens=COUNCIL_PROOF_MAX_OUTPUT_TOKENS,
+        ),
     )
     council = result.get("council", {}) if isinstance(result.get("council"), dict) else {}
     passes = [item for item in result.get("passes", []) if isinstance(item, dict)]
