@@ -20,9 +20,12 @@ cli = Path("main_review/cloudflare_cli.py")
 text = cli.read_text(encoding="utf-8")
 text = text.replace(
     "from .cloudflare_gateway import (\n",
-    "from .cloudflare_models import model_proof_output_tokens\nfrom .cloudflare_gateway import (\n",
+    "from .cloudflare_models import (\n    DEFAULT_MODEL_PROOF_OUTPUT_TOKENS,\n    model_proof_output_tokens,\n)\nfrom .cloudflare_gateway import (\n",
 )
-text = text.replace("MODEL_PROOF_MAX_OUTPUT_TOKENS = 320\n", "")
+text = text.replace(
+    "MODEL_PROOF_MAX_OUTPUT_TOKENS = 320\n",
+    "MODEL_PROOF_MAX_OUTPUT_TOKENS = DEFAULT_MODEL_PROOF_OUTPUT_TOKENS\n",
+)
 text = text.replace(
     '''        route = cloudflare_route(\n            settings,\n            model=model,\n            max_output_tokens=MODEL_PROOF_MAX_OUTPUT_TOKENS,\n        )\n''',
     '''        proof_tokens = model_proof_output_tokens(model)\n        route = cloudflare_route(\n            settings,\n            model=model,\n            max_output_tokens=proof_tokens,\n        )\n''',
