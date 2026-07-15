@@ -1,0 +1,41 @@
+name: Cleanup Cloudflare Fallback
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/cleanup-cloudflare-fallback.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.head_ref == 'cloudflare-native-response-fallback'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout fallback branch
+        uses: actions/checkout@v4
+        with:
+          ref: cloudflare-native-response-fallback
+          fetch-depth: 0
+
+      - name: Apply canonical cleanup
+        run: python tools/cleanup_cloudflare_fallback.py
+
+      - name: Validate cleaned implementation
+        run: |
+          python -m py_compile main_review/llm_provider.py main_review/cloudflare_models.py main_review/cloudflare_cli.py
+          python -m pip install pytest
+          python -m pytest tests/test_cloudflare_native_fallback.py tests/test_cloudflare_provider.py tests/test_cloudflare_roster.py -q
+
+      - name: Commit cleaned implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add main_review/llm_provider.py main_review/cloudflare_models.py main_review/cloudflare_cli.py tests/test_cloudflare_native_fallback.py
+          if ! git diff --cached --quiet; then
+            git commit -m "Canonicalize Cloudflare fallback implementation"
+            git push origin HEAD:cloudflare-native-response-fallback
+          fi
