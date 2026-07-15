@@ -165,6 +165,13 @@ jobs:
               if isinstance(item, dict) and item.get("passed") is not True and item.get("model")
           ]
           minimum_certified_models = 2
+          preset_status = (
+              "fully_certified"
+              if models.get("all_passed") is True
+              else "partially_certified"
+              if len(certified_models) >= minimum_certified_models
+              else "uncertified"
+          )
           payload = {
               "schema_version": "sergeant.cloudflare-live-certification.v2",
               "provider": "cloudflare-workers-ai",
@@ -177,7 +184,7 @@ jobs:
               "certified_models": certified_models,
               "probationary_models": probationary_models,
               "all_configured_models_passed": models.get("all_passed") is True,
-              "preset_status": "fully_certified" if models.get("all_passed") is True else "partially_certified",
+              "preset_status": preset_status,
               "council_passed": council.get("passed") is True,
               "expected_finding_passed": council.get("expected_finding", {}).get("passed") is True,
               "verdict_matches": council.get("verdict_matches") is True,
