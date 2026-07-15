@@ -1,0 +1,215 @@
+name: Cloudflare Final Live Proof
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/cloudflare-live-proof-final.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+      SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+      SERGEANT_CPL_MODEL_PRESET: cloudflare-free-balanced
+      SERGEANT_CPL_ENABLED: "true"
+      SERGEANT_CPL_POLICY: required
+      SERGEANT_CPL_DEPTH: adaptive
+      SERGEANT_CPL_MAX_PASSES: "3"
+      SERGEANT_CPL_MAX_COUNCIL_MEMBERS: "3"
+      SERGEANT_CPL_MAX_ROUNDS: "2"
+      SERGEANT_CPL_MAX_INPUT_CHARS: "16000"
+      SERGEANT_CLOUDFLARE_TIMEOUT_SECONDS: "75"
+    steps:
+      - name: Checkout merged Sergeant code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Sergeant
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Capture safe route status
+        run: |
+          mkdir -p build
+          sergeant-cloudflare --pretty status > build/cloudflare-status.json
+
+      - name: Probe balanced roster
+        shell: bash
+        run: |
+          set +e
+          sergeant-cloudflare --pretty test-models > build/cloudflare-model-proof.json
+          echo "MODEL_PROOF_EXIT=$?" >> "$GITHUB_ENV"
+          set -e
+
+      - name: Admit certified models only
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          payload = json.loads(Path("build/cloudflare-model-proof.json").read_text(encoding="utf-8"))
+          rows = payload.get("models", []) if isinstance(payload.get("models"), list) else []
+          certified = [
+              str(item.get("model"))
+              for item in rows
+              if isinstance(item, dict) and item.get("passed") is True and item.get("model")
+          ]
+          Path("build/cloudflare-certified-models.json").write_text(
+              json.dumps({"models": certified, "count": len(certified)}, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as handle:
+              handle.write(f"CERTIFIED_MODEL_COUNT={len(certified)}\n")
+              handle.write(f"SERGEANT_CLOUDFLARE_MODELS={','.join(certified)}\n")
+          PY
+
+      - name: Create known blocker fixture
+        run: |
+          mkdir -p build/live-council-fixture/src
+          cat > build/live-council-fixture/src/auth.py <<'PY'
+          import subprocess
+
+          def run_user_command(request):
+              command = request.args.get("command")
+              return subprocess.run(command, shell=True)
+          PY
+
+      - name: Run independent council proof
+        if: env.CERTIFIED_MODEL_COUNT != '0' && env.CERTIFIED_MODEL_COUNT != '1'
+        shell: bash
+        run: |
+          set +e
+          sergeant-cloudflare --pretty council-proof build/live-council-fixture \
+            --files src/auth.py \
+            --expected-verdict BLOCK \
+            --expected-path src/auth.py \
+            --expected-category security \
+            --expected-severity blocker \
+            --expected-evidence shell=True \
+            --minimum-supporting-models 2 \
+            --output build/cloudflare-council-proof.json \
+            --no-fail
+          echo "COUNCIL_PROOF_EXIT=$?" >> "$GITHUB_ENV"
+          set -e
+
+      - name: Record insufficient roster
+        if: env.CERTIFIED_MODEL_COUNT == '0' || env.CERTIFIED_MODEL_COUNT == '1'
+        run: |
+          cat > build/cloudflare-council-proof.json <<'JSON'
+          {
+            "schema_version": "sergeant.cloudflare-council-proof.v1",
+            "passed": false,
+            "error": "Fewer than two models satisfied the structured contract."
+          }
+          JSON
+
+      - name: Build final certification verdict
+        shell: bash
+        env:
+          SOURCE_HEAD_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          status = json.loads(Path("build/cloudflare-status.json").read_text(encoding="utf-8"))
+          models = json.loads(Path("build/cloudflare-model-proof.json").read_text(encoding="utf-8"))
+          council = json.loads(Path("build/cloudflare-council-proof.json").read_text(encoding="utf-8"))
+          rows = models.get("models", []) if isinstance(models.get("models"), list) else []
+          certified = [str(item.get("model")) for item in rows if isinstance(item, dict) and item.get("passed") is True]
+          probationary = [str(item.get("model")) for item in rows if isinstance(item, dict) and item.get("passed") is not True]
+          all_passed = models.get("all_passed") is True
+          preset_status = "fully_certified" if all_passed else "partially_certified" if len(certified) >= 2 else "uncertified"
+          result = {
+              "schema_version": "sergeant.cloudflare-live-certification.v2",
+              "source_main_sha": os.environ.get("SOURCE_HEAD_SHA", ""),
+              "route_valid": status.get("valid") is True,
+              "preset": "cloudflare-free-balanced",
+              "preset_status": preset_status,
+              "certified_models": certified,
+              "probationary_models": probationary,
+              "sufficient_certified_models": len(certified) >= 2,
+              "council_passed": council.get("passed") is True,
+              "verdict": council.get("verdict"),
+              "verdict_matches": council.get("verdict_matches") is True,
+              "expected_finding": council.get("expected_finding", {}),
+              "distinct_models": council.get("distinct_models", []),
+              "true_model_independence": council.get("true_model_independence", False),
+              "council_complete": council.get("council_complete", False),
+              "errors": council.get("errors", []),
+              "final_gaps": council.get("final_gaps", []),
+          }
+          result["passed"] = bool(
+              result["route_valid"]
+              and result["sufficient_certified_models"]
+              and result["council_passed"]
+              and result["verdict_matches"]
+              and result["expected_finding"].get("passed") is True
+              and result["true_model_independence"]
+              and result["council_complete"]
+              and not result["errors"]
+              and not result["final_gaps"]
+          )
+          Path("build/cloudflare-live-certification.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(result, indent=2, sort_keys=True))
+          PY
+
+      - name: Scan evidence for credentials
+        id: credential_scan
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          secrets = [
+              os.getenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", ""),
+              os.getenv("SERGEANT_CLOUDFLARE_API_TOKEN", ""),
+          ]
+          for path in Path("build").glob("*.json"):
+              text = path.read_text(encoding="utf-8", errors="replace")
+              for secret in secrets:
+                  if secret:
+                      assert secret not in text, f"Credential leaked into {path}"
+          PY
+
+      - name: Upload final live evidence
+        if: ${{ always() && steps.credential_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-final-live-proof
+          path: |
+            build/cloudflare-status.json
+            build/cloudflare-model-proof.json
+            build/cloudflare-certified-models.json
+            build/cloudflare-council-proof.json
+            build/cloudflare-live-certification.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce final proof
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("build/cloudflare-live-certification.json").read_text(encoding="utf-8"))
+          assert result.get("passed") is True, "Final Cloudflare live certification did not pass."
+          PY
