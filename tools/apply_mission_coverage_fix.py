@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# One-shot constructor for the reviewed coverage requirement.
 root = Path(__file__).resolve().parents[1]
 cli_path = root / "main_review" / "cloudflare_cli.py"
 test_path = root / "tests" / "test_cloudflare_mission_qualification.py"
