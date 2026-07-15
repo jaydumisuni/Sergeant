@@ -34,3 +34,5 @@ jobs:
           git diff --cached --check
           git commit -m "Keep required assurance gaps verdict-affecting"
           git push origin HEAD:cpl-quality-adjudication
+
+# One-shot construction workflow. Remove after the product commit is present.
