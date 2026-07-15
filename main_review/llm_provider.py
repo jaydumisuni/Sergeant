@@ -387,38 +387,6 @@ def _text_value(value: object) -> str:
     return ""
 
 
-def _response_shape(payload: dict[str, Any]) -> str:
-    """Return a credential-safe summary of a provider response structure."""
-
-    shape: dict[str, object] = {"top_level_keys": sorted(str(key) for key in payload)}
-    choices = payload.get("choices")
-    if isinstance(choices, list) and choices and isinstance(choices[0], dict):
-        first = choices[0]
-        shape["choice_keys"] = sorted(str(key) for key in first)
-        message = first.get("message")
-        if isinstance(message, dict):
-            shape["message_keys"] = sorted(str(key) for key in message)
-        if first.get("finish_reason") is not None:
-            shape["finish_reason"] = str(first.get("finish_reason"))
-    result = payload.get("result")
-    if isinstance(result, dict):
-        shape["result_keys"] = sorted(str(key) for key in result)
-    return json.dumps(shape, sort_keys=True)
-
-
-def _text_value(value: object) -> str:
-    if isinstance(value, str) and value.strip():
-        return value
-    if isinstance(value, list):
-        parts = [
-            str(item.get("text", ""))
-            for item in value
-            if isinstance(item, dict) and isinstance(item.get("text"), str) and item.get("text")
-        ]
-        return "\n".join(parts)
-    return ""
-
-
 def _extract_text(payload: dict[str, Any], protocol: LLMProtocol) -> str:
     if protocol == "chat_completions":
         choices = payload.get("choices", [])
@@ -523,40 +491,6 @@ def _invoke_cloudflare_native_text(
     return _extract_text(response, "chat_completions")
 
 
-def _cloudflare_native_endpoint(route: LLMRoute) -> str:
-    base = route.base_url.rstrip("/")
-    if base.endswith("/ai/v1"):
-        base = base[:-3]
-    elif base.endswith("/v1"):
-        base = base[:-3]
-    model = urllib.parse.quote(route.model, safe="@/")
-    return f"{base}/run/{model}"
-
-
-def _invoke_cloudflare_native_text(
-    route: LLMRoute,
-    *,
-    system_prompt: str,
-    user_prompt: str,
-) -> str:
-    body = {
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "temperature": 0,
-        "max_tokens": route.max_output_tokens,
-    }
-    request = urllib.request.Request(
-        _cloudflare_native_endpoint(route),
-        data=json.dumps(body).encode("utf-8"),
-        headers=_request_headers(route.api_key),
-        method="POST",
-    )
-    response = _load_json_response(request, route.timeout_seconds)
-    return _extract_text(response, "chat_completions")
-
-
 def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dict[str, Any]:
     headers = _request_headers(route.api_key)
     if route.protocol == "responses":
@@ -620,8 +554,7 @@ def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dic
             return _parse_json_text(native_text)
         except LLMProviderError as native_error:
             raise LLMProviderError(
-                "Cloudflare OpenAI-compatible and native model routes both failed. "
-                f"Compatible route: {compatible_error} Native route: {native_error}"
+                "Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response."
             ) from native_error
 
 
