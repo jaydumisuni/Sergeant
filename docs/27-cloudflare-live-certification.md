@@ -104,3 +104,11 @@ Rollback removes:
 - focused certification-semantics tests.
 
 Deterministic Sergeant Core, local provider routes, the existing loopback gateway, and normal pull-request CI remain operational after rollback.
+
+## Mission-capable model admission
+
+The lightweight model handshake proves only that a route can return a small JSON object. It does not admit a model to Cpl's live formation. The certification therefore performs a second, model-by-model qualification against the complete evidence-grounded Medic security-officer contract on the focused fixture.
+
+Only models that return the expected `BLOCK` verdict, verified `shell=True` evidence, the required path/category/severity, and valid coverage are written to the certified council roster. Models that time out, return unparseable JSON, or satisfy only the toy handshake remain probationary.
+
+The focused council uses two mission-qualified members and two initial passes: Cpl's general field pass and Medic's security support pass. The unrelated tests/contracts lens is intentionally not recruited for this one-file command-injection fixture; the general adaptive planner remains unchanged for ordinary repository reviews.
