@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Any
 
+from .cpl_council import findings_match
 from .cpl_reasoning import (
     CplAssignment,
     cpl_depth,
@@ -31,6 +32,7 @@ from .llm_provider import (
 
 ALLOWED_VERDICTS = {"PASS", "NEEDS WORK", "BLOCK"}
 ALLOWED_SEVERITIES = {"blocker", "major", "minor", "note"}
+SEVERITY_RANK = {"note": 0, "minor": 1, "major": 2, "blocker": 3}
 
 SYSTEM_PROMPT = """You are Cpl, Sergeant's Corporal Specialist reasoning officer.
 
@@ -338,35 +340,42 @@ def _validate_pass(
     }
 
 
-def _finding_key(finding: dict[str, Any]) -> tuple[object, ...]:
-    message = re.sub(r"\W+", " ", str(finding.get("message", "")).lower()).strip()
-    return (
-        finding.get("path"),
-        finding.get("line_start"),
-        finding.get("line_end"),
-        message,
-    )
-
-
 def _merge_passes(passes: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], str, float]:
-    merged: dict[tuple[object, ...], dict[str, Any]] = {}
+    findings: list[dict[str, Any]] = []
     for item in passes:
         for finding in item.get("findings", []):
-            key = _finding_key(finding)
-            if key not in merged:
-                merged[key] = {
+            merged = next((existing for existing in findings if findings_match(existing, finding)), None)
+            if merged is None:
+                findings.append({
                     **finding,
                     "supporting_models": [item.get("model")],
                     "supporting_specialists": [item.get("specialist")],
-                }
-            else:
-                models = merged[key].setdefault("supporting_models", [])
-                if item.get("model") not in models:
-                    models.append(item.get("model"))
-                specialists = merged[key].setdefault("supporting_specialists", [])
-                if item.get("specialist") not in specialists:
-                    specialists.append(item.get("specialist"))
-    findings = list(merged.values())
+                })
+                continue
+            incoming_severity = str(finding.get("severity") or "note")
+            existing_severity = str(merged.get("severity") or "note")
+            if SEVERITY_RANK.get(incoming_severity, 0) > SEVERITY_RANK.get(existing_severity, 0):
+                for field in (
+                    "severity",
+                    "category",
+                    "path",
+                    "line_start",
+                    "line_end",
+                    "message",
+                    "evidence",
+                    "evidence_verified",
+                    "why_it_matters",
+                    "safer_alternative",
+                    "root_cause",
+                ):
+                    if field in finding:
+                        merged[field] = finding[field]
+            models = merged.setdefault("supporting_models", [])
+            if item.get("model") not in models:
+                models.append(item.get("model"))
+            specialists = merged.setdefault("supporting_specialists", [])
+            if item.get("specialist") not in specialists:
+                specialists.append(item.get("specialist"))
     if any(item.get("severity") == "blocker" for item in findings):
         verdict = "BLOCK"
     elif any(item.get("severity") == "major" for item in findings):

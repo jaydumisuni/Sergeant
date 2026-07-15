@@ -62,9 +62,94 @@ def specialist_for_text(value: object) -> str:
     return "correctness"
 
 
+ROOT_CAUSE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "unsafe-shell-execution",
+        re.compile(
+            r"(?:shell\s*=\s*true|command\s+injection|"
+            r"arbitrary\s+(?:shell\s+)?commands?|shell\s+command\s+execution)",
+            re.I,
+        ),
+    ),
+    (
+        "sql-injection",
+        re.compile(r"(?:sql\s+injection|unparameteri[sz]ed\s+quer|raw\s+sql|query\s+concatenation)", re.I),
+    ),
+    (
+        "unsafe-file-access",
+        re.compile(r"(?:path\s+traversal|directory\s+traversal|untrusted\s+path|file\s+access\s+without\s+containment)", re.I),
+    ),
+    (
+        "authorization-gap",
+        re.compile(r"(?:missing\s+authorization|lacks?\s+(?:an?\s+)?authorization|privileged\s+route.*without)", re.I),
+    ),
+    (
+        "secret-exposure",
+        re.compile(r"(?:secret|credential|api\s*key|token).*(?:leak|expos|log|print)", re.I),
+    ),
+)
+
+
+def finding_root_cause(finding: dict[str, Any]) -> str:
+    """Return a deterministic root-cause class for well-known defect shapes."""
+
+    text = " ".join(
+        str(finding.get(field, ""))
+        for field in ("message", "evidence", "why_it_matters", "root_cause")
+    )
+    for name, pattern in ROOT_CAUSE_PATTERNS:
+        if pattern.search(text):
+            return name
+    return str(finding.get("root_cause") or "").strip().lower()
+
+
+def _finding_lines(finding: dict[str, Any]) -> tuple[int, int]:
+    try:
+        start = max(1, int(finding.get("line_start") or 1))
+    except (TypeError, ValueError):
+        start = 1
+    try:
+        end = max(start, int(finding.get("line_end") or start))
+    except (TypeError, ValueError):
+        end = start
+    return start, end
+
+
+def _line_distance(left: dict[str, Any], right: dict[str, Any]) -> int:
+    left_start, left_end = _finding_lines(left)
+    right_start, right_end = _finding_lines(right)
+    if left_end >= right_start and right_end >= left_start:
+        return 0
+    return max(right_start - left_end, left_start - right_end)
+
+
 def finding_key(finding: dict[str, Any]) -> tuple[object, ...]:
+    """Return a stable exact identity; use ``findings_match`` for nearby variants."""
+
+    path = str(finding.get("path") or "").replace("\\", "/")
+    root_cause = finding_root_cause(finding)
+    start, end = _finding_lines(finding)
+    if root_cause:
+        return path, root_cause, start, end
+
+    category = str(finding.get("category") or "other").strip().lower()
     message = re.sub(r"\W+", " ", str(finding.get("message", "")).lower()).strip()
-    return finding.get("path"), finding.get("line_start"), finding.get("line_end"), message
+    return path, category, start, end, message
+
+
+def findings_match(left: dict[str, Any], right: dict[str, Any], *, max_line_distance: int = 10) -> bool:
+    """Match one root cause across model wording and nearby line-range drift."""
+
+    left_path = str(left.get("path") or "").replace("\\", "/")
+    right_path = str(right.get("path") or "").replace("\\", "/")
+    if not left_path or left_path != right_path:
+        return False
+
+    left_root = finding_root_cause(left)
+    right_root = finding_root_cause(right)
+    if left_root or right_root:
+        return bool(left_root and left_root == right_root and _line_distance(left, right) <= max_line_distance)
+    return finding_key(left) == finding_key(right)
 
 
 def finding_reference(finding: dict[str, Any]) -> dict[str, Any]:
@@ -106,13 +191,25 @@ def assess(passes: list[dict[str, Any]], plan: list[dict[str, Any]], errors: lis
         specialist = specialist_for_text(question)
         gaps.append({"type": "unanswered_question", "specialist": specialist, "officer": SPECIALISTS[specialist].officer, "reason": question})
     if model_count > 1:
-        support: dict[tuple[object, ...], set[str]] = {}
+        confirmation_targets: list[dict[str, Any]] = []
         for report in passes:
             for finding in report.get("findings", []):
-                support.setdefault(finding_key(finding), set()).add(str(report.get("model")))
-        for report in passes:
-            for finding in report.get("findings", []):
-                if finding.get("severity") not in {"blocker", "major"} or len(support.get(finding_key(finding), set())) > 1:
+                if finding.get("severity") not in {"blocker", "major"}:
+                    continue
+                if any(findings_match(finding, existing) for existing in confirmation_targets):
+                    continue
+                confirmation_targets.append(finding)
+                supporting_models = {
+                    str(other.get("model"))
+                    for other in passes
+                    if other.get("model")
+                    and any(
+                        candidate.get("severity") in {"blocker", "major"}
+                        and findings_match(finding, candidate)
+                        for candidate in other.get("findings", [])
+                    )
+                }
+                if len(supporting_models) > 1:
                     continue
                 specialist = CATEGORY_SPECIALIST.get(str(finding.get("category") or "other"), "correctness")
                 gaps.append({
