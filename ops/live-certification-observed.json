@@ -1,0 +1,529 @@
+{
+  "schema_version": "sergeant.private-live-certification-observer.v1",
+  "run": {
+    "id": 29413048902,
+    "html_url": "https://github.com/jaydumisuni/Sergeant/actions/runs/29413048902",
+    "head_sha": "c7f44014f111c5ef263b6f2b236c5276c5e066b5",
+    "status": "completed",
+    "conclusion": "failure",
+    "created_at": "2026-07-15T11:50:40Z",
+    "updated_at": "2026-07-15T11:59:47Z"
+  },
+  "certification": {
+    "all_configured_models_passed": false,
+    "certified_models": [
+      "@cf/qwen/qwen3-30b-a3b-fp8",
+      "@cf/zai-org/glm-4.7-flash",
+      "@cf/openai/gpt-oss-20b"
+    ],
+    "configured_model_count": 4,
+    "council_complete": false,
+    "council_passed": false,
+    "distinct_models": [
+      "@cf/qwen/qwen3-30b-a3b-fp8"
+    ],
+    "errors": [
+      "security: Cpl model endpoint is unavailable: The read operation timed out",
+      "tests_contracts: Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+      "council round 2 / security: Cpl model endpoint is unavailable: The read operation timed out"
+    ],
+    "expected_finding_passed": false,
+    "final_gaps": [
+      {
+        "officer": "Medic",
+        "reason": "council round 2 / security: Cpl model endpoint is unavailable: The read operation timed out",
+        "specialist": "security",
+        "type": "failed_member"
+      },
+      {
+        "officer": "Medic",
+        "reason": "security: Cpl model endpoint is unavailable: The read operation timed out",
+        "specialist": "security",
+        "type": "failed_member"
+      },
+      {
+        "officer": "Engineer",
+        "reason": "tests_contracts: Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+        "specialist": "tests_contracts",
+        "type": "failed_member"
+      },
+      {
+        "officer": "Medic",
+        "reason": "Planned security report did not complete.",
+        "specialist": "security",
+        "type": "missing_report"
+      },
+      {
+        "officer": "Engineer",
+        "reason": "Planned tests_contracts report did not complete.",
+        "specialist": "tests_contracts",
+        "type": "missing_report"
+      },
+      {
+        "officer": "Medic",
+        "reason": "High-impact finding has one model source: Use of subprocess.run with shell=True and unvalidated user input",
+        "specialist": "security",
+        "target_finding": {
+          "category": "security",
+          "line_end": 5,
+          "line_start": 5,
+          "message": "Use of subprocess.run with shell=True and unvalidated user input",
+          "path": "src/auth.py"
+        },
+        "type": "independent_confirmation"
+      }
+    ],
+    "minimum_certified_models": 2,
+    "model_call_count": 1,
+    "passed": false,
+    "preset": "cloudflare-free-balanced",
+    "preset_status": "partially_certified",
+    "probationary_models": [
+      {
+        "error": "Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+        "model": "@cf/qwen/qwen2.5-coder-32b-instruct",
+        "response": null
+      }
+    ],
+    "provider": "cloudflare-workers-ai",
+    "route_valid": true,
+    "schema_version": "sergeant.cloudflare-live-certification.v2",
+    "structured_model_pass_count": 3,
+    "sufficient_certified_models": true,
+    "true_model_independence": false,
+    "verdict_matches": true
+  },
+  "model_proof": {
+    "all_passed": false,
+    "model_count": 4,
+    "models": [
+      {
+        "duration_ms": 3249.66,
+        "max_output_tokens": 900,
+        "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+        "passed": true,
+        "response": {
+          "capabilities": [
+            "structured_json",
+            "reasoning"
+          ],
+          "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+          "status": "ready"
+        }
+      },
+      {
+        "duration_ms": 18480.77,
+        "max_output_tokens": 900,
+        "model": "@cf/zai-org/glm-4.7-flash",
+        "passed": true,
+        "response": {
+          "capabilities": [
+            "structured_json",
+            "reasoning"
+          ],
+          "model": "@cf/zai-org/glm-4.7-flash",
+          "status": "ready"
+        }
+      },
+      {
+        "duration_ms": 1383.47,
+        "max_output_tokens": 900,
+        "model": "@cf/openai/gpt-oss-20b",
+        "passed": true,
+        "response": {
+          "capabilities": [
+            "structured_json",
+            "reasoning"
+          ],
+          "model": "@cf/openai/gpt-oss-20b",
+          "status": "ready"
+        }
+      },
+      {
+        "duration_ms": 3336.81,
+        "error": "Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+        "max_output_tokens": 384,
+        "model": "@cf/qwen/qwen2.5-coder-32b-instruct",
+        "passed": false
+      }
+    ],
+    "passed_count": 3,
+    "provider": "cloudflare-workers-ai"
+  },
+  "council_proof": {
+    "configured_models": [
+      "@cf/qwen/qwen3-30b-a3b-fp8",
+      "@cf/zai-org/glm-4.7-flash",
+      "@cf/openai/gpt-oss-20b"
+    ],
+    "council": {
+      "agreement": 1.0,
+      "complete": false,
+      "core_round": 1,
+      "effective_findings": [
+        {
+          "category": "security",
+          "evidence": "return subprocess.run(command, shell=True)",
+          "evidence_verified": true,
+          "line_end": 5,
+          "line_start": 5,
+          "message": "Use of subprocess.run with shell=True and unvalidated user input",
+          "path": "src/auth.py",
+          "safer_alternative": "Avoid shell=True, validate/sanitize input, or use non-shell execution",
+          "severity": "blocker",
+          "supporting_models": [
+            "@cf/qwen/qwen3-30b-a3b-fp8"
+          ],
+          "supporting_specialists": [
+            "generalist"
+          ],
+          "why_it_matters": "Allows arbitrary code execution if command parameter is manipulated"
+        }
+      ],
+      "final_gaps": [
+        {
+          "officer": "Medic",
+          "reason": "council round 2 / security: Cpl model endpoint is unavailable: The read operation timed out",
+          "specialist": "security",
+          "type": "failed_member"
+        },
+        {
+          "officer": "Medic",
+          "reason": "security: Cpl model endpoint is unavailable: The read operation timed out",
+          "specialist": "security",
+          "type": "failed_member"
+        },
+        {
+          "officer": "Engineer",
+          "reason": "tests_contracts: Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+          "specialist": "tests_contracts",
+          "type": "failed_member"
+        },
+        {
+          "officer": "Medic",
+          "reason": "Planned security report did not complete.",
+          "specialist": "security",
+          "type": "missing_report"
+        },
+        {
+          "officer": "Engineer",
+          "reason": "Planned tests_contracts report did not complete.",
+          "specialist": "tests_contracts",
+          "type": "missing_report"
+        },
+        {
+          "officer": "Medic",
+          "reason": "High-impact finding has one model source: Use of subprocess.run with shell=True and unvalidated user input",
+          "specialist": "security",
+          "target_finding": {
+            "category": "security",
+            "line_end": 5,
+            "line_start": 5,
+            "message": "Use of subprocess.run with shell=True and unvalidated user input",
+            "path": "src/auth.py"
+          },
+          "type": "independent_confirmation"
+        }
+      ],
+      "limitations": [],
+      "max_members": 3,
+      "max_rounds": 2,
+      "member_count": 1,
+      "members": [
+        {
+          "experience_profile": {},
+          "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+          "provider": "cloudflare-workers-ai",
+          "reports": 1,
+          "roles": [
+            "generalist"
+          ],
+          "rounds": [
+            1
+          ],
+          "selection_score": 0.5
+        }
+      ],
+      "mode": "single_model_role_separated",
+      "model_independence": 1.0,
+      "officer_instructions": [
+        {
+          "gap_signature": [
+            "failed_member",
+            "security",
+            "security: Cpl model endpoint is unavailable: The read operation timed out"
+          ],
+          "gap_type": "failed_member",
+          "instruction": "Resolve or narrow this tabled gap using current repository evidence: security: Cpl model endpoint is unavailable: The read operation timed out",
+          "required_evidence": [
+            "path and line range",
+            "grounded evidence",
+            "explicit council resolution"
+          ],
+          "round": 2,
+          "support_specialist": "security",
+          "target_finding": null,
+          "to_officer": "Medic"
+        }
+      ],
+      "recruitment": [
+        {
+          "admission": "new_member",
+          "model": "@cf/zai-org/glm-4.7-flash",
+          "reason": "security: Cpl model endpoint is unavailable: The read operation timed out",
+          "required_capability": "security",
+          "round": 2,
+          "selection_score": 0.5,
+          "temporary": true
+        }
+      ],
+      "round_count": 2,
+      "rounds": [
+        {
+          "gaps_after": [
+            {
+              "officer": "Medic",
+              "reason": "council round 2 / security: Cpl model endpoint is unavailable: The read operation timed out",
+              "specialist": "security",
+              "type": "failed_member"
+            },
+            {
+              "officer": "Medic",
+              "reason": "security: Cpl model endpoint is unavailable: The read operation timed out",
+              "specialist": "security",
+              "type": "failed_member"
+            },
+            {
+              "officer": "Engineer",
+              "reason": "tests_contracts: Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+              "specialist": "tests_contracts",
+              "type": "failed_member"
+            },
+            {
+              "officer": "Medic",
+              "reason": "Planned security report did not complete.",
+              "specialist": "security",
+              "type": "missing_report"
+            },
+            {
+              "officer": "Engineer",
+              "reason": "Planned tests_contracts report did not complete.",
+              "specialist": "tests_contracts",
+              "type": "missing_report"
+            },
+            {
+              "officer": "Medic",
+              "reason": "High-impact finding has one model source: Use of subprocess.run with shell=True and unvalidated user input",
+              "specialist": "security",
+              "target_finding": {
+                "category": "security",
+                "line_end": 5,
+                "line_start": 5,
+                "message": "Use of subprocess.run with shell=True and unvalidated user input",
+                "path": "src/auth.py"
+              },
+              "type": "independent_confirmation"
+            }
+          ],
+          "gaps_before": [
+            {
+              "officer": "Medic",
+              "reason": "security: Cpl model endpoint is unavailable: The read operation timed out",
+              "specialist": "security",
+              "type": "failed_member"
+            },
+            {
+              "officer": "Engineer",
+              "reason": "tests_contracts: Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+              "specialist": "tests_contracts",
+              "type": "failed_member"
+            },
+            {
+              "officer": "Medic",
+              "reason": "Planned security report did not complete.",
+              "specialist": "security",
+              "type": "missing_report"
+            },
+            {
+              "officer": "Engineer",
+              "reason": "Planned tests_contracts report did not complete.",
+              "specialist": "tests_contracts",
+              "type": "missing_report"
+            },
+            {
+              "officer": "Medic",
+              "reason": "High-impact finding has one model source: Use of subprocess.run with shell=True and unvalidated user input",
+              "specialist": "security",
+              "target_finding": {
+                "category": "security",
+                "line_end": 5,
+                "line_start": 5,
+                "message": "Use of subprocess.run with shell=True and unvalidated user input",
+                "path": "src/auth.py"
+              },
+              "type": "independent_confirmation"
+            }
+          ],
+          "instructions": [
+            {
+              "gap_signature": [
+                "failed_member",
+                "security",
+                "security: Cpl model endpoint is unavailable: The read operation timed out"
+              ],
+              "gap_type": "failed_member",
+              "instruction": "Resolve or narrow this tabled gap using current repository evidence: security: Cpl model endpoint is unavailable: The read operation timed out",
+              "required_evidence": [
+                "path and line range",
+                "grounded evidence",
+                "explicit council resolution"
+              ],
+              "round": 2,
+              "support_specialist": "security",
+              "target_finding": null,
+              "to_officer": "Medic"
+            }
+          ],
+          "officer_report": null,
+          "recruitment": {
+            "admission": "new_member",
+            "model": "@cf/zai-org/glm-4.7-flash",
+            "reason": "security: Cpl model endpoint is unavailable: The read operation timed out",
+            "required_capability": "security",
+            "round": 2,
+            "selection_score": 0.5,
+            "temporary": true
+          },
+          "round": 2,
+          "table": [
+            {
+              "confidence": 0.95,
+              "council_resolution": null,
+              "findings": [
+                {
+                  "category": "security",
+                  "line_end": 5,
+                  "line_start": 5,
+                  "message": "Use of subprocess.run with shell=True and unvalidated user input",
+                  "path": "src/auth.py",
+                  "severity": "blocker"
+                }
+              ],
+              "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+              "round": 1,
+              "specialist": "generalist",
+              "summary": "Potential command injection vulnerability via subprocess.run with shell=True",
+              "supported_officer": "Cpl",
+              "unanswered_questions": [],
+              "verdict": "BLOCK"
+            }
+          ]
+        }
+      ],
+      "true_model_independence": false
+    },
+    "council_complete": false,
+    "distinct_models": [
+      "@cf/qwen/qwen3-30b-a3b-fp8"
+    ],
+    "errors": [
+      "security: Cpl model endpoint is unavailable: The read operation timed out",
+      "tests_contracts: Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+      "council round 2 / security: Cpl model endpoint is unavailable: The read operation timed out"
+    ],
+    "expected_finding": {
+      "expected_category": "security",
+      "expected_evidence": "shell=true",
+      "expected_path": "src/auth.py",
+      "expected_severity": "blocker",
+      "matches": [
+        {
+          "category": "security",
+          "message": "Use of subprocess.run with shell=True and unvalidated user input",
+          "path": "src/auth.py",
+          "severity": "blocker",
+          "support_count": 1,
+          "supporting_models": [
+            "@cf/qwen/qwen3-30b-a3b-fp8"
+          ]
+        }
+      ],
+      "minimum_supporting_models": 2,
+      "passed": false,
+      "required": true
+    },
+    "expected_verdict": "BLOCK",
+    "final_gaps": [
+      {
+        "officer": "Medic",
+        "reason": "council round 2 / security: Cpl model endpoint is unavailable: The read operation timed out",
+        "specialist": "security",
+        "type": "failed_member"
+      },
+      {
+        "officer": "Medic",
+        "reason": "security: Cpl model endpoint is unavailable: The read operation timed out",
+        "specialist": "security",
+        "type": "failed_member"
+      },
+      {
+        "officer": "Engineer",
+        "reason": "tests_contracts: Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response.",
+        "specialist": "tests_contracts",
+        "type": "failed_member"
+      },
+      {
+        "officer": "Medic",
+        "reason": "Planned security report did not complete.",
+        "specialist": "security",
+        "type": "missing_report"
+      },
+      {
+        "officer": "Engineer",
+        "reason": "Planned tests_contracts report did not complete.",
+        "specialist": "tests_contracts",
+        "type": "missing_report"
+      },
+      {
+        "officer": "Medic",
+        "reason": "High-impact finding has one model source: Use of subprocess.run with shell=True and unvalidated user input",
+        "specialist": "security",
+        "target_finding": {
+          "category": "security",
+          "line_end": 5,
+          "line_start": 5,
+          "message": "Use of subprocess.run with shell=True and unvalidated user input",
+          "path": "src/auth.py"
+        },
+        "type": "independent_confirmation"
+      }
+    ],
+    "model_call_count": 1,
+    "passed": false,
+    "provider": "cloudflare-workers-ai",
+    "schema_version": "sergeant.cloudflare-council-proof.v1",
+    "status": "completed_with_warnings",
+    "true_model_independence": false,
+    "verdict": "BLOCK",
+    "verdict_matches": true
+  },
+  "route_status": {
+    "account_id_present": true,
+    "api_token_present": true,
+    "base_url": "http://127.0.0.1:8082/v1",
+    "configured": true,
+    "host": "127.0.0.1",
+    "loopback_only": true,
+    "max_request_bytes": 1500000,
+    "models": [
+      "@cf/qwen/qwen3-30b-a3b-fp8",
+      "@cf/zai-org/glm-4.7-flash",
+      "@cf/openai/gpt-oss-20b",
+      "@cf/qwen/qwen2.5-coder-32b-instruct"
+    ],
+    "port": 8082,
+    "provider": "cloudflare-workers-ai",
+    "timeout_seconds": 75.0,
+    "valid": true
+  }
+}
