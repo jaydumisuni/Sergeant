@@ -60,3 +60,5 @@ jobs:
       - name: Enforce focused validation
         if: steps.validate.outcome != 'success'
         run: exit 1
+
+# Retry after preserving the public default probe constant.
