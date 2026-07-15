@@ -23,10 +23,11 @@ from .cpl_council_prompt import follow_up_prompt, member_records, report_table
 from .cpl_experience import detect_recurrences, retrieve_experience
 from .cpl_reasoning import SPECIALISTS, specialist_system_prompt
 from .cpl_reliability import attach_model_profiles, model_score, rank_models
-from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, discover_route, invoke_json
+from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, discover_route
 from .llm_review import (
     SYSTEM_PROMPT,
     _build_user_prompt,
+    _invoke_json_with_failover,
     _merge_passes,
     _validate_pass,
     collect_changed_file_excerpts,
@@ -106,6 +107,14 @@ def _normalize_resolution(payload: dict[str, Any], command: dict[str, Any], repo
     }
 
 
+def _verdict_for_findings(findings: list[dict[str, Any]]) -> str:
+    if any(item.get("severity") == "blocker" for item in findings):
+        return "BLOCK"
+    if any(item.get("severity") == "major" for item in findings):
+        return "NEEDS WORK"
+    return "PASS"
+
+
 def _effective_passes(passes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rejected: list[dict[str, Any]] = []
     for report in passes:
@@ -126,6 +135,7 @@ def _effective_passes(passes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             for finding in report.get("findings", [])
             if not any(findings_match(finding, target) for target in rejected)
         ]
+        clone["verdict"] = _verdict_for_findings(clone["findings"])
         effective.append(clone)
     return effective
 
@@ -254,12 +264,16 @@ def run_cpl_review(
         table = report_table(passes)
         officer_report: dict[str, Any] | None = None
         try:
-            payload = invoke_json(
+            payload, completed_route, failed_models = _invoke_json_with_failover(
                 selected_route,
                 system_prompt=specialist_system_prompt(SYSTEM_PROMPT, assignment),
                 user_prompt=follow_up_prompt(base_prompt, table, command, experience, round_number),
             )
-            officer_report = _validate_pass(payload, files, route=selected_route, assignment=assignment)
+            selected_model = completed_route.model
+            recruited["model"] = selected_model
+            if failed_models:
+                recruited["failover_from"] = failed_models
+            officer_report = _validate_pass(payload, files, route=completed_route, assignment=assignment)
             resolution = _normalize_resolution(payload, command, officer_report)
             officer_report.update({
                 "council_round": round_number,

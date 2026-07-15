@@ -9,6 +9,7 @@ from .capability_engine import run_capability_engine
 from .capability_policy import normalize_capability_review
 from .challenge import run_challenge_mode
 from .consensus import build_consensus
+from .cpl_noise import reconcile_cpl_findings
 from .cpl_runtime import run_cpl_review
 from .decision_workspace import build_decision_workspace
 from .diff_policy import normalize_diff_review
@@ -56,8 +57,8 @@ def _required_actions(
 
     if cpl.get("policy") == "required" and cpl.get("status") in {"unavailable", "error"}:
         actions.append("Configure a reachable Cpl reasoning route and rerun Sergeant.")
-    if cpl.get("verdict") in {"BLOCK", "NEEDS WORK"}:
-        for finding in cpl.get("findings", []):
+    if cpl.get("decision_verdict", cpl.get("verdict")) in {"BLOCK", "NEEDS WORK"}:
+        for finding in cpl.get("actionable_findings", cpl.get("findings", [])):
             if finding.get("severity") in {"blocker", "major"}:
                 location = f"{finding.get('path')}:{finding.get('line_start')}-{finding.get('line_end')}"
                 actions.append(f"Answer Cpl {finding.get('severity')} finding at {location}: {finding.get('message')}")
@@ -76,7 +77,7 @@ def _decide(
     actions = _required_actions(repository_review, standard, diff, intelligence, cpl)
     consensus_value = consensus.get("consensus")
     intelligence_verdict = intelligence.get("verdict")
-    cpl_verdict = cpl.get("verdict")
+    cpl_verdict = cpl.get("decision_verdict", cpl.get("verdict"))
     notes = ["External reviewer comments are optional learning inputs, not required gates."]
     if cpl.get("status") in {"unavailable", "disabled", "error"} and cpl.get("policy") != "required":
         notes.append("Cpl reasoning was not available; deterministic Sergeant evidence remained authoritative.")
@@ -119,8 +120,8 @@ def _cpl_consensus_source(cpl: dict[str, Any]) -> dict[str, Any] | None:
     if status in {"completed", "completed_with_warnings"}:
         return {
             "source": "cpl-reasoning",
-            "verdict": cpl.get("verdict"),
-            "evidence": cpl.get("findings", []),
+            "verdict": cpl.get("decision_verdict", cpl.get("verdict")),
+            "evidence": cpl.get("decision_findings", cpl.get("findings", [])),
         }
     if cpl.get("policy") == "required" and status in {"unavailable", "error"}:
         return {
@@ -164,6 +165,13 @@ def run_independent_pr_review(
         "challenge": challenge,
     }
     cpl = run_cpl_review(root_path, semantic_files, cpl_context)
+    deterministic_findings = [
+        *repository_review.get("evidence", {}).get("findings", []),
+        *diff.get("evidence", {}).get("findings", []),
+        *capabilities.get("findings", []),
+        *intelligence.get("promoted_findings", []),
+    ]
+    cpl = reconcile_cpl_findings(cpl, deterministic_findings)
 
     external_workspace = {"summary": {"total": 0}, "decisions": [], "ready_for_memory": []}
     if external_review_file is not None:
@@ -260,7 +268,8 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Cpl role: {cpl.get('role', 'Corporal Specialist')}")
     lines.append(f"- Cpl depth: {cpl.get('depth')}")
     lines.append(f"- Cpl model: {route.get('model', 'unavailable')}")
-    lines.append(f"- Cpl verdict: {cpl.get('verdict')}")
+    lines.append(f"- Cpl raw verdict: {cpl.get('verdict')}")
+    lines.append(f"- Cpl decision verdict: {cpl.get('decision_verdict', cpl.get('verdict'))}")
     lines.append(f"- Cpl confidence: {cpl.get('confidence')}")
     lines.append(f"- Cpl specialist passes: {len(cpl.get('passes', []))}")
     lines.append(f"- Cpl council members: {council.get('member_count', 0)}")
@@ -273,7 +282,7 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Challenge trusted: {packet.get('challenge', {}).get('trusted')}")
     lines.append(f"- Consensus: {packet.get('consensus', {}).get('consensus')}")
 
-    cpl_findings = cpl.get("findings", []) if isinstance(cpl, dict) else []
+    cpl_findings = cpl.get("actionable_findings", cpl.get("findings", [])) if isinstance(cpl, dict) else []
     if cpl_findings:
         lines.extend(["", "## Cpl findings"])
         for finding in cpl_findings[:5]:

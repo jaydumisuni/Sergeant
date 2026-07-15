@@ -147,7 +147,10 @@ def extract_predictions(packet: dict[str, Any]) -> tuple[list[dict[str, Any]], i
         raw.extend(("capability", item) for item in capability.get("findings", []) if isinstance(item, dict))
     cpl = packet.get("cpl_review", packet.get("semantic_review", {}))
     if isinstance(cpl, dict):
-        raw.extend(("cpl", item) for item in cpl.get("findings", []) if isinstance(item, dict))
+        cpl_findings = cpl.get("actionable_findings")
+        if not isinstance(cpl_findings, list):
+            cpl_findings = cpl.get("findings", [])
+        raw.extend(("cpl", item) for item in cpl_findings if isinstance(item, dict))
 
     unique: list[dict[str, Any]] = []
     seen: set[tuple[object, ...]] = set()

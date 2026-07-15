@@ -11,10 +11,11 @@ from __future__ import annotations
 import json
 import os
 import re
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
-from .cpl_council import findings_match
+from .cpl_council import available_models, finding_root_cause, findings_match
 from .cpl_reasoning import (
     CplAssignment,
     cpl_depth,
@@ -76,6 +77,30 @@ Return this shape:
   }
 }
 """
+
+
+def _invoke_json_with_failover(
+    route: LLMRoute,
+    *,
+    system_prompt: str,
+    user_prompt: str,
+) -> tuple[dict[str, Any], LLMRoute, list[str]]:
+    """Try each configured council model before declaring the officer pass failed."""
+
+    failed_models: list[str] = []
+    for model in available_models(route):
+        candidate = replace(route, model=model)
+        try:
+            return (
+                invoke_json(candidate, system_prompt=system_prompt, user_prompt=user_prompt),
+                candidate,
+                failed_models,
+            )
+        except LLMProviderError:
+            failed_models.append(model)
+    raise LLMProviderError(
+        "No configured Cpl council model completed the required structured officer pass."
+    )
 
 
 def _env(primary: str, legacy: str, default: str) -> str:
@@ -261,7 +286,7 @@ def _normalize_finding(raw: object, files: dict[str, str]) -> dict[str, Any] | N
             return None
         severity = "note"
 
-    return {
+    candidate = {
         "severity": severity,
         "category": str(raw.get("category", "other")).strip().lower() or "other",
         "path": path,
@@ -273,6 +298,10 @@ def _normalize_finding(raw: object, files: dict[str, str]) -> dict[str, Any] | N
         "why_it_matters": why,
         "safer_alternative": safer,
     }
+    root_cause = finding_root_cause(candidate)
+    if root_cause:
+        candidate["root_cause"] = root_cause
+    return candidate
 
 
 def _validate_pass(
@@ -436,10 +465,21 @@ def run_cpl_review(
     user_prompt = _build_user_prompt(changed_files, excerpts, deterministic_context)
     passes: list[dict[str, Any]] = []
     errors: list[str] = []
+    route_failovers: list[dict[str, Any]] = []
 
     try:
-        primary_payload = invoke_json(route, system_prompt=SYSTEM_PROMPT, user_prompt=user_prompt)
-        primary = _validate_pass(primary_payload, files, route=route)
+        primary_payload, primary_route, failed_models = _invoke_json_with_failover(
+            route,
+            system_prompt=SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+        )
+        if failed_models:
+            route_failovers.append({
+                "pass": "generalist",
+                "failed_models": failed_models,
+                "completed_by": primary_route.model,
+            })
+        primary = _validate_pass(primary_payload, files, route=primary_route)
         passes.append(primary)
     except LLMProviderError as error:
         errors.append(str(error))
@@ -464,19 +504,25 @@ def run_cpl_review(
         deterministic_context,
         primary_verdict=primary.get("verdict", "PASS"),
     )
-    used_models = {route.model}
+    used_models = {str(primary.get("model") or route.model)}
     completed_plan: list[dict[str, object]] = []
     for assignment in assignments:
         specialist_route = route_for_assignment(route, assignment, used_models=used_models)
         completed_plan.append({**assignment.to_dict(), "model": specialist_route.model})
         try:
-            payload = invoke_json(
+            payload, completed_route, failed_models = _invoke_json_with_failover(
                 specialist_route,
                 system_prompt=specialist_system_prompt(SYSTEM_PROMPT, assignment),
                 user_prompt=user_prompt,
             )
-            passes.append(_validate_pass(payload, files, route=specialist_route, assignment=assignment))
-            used_models.add(specialist_route.model)
+            if failed_models:
+                route_failovers.append({
+                    "pass": assignment.specialist,
+                    "failed_models": failed_models,
+                    "completed_by": completed_route.model,
+                })
+            passes.append(_validate_pass(payload, files, route=completed_route, assignment=assignment))
+            used_models.add(completed_route.model)
         except LLMProviderError as error:
             errors.append(f"{assignment.specialist}: {error}")
 
@@ -506,6 +552,7 @@ def run_cpl_review(
         },
         "unanswered_questions": questions,
         "errors": errors,
+        "route_failovers": route_failovers,
         "reason": "Cpl specialist findings were validated against supplied repository text before entering Sergeant consensus.",
     }
 
