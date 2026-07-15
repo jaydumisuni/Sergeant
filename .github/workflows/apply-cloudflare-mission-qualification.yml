@@ -59,12 +59,15 @@ jobs:
           git diff --cached --check 2>&1 | tee build/cloudflare-mission-commit-proof.log
 
       - name: Commit proven product changes
+        shell: bash
         run: |
-          set -euo pipefail
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'Qualify Cloudflare models against full officer missions'
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          set -o pipefail
+          {
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git commit -m 'Qualify Cloudflare models against full officer missions'
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          } 2>&1 | tee build/cloudflare-mission-push-proof.log
 
       - name: Upload constructor proof
         if: always()
@@ -74,6 +77,7 @@ jobs:
           path: |
             build/cloudflare-mission-patch-proof.log
             build/cloudflare-mission-commit-proof.log
+            build/cloudflare-mission-push-proof.log
             build/cloudflare-mission-product.patch
           if-no-files-found: warn
           retention-days: 3
