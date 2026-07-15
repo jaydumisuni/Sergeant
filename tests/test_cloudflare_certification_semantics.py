@@ -1,0 +1,177 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import main_review.cloudflare_cli as cloudflare_cli
+from main_review.cpl_council import finding_key, finding_root_cause
+from main_review.cloudflare_gateway import CloudflareGatewaySettings
+from main_review.llm_review import _merge_passes
+
+
+MODEL_A = "@cf/qwen/qwen3-30b-a3b-fp8"
+MODEL_B = "@cf/openai/gpt-oss-20b"
+
+
+def _shell_finding(*, line: int, message: str, evidence: str) -> dict:
+    return {
+        "severity": "blocker",
+        "category": "security",
+        "path": "src/auth.py",
+        "line_start": line,
+        "line_end": line,
+        "message": message,
+        "evidence": evidence,
+        "evidence_verified": True,
+        "why_it_matters": "User input can execute arbitrary system commands.",
+        "safer_alternative": "Use shell=False with an explicit argument list.",
+    }
+
+
+def test_shell_command_variants_share_one_root_cause_identity() -> None:
+    first = _shell_finding(
+        line=4,
+        message="Direct shell command execution with user-provided input",
+        evidence="return subprocess.run(command, shell=True)",
+    )
+    second = _shell_finding(
+        line=5,
+        message="Unrestricted execution of user-supplied shell commands",
+        evidence="subprocess.run(command, shell=True)",
+    )
+
+    assert finding_root_cause(first) == "unsafe-shell-execution"
+    assert finding_key(first) == finding_key(second)
+
+
+def test_same_root_cause_far_apart_remains_separate() -> None:
+    first = _shell_finding(line=4, message="Command injection", evidence="shell=True")
+    second = _shell_finding(line=44, message="Command injection", evidence="shell=True")
+
+    assert finding_key(first) != finding_key(second)
+
+
+def test_pass_merger_combines_independent_model_support_for_same_defect() -> None:
+    passes = [
+        {
+            "model": MODEL_A,
+            "specialist": "generalist",
+            "verdict": "BLOCK",
+            "confidence": 0.9,
+            "findings": [
+                _shell_finding(
+                    line=4,
+                    message="Direct shell command execution with user-provided input",
+                    evidence="return subprocess.run(command, shell=True)",
+                )
+            ],
+        },
+        {
+            "model": MODEL_B,
+            "specialist": "security",
+            "verdict": "BLOCK",
+            "confidence": 0.9,
+            "findings": [
+                _shell_finding(
+                    line=5,
+                    message="Unrestricted execution of user-supplied shell commands",
+                    evidence="subprocess.run(command, shell=True)",
+                )
+            ],
+        },
+    ]
+
+    findings, verdict, confidence = _merge_passes(passes)
+
+    assert verdict == "BLOCK"
+    assert confidence == 0.9
+    assert len(findings) == 1
+    assert set(findings[0]["supporting_models"]) == {MODEL_A, MODEL_B}
+
+
+def _settings() -> CloudflareGatewaySettings:
+    return CloudflareGatewaySettings(
+        account_id="0123456789abcdef0123456789abcdef",
+        api_token="secret-token",
+        models=(MODEL_A, MODEL_B),
+    )
+
+
+def test_expected_blocker_contract_certifies_independent_council(tmp_path: Path, monkeypatch) -> None:
+    finding = _shell_finding(
+        line=4,
+        message="Direct shell command execution with user-provided input",
+        evidence="return subprocess.run(command, shell=True)",
+    )
+    finding["supporting_models"] = [MODEL_A, MODEL_B]
+    monkeypatch.setattr(
+        cloudflare_cli,
+        "run_cpl_review",
+        lambda *args, **kwargs: {
+            "status": "completed",
+            "verdict": "BLOCK",
+            "passes": [
+                {"model": MODEL_A, "findings": [finding]},
+                {"model": MODEL_B, "findings": [finding]},
+            ],
+            "errors": [],
+            "council": {
+                "true_model_independence": True,
+                "complete": True,
+                "final_gaps": [],
+                "effective_findings": [finding],
+            },
+        },
+    )
+
+    result = cloudflare_cli.run_council_proof(
+        _settings(),
+        root=tmp_path,
+        changed_files=["src/auth.py"],
+        expected_verdict="BLOCK",
+        expected_path="src/auth.py",
+        expected_category="security",
+        expected_severity="blocker",
+        expected_evidence="shell=True",
+        minimum_supporting_models=2,
+    )
+
+    assert result["passed"] is True
+    assert result["verdict_matches"] is True
+    assert result["expected_finding"]["passed"] is True
+    assert result["expected_finding"]["matches"][0]["support_count"] == 2
+
+
+def test_expected_contract_rejects_single_model_support(tmp_path: Path, monkeypatch) -> None:
+    finding = _shell_finding(line=4, message="Command injection", evidence="shell=True")
+    finding["supporting_models"] = [MODEL_A]
+    monkeypatch.setattr(
+        cloudflare_cli,
+        "run_cpl_review",
+        lambda *args, **kwargs: {
+            "status": "completed",
+            "verdict": "BLOCK",
+            "passes": [{"model": MODEL_A}, {"model": MODEL_B}],
+            "errors": [],
+            "council": {
+                "true_model_independence": True,
+                "complete": True,
+                "final_gaps": [],
+                "effective_findings": [finding],
+            },
+        },
+    )
+
+    result = cloudflare_cli.run_council_proof(
+        _settings(),
+        root=tmp_path,
+        changed_files=["src/auth.py"],
+        expected_verdict="BLOCK",
+        expected_path="src/auth.py",
+        expected_category="security",
+        expected_severity="blocker",
+        expected_evidence="shell=True",
+        minimum_supporting_models=2,
+    )
+
+    assert result["passed"] is False
+    assert result["expected_finding"]["passed"] is False
