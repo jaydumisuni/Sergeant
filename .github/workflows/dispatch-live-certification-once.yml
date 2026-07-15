@@ -1,0 +1,27 @@
+name: Dispatch Corrected Cloudflare Certification Once
+
+on:
+  push:
+    branches:
+      - live-certification-run-20260715
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch main certification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${GH_REPOSITORY}/actions/workflows/cloudflare-live-certification.yml/dispatches" \
+            -f ref=main \
+            -f 'inputs[preset]=cloudflare-free-balanced'
