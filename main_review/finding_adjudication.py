@@ -15,7 +15,20 @@ from .cpl_council import finding_root_cause, findings_match
 ACTIONABLE_SEVERITIES = {"blocker", "major"}
 ADVISORY_CATEGORIES = {"tests", "documentation"}
 VERDICT_GAP_TYPES = {"missing_report", "independent_confirmation", "recurrence"}
-CONFIDENCE_GAP_TYPES = {"failed_member", "disagreement", "unanswered_question"}
+CONFIDENCE_GAP_TYPES = {"failed_member", "disagreement"}
+_REQUIRED_ASSURANCE_WORDS = {
+    "authorization",
+    "credential",
+    "evidence",
+    "permission",
+    "proof",
+    "required",
+    "runtime",
+    "security",
+    "test",
+    "verification",
+    "verify",
+}
 
 _SECURITY_CATEGORIES = {"security", "security_taint", "data_flow"}
 _RUNTIME_CATEGORIES = {"correctness", "concurrency", "performance"}
@@ -285,9 +298,11 @@ def classify_council_gaps(gaps: list[dict[str, Any]]) -> dict[str, list[dict[str
     informational_gaps: list[dict[str, Any]] = []
     for gap in gaps:
         gap_type = str(gap.get("type") or "")
-        if gap_type in VERDICT_GAP_TYPES:
+        reason = str(gap.get("reason") or "").lower()
+        required_assurance = bool(set(re.findall(r"[a-z_][a-z0-9_]+", reason)) & _REQUIRED_ASSURANCE_WORDS)
+        if gap_type in VERDICT_GAP_TYPES or (gap_type == "unanswered_question" and required_assurance):
             verdict_gaps.append(gap)
-        elif gap_type in CONFIDENCE_GAP_TYPES:
+        elif gap_type in CONFIDENCE_GAP_TYPES or gap_type == "unanswered_question":
             confidence_gaps.append(gap)
         else:
             informational_gaps.append(gap)
