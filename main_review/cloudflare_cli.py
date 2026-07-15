@@ -18,14 +18,23 @@ from .cloudflare_gateway import (
     build_server,
 )
 from .cpl_council import findings_match
+from .cpl_reasoning import SPECIALISTS, specialist_system_prompt
 from .cpl_runtime import run_cpl_review
 from .diff_review import parse_changed_files_text
 from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, invoke_json
+from .llm_review import (
+    SYSTEM_PROMPT,
+    _build_user_prompt,
+    _validate_pass,
+    collect_changed_file_excerpts,
+)
 
 REQUIRED_PROOF_CAPABILITIES = ["structured_json", "reasoning"]
 VALID_COUNCIL_VERDICTS = {"PASS", "NEEDS WORK", "BLOCK"}
 MODEL_PROOF_MAX_OUTPUT_TOKENS = DEFAULT_MODEL_PROOF_OUTPUT_TOKENS
 COUNCIL_PROOF_MAX_OUTPUT_TOKENS = 1200
+MISSION_PROOF_MAX_OUTPUT_TOKENS = 1200
+MISSION_PROOF_TIMEOUT_SECONDS = 45.0
 
 
 def cloudflare_route(
@@ -33,6 +42,7 @@ def cloudflare_route(
     *,
     model: str | None = None,
     max_output_tokens: int = COUNCIL_PROOF_MAX_OUTPUT_TOKENS,
+    timeout_seconds: float | None = None,
 ) -> LLMRoute:
     settings.validate()
     selected = model or settings.models[0]
@@ -44,7 +54,7 @@ def cloudflare_route(
         model=selected,
         protocol="chat_completions",
         api_key=settings.api_token,
-        timeout_seconds=settings.timeout_seconds,
+        timeout_seconds=timeout_seconds or settings.timeout_seconds,
         max_output_tokens=max_output_tokens,
         discovered_models=settings.models,
     )
@@ -114,6 +124,132 @@ def test_models(settings: CloudflareGatewaySettings) -> dict[str, Any]:
         "model_count": len(settings.models),
         "passed_count": sum(bool(item.get("passed")) for item in results),
         "all_passed": bool(results) and all(bool(item.get("passed")) for item in results),
+        "models": results,
+    }
+
+
+def _finding_matches_mission_contract(
+    finding: dict[str, Any],
+    *,
+    expected_path: str,
+    expected_category: str,
+    expected_severity: str,
+    expected_evidence: str,
+) -> bool:
+    if expected_path and str(finding.get("path") or "") != expected_path:
+        return False
+    if not _candidate_meets_expected_contract(
+        finding,
+        expected_category=expected_category,
+        expected_severity=expected_severity,
+        expected_evidence=expected_evidence,
+    ):
+        return False
+    return True
+
+
+def qualify_models(
+    settings: CloudflareGatewaySettings,
+    *,
+    root: str | Path,
+    changed_files: list[str],
+    expected_verdict: str = "",
+    expected_path: str = "",
+    expected_category: str = "",
+    expected_severity: str = "",
+    expected_evidence: str = "",
+) -> dict[str, Any]:
+    """Qualify each model against Sergeant's full officer-review contract.
+
+    The lightweight route handshake proves JSON transport only. This mission
+    proof requires a model to complete an evidence-grounded Medic security
+    report before Cpl may admit it to the focused live council.
+    """
+
+    settings.validate()
+    root_path = Path(root)
+    files, excerpts = collect_changed_file_excerpts(root_path, changed_files)
+    if not files:
+        raise CloudflareGatewayError("Mission qualification requires at least one readable changed file.")
+
+    expected_verdict = expected_verdict.strip().upper()
+    expected_path = expected_path.strip()
+    expected_category = expected_category.strip().lower()
+    expected_severity = expected_severity.strip().lower()
+    expected_evidence = expected_evidence.strip().lower()
+    assignment = SPECIALISTS["security"]
+    context = {
+        "proof_type": "cloudflare-model-mission-qualification",
+        "changed_files": changed_files,
+        "rule": (
+            "Complete the supplied officer-support review contract from repository evidence. "
+            "Do not echo an expected answer or claim model independence."
+        ),
+    }
+    user_prompt = _build_user_prompt(changed_files, excerpts, context)
+    system_prompt = specialist_system_prompt(SYSTEM_PROMPT, assignment)
+    results: list[dict[str, Any]] = []
+
+    for model in settings.models:
+        route = cloudflare_route(
+            settings,
+            model=model,
+            max_output_tokens=MISSION_PROOF_MAX_OUTPUT_TOKENS,
+            timeout_seconds=min(settings.timeout_seconds, MISSION_PROOF_TIMEOUT_SECONDS),
+        )
+        started = time.monotonic()
+        try:
+            payload = invoke_json(route, system_prompt=system_prompt, user_prompt=user_prompt)
+            report = _validate_pass(payload, files, route=route, assignment=assignment)
+            matching = [
+                finding
+                for finding in report.get("findings", [])
+                if _finding_matches_mission_contract(
+                    finding,
+                    expected_path=expected_path,
+                    expected_category=expected_category,
+                    expected_severity=expected_severity,
+                    expected_evidence=expected_evidence,
+                )
+            ]
+            verdict_matches = not expected_verdict or report.get("verdict") == expected_verdict
+            passed = verdict_matches and bool(matching)
+            results.append({
+                "model": model,
+                "passed": passed,
+                "duration_ms": round((time.monotonic() - started) * 1000, 2),
+                "max_output_tokens": MISSION_PROOF_MAX_OUTPUT_TOKENS,
+                "timeout_seconds": route.timeout_seconds,
+                "response": {
+                    "verdict": report.get("verdict"),
+                    "finding_count": len(report.get("findings", [])),
+                    "matching_findings": matching,
+                    "coverage": report.get("coverage", {}),
+                },
+            })
+        except LLMProviderError as error:
+            results.append({
+                "model": model,
+                "passed": False,
+                "duration_ms": round((time.monotonic() - started) * 1000, 2),
+                "max_output_tokens": MISSION_PROOF_MAX_OUTPUT_TOKENS,
+                "timeout_seconds": route.timeout_seconds,
+                "error": str(error),
+            })
+
+    qualified = [str(item["model"]) for item in results if item.get("passed") is True]
+    return {
+        "provider": "cloudflare-workers-ai",
+        "proof_type": "mission_capability",
+        "model_count": len(settings.models),
+        "passed_count": len(qualified),
+        "qualified_models": qualified,
+        "all_passed": bool(results) and len(qualified) == len(results),
+        "expected_verdict": expected_verdict,
+        "expected_path": expected_path,
+        "expected_category": expected_category,
+        "expected_severity": expected_severity,
+        "expected_evidence": expected_evidence,
         "models": results,
     }
 
@@ -344,6 +480,22 @@ def build_parser() -> argparse.ArgumentParser:
     test = sub.add_parser("test-models", help="Call every configured Cloudflare model with a structured-output proof.")
     test.add_argument("--require", action="store_true")
 
+    qualify = sub.add_parser(
+        "qualify-models",
+        help="Call every configured model with Sergeant's full evidence-grounded officer contract.",
+    )
+    qualify.add_argument("path", nargs="?", default=".")
+    qualify_source = qualify.add_mutually_exclusive_group(required=True)
+    qualify_source.add_argument("--files", help="Comma/newline-separated changed files.")
+    qualify_source.add_argument("--file-list", help="File containing changed paths.")
+    qualify.add_argument("--expected-verdict", choices=sorted(VALID_COUNCIL_VERDICTS), default="")
+    qualify.add_argument("--expected-path", default="")
+    qualify.add_argument("--expected-category", default="")
+    qualify.add_argument("--expected-severity", default="")
+    qualify.add_argument("--expected-evidence", default="")
+    qualify.add_argument("--minimum-models", type=int, default=2)
+    qualify.add_argument("--require", action="store_true")
+
     gateway = sub.add_parser("gateway", help="Run the local OpenAI-compatible Cloudflare gateway.")
     gateway.add_argument("--host")
     gateway.add_argument("--port", type=int)
@@ -407,6 +559,32 @@ def main(argv: list[str] | None = None) -> int:
             payload = {"provider": "cloudflare-workers-ai", "all_passed": False, "error": str(error)}
         _print(payload, pretty=args.pretty)
         return 0 if payload.get("all_passed") or not args.require else 2
+
+    if args.command == "qualify-models":
+        changed = _changed_files(args.files or "", args.file_list)
+        if not changed:
+            parser.error("At least one changed file is required.")
+        try:
+            payload = qualify_models(
+                settings,
+                root=args.path,
+                changed_files=changed,
+                expected_verdict=args.expected_verdict,
+                expected_path=args.expected_path,
+                expected_category=args.expected_category,
+                expected_severity=args.expected_severity,
+                expected_evidence=args.expected_evidence,
+            )
+        except CloudflareGatewayError as error:
+            payload = {
+                "provider": "cloudflare-workers-ai",
+                "proof_type": "mission_capability",
+                "passed_count": 0,
+                "error": str(error),
+            }
+        _print(payload, pretty=args.pretty)
+        passed = int(payload.get("passed_count", 0)) >= max(1, args.minimum_models)
+        return 0 if passed or not args.require else 2
 
     if args.command == "gateway":
         try:
