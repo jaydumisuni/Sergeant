@@ -58,11 +58,21 @@ jobs:
           git diff --cached > build/cloudflare-mission-product.patch
           git diff --cached --check 2>&1 | tee build/cloudflare-mission-commit-proof.log
 
-      - name: Commit proven product changes
+      - name: Push proven non-workflow files and stage workflow content
         shell: bash
         run: |
           set -o pipefail
           {
+            mkdir -p ops
+            cp .github/workflows/cloudflare-live-certification.yml \
+              ops/cloudflare-live-certification.patched.yml.txt
+            git reset
+            git add \
+              docs/27-cloudflare-live-certification.md \
+              main_review/cloudflare_cli.py \
+              tests/test_cloudflare_mission_qualification.py \
+              ops/cloudflare-live-certification.patched.yml.txt
+            git diff --cached --check
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
             git commit -m 'Qualify Cloudflare models against full officer missions'
