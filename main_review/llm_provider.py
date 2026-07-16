@@ -258,6 +258,12 @@ def is_cloudflare_quota_error(error: BaseException) -> bool:
     )
 
 
+def is_http_rate_limit_error(error: BaseException) -> bool:
+    """Return whether the provider rejected a request with generic HTTP 429."""
+
+    return "http 429" in str(error).lower()
+
+
 def _load_model_response(
     route: LLMRoute,
     request: urllib.request.Request,
@@ -608,6 +614,7 @@ def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dic
     except LLMProviderError as first_error:
         if (
             is_cloudflare_quota_error(first_error)
+            or is_http_rate_limit_error(first_error)
             or route.protocol != "chat_completions"
             or "response_format" not in body
         ):
