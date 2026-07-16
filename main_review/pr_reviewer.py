@@ -14,6 +14,7 @@ from .cpl_runtime import run_cpl_review
 from .decision_workspace import build_decision_workspace
 from .diff_policy import normalize_diff_review
 from .diff_review import review_changed_files
+from .officer_council import run_deterministic_officer_council
 from .review_ingestion import ingest_external_review_file
 from .review_intelligence import run_review_intelligence
 from .review_scope import scope_repository_review
@@ -39,6 +40,7 @@ def _required_actions(
     standard: dict[str, Any],
     diff: dict[str, Any],
     intelligence: dict[str, Any],
+    officer_council: dict[str, Any],
     cpl: dict[str, Any],
 ) -> list[str]:
     actions: list[str] = []
@@ -54,6 +56,16 @@ def _required_actions(
         for finding in intelligence.get("promoted_findings", intelligence.get("ranked_findings", [])):
             if finding.get("severity") in {"blocker", "major"}:
                 actions.append(f"Answer {finding.get('root_cause')} finding: {finding.get('message')}")
+
+    for finding in officer_council.get("findings", []):
+        if finding.get("severity") in {"blocker", "major"}:
+            location = f"{finding.get('path')}:{finding.get('line_start')}-{finding.get('line_end')}"
+            actions.append(
+                f"Answer deterministic {finding.get('officer')} {finding.get('severity')} finding at {location}: "
+                f"{finding.get('message')}"
+            )
+    for question in officer_council.get("unresolved_questions", []):
+        actions.append(f"Answer deterministic council proof gap: {question}")
 
     if cpl.get("policy") == "required" and cpl.get("status") in {"unavailable", "error"}:
         actions.append("Configure a reachable Cpl reasoning route and rerun Sergeant.")
@@ -71,46 +83,63 @@ def _decide(
     diff: dict[str, Any],
     intelligence: dict[str, Any],
     challenge: dict[str, Any],
+    officer_council: dict[str, Any],
     cpl: dict[str, Any],
     consensus: dict[str, Any],
 ) -> ReviewVerdict:
-    actions = _required_actions(repository_review, standard, diff, intelligence, cpl)
+    actions = _required_actions(repository_review, standard, diff, intelligence, officer_council, cpl)
     consensus_value = consensus.get("consensus")
     intelligence_verdict = intelligence.get("verdict")
+    officer_verdict = officer_council.get("verdict")
     cpl_verdict = cpl.get("decision_verdict", cpl.get("verdict"))
     notes = ["External reviewer comments are optional learning inputs, not required gates."]
+    notes.append("Permanent officers completed a deterministic council before optional model amplification.")
     if cpl.get("status") in {"unavailable", "disabled", "error"} and cpl.get("policy") != "required":
-        notes.append("Cpl reasoning was not available; deterministic Sergeant evidence remained authoritative.")
+        notes.append("Cpl model amplification was unavailable; deterministic officers and Sergeant evidence remained active.")
     if cpl.get("status") == "completed_with_warnings":
         notes.append("Cpl completed with one or more council or officer-support warnings.")
     council_state = cpl.get("council", {})
     if council_state.get("mode") not in {None, "not_deployed"} and council_state.get("complete") is False:
         notes.append("Cpl preserved unresolved council gaps for Sergeant instead of inventing certainty.")
 
-    if actions or consensus_value == "BLOCK" or intelligence_verdict == "BLOCK" or cpl_verdict == "BLOCK":
+    if (
+        actions
+        or consensus_value == "BLOCK"
+        or intelligence_verdict == "BLOCK"
+        or officer_verdict == "BLOCK"
+        or cpl_verdict == "BLOCK"
+    ):
         return ReviewVerdict(
             "REQUEST_CHANGES",
-            0.92,
-            "Blocking evidence, Cpl council risk, review-intelligence risk, or a required action remains unanswered.",
+            0.94,
+            "Blocking evidence, deterministic officer risk, Cpl risk, review-intelligence risk, or a required action remains unanswered.",
             actions,
             notes,
         )
-    if consensus_value == "NEEDS WORK" or intelligence_verdict == "NEEDS WORK" or cpl_verdict == "NEEDS WORK":
+    if (
+        consensus_value == "NEEDS WORK"
+        or intelligence_verdict == "NEEDS WORK"
+        or officer_verdict == "NEEDS WORK"
+        or cpl_verdict == "NEEDS WORK"
+    ):
         return ReviewVerdict(
             "COMMENT",
-            0.8,
-            "Independent evidence sources found non-blocking concerns that should be considered before merge.",
+            0.82,
+            "Independent evidence sources or the deterministic officer council found non-blocking concerns that should be considered before merge.",
             actions,
             notes,
         )
 
     challenge_confidence = float(challenge.get("confidence_after_challenge", 0.8))
+    officer_confidence = float(officer_council.get("confidence", challenge_confidence))
     cpl_confidence = float(cpl.get("confidence", challenge_confidence))
-    confidence = min(challenge_confidence, cpl_confidence) if cpl.get("status", "").startswith("completed") else challenge_confidence
+    confidence = min(challenge_confidence, officer_confidence)
+    if cpl.get("status", "").startswith("completed"):
+        confidence = min(confidence, cpl_confidence)
     return ReviewVerdict(
         "APPROVE",
         confidence,
-        "Repository evidence, capability analysis, review intelligence, Cpl council reasoning, standard checks, diff review, challenge mode, and consensus are satisfied.",
+        "Repository evidence, permanent-officer reports, capability analysis, review intelligence, optional Cpl amplification, standard checks, diff review, challenge mode, and consensus are satisfied.",
         notes=notes,
     )
 
@@ -164,12 +193,16 @@ def run_independent_pr_review(
         "review_intelligence": intelligence,
         "challenge": challenge,
     }
+    officer_council = run_deterministic_officer_council(root_path, semantic_files, cpl_context)
+    cpl_context["deterministic_officer_council"] = officer_council
+    cpl_context["officer_findings"] = officer_council.get("findings", [])
     cpl = run_cpl_review(root_path, semantic_files, cpl_context)
     deterministic_findings = [
         *repository_review.get("evidence", {}).get("findings", []),
         *diff.get("evidence", {}).get("findings", []),
         *capabilities.get("findings", []),
         *intelligence.get("promoted_findings", []),
+        *officer_council.get("findings", []),
     ]
     cpl = reconcile_cpl_findings(cpl, deterministic_findings)
 
@@ -196,6 +229,11 @@ def run_independent_pr_review(
             "evidence": intelligence.get("promoted_findings", []),
         },
         {
+            "source": "deterministic-officer-council",
+            "verdict": officer_council.get("verdict"),
+            "evidence": officer_council.get("findings", []),
+        },
+        {
             "source": "standard-engine",
             "verdict": "PASS" if standard.get("passed") else "NEEDS WORK",
             "evidence": standard.get("blockers", []),
@@ -210,7 +248,7 @@ def run_independent_pr_review(
     if cpl_source is not None:
         consensus_sources.append(cpl_source)
     consensus = build_consensus(consensus_sources)
-    verdict = _decide(repository_review, standard, diff, intelligence, challenge, cpl, consensus)
+    verdict = _decide(repository_review, standard, diff, intelligence, challenge, officer_council, cpl, consensus)
     return {
         "verdict": verdict.to_dict(),
         "repository_review": repository_review.get("verdict", {}),
@@ -220,6 +258,7 @@ def run_independent_pr_review(
         "diff_review_policy": diff.get("policy_adjustments", []),
         "capability_review": capabilities,
         "review_intelligence": intelligence,
+        "officer_council": officer_council,
         "cpl_review": cpl,
         "semantic_review": cpl,
         "semantic_files": semantic_files,
@@ -254,6 +293,11 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Diff verdict: {packet.get('diff_review', {}).get('verdict')}")
     lines.append(f"- Capability verdict: {packet.get('capability_review', {}).get('verdict')}")
     lines.append(f"- Review intelligence verdict: {packet.get('review_intelligence', {}).get('verdict')}")
+    officer_council = packet.get("officer_council", {})
+    lines.append(f"- Deterministic officer verdict: {officer_council.get('verdict')}")
+    lines.append(f"- Deterministic officers deployed: {len(officer_council.get('officers', []))}")
+    lines.append(f"- Deterministic officer findings: {len(officer_council.get('findings', []))}")
+    lines.append(f"- Model required for officer baseline: {officer_council.get('model_required', False)}")
     quality = packet.get("review_intelligence", {}).get("quality_score")
     quality_text = f"{quality}/100 review-output completeness" if quality is not None else "not evaluated (no ranked findings)"
     lines.append(f"- Review quality score: {quality_text}")
@@ -267,12 +311,12 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Cpl status: {cpl.get('status')}")
     lines.append(f"- Cpl role: {cpl.get('role', 'Corporal Specialist')}")
     lines.append(f"- Cpl depth: {cpl.get('depth')}")
-    lines.append(f"- Cpl model: {route.get('model', 'unavailable')}")
+    lines.append(f"- Cpl model amplifier: {route.get('model', 'unavailable')}")
     lines.append(f"- Cpl raw verdict: {cpl.get('verdict')}")
     lines.append(f"- Cpl decision verdict: {cpl.get('decision_verdict', cpl.get('verdict'))}")
     lines.append(f"- Cpl confidence: {cpl.get('confidence')}")
     lines.append(f"- Cpl specialist passes: {len(cpl.get('passes', []))}")
-    lines.append(f"- Cpl council members: {council.get('member_count', 0)}")
+    lines.append(f"- Cpl model members: {council.get('member_count', 0)}")
     lines.append(f"- Cpl council rounds: {council.get('round_count', 0)}")
     lines.append(f"- Cpl memory checked: {cpl.get('memory_checked', False)}")
     lines.append(f"- Cpl council complete: {council.get('complete', False)}")
@@ -282,9 +326,31 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
     lines.append(f"- Challenge trusted: {packet.get('challenge', {}).get('trusted')}")
     lines.append(f"- Consensus: {packet.get('consensus', {}).get('consensus')}")
 
+    officer_findings = officer_council.get("findings", []) if isinstance(officer_council, dict) else []
+    if officer_findings:
+        lines.extend(["", "## Deterministic officer findings"])
+        for finding in officer_findings[:12]:
+            lines.append(
+                f"- **{finding.get('severity')} / {finding.get('officer')} / {finding.get('rule_id')}** "
+                f"`{finding.get('path')}:{finding.get('line_start')}-{finding.get('line_end')}`: "
+                f"{finding.get('message')}"
+            )
+            lines.append(f"  - Evidence: {finding.get('evidence')}")
+            lines.append(f"  - Why it matters: {finding.get('why_it_matters')}")
+            lines.append(f"  - Safer alternative: {finding.get('safer_alternative')}")
+
+    officer_reports = officer_council.get("officers", []) if isinstance(officer_council, dict) else []
+    if officer_reports:
+        lines.extend(["", "## Permanent officer table"])
+        for report in officer_reports:
+            lines.append(
+                f"- **{report.get('officer')} — {report.get('role')}**: {report.get('verdict')} "
+                f"({len(report.get('findings', []))} finding(s), {len(report.get('questions', []))} question(s))"
+            )
+
     cpl_findings = cpl.get("actionable_findings", cpl.get("findings", [])) if isinstance(cpl, dict) else []
     if cpl_findings:
-        lines.extend(["", "## Cpl findings"])
+        lines.extend(["", "## Cpl model-amplified findings"])
         for finding in cpl_findings[:5]:
             lines.append(
                 f"- **{finding.get('severity')} / {finding.get('category')}** "
@@ -298,7 +364,7 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
 
     plan = cpl.get("reasoning_plan", []) if isinstance(cpl, dict) else []
     if plan:
-        lines.extend(["", "## Cpl specialist plan"])
+        lines.extend(["", "## Cpl amplification plan"])
         for assignment in plan:
             lines.append(f"- **{assignment.get('title')}** using `{assignment.get('model')}`: {assignment.get('mission')}")
 
@@ -344,6 +410,6 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
             lines.append(f"  - Safer alternative: {finding.get('safer_alternative')}")
     lines.extend(["", "## Rule"])
     lines.append(
-        "Sergeant is the reviewer. Main Review is the reviewer core. Cpl is the council-led Corporal Specialist. Permanent officers own their specialties; models and gateways are replaceable engines beneath Cpl; deterministic evidence remains authoritative. External reviewer comments are optional learning inputs, not required gates."
+        "Sergeant is the reviewer. Permanent officers and Cpl must produce useful evidence without models. Models and gateways are optional replaceable amplifiers beneath the same officer and Judge evidence contract; deterministic evidence remains authoritative. External reviewer comments are optional learning inputs, not required gates."
     )
     return "\n".join(lines) + "\n"
