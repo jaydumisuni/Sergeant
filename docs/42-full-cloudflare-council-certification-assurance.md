@@ -4,149 +4,130 @@ Assured path: `.github/workflows/cloudflare-full-council-certification.yml`
 
 ## Purpose
 
-The workflow performs exact-head live admission proof for every unique Cloudflare
-Workers AI member in Sergeant's public council roster without restarting the whole
-exam after a provider quota interruption.
+This workflow proves every unique Cloudflare Workers AI member in Sergeant's public
+council roster without restarting the whole exam after a quota interruption.
 
 Each member receives one role-appropriate mission:
 
-- six reasoning and coding members complete the evidence-grounded security officer
-  mission;
-- Granite 4.0 H Micro completes a Scout evidence-extraction mission with exact
-  values, file coverage and line evidence.
+- six reasoning/coding members complete the grounded security-officer mission;
+- Granite 4.0 H Micro completes a Scout extraction mission with exact values, file
+  coverage and line evidence.
 
-A parseable role-mission response proves structured transport. The workflow does
-not spend a second model call on a redundant handshake before the real mission.
+A successful role mission also proves structured transport. No separate handshake
+call is required.
 
-The workflow is a certification gate. It does not review arbitrary repositories,
-run pull-request-controlled project code, apply patches, publish releases or grant
-models any repository authority.
+## Two-stage workflow
 
-## Resumable exact-head ledger
+### Candidate validation
 
-The workflow preserves two credential-safe JSON records as a GitHub Actions artifact:
+`validate-candidate` checks out the pull-request head, installs it and runs focused
+tests without Cloudflare provider configuration.
 
-- `full-council-ledger.json` stores member proof by exact commit and contract version;
-- `cloudflare-usage-state.json` stores conservative daily neuron reservations and the
-  provider quota-circuit state.
+### Approved live certification
 
-At the beginning of a later run, Sergeant restores the newest ledger artifact.
-Passing members from the same exact head and contract are skipped. A changed commit
-or changed certification contract invalidates the member passes and creates a fresh
-ledger. Daily usage state is retained independently so repeated commits cannot keep
-probing an already exhausted account.
+`certify-approved-candidate` runs only when:
 
-After every member, the ledger is written before the next member begins. A runner or
-quota interruption therefore preserves all earlier successful proof.
+1. repository variable `SERGEANT_CLOUDFLARE_LIVE_CERTIFICATION_ENABLED` is `true`;
+2. GitHub environment `sergeant-cloudflare-certification` authorizes the job.
+
+Repository administrators must configure that environment with appropriate reviewer
+and deployment restrictions. Until both controls exist, the live job is skipped.
+
+After approval, the exact candidate code runs with the provider configuration during
+only the route-status and certification steps. Environment approval is the trust
+decision. The final artifact scan confirms that configured values are absent from
+saved evidence; it does not make a broader claim about runtime access.
+
+## Resumable ledger
+
+The workflow preserves:
+
+- `full-council-ledger.json` — member proof by exact commit and contract version;
+- `cloudflare-usage-state.json` — conservative daily reservations and circuit state.
+
+Passing members from the same exact head and contract are skipped. A changed head or
+contract creates fresh member proof. The ledger is saved after each member so a
+runner, budget or provider interruption preserves completed work.
 
 ## Quota and budget behavior
 
-Sergeant reserves a conservative neuron estimate before every Cloudflare inference
-request. The estimate uses the public per-model input/output neuron rates recorded in
-`main_review/cloudflare_models.py`, the bounded input size and the maximum output
-budget. Models without a recorded public rate use an explicit conservative fallback
-reservation.
+Sergeant reserves a conservative model-specific estimate before each inference. The
+public controls are:
 
-Public configuration variables:
+- `SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS`;
+- `SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS`;
+- `SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS`;
+- `SERGEANT_CLOUDFLARE_USAGE_STATE`;
+- `SERGEANT_CLOUDFLARE_USAGE_GOVERNOR`.
 
-- `SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS` — local daily ceiling; default `10000`;
-- `SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS` — capacity kept outside this Sergeant
-  workflow; default `2500`;
-- `SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS` — reservation for a model
-  without published rates; default `2500`;
-- `SERGEANT_CLOUDFLARE_USAGE_STATE` — persistent state-file location;
-- `SERGEANT_CLOUDFLARE_USAGE_GOVERNOR` — explicit governor enable/disable switch.
+If a request would exceed the local budget, Sergeant stops before network access.
+When Cloudflare returns allocation-specific code `4006` or an explicit daily-
+allocation message, Sergeant:
 
-If the next request would exceed the local daily budget, Sergeant stops before any
-network request. When Cloudflare returns HTTP `429` / provider code `4006`, Sergeant:
+1. opens the daily circuit;
+2. does not retry another request shape;
+3. does not continue through the roster;
+4. records the member as quota-blocked, not failed;
+5. saves the ledger for later continuation.
 
-1. opens the quota circuit until the next UTC day;
-2. does not retry the same model through another API shape;
-3. does not fail over through the remaining model roster;
-4. records the current member as quota-blocked rather than model-failed;
-5. uploads the completed ledger so the next run resumes only missing members.
+A generic HTTP `429` remains a normal provider throttle and does not open the all-day
+allocation circuit.
 
-Quota blocking proves neither model success nor model failure.
+## State integrity
 
-## Permissions
+Usage load, reservation and save are serialized across processes using an atomic
+lock file. Writes use unique temporary files followed by atomic replacement.
 
-The workflow declares:
+Budget and quota stops carry the UTC day that caused them. A later UTC day clears the
+stop while retaining same-head member proof.
 
-- `contents: read` for exact-head checkout;
-- `actions: read` to restore its own earlier credential-safe ledger artifact.
+## Permissions and model authority
 
-Checkout uses `persist-credentials: false`, so the GitHub token is not retained in
-the repository configuration. The workflow cannot push commits, create comments,
-modify pull requests, dispatch deployments, publish packages or merge changes.
+The workflow declares `contents: read` and `actions: read`. Checkout uses
+`persist-credentials: false`. It cannot push commits, alter pull requests, publish or
+merge.
 
-Every model call is initiated by Sergeant's allowlisted Cloudflare connector. The
-models receive bounded fixture text and cannot invoke shell commands, network tools
-or repository writes.
+Models receive fixed bounded fixtures. They have no repository-write, merge,
+deployment, shell or tool authority.
 
-## Secrets
+## Exact roster gate
 
-The live proof reads these operator-owned GitHub Actions secrets:
+Completion requires exactly these seven IDs, with no missing, extra or substituted
+member:
 
-- `SERGEANT_CLOUDFLARE_ACCOUNT_ID`;
-- `SERGEANT_CLOUDFLARE_API_TOKEN`.
+- `@cf/zai-org/glm-4.7-flash`;
+- `@cf/qwen/qwen2.5-coder-32b-instruct`;
+- `@cf/ibm-granite/granite-4.0-h-micro`;
+- `@cf/openai/gpt-oss-120b`;
+- `@cf/moonshotai/kimi-k2.7-code`;
+- `@cf/qwen/qwen3-30b-a3b-fp8`;
+- `@cf/openai/gpt-oss-20b`.
 
-They are used only to construct the Cloudflare Workers AI route. They are never
-written to Git, passed as command-line arguments or copied into the public summary.
-Before artifact upload, the workflow scans the summary, certification ledger and
-usage state for both configured secret values. Evidence upload is allowed only when
-that scan succeeds.
+## Proof requirements
 
-Public status output masks the Account ID and reports credential presence as
-booleans.
+The change is acceptable only when:
 
-## Rollback
+1. focused compatibility, incremental-ledger, mission and usage-governor tests pass;
+2. the full repository suite and all normal Sergeant proof workflows pass;
+3. candidate validation runs without provider configuration;
+4. the live job is protected and explicitly enabled;
+5. the approved route validates;
+6. all seven members have same-head role-mission proof;
+7. Granite passes Scout proof and the other six pass officer proof;
+8. the exact seven-member set is enforced;
+9. saved evidence passes the configured-value scan;
+10. tests prove allocation-specific circuit behavior, generic-429 handling, local
+    preflight blocking, cross-process accounting, Scout path containment, prompt-
+    echo rejection and final structured-answer selection.
 
-Rollback removes:
+The workflow remains incomplete when provider capacity, local budget or protected-
+environment approval blocks it. It must resume from the exact-head ledger.
 
-- `.github/workflows/cloudflare-full-council-certification.yml`;
-- `main_review/cloudflare_incremental_certification.py`;
-- `main_review/cloudflare_scout_qualification.py`;
-- `main_review/cloudflare_usage.py`;
-- the full-roster compatibility additions in `main_review/cloudflare_cli.py`,
-  `main_review/cloudflare_models.py` and `main_review/llm_provider.py`;
-- the full-roster, incremental-ledger and usage-governor tests;
-- the Qwen2.5 proof-budget expectation in
-  `tests/test_cloudflare_native_fallback.py`;
-- this assurance document.
+## Rollback and scope
 
-The two-member mission-qualified baseline, deterministic Sergeant Core, permanent
-officers, provider-neutral Cpl routing and all non-Cloudflare routes remain usable
-after rollback.
+Removing this workflow, its qualification/governor modules and their tests returns to
+the already proved two-member baseline. Deterministic Sergeant and non-Cloudflare
+routes remain available.
 
-## Proof
-
-The change is acceptable only when all of the following are true:
-
-1. focused compatibility, usage-governor and incremental-ledger tests pass;
-2. the complete repository test suite passes;
-3. normal CI, Main Review, Review Intelligence, Reviewer Comparison, Live GitHub
-   Ingestion, Standalone Service, Cloudflare Connector and Multiplatform proofs pass;
-4. the Cloudflare route validates without exposing credentials;
-5. every member has a role-mission result on the same exact candidate head;
-6. the role mission proves structured transport for seven of seven members;
-7. the six reasoning/coding members pass their complete officer mission;
-8. Granite passes the grounded Scout evidence-extraction mission;
-9. the final certified roster contains all seven unique members;
-10. the credential scan succeeds before artifact upload;
-11. the artifact records the exact tested commit and contains no configured secret;
-12. a synthetic 429 test proves one network attempt only and a persistent circuit;
-13. a synthetic local-budget test proves no network request is sent.
-
-The workflow remains incomplete when the provider quota or local budget blocks it.
-The exact-head ledger must resume after capacity becomes available; it must not rerun
-already certified members.
-
-## Operational cost boundary
-
-The seven-member live proof is required only for roster, transport or certification-
-contract changes. Ordinary Sergeant pull requests use the already certified default
-formation and recruit additional members only for a real evidence gap.
-
-This governor is the direct Sergeant protection layer. Private shared Hunter/Sergeant
-accounting, cross-service reservations and paid-provider routing remain a later
-private gateway responsibility and must not be claimed from this public workflow.
+This is direct Sergeant protection only. Shared Hunter/Sergeant accounting and paid-
+provider routing remain private future gateway work.
