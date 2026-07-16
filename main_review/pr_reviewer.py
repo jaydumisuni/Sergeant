@@ -35,6 +35,18 @@ class ReviewVerdict:
         return asdict(self)
 
 
+def _empty_officer_council() -> dict[str, Any]:
+    return {
+        "status": "not_supplied",
+        "verdict": "PASS",
+        "confidence": 0.8,
+        "findings": [],
+        "officers": [],
+        "unresolved_questions": [],
+        "model_required": False,
+    }
+
+
 def _required_actions(
     repository_review: dict[str, Any],
     standard: dict[str, Any],
@@ -83,17 +95,33 @@ def _decide(
     diff: dict[str, Any],
     intelligence: dict[str, Any],
     challenge: dict[str, Any],
-    officer_council: dict[str, Any],
-    cpl: dict[str, Any],
-    consensus: dict[str, Any],
+    officer_council: dict[str, Any] | None = None,
+    cpl: dict[str, Any] | None = None,
+    consensus: dict[str, Any] | None = None,
 ) -> ReviewVerdict:
+    """Issue Sergeant's verdict while preserving the earlier positional API.
+
+    Older integrations pass ``cpl`` and ``consensus`` as the sixth and seventh
+    positional values. Detect that shape and supply an empty deterministic council;
+    the live reviewer always passes all three sources explicitly.
+    """
+
+    if consensus is None and isinstance(cpl, dict) and "consensus" in cpl and isinstance(officer_council, dict):
+        consensus = cpl
+        cpl = officer_council
+        officer_council = _empty_officer_council()
+    officer_council = officer_council or _empty_officer_council()
+    cpl = cpl or {}
+    consensus = consensus or {}
+
     actions = _required_actions(repository_review, standard, diff, intelligence, officer_council, cpl)
     consensus_value = consensus.get("consensus")
     intelligence_verdict = intelligence.get("verdict")
     officer_verdict = officer_council.get("verdict")
     cpl_verdict = cpl.get("decision_verdict", cpl.get("verdict"))
     notes = ["External reviewer comments are optional learning inputs, not required gates."]
-    notes.append("Permanent officers completed a deterministic council before optional model amplification.")
+    if officer_council.get("status") == "completed":
+        notes.append("Permanent officers completed a deterministic council before optional model amplification.")
     if cpl.get("status") in {"unavailable", "disabled", "error"} and cpl.get("policy") != "required":
         notes.append("Cpl model amplification was unavailable; deterministic officers and Sergeant evidence remained active.")
     if cpl.get("status") == "completed_with_warnings":
@@ -248,7 +276,16 @@ def run_independent_pr_review(
     if cpl_source is not None:
         consensus_sources.append(cpl_source)
     consensus = build_consensus(consensus_sources)
-    verdict = _decide(repository_review, standard, diff, intelligence, challenge, officer_council, cpl, consensus)
+    verdict = _decide(
+        repository_review,
+        standard,
+        diff,
+        intelligence,
+        challenge,
+        officer_council,
+        cpl,
+        consensus,
+    )
     return {
         "verdict": verdict.to_dict(),
         "repository_review": repository_review.get("verdict", {}),
@@ -410,6 +447,6 @@ def render_pr_review_markdown(packet: dict[str, Any]) -> str:
             lines.append(f"  - Safer alternative: {finding.get('safer_alternative')}")
     lines.extend(["", "## Rule"])
     lines.append(
-        "Sergeant is the reviewer. Permanent officers and Cpl must produce useful evidence without models. Models and gateways are optional replaceable amplifiers beneath the same officer and Judge evidence contract; deterministic evidence remains authoritative. External reviewer comments are optional learning inputs, not required gates."
+        "Sergeant is the reviewer. Main Review is the reviewer core. Permanent officers and Cpl must produce useful evidence without models. Models and gateways are optional replaceable amplifiers beneath the same officer and Judge evidence contract; deterministic evidence remains authoritative. External reviewer comments are optional learning inputs, not required gates."
     )
     return "\n".join(lines) + "\n"
