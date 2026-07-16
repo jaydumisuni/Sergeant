@@ -72,7 +72,7 @@ def finding_family(finding: dict[str, Any]) -> str:
         return "change-impact"
     if category in {"tests", "test_impact", "documentation"}:
         return "proof-gap"
-    return category
+    return ""
 
 
 def findings_overlap(
@@ -159,7 +159,8 @@ def reconcile_cpl_findings(
             confirmed.append(finding)
             continue
 
-        severity = str(finding.get("severity") or "note").lower()
+        severity = str(finding.get("severity") or "note").strip().lower()
+        finding["severity"] = severity
         supporters = _supporting_models(finding)
         finding["supporting_models"] = supporters
         if severity in {"note", "minor"}:
