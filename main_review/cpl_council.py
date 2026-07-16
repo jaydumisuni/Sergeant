@@ -1,6 +1,7 @@
 """Elastic council helpers for Cpl."""
 from __future__ import annotations
 
+import ast
 import os
 import re
 from collections import Counter
@@ -175,6 +176,16 @@ def _resolved_signatures(passes: list[dict[str, Any]]) -> set[tuple[str, str, st
 
 
 def _question_record(raw: object) -> tuple[str, bool] | None:
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("{") and text.endswith("}"):
+            try:
+                decoded = ast.literal_eval(text)
+            except (SyntaxError, ValueError):
+                decoded = None
+            if isinstance(decoded, dict):
+                raw = decoded
+
     if isinstance(raw, dict):
         reason = str(raw.get("question") or raw.get("reason") or raw.get("text") or "").strip()
         required_assurance = raw.get("required_assurance") is True
