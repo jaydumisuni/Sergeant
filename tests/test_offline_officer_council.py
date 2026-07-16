@@ -323,6 +323,50 @@ def test_clean_counterparts_do_not_create_offline_findings(tmp_path: Path) -> No
     assert result["findings"] == []
 
 
+def test_cloudflare_backed_review_workflow_is_not_treated_as_roster_certification(
+    tmp_path: Path,
+) -> None:
+    workflow = ".github/workflows/review-intelligence-proof.yml"
+    contract = "tests/test_certification_workflow_contract.py"
+    _write(
+        tmp_path,
+        workflow,
+        """name: Review Intelligence Proof
+on:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python -m pytest -q tests/test_review_intelligence.py
+  configured-model-review:
+    needs: validate
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    environment: protected-model-review
+    runs-on: ubuntu-latest
+    env:
+      SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+      SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: python -m main_review.cli review .
+""",
+    )
+    _write(
+        tmp_path,
+        contract,
+        "REQUIRED_MODELS = {\n" + "\n".join(f'    "{model}",' for model in MODELS) + "\n}\n",
+    )
+
+    result = run_offline_investigations(tmp_path, [workflow, contract])
+
+    assert not any(
+        item["root_cause"] == "certification-roster-contract"
+        for item in result["findings"]
+    )
+
+
 def test_investigator_does_not_treat_its_rule_literals_as_quota_behavior(tmp_path: Path) -> None:
     source = Path("main_review/offline_investigation.py").read_text(encoding="utf-8")
     _write(tmp_path, "main_review/offline_investigation.py", source)

@@ -380,7 +380,6 @@ def _workflow_contracts(root: Path, changed: list[str], texts: dict[str, str]) -
             if (
                 "certif" not in workflow_path.lower()
                 and "certified_models" not in workflow
-                and "CLOUDFLARE" not in workflow.upper()
             ):
                 continue
             missing = sorted(required_models - set(_MODEL_ID_RE.findall(workflow)))
