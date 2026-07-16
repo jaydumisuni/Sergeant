@@ -7,6 +7,7 @@ on:
     paths-ignore:
       - ops/cpl-quality-benchmark.json
       - ops/cpl-quality-benchmark-summary.json
+      - ops/cpl-quality-certification.json
 
 permissions:
   contents: write
@@ -14,9 +15,9 @@ permissions:
 jobs:
   benchmark:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 40
     env:
-      TARGET_SHA: 32625ff8a8fd5e15155adeab84965dd6ae34ba8e
+      TARGET_SHA: 36e275a53153f04b9c9960f6e67e72f8b65f70f8
       OBSERVER_BRANCH: observe-cpl-quality-benchmark-20260715
       SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
       SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
@@ -28,7 +29,7 @@ jobs:
       SERGEANT_CPL_MAX_ROUNDS: '2'
       SERGEANT_CPL_MAX_INPUT_CHARS: '16000'
       SERGEANT_CLOUDFLARE_TIMEOUT_SECONDS: '75'
-      SERGEANT_CPL_MODELS: '@cf/qwen/qwen3-30b-a3b-fp8,@cf/openai/gpt-oss-20b'
+      SERGEANT_CLOUDFLARE_MODELS: '@cf/qwen/qwen3-30b-a3b-fp8,@cf/openai/gpt-oss-20b'
     steps:
       - name: Checkout exact correction revision
         uses: actions/checkout@v4
@@ -48,6 +49,34 @@ jobs:
 
       - name: Require exact live route
         run: sergeant cpl-status --require
+
+      - name: Create focused corrected-council fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/live-council-fixture/src
+          cat > build/live-council-fixture/src/auth.py <<'PY'
+          import subprocess
+
+          def run_user_command(request):
+              command = request.args.get("command")
+              return subprocess.run(command, shell=True)
+          PY
+
+      - name: Run exact-head live council certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          sergeant-cloudflare --pretty council-proof build/live-council-fixture \
+            --files src/auth.py \
+            --expected-verdict BLOCK \
+            --expected-path src/auth.py \
+            --expected-category security \
+            --expected-severity blocker \
+            --expected-evidence shell=True \
+            --minimum-supporting-models 2 \
+            --output build/cpl-quality-certification.json
 
       - name: Run ten-case certified-roster benchmark
         shell: bash
@@ -79,6 +108,7 @@ jobs:
           from pathlib import Path
 
           source = json.loads(Path('build/cpl-quality-benchmark.json').read_text(encoding='utf-8'))
+          certification = json.loads(Path('build/cpl-quality-certification.json').read_text(encoding='utf-8'))
           keys = (
               'passed', 'route_ready', 'case_count', 'precision', 'recall', 'f1',
               'verdict_accuracy', 'false_positive_count', 'false_negative_count',
@@ -98,6 +128,13 @@ jobs:
               'max_passes': 2,
               'max_members': 2,
               'max_rounds': 2,
+              'certification_passed': certification.get('passed') is True,
+              'certification_verdict_matches': certification.get('verdict_matches') is True,
+              'certification_expected_finding_passed': certification.get('expected_finding', {}).get('passed') is True,
+              'certification_true_model_independence': certification.get('true_model_independence') is True,
+              'certification_council_complete': certification.get('council_complete') is True,
+              'certification_final_gaps': certification.get('final_gaps', []),
+              'certification_errors': certification.get('errors', []),
           })
           Path('build/cpl-quality-benchmark-summary.json').write_text(
               json.dumps(summary, indent=2, sort_keys=True) + '\n',
@@ -118,7 +155,7 @@ jobs:
               os.getenv('SERGEANT_CLOUDFLARE_ACCOUNT_ID', ''),
               os.getenv('SERGEANT_CLOUDFLARE_API_TOKEN', ''),
           ]
-          for path in Path('build').glob('cpl-quality-benchmark*.json'):
+          for path in Path('build').glob('cpl-quality-*.json'):
               text = path.read_text(encoding='utf-8', errors='replace')
               for value in values:
                   if value:
@@ -152,6 +189,7 @@ jobs:
             fi
             gh api "${args[@]}" >/dev/null
           }
+          put_file build/cpl-quality-certification.json ops/cpl-quality-certification.json 'Record corrected Cpl live certification'
           put_file build/cpl-quality-benchmark.json ops/cpl-quality-benchmark.json 'Record corrected Cpl quality benchmark'
           put_file build/cpl-quality-benchmark-summary.json ops/cpl-quality-benchmark-summary.json 'Record corrected Cpl quality benchmark summary'
 
