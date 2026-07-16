@@ -16,19 +16,7 @@ ACTIONABLE_SEVERITIES = {"blocker", "major"}
 ADVISORY_CATEGORIES = {"tests", "documentation"}
 VERDICT_GAP_TYPES = {"missing_report", "independent_confirmation", "recurrence"}
 CONFIDENCE_GAP_TYPES = {"failed_member", "disagreement"}
-_REQUIRED_ASSURANCE_WORDS = {
-    "authorization",
-    "credential",
-    "evidence",
-    "permission",
-    "proof",
-    "required",
-    "runtime",
-    "security",
-    "test",
-    "verification",
-    "verify",
-}
+FINDING_DEPENDENT_GAP_TYPES = {"independent_confirmation", "recurrence"}
 
 _SECURITY_CATEGORIES = {"security", "security_taint", "data_flow"}
 _RUNTIME_CATEGORIES = {"correctness", "concurrency", "performance"}
@@ -41,20 +29,56 @@ _SECURITY_ROOTS = {
     "secret-exposure",
     "unsafe-data-flow",
 }
-_RUNTIME_WORDS = {
-    "async",
-    "await",
-    "concurrent",
-    "counter",
-    "global",
-    "iteration",
-    "lock",
-    "loop",
-    "performance",
-    "race",
-    "runtime",
-    "scale",
-    "thread",
+_GENERIC_ROOTS = {
+    "security": {"unsafe-data-flow"},
+    "runtime": {"runtime-risk"},
+    "architecture": {"architecture-boundary"},
+    "api_contract": {"change-impact"},
+    "proof": {"proof-gap"},
+}
+_TOKEN_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "both",
+    "by",
+    "can",
+    "code",
+    "could",
+    "defect",
+    "detected",
+    "evidence",
+    "finding",
+    "for",
+    "from",
+    "has",
+    "have",
+    "in",
+    "is",
+    "issue",
+    "line",
+    "may",
+    "needs",
+    "of",
+    "on",
+    "operation",
+    "or",
+    "path",
+    "possible",
+    "present",
+    "review",
+    "risk",
+    "security",
+    "should",
+    "that",
+    "the",
+    "this",
+    "to",
+    "with",
 }
 
 
@@ -66,22 +90,36 @@ def _safe_dict(value: object) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _parse_line_range(item: dict[str, Any]) -> tuple[int, int, bool]:
+    raw_start = item.get("line_start", item.get("line"))
+    if raw_start is None or isinstance(raw_start, bool):
+        return 1, 1, False
+    try:
+        start = int(raw_start)
+    except (TypeError, ValueError):
+        return 1, 1, False
+
+    raw_end = item.get("line_end", raw_start)
+    if isinstance(raw_end, bool):
+        return max(1, start), max(1, start), False
+    try:
+        end = int(raw_end)
+    except (TypeError, ValueError):
+        return max(1, start), max(1, start), False
+
+    valid = start >= 1 and end >= start
+    start = max(1, start)
+    end = max(start, end)
+    return start, end, valid
+
+
 def _normalise_finding(item: object, source: str) -> dict[str, Any] | None:
     if not isinstance(item, dict):
         return None
     severity = str(item.get("severity") or "note").strip().lower()
     category = str(item.get("capability") or item.get("category") or "other").strip().lower()
     path = str(item.get("path") or "").strip().replace("\\", "/")
-    try:
-        start = int(item.get("line_start") or item.get("line") or 1)
-    except (TypeError, ValueError):
-        start = 1
-    try:
-        end = int(item.get("line_end") or start)
-    except (TypeError, ValueError):
-        end = start
-    start = max(1, start)
-    end = max(start, end)
+    start, end, line_range_valid = _parse_line_range(item)
     return {
         **item,
         "source": source,
@@ -90,6 +128,7 @@ def _normalise_finding(item: object, source: str) -> dict[str, Any] | None:
         "path": path,
         "line_start": start,
         "line_end": end,
+        "line_range_valid": line_range_valid,
     }
 
 
@@ -138,6 +177,14 @@ def _text_tokens(finding: dict[str, Any]) -> set[str]:
     return set(re.findall(r"[a-z_][a-z0-9_]+", text))
 
 
+def _meaningful_tokens(finding: dict[str, Any]) -> set[str]:
+    return {
+        token
+        for token in _text_tokens(finding)
+        if len(token) > 2 and token not in _TOKEN_STOPWORDS
+    }
+
+
 def _family(finding: dict[str, Any]) -> str:
     category = str(finding.get("category") or "other").lower()
     root = finding_root_cause(finding)
@@ -154,12 +201,37 @@ def _family(finding: dict[str, Any]) -> str:
     return category
 
 
+def _defect_overlap(left: dict[str, Any], right: dict[str, Any], family: str) -> bool:
+    left_root = finding_root_cause(left)
+    right_root = finding_root_cause(right)
+    if left_root and right_root:
+        if left_root == right_root:
+            return True
+        generic = _GENERIC_ROOTS.get(family, set())
+        if left_root not in generic and right_root not in generic:
+            return False
+
+    left_tokens = _meaningful_tokens(left)
+    right_tokens = _meaningful_tokens(right)
+    shared = left_tokens & right_tokens
+    if len(shared) >= 2:
+        return True
+
+    generic = _GENERIC_ROOTS.get(family, set())
+    if len(shared) == 1 and ((left_root in generic) or (right_root in generic)):
+        return True
+
+    return False
+
+
 def cross_source_match(left: dict[str, Any], right: dict[str, Any], *, max_line_distance: int = 10) -> bool:
     """Return whether a Cpl report confirms an existing deterministic finding.
 
     Cpl-internal matching remains stricter. Cross-source matching additionally
     recognises that deterministic capability engines and natural-language model
     reports may use different category names for the same evidenced defect.
+    Family and line proximity alone are never enough: the reports must share a
+    root cause or meaningful defect-level evidence.
     """
 
     if findings_match(left, right, max_line_distance=max_line_distance):
@@ -175,11 +247,7 @@ def cross_source_match(left: dict[str, Any], right: dict[str, Any], *, max_line_
     right_family = _family(right)
     if left_family != right_family:
         return False
-    if left_family in {"security", "architecture", "api_contract", "proof"}:
-        return True
-    if left_family == "runtime":
-        return bool((_text_tokens(left) | _text_tokens(right)) & _RUNTIME_WORDS)
-    return str(left.get("category") or "") == str(right.get("category") or "")
+    return _defect_overlap(left, right, left_family)
 
 
 def _supporting_models(finding: dict[str, Any]) -> list[str]:
@@ -221,9 +289,9 @@ def adjudicate_cpl_findings(
 
     A Cpl report matching deterministic evidence becomes a confirmation. The
     deterministic finding keeps its message, root cause and severity. A genuinely
-    new blocker/major finding must be grounded and have the required independent
-    model support. Generic tests/documentation requests and minor suggestions
-    remain advisory rather than becoming merge gates.
+    new blocker/major finding must be grounded, identify a valid supplied location
+    and have the required independent model support. Generic tests/documentation
+    requests and minor suggestions remain advisory rather than becoming gates.
     """
 
     deterministic = deterministic_findings(deterministic_context)
@@ -255,14 +323,18 @@ def adjudicate_cpl_findings(
             advisory.append({**finding, "disposition": "advisory"})
             continue
 
-        grounded = finding.get("evidence_verified") is True and bool(finding.get("path"))
+        grounded = (
+            finding.get("evidence_verified") is True
+            and bool(finding.get("path"))
+            and finding.get("line_range_valid") is True
+        )
         independently_supported = len(supporting_models) >= max(1, minimum_supporting_models)
         if grounded and independently_supported:
             actionable.append({**finding, "disposition": "admitted_novel"})
         else:
             reasons = []
             if not grounded:
-                reasons.append("grounding contract not satisfied")
+                reasons.append("grounding contract not satisfied: supplied path and valid line range required")
             if not independently_supported:
                 reasons.append(
                     f"requires {max(1, minimum_supporting_models)} supporting model(s), got {len(supporting_models)}"
@@ -290,6 +362,42 @@ def adjudicate_cpl_findings(
     }
 
 
+def adjudicate_finding_dependent_gaps(
+    gaps: list[dict[str, Any]],
+    actionable_findings: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    """Keep finding-dependent gaps gating only for admitted actionable findings.
+
+    Raw recurrence and independent-confirmation gaps remain auditable. A gap tied
+    only to a confirmation, advisory or rejected model claim cannot bypass the
+    finding-admission boundary and change the final verdict.
+    """
+
+    effective: list[dict[str, Any]] = []
+    suppressed: list[dict[str, Any]] = []
+    for gap in gaps:
+        gap_type = str(gap.get("type") or "")
+        if gap_type not in FINDING_DEPENDENT_GAP_TYPES:
+            effective.append(gap)
+            continue
+        target = gap.get("target_finding")
+        admitted = isinstance(target, dict) and any(
+            findings_match(target, finding) or cross_source_match(target, finding)
+            for finding in actionable_findings
+        )
+        if admitted:
+            effective.append(gap)
+        else:
+            suppressed.append({
+                **gap,
+                "adjudication_disposition": "non_gating_unadmitted_finding",
+            })
+    return {
+        "effective_gaps": effective,
+        "suppressed_gaps": suppressed,
+    }
+
+
 def classify_council_gaps(gaps: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
     """Separate merge-affecting assurance gaps from uncertainty and context."""
 
@@ -298,8 +406,7 @@ def classify_council_gaps(gaps: list[dict[str, Any]]) -> dict[str, list[dict[str
     informational_gaps: list[dict[str, Any]] = []
     for gap in gaps:
         gap_type = str(gap.get("type") or "")
-        reason = str(gap.get("reason") or "").lower()
-        required_assurance = bool(set(re.findall(r"[a-z_][a-z0-9_]+", reason)) & _REQUIRED_ASSURANCE_WORDS)
+        required_assurance = gap.get("required_assurance") is True
         if gap_type in VERDICT_GAP_TYPES or (gap_type == "unanswered_question" and required_assurance):
             verdict_gaps.append(gap)
         elif gap_type in CONFIDENCE_GAP_TYPES or gap_type == "unanswered_question":
