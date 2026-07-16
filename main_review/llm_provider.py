@@ -26,6 +26,11 @@ from .cloudflare_models import (
     is_cloudflare_provider,
     public_base_url,
 )
+from .cloudflare_usage import (
+    CloudflareUsageError,
+    mark_cloudflare_quota_blocked,
+    reserve_cloudflare_request,
+)
 
 LLMProtocol = Literal["responses", "chat_completions"]
 LLMPolicy = Literal["preferred", "required", "disabled"]
@@ -240,6 +245,50 @@ def _load_json_response(request: urllib.request.Request, timeout: float) -> dict
     return payload
 
 
+def is_cloudflare_quota_error(error: BaseException) -> bool:
+    """Return whether an error represents the Workers AI daily-allocation limit."""
+
+    message = str(error).lower()
+    return bool(
+        "http 429" in message
+        or "code 4006" in message
+        or '"code":4006' in message
+        or "daily free allocation" in message
+        or "quota circuit is open" in message
+    )
+
+
+def _load_model_response(
+    route: LLMRoute,
+    request: urllib.request.Request,
+    *,
+    system_prompt: str,
+    user_prompt: str,
+    stage: str,
+) -> dict[str, Any]:
+    if is_cloudflare_provider(route.provider):
+        try:
+            reserve_cloudflare_request(
+                model=route.model,
+                input_chars=len(system_prompt) + len(user_prompt),
+                max_output_tokens=route.max_output_tokens,
+                stage=stage,
+            )
+        except CloudflareUsageError as error:
+            raise LLMProviderError(str(error)) from error
+    try:
+        return _load_json_response(request, route.timeout_seconds)
+    except LLMProviderError as error:
+        if is_cloudflare_provider(route.provider) and is_cloudflare_quota_error(error):
+            state = mark_cloudflare_quota_blocked()
+            reset_at = str(state.get("reset_at") or "the next UTC day")
+            raise LLMProviderError(
+                "Cloudflare daily inference allocation is exhausted "
+                f"(HTTP 429 / code 4006); quota circuit opened until {reset_at}."
+            ) from error
+        raise
+
+
 def list_models(base_url: str, *, api_key: str = "", timeout_seconds: float = 3.0) -> tuple[str, ...]:
     request = urllib.request.Request(
         f"{_normalize_base_url(base_url)}/models",
@@ -435,6 +484,7 @@ def _extract_text(payload: dict[str, Any], protocol: LLMProtocol) -> str:
         f"Response shape: {_response_shape(payload)}"
     )
 
+
 def _json_candidate_score(payload: dict[str, Any]) -> tuple[int, int]:
     keys = {str(key) for key in payload}
     important = {"verdict", "findings", "coverage", "status", "model", "capabilities"}
@@ -506,7 +556,13 @@ def _invoke_cloudflare_native_text(
         headers=_request_headers(route.api_key),
         method="POST",
     )
-    response = _load_json_response(request, route.timeout_seconds)
+    response = _load_model_response(
+        route,
+        request,
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
+        stage="native_fallback",
+    )
     return _extract_text(response, "chat_completions")
 
 
@@ -543,9 +599,19 @@ def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dic
         method="POST",
     )
     try:
-        response = _load_json_response(request, route.timeout_seconds)
+        response = _load_model_response(
+            route,
+            request,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            stage="openai_compatible",
+        )
     except LLMProviderError as first_error:
-        if route.protocol != "chat_completions" or "response_format" not in body:
+        if (
+            is_cloudflare_quota_error(first_error)
+            or route.protocol != "chat_completions"
+            or "response_format" not in body
+        ):
             raise
         body.pop("response_format", None)
         retry = urllib.request.Request(
@@ -555,13 +621,21 @@ def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dic
             method="POST",
         )
         try:
-            response = _load_json_response(retry, route.timeout_seconds)
-        except LLMProviderError:
+            response = _load_model_response(
+                route,
+                retry,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                stage="openai_compatible_without_response_format",
+            )
+        except LLMProviderError as retry_error:
+            if is_cloudflare_quota_error(retry_error):
+                raise
             raise first_error
 
     try:
         return _parse_json_text(_extract_text(response, route.protocol))
-    except LLMProviderError as compatible_error:
+    except LLMProviderError:
         if not is_cloudflare_provider(route.provider):
             raise
         try:
@@ -572,6 +646,8 @@ def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dic
             )
             return _parse_json_text(native_text)
         except LLMProviderError as native_error:
+            if is_cloudflare_quota_error(native_error):
+                raise
             raise LLMProviderError(
                 "Cloudflare OpenAI-compatible and native model routes both failed without a parseable JSON response."
             ) from native_error
