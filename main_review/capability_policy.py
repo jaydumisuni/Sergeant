@@ -284,7 +284,8 @@ def normalize_capability_review(packet: dict[str, Any], root: str | Path | None 
         if not isinstance(finding, dict):
             continue
         capability = str(finding.get("capability", ""))
-        severity = str(finding.get("severity", ""))
+        severity = str(finding.get("severity") or "unknown").lower()
+        finding["severity"] = severity
         path = str(finding.get("path") or "")
         text = _annotate_location(finding, root_path)
 

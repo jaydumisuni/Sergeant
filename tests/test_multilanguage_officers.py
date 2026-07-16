@@ -178,6 +178,63 @@ class JobCounter {
     assert _actionable(safe) == []
 
 
+def test_csharp_guard_in_one_method_does_not_hide_unguarded_mutation(tmp_path: Path) -> None:
+    mixed = _review(
+        tmp_path,
+        "src/JobCounter.cs",
+        """using System.Threading;
+using System.Threading.Tasks;
+class JobCounter {
+  static int sharedCounter = 0;
+  int SafeIncrement() {
+    return Interlocked.Increment(ref sharedCounter);
+  }
+  async Task<int> UnsafeIncrement() {
+    await Task.Yield();
+    sharedCounter++;
+    return sharedCounter;
+  }
+}
+""",
+        "tests/JobCounterTests.cs",
+        "class JobCounterTests {}\n",
+    )
+
+    findings = _actionable(mixed)
+    assert any(item["capability"] == "concurrency" for item in findings)
+    assert {item["line_start"] for item in findings if item["capability"] == "concurrency"} == {10}
+
+
+def test_csharp_lock_is_scoped_to_the_mutation_it_guards(tmp_path: Path) -> None:
+    mixed = _review(
+        tmp_path,
+        "src/LockedJobCounter.cs",
+        """using System.Threading.Tasks;
+class LockedJobCounter {
+  static int sharedCounter = 0;
+  static object counterLock = new object();
+  int SafeIncrement() {
+    lock (counterLock) {
+      sharedCounter++;
+      return sharedCounter;
+    }
+  }
+  async Task<int> UnsafeIncrement() {
+    await Task.Yield();
+    sharedCounter++;
+    return sharedCounter;
+  }
+}
+""",
+        "tests/LockedJobCounterTests.cs",
+        "class LockedJobCounterTests {}\n",
+    )
+
+    findings = _actionable(mixed)
+    assert any(item["capability"] == "concurrency" for item in findings)
+    assert {item["line_start"] for item in findings if item["capability"] == "concurrency"} == {13}
+
+
 def test_ruby_nested_each_is_performance_advisory(tmp_path: Path) -> None:
     nested = _review(
         tmp_path,
@@ -209,6 +266,28 @@ end
     )
     assert linear["verdict"] == "PASS"
     assert _actionable(linear) == []
+
+
+def test_sequential_ruby_each_blocks_are_not_nested(tmp_path: Path) -> None:
+    sequential = _review(
+        tmp_path,
+        "lib/report.rb",
+        """class Report
+  def self.labels(rows, tags)
+    rows.each do |row|
+      puts row
+    end
+    tags.each do |tag|
+      puts tag
+    end
+  end
+end
+""",
+        "spec/report_spec.rb",
+        "RSpec.describe Report do; end\n",
+    )
+
+    assert not any(item["capability"] == "performance" for item in _actionable(sequential))
 
 
 @pytest.mark.parametrize("manifest", ["Service.csproj", "Service.sln", "Package.swift"])

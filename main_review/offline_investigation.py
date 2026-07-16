@@ -9,7 +9,9 @@ for the claim.
 
 from __future__ import annotations
 
+import ast
 import re
+import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Iterable
@@ -72,13 +74,26 @@ class CoverageRecord:
         }
 
 
+@dataclass(frozen=True)
+class PythonFunction:
+    name: str
+    body: str
+    line_start: int
+
+
+@dataclass(frozen=True)
+class WorkflowCommand:
+    text: str
+    line_start: int
+
+
 _MODEL_ID_RE = re.compile(r"@cf/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 _TEST_PATH_RE = re.compile(r"tests/test_[A-Za-z0-9_./-]+\.py")
 _PYTHON_TEST_RUNNER_RE = re.compile(
     r"(?:^|[;&|]\s*)(?:[A-Za-z_][A-Za-z0-9_]*=[^\s]+\s+)*"
     r"(?:(?:uv|poetry|pipenv)\s+run\s+)?"
     r"(?:python(?:3(?:\.\d+)?)?\s+-m\s+)?(?:pytest|unittest|tox|nox)\b",
-    re.I,
+    re.I | re.M,
 )
 _WORKFLOW_PATH_RE = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
 _QUOTA_FUNCTION_RE = re.compile(
@@ -110,6 +125,39 @@ def _line(text: str, marker: str | re.Pattern[str]) -> int:
         if pattern.search(row):
             return number
     return 1
+
+
+def _python_functions(text: str) -> list[PythonFunction]:
+    """Return every Python function, including methods and async functions."""
+
+    lines = text.splitlines(keepends=True)
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return [
+            PythonFunction(
+                match.group("name"),
+                match.group("body"),
+                text[:match.start()].count("\n") + 1,
+            )
+            for match in _PYTHON_FUNCTION_RE.finditer(text)
+        ]
+
+    functions: list[PythonFunction] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        end_line = getattr(node, "end_lineno", None) or node.lineno
+        if node.body:
+            body_start = node.body[0].lineno
+            raw_body = "".join(lines[body_start - 1:end_line])
+        else:
+            raw_body = ""
+        # Normalize every function to the indentation shape used by the
+        # deterministic checks: top-level statements at four spaces.
+        body = textwrap.indent(textwrap.dedent(raw_body), "    ") if raw_body else ""
+        functions.append(PythonFunction(node.name, body, node.lineno))
+    return sorted(functions, key=lambda function: function.line_start)
 
 
 def _workflow_jobs(text: str) -> list[tuple[str, int, str]]:
@@ -206,9 +254,9 @@ def _pull_request_trigger_paths(text: str) -> set[str]:
     return set()
 
 
-def _executed_test_paths(text: str) -> set[str]:
+def _workflow_run_commands(text: str) -> list[WorkflowCommand]:
     lines = text.splitlines()
-    paths: set[str] = set()
+    commands: list[WorkflowCommand] = []
     for index, row in enumerate(lines):
         match = re.match(r"^(\s*)(?:-\s*)?run\s*:\s*(.*?)\s*$", _yaml_code(row))
         if not match:
@@ -216,18 +264,28 @@ def _executed_test_paths(text: str) -> set[str]:
         indent = len(match.group(1))
         inline = match.group(2).strip()
         command_lines: list[str] = []
+        command_line = index + 1
         if inline and inline not in {"|", ">", "|-", ">-", "|+", ">+"}:
             command_lines.append(inline)
         else:
-            for candidate in lines[index + 1:]:
+            for candidate_index, candidate in enumerate(lines[index + 1:], start=index + 1):
                 candidate_code = _yaml_code(candidate)
                 if candidate_code.strip() and len(candidate_code) - len(candidate_code.lstrip()) <= indent:
                     break
                 if candidate_code.strip():
+                    if not command_lines:
+                        command_line = candidate_index + 1
                     command_lines.append(candidate_code.strip())
-        command = "\n".join(command_lines)
-        if _PYTHON_TEST_RUNNER_RE.search(command):
-            paths.update(_TEST_PATH_RE.findall(command))
+        if command_lines:
+            commands.append(WorkflowCommand("\n".join(command_lines), command_line))
+    return commands
+
+
+def _executed_test_paths(text: str) -> set[str]:
+    paths: set[str] = set()
+    for command in _workflow_run_commands(text):
+        if _PYTHON_TEST_RUNNER_RE.search(command.text):
+            paths.update(_TEST_PATH_RE.findall(command.text))
     return paths
 
 
@@ -235,25 +293,27 @@ def _workflow_shell_operator_expansion(path: str, text: str) -> list[FieldFindin
     pattern = re.compile(
         r"\$\{[A-Za-z_][A-Za-z0-9_]*:\+[^}\n]*(?:\|\||&&|(?:^|\s)\d?>)[^}\n]*\}"
     )
-    match = pattern.search(text)
-    if not match:
-        return []
-    line = _line(text, pattern)
-    return [
-        FieldFinding(
-            "Engineer",
-            "api_contract",
-            "major",
-            "Workflow embeds shell control operators inside conditional parameter expansion.",
-            path,
-            line,
-            "Shell parsing happens before parameter expansion, so redirections and boolean operators produced by ${VAR:+...} become literal command arguments rather than control operators.",
-            "workflow-shell-operator-expansion",
-            0.96,
-            ["Checked for an explicit shell if block.", "Checked whether redirection and fallback operators remain parser-visible."],
-            "Use an explicit if block and keep redirection/fallback operators in ordinary shell syntax.",
-        )
-    ]
+    for command in _workflow_run_commands(text):
+        match = pattern.search(command.text)
+        if not match:
+            continue
+        line = command.line_start + command.text[:match.start()].count("\n")
+        return [
+            FieldFinding(
+                "Engineer",
+                "api_contract",
+                "major",
+                "Workflow embeds shell control operators inside conditional parameter expansion.",
+                path,
+                line,
+                "Shell parsing happens before parameter expansion, so redirections and boolean operators produced by ${VAR:+...} become literal command arguments rather than control operators.",
+                "workflow-shell-operator-expansion",
+                0.96,
+                ["Checked for an explicit shell if block.", "Checked whether redirection and fallback operators remain parser-visible."],
+                "Use an explicit if block and keep redirection/fallback operators in ordinary shell syntax.",
+            )
+        ]
+    return []
 
 
 def _workflow_secret_boundaries(path: str, text: str) -> list[FieldFinding]:
@@ -299,6 +359,34 @@ def _workflow_secret_boundaries(path: str, text: str) -> list[FieldFinding]:
     return findings
 
 
+def _documented_workflow_tests(document: str) -> dict[str, set[str]]:
+    """Associate each named regression test with its owning workflow mention."""
+
+    workflow_matches = list(_WORKFLOW_PATH_RE.finditer(document))
+    if not workflow_matches:
+        return {}
+    contracts: dict[str, set[str]] = {
+        match.group(0): set() for match in workflow_matches
+    }
+    for test_match in _TEST_PATH_RE.finditer(document):
+        line_start = document.rfind("\n", 0, test_match.start()) + 1
+        line_end = document.find("\n", test_match.end())
+        if line_end < 0:
+            line_end = len(document)
+        same_line = [
+            match
+            for match in workflow_matches
+            if line_start <= match.start() < line_end
+        ]
+        candidates = same_line or workflow_matches
+        owner = min(
+            candidates,
+            key=lambda match: abs(match.start() - test_match.start()),
+        )
+        contracts.setdefault(owner.group(0), set()).add(test_match.group(0))
+    return contracts
+
+
 def _workflow_contracts(root: Path, changed: list[str], texts: dict[str, str]) -> list[FieldFinding]:
     findings: list[FieldFinding] = []
     docs = {path: text for path, text in texts.items() if path.startswith("docs/")}
@@ -306,13 +394,13 @@ def _workflow_contracts(root: Path, changed: list[str], texts: dict[str, str]) -
     roster_paths: set[str] = set()
 
     for doc_path, doc in docs.items():
-        for workflow_path in set(_WORKFLOW_PATH_RE.findall(doc)):
+        for workflow_path, documented_tests in _documented_workflow_tests(doc).items():
             workflow = workflows.get(workflow_path)
             if workflow is None:
                 _, workflow = _safe_source(root, workflow_path)
             if not workflow:
                 continue
-            required_tests = sorted(set(_TEST_PATH_RE.findall(doc)))
+            required_tests = sorted(documented_tests)
             trigger_paths = _pull_request_trigger_paths(workflow)
             executed_tests = _executed_test_paths(workflow)
             for test_path in required_tests:
@@ -615,31 +703,41 @@ def _verbose_json_tiebreak(path: str, text: str) -> list[FieldFinding]:
 
 
 def _atomic_replace_without_fsync(path: str, text: str) -> list[FieldFinding]:
-    for match in _PYTHON_FUNCTION_RE.finditer(text):
-        body = match.group("body")
+    findings: list[FieldFinding] = []
+    for function in _python_functions(text):
+        body = function.body
         creates_temporary = bool(re.search(r"NamedTemporaryFile|mkstemp", body))
-        writes = bool(re.search(r"\.write\s*\(|write_text\s*\(|json\.dump", body))
-        replaces = bool(re.search(r"(?:os\.)?replace\s*\(|\.replace\s*\(", body))
-        durable = bool(re.search(r"\bos\.fsync\s*\(|\bfsync\s*\(", body))
-        if not (creates_temporary and writes and replaces) or durable:
+        write_matches = list(re.finditer(r"\.write\s*\(|write_text\s*\(|json\.dump", body))
+        flush_matches = list(re.finditer(r"\.flush\s*\(", body))
+        fsync_matches = list(re.finditer(r"\bos\.fsync\s*\(|\bfsync\s*\(", body))
+        replace_matches = list(re.finditer(r"(?:os\.)?replace\s*\(|\.replace\s*\(", body))
+        if not (creates_temporary and write_matches and replace_matches):
             continue
-        line = text[:match.start()].count("\n") + 1
-        return [
+        durable = any(
+            write.start() < flush.start() < fsync.start() < replace.start()
+            for write in write_matches
+            for flush in flush_matches
+            for fsync in fsync_matches
+            for replace in replace_matches
+        )
+        if durable:
+            continue
+        findings.append(
             FieldFinding(
                 "Mechanic",
                 "concurrency",
                 "minor",
                 "Atomic file replacement is not durably flushed before publication.",
                 path,
-                line,
-                f"Function {match.group('name')} writes a temporary file and atomically replaces persistent state without fsync, so a crash can publish an empty or incomplete ledger.",
+                function.line_start,
+                f"Function {function.name} does not preserve write -> flush -> fsync -> replace ordering, so a crash can publish an empty or incomplete ledger.",
                 "atomic-replace-durability",
                 0.86,
                 ["Checked for handle.flush().", "Checked for os.fsync() before replace."],
                 "Flush the file object and fsync its descriptor before atomically replacing the destination.",
             )
-        ]
-    return []
+        )
+    return findings
 
 
 def _uncanonicalized_severity(path: str, text: str) -> list[FieldFinding]:
@@ -652,32 +750,32 @@ def _uncanonicalized_severity(path: str, text: str) -> list[FieldFinding]:
     )
     if not downstream_lowercase:
         return []
-    for match in _PYTHON_FUNCTION_RE.finditer(text):
-        if "normal" not in match.group("name").lower():
+    findings: list[FieldFinding] = []
+    for function in _python_functions(text):
+        if "normal" not in function.name.lower():
             continue
-        body = match.group("body")
+        body = function.body
         if "severity" not in body or not re.search(r"dict\s*\(|copy\s*\(", body):
             continue
         canonical = bool(re.search(r"severity[^\n]*(?:\.lower\s*\(|\.casefold\s*\()|(?:\.lower\s*\(|\.casefold\s*\()[^\n]*severity", body))
         if canonical:
-            return []
-        line = text[:match.start()].count("\n") + 1
-        return [
+            continue
+        findings.append(
             FieldFinding(
                 "Engineer",
                 "api_contract",
                 "blocker",
                 "Finding severity is not canonicalized before lowercase verdict comparisons.",
                 path,
-                line,
+                function.line_start,
                 "The normalization path preserves caller casing while downstream verdict logic recognizes only lowercase blocker/major values, allowing an admitted severe finding to produce PASS.",
                 "severity-canonicalization",
                 0.95,
                 ["Checked for lower()/casefold() in the normalization path.", "Checked downstream blocker/major comparisons."],
                 "Canonicalize stored severity once during normalization and reuse that value for admission, status, actions and verdict.",
             )
-        ]
-    return []
+        )
+    return findings
 
 
 def _overwritten_disposition_precedence(path: str, text: str) -> list[FieldFinding]:
@@ -743,34 +841,34 @@ def _benchmark_risk_trigger_predictions(path: str, text: str) -> list[FieldFindi
 
 
 def _formation_evidence_early_return(path: str, text: str) -> list[FieldFinding]:
-    for match in _PYTHON_FUNCTION_RE.finditer(text):
-        name = match.group("name").lower()
+    findings: list[FieldFinding] = []
+    for function in _python_functions(text):
+        name = function.name.lower()
         if "report" not in name or "build" not in name:
             continue
-        body = match.group("body")
+        body = function.body
         branch = re.search(r"if\s+formation_reports\s*:(?P<branch>[\s\S]*?)(?=\n    \S|\Z)", body)
         if not branch or "return" not in branch.group("branch"):
             continue
         branch_text = branch.group("branch")
         if "learning" in branch_text and "graduation" in branch_text:
-            return []
-        line = text[:match.start()].count("\n") + 1
-        return [
+            continue
+        findings.append(
             FieldFinding(
                 "Archivist",
                 "api_contract",
                 "major",
                 "Canonical formation reports return before learning and graduation evidence is attached.",
                 path,
-                line,
+                function.line_start,
                 "The canonical report branch exits without consuming the supplied learning and graduation packets, making Archivist and Judge evidence decorative or absent.",
                 "formation-evidence-loss",
                 0.91,
                 ["Checked Archivist learning candidates.", "Checked Judge graduation outcome propagation."],
                 "Enrich canonical Archivist and Judge reports with the supplied evidence before returning.",
             )
-        ]
-    return []
+        )
+    return findings
 
 
 _SOURCE_CHECKS: tuple[Callable[[str, str], list[FieldFinding]], ...] = (

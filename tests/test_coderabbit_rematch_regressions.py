@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import main_review.cloudflare_incremental_certification as incremental
+from main_review.capability_policy import normalize_capability_review
 from main_review.cloudflare_cli import _coverage_area_matches
 from main_review.officer_council import run_officer_council
 from main_review.offline_investigation import run_offline_investigations
@@ -139,14 +140,239 @@ def transactions(admitted, advisory, rejected):
 
 
 def test_incremental_ledger_flushes_and_fsyncs_before_replace(tmp_path: Path, monkeypatch) -> None:
-    fsynced: list[int] = []
-    monkeypatch.setattr(incremental.os, "fsync", lambda descriptor: fsynced.append(descriptor))
+    operations: list[str] = []
+    original_named_temporary_file = incremental.tempfile.NamedTemporaryFile
+    original_replace = incremental.Path.replace
+
+    def tracked_named_temporary_file(*args, **kwargs):
+        handle = original_named_temporary_file(*args, **kwargs)
+        original_flush = handle.flush
+
+        def tracked_flush():
+            operations.append("flush")
+            return original_flush()
+
+        handle.flush = tracked_flush
+        return handle
+
+    def tracked_fsync(descriptor: int) -> None:
+        operations.append("fsync")
+
+    def tracked_replace(source: Path, destination: Path) -> Path:
+        operations.append("replace")
+        return original_replace(source, destination)
+
+    monkeypatch.setattr(incremental.tempfile, "NamedTemporaryFile", tracked_named_temporary_file)
+    monkeypatch.setattr(incremental.os, "fsync", tracked_fsync)
+    monkeypatch.setattr(incremental.Path, "replace", tracked_replace)
     path = tmp_path / "ledger.json"
 
     incremental.save_ledger(path, incremental._fresh_ledger("head-sha"))
 
-    assert fsynced
+    assert operations == ["flush", "fsync", "replace"]
     assert incremental.load_ledger(path, "head-sha")["tested_sha"] == "head-sha"
+
+
+def test_review_intelligence_model_identifier_is_non_secret_configuration() -> None:
+    workflow = (
+        Path(__file__).resolve().parents[1]
+        / ".github/workflows/review-intelligence-proof.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "SERGEANT_CPL_MODEL: ${{ vars.SERGEANT_CPL_MODEL }}" in workflow
+    assert "SERGEANT_CPL_MODEL: ${{ secrets.SERGEANT_CPL_MODEL }}" not in workflow
+
+
+def test_multiline_workflow_detects_python_runner_after_setup_command(tmp_path: Path) -> None:
+    workflow = ".github/workflows/proof.yml"
+    test_path = "tests/test_required.py"
+    _write(tmp_path, "docs/proof.md", f"Assured workflow `{workflow}` must run `{test_path}`.\n")
+    _write(
+        tmp_path,
+        workflow,
+        f"""on:
+  pull_request:
+    paths: ['{test_path}']
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          python -m pip install -e .
+          python -m pytest {test_path}
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, ["docs/proof.md", workflow])
+
+    assert not any(item["root_cause"] == "workflow-proof-contract" for item in result["findings"])
+
+
+def test_workflow_shell_expansion_ignores_comments_and_inert_values(tmp_path: Path) -> None:
+    workflow = ".github/workflows/inert.yml"
+    _write(
+        tmp_path,
+        workflow,
+        """on: workflow_dispatch
+env:
+  DOCUMENTATION_EXAMPLE: '${TOKEN:+command || true}'
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      # ${TOKEN:+command || true}
+      - run: echo safe
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, [workflow])
+
+    assert not any(item["root_cause"] == "workflow-shell-operator-expansion" for item in result["findings"])
+
+
+def test_workflow_contract_associates_each_test_with_its_workflow(tmp_path: Path) -> None:
+    workflow_a = ".github/workflows/a.yml"
+    workflow_b = ".github/workflows/b.yml"
+    test_a = "tests/test_a.py"
+    test_b = "tests/test_b.py"
+    _write(
+        tmp_path,
+        "docs/proof.md",
+        f"`{workflow_a}` assures `{test_a}`.\n`{workflow_b}` assures `{test_b}`.\n",
+    )
+    for workflow, test_path in ((workflow_a, test_a), (workflow_b, test_b)):
+        _write(
+            tmp_path,
+            workflow,
+            f"""on:
+  pull_request:
+    paths: ['{test_path}']
+jobs:
+  proof:
+    runs-on: ubuntu-latest
+    steps:
+      - run: python -m pytest {test_path}
+""",
+        )
+
+    result = run_offline_investigations(
+        tmp_path,
+        ["docs/proof.md", workflow_a, workflow_b, test_a, test_b],
+    )
+
+    assert not any(item["root_cause"] == "workflow-proof-contract" for item in result["findings"])
+
+
+def test_atomic_replace_requires_flush_and_fsync_before_replace(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/ledger.py",
+        """import os
+import tempfile
+
+def save_ledger(path, payload):
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as handle:
+        handle.write(payload)
+        temporary = path.__class__(handle.name)
+    temporary.replace(path)
+    handle.flush()
+    os.fsync(handle.fileno())
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, ["src/ledger.py"])
+
+    assert any(item["root_cause"] == "atomic-replace-durability" for item in result["findings"])
+
+
+def test_python_methods_and_async_functions_are_fully_investigated(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/service.py",
+        """import tempfile
+
+class Store:
+    def save_ledger(self, path, payload):
+        with tempfile.NamedTemporaryFile(mode='w', delete=False) as handle:
+            handle.write(payload)
+            temporary = path.__class__(handle.name)
+        temporary.replace(path)
+
+async def normalize_finding(item):
+    finding = dict(item)
+    finding['severity'] = finding.get('severity')
+    return finding
+
+def status(item):
+    return item.get('severity') in {'blocker', 'major'}
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, ["src/service.py"])
+    roots = {item["root_cause"] for item in result["findings"]}
+
+    assert {"atomic-replace-durability", "severity-canonicalization"} <= roots
+
+
+def test_all_candidate_functions_are_checked_after_clean_predecessors(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/council.py",
+        """def normalize_good(item):
+    finding = dict(item)
+    finding['severity'] = str(finding.get('severity') or 'unknown').lower()
+    return finding
+
+def normalize_bad(item):
+    finding = dict(item)
+    finding['severity'] = finding.get('severity')
+    return finding
+
+def status(item):
+    return item.get('severity') in {'blocker', 'major'}
+
+def build_good_reports(formation_reports, learning, graduation):
+    if formation_reports:
+        reports = list(formation_reports)
+        reports.append({'learning': learning, 'graduation': graduation})
+        return reports
+    return []
+
+def build_bad_reports(formation_reports, learning, graduation):
+    if formation_reports:
+        return list(formation_reports)
+    return [{'learning': learning, 'graduation': graduation}]
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, ["src/council.py"])
+    roots = {item["root_cause"] for item in result["findings"]}
+
+    assert {"severity-canonicalization", "formation-evidence-loss"} <= roots
+
+
+def test_capability_policy_canonicalizes_uppercase_blocker(tmp_path: Path) -> None:
+    _write(tmp_path, "src/app.py", "VALUE = 1\n")
+    packet = normalize_capability_review(
+        {
+            "verdict": "PASS",
+            "changed_files": ["src/app.py"],
+            "findings": [
+                {
+                    "capability": "test_impact",
+                    "severity": "BLOCKER",
+                    "path": "src/app.py",
+                    "line_start": 1,
+                    "message": "Grounded security defect.",
+                    "evidence": "Direct changed-line evidence.",
+                }
+            ],
+        },
+        tmp_path,
+    )
+
+    assert packet["findings"][0]["severity"] == "blocker"
+    assert packet["verdict"] == "BLOCK"
 
 
 def test_uppercase_blocker_controls_verdict_and_duplicate_keeps_admitted_precedence(tmp_path: Path) -> None:
