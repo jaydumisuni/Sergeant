@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from main_review import cloudflare_cli, cloudflare_scout_qualification, llm_provider
-from main_review.cloudflare_gateway import CloudflareGatewaySettings
+from main_review.cloudflare_gateway import CloudflareGatewayError, CloudflareGatewaySettings
 
 
 def _settings(models: tuple[str, ...] = ("@cf/test/model",)) -> CloudflareGatewaySettings:
@@ -20,7 +20,7 @@ def _settings(models: tuple[str, ...] = ("@cf/test/model",)) -> CloudflareGatewa
     )
 
 
-def test_structured_proof_accepts_exact_contract_nested_under_required(
+def test_structured_proof_rejects_echoed_required_instruction(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     model = "@cf/test/model"
@@ -38,7 +38,26 @@ def test_structured_proof_accepts_exact_contract_nested_under_required(
 
     result = cloudflare_cli.test_models(_settings())
 
-    assert result["all_passed"] is True
+    assert result["all_passed"] is False
+
+
+def test_structured_proof_accepts_provider_result_envelope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    model = "@cf/test/model"
+    monkeypatch.setattr(
+        cloudflare_cli,
+        "invoke_json",
+        lambda *args, **kwargs: {
+            "result": {
+                "status": "ready",
+                "model": model,
+                "capabilities": cloudflare_cli.REQUIRED_PROOF_CAPABILITIES,
+            }
+        },
+    )
+
+    assert cloudflare_cli.test_models(_settings())["all_passed"] is True
 
 
 def test_security_coverage_accepts_specific_security_areas() -> None:
@@ -53,12 +72,17 @@ def test_security_coverage_accepts_specific_security_areas() -> None:
     ) is True
 
 
-def test_json_parser_selects_review_object_from_reasoning_text() -> None:
+def test_security_coverage_rejects_ambiguous_substrings() -> None:
+    assert cloudflare_cli._coverage_area_matches("security", {"source mapping"}) is False
+    assert cloudflare_cli._coverage_area_matches("security", {"authoring workflow"}) is False
+
+
+def test_json_parser_selects_final_review_object_from_reasoning_text() -> None:
     text = (
-        'thinking {"example": true} final '
-        '{"verdict":"BLOCK","findings":[],"coverage":{}}'
+        'thinking {"verdict":"BLOCK","findings":[],"coverage":{"note":"verbose example"}} final '
+        '{"verdict":"PASS","findings":[],"coverage":{}}'
     )
-    assert llm_provider._parse_json_text(text)["verdict"] == "BLOCK"
+    assert llm_provider._parse_json_text(text)["verdict"] == "PASS"
 
     payload = {
         "choices": [
@@ -116,3 +140,24 @@ def test_scout_qualification_requires_exact_grounded_facts(
     )
 
     assert result["all_passed"] is True
+
+
+def test_scout_qualification_rejects_paths_outside_root(tmp_path: Path) -> None:
+    root = tmp_path / "repo"
+    root.mkdir()
+    outside = tmp_path / "outside.py"
+    outside.write_text("SECRET = 1\n", encoding="utf-8")
+
+    with pytest.raises(CloudflareGatewayError, match="remain inside"):
+        cloudflare_scout_qualification.qualify_scouts(
+            _settings(),
+            root=root,
+            file="../outside.py",
+        )
+
+    with pytest.raises(CloudflareGatewayError, match="remain inside"):
+        cloudflare_scout_qualification.qualify_scouts(
+            _settings(),
+            root=root,
+            file=str(outside.resolve()),
+        )
