@@ -76,7 +76,8 @@ _MODEL_ID_RE = re.compile(r"@cf/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 _TEST_PATH_RE = re.compile(r"tests/test_[A-Za-z0-9_./-]+\.py")
 _WORKFLOW_PATH_RE = re.compile(r"\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml")
 _QUOTA_FUNCTION_RE = re.compile(
-    r"^def\s+[A-Za-z0-9_]*quota[A-Za-z0-9_]*\s*\([^)]*\)\s*(?:->[^:]+)?\s*:\s*([\s\S]*?)(?=^def\s|\Z)",
+    r"^def\s+[A-Za-z0-9_]*quota[A-Za-z0-9_]*\s*\([^)]*(?:error|exception)[^)]*\)"
+    r"\s*(?:->[^:]+)?\s*:\s*([\s\S]*?)(?=^def\s|\Z)",
     re.I | re.M,
 )
 
@@ -407,7 +408,9 @@ def _generic_quota_429(path: str, text: str) -> list[FieldFinding]:
     if "429" not in text or "quota" not in text.lower():
         return []
     bodies = _QUOTA_FUNCTION_RE.findall(text)
-    candidate = "\n".join(bodies) if bodies else text
+    if not bodies:
+        return []
+    candidate = "\n".join(bodies)
     generic_pattern = r"(?:http\s*)?429|status(?:_code)?\s*==\s*429"
     allocation_pattern = (
         r"4006|daily[_ -]+free[_ -]+allocation|daily[_ -]+allocation[_ -]+is[_ -]+exhausted|"

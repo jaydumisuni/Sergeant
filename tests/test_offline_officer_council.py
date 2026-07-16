@@ -323,6 +323,15 @@ def test_clean_counterparts_do_not_create_offline_findings(tmp_path: Path) -> No
     assert result["findings"] == []
 
 
+def test_investigator_does_not_treat_its_rule_literals_as_quota_behavior(tmp_path: Path) -> None:
+    source = Path("main_review/offline_investigation.py").read_text(encoding="utf-8")
+    _write(tmp_path, "main_review/offline_investigation.py", source)
+
+    result = run_offline_investigations(tmp_path, ["main_review/offline_investigation.py"])
+
+    assert not any(item["root_cause"] == "quota-error-classification" for item in result["findings"])
+
+
 def _formation(
     root: Path,
     changed: list[str],
