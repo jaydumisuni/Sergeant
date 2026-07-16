@@ -1,0 +1,72 @@
+{
+  "schema_version": "sergeant.reviewer-adjudication.v1",
+  "target_sha": "96196c63b2eb09f9036af63ed36c47d21ea70efd",
+  "decisions": [
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-a8ede8d5fb63b062",
+      "status": "confirmed",
+      "reason": "The workflow assurance requires incremental-ledger tests, but the workflow neither triggers on nor runs tests/test_cloudflare_incremental_certification.py."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-c7e8887d32872806",
+      "status": "confirmed",
+      "reason": "The pull-request head is installed and executed in the same job that exposes Cloudflare secrets. Artifact scanning cannot prove PR-controlled code did not access or exfiltrate them."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-fe858210e323061e",
+      "status": "confirmed",
+      "reason": "The final gate trusts payload.passed, which is derived from the configured roster rather than independently enforcing the exact seven required IDs."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-2adddab7b65edf53",
+      "status": "duplicate",
+      "reason": "This documentation comment is the same root trust-boundary defect as reference-c7e8887d32872806."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-484414d0879dd2ee",
+      "status": "confirmed",
+      "reason": "The request itself contains the exact answer under required, and the verifier accepts the returned required object, permitting instruction echo to pass."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-d83f615813900e8a",
+      "status": "confirmed",
+      "reason": "Raw substring checks allow rce to match source and auth to match unrelated words such as authoring, weakening coverage qualification."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-33a209181eae4422",
+      "status": "confirmed",
+      "reason": "budget_blocked has no associated UTC day, so a budget-only pause survives indefinitely instead of clearing on a later day."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-8ba9b18ddafbd0d1",
+      "status": "confirmed",
+      "reason": "The Scout fixture path is read without resolved-root containment, allowing an absolute path or parent traversal to send an out-of-root file to the provider."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-e759d9e156001e28",
+      "status": "confirmed",
+      "reason": "The process-local lock and shared temporary filename do not serialize concurrent CLI, IDE or CI processes using the same usage state."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-394a5dc8654fb0cf",
+      "status": "confirmed",
+      "reason": "Any HTTP 429 is treated as daily allocation exhaustion, so a transient throttle can incorrectly open the circuit until the next UTC day."
+    },
+    {
+      "reviewer": "CodeRabbit",
+      "finding_id": "reference-87eca76b100b5fe9",
+      "status": "confirmed",
+      "reason": "Equal-schema JSON candidates are selected by serialized length rather than final position, so an earlier verbose example can displace the later final answer."
+    }
+  ]
+}
