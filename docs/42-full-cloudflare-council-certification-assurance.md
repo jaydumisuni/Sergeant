@@ -119,6 +119,9 @@ The change is acceptable only when:
 10. tests prove allocation-specific circuit behavior, generic-429 handling, local
     preflight blocking, cross-process accounting, Scout path containment, prompt-
     echo rejection and final structured-answer selection.
+11. `tests/test_coderabbit_rematch_regressions.py` proves the rematch roots and
+    their clean controls, and the certification workflow both triggers on and
+    executes that focused regression module.
 
 The workflow remains incomplete when provider capacity, local budget or protected-
 environment approval blocks it. It must resume from the exact-head ledger.

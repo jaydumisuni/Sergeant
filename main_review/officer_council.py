@@ -72,6 +72,7 @@ def _finding_id(item: dict[str, Any]) -> str:
 
 def _normalize(item: dict[str, Any], source: str) -> dict[str, Any]:
     finding = dict(item)
+    finding["severity"] = _text(finding.get("severity") or "unknown").lower()
     capability = _text(finding.get("capability") or finding.get("category") or "general")
     finding.setdefault("source", source)
     finding.setdefault("capability", capability)
@@ -85,6 +86,23 @@ def _normalize(item: dict[str, Any], source: str) -> dict[str, Any]:
     finding.setdefault("line_end", finding.get("line_start") or finding.get("line"))
     finding["finding_id"] = _finding_id(finding)
     return finding
+
+
+def _canonical_dispositions(
+    admitted: list[dict[str, Any]],
+    advisory: list[dict[str, Any]],
+    rejected: list[dict[str, Any]],
+) -> dict[str, str]:
+    """Return one Judge disposition per canonical finding.
+
+    Source-level duplicates remain available in the raw and rejected evidence,
+    while their canonical identity keeps the strongest adjudicated state.
+    """
+
+    dispositions = {item["finding_id"]: "rejected" for item in rejected}
+    dispositions.update({item["finding_id"]: "advisory" for item in advisory})
+    dispositions.update({item["finding_id"]: "admitted" for item in admitted})
+    return dispositions
 
 
 def _canonical_key(item: dict[str, Any]) -> tuple[str, str, int | None, str]:
@@ -146,7 +164,7 @@ def _adjudicate(
         message = _text(finding.get("message")).lower()
         source = _text(finding.get("source"))
         direct = bool(finding.get("direct_evidence"))
-        generic_risk = message in _GENERIC_RISK_MESSAGES or bool(finding.get("impact_signal"))
+        generic_risk = message in _GENERIC_RISK_MESSAGES or finding.get("admission_hint") == "risk_trigger"
 
         if source == "cpl-model-confirmation":
             finding["admission"] = "confirmation"
@@ -311,10 +329,10 @@ def _officer_reports(
         for item in [*advisory, *rejected]
     ]
     report_by_name["Challenger"]["summary"] = f"Challenger attacked {len(candidates)} candidate claim(s); only {len(admitted)} survived as actionable."
+    dispositions = _canonical_dispositions(admitted, advisory, rejected)
     report_by_name["Judge"]["admission_ledger"] = {
-        "admitted": [item["finding_id"] for item in admitted],
-        "advisory": [item["finding_id"] for item in advisory],
-        "rejected": [item["finding_id"] for item in rejected],
+        state: [finding_id for finding_id, disposition in dispositions.items() if disposition == state]
+        for state in ("admitted", "advisory", "rejected")
     }
     report_by_name["Judge"]["summary"] = "Judge admitted only grounded actionable claims and explicit unresolved assurance obligations."
     report_by_name["Quartermaster"]["capacity"] = {
@@ -348,11 +366,7 @@ def _transactions(
         "finding_id": item["finding_id"],
         "evidence_ref": item.get("evidence_ref"),
     } for item in candidates)
-    disposition = {
-        **{item["finding_id"]: "admitted" for item in admitted},
-        **{item["finding_id"]: "advisory" for item in advisory},
-        **{item["finding_id"]: "rejected" for item in rejected},
-    }
+    disposition = _canonical_dispositions(admitted, advisory, rejected)
     rows.extend({
         "transaction": "claim_adjudicated",
         "sender": "Judge",

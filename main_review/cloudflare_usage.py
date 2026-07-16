@@ -137,7 +137,7 @@ def _interprocess_lock(path: Path) -> Iterator[None]:
             if time.monotonic() >= deadline:
                 raise CloudflareUsageLockTimeout(
                     f"Cloudflare usage state is locked by another process: {lock_path}"
-                )
+                ) from None
             time.sleep(0.05)
     try:
         yield

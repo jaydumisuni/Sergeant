@@ -209,14 +209,32 @@ def build_squad_reports(review_packet: dict[str, Any], evidence_consensus: dict[
     formation = _safe_dict(review_packet.get("officer_council"))
     formation_reports = _safe_list(formation.get("reports"))
     if formation_reports:
-        return [
-            {
+        learning = learning or {}
+        graduation = graduation or {}
+        learning_payload = _safe_dict(learning.get("learning"))
+        learning_candidates = _safe_list(learning_payload.get("candidates"))
+        reports: list[dict[str, object]] = []
+        for item in formation_reports:
+            if not isinstance(item, dict):
+                continue
+            report: dict[str, object] = {
                 **item,
                 "role": item.get("role") or OFFICER_ROLES.get(str(item.get("agent") or ""), "permanent officer"),
             }
-            for item in formation_reports
-            if isinstance(item, dict)
-        ]
+            officer = str(item.get("officer") or item.get("agent") or "").lower()
+            if officer == "archivist":
+                report["learning"] = learning_payload
+                report["learning_candidates"] = learning_candidates
+                report["findings"] = [*_safe_list(item.get("findings")), *learning_candidates][:8]
+            elif officer == "judge":
+                graduation_evidence = {
+                    "verdict": graduation.get("verdict"),
+                    "delta": graduation.get("delta"),
+                }
+                report["graduation"] = graduation
+                report["findings"] = [*_safe_list(item.get("findings")), graduation_evidence][:8]
+            reports.append(report)
+        return reports
 
     capability = _capability_findings(review_packet)
     ranked = _ranked_findings(review_packet)

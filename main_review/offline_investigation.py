@@ -80,6 +80,11 @@ _QUOTA_FUNCTION_RE = re.compile(
     r"\s*(?:->[^:]+)?\s*:\s*([\s\S]*?)(?=^def\s|\Z)",
     re.I | re.M,
 )
+_PYTHON_FUNCTION_RE = re.compile(
+    r"^def\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\([^\n]*\)\s*(?:->[^:]+)?\s*:\s*\n"
+    r"(?P<body>(?:(?:    |\t)[^\n]*(?:\n|\Z))*)",
+    re.M,
+)
 
 
 def _safe_source(root: Path, relative: str) -> tuple[Path | None, str]:
@@ -123,14 +128,136 @@ def _workflow_jobs(text: str) -> list[tuple[str, int, str]]:
     return blocks
 
 
+def _yaml_code(row: str) -> str:
+    return row.split("#", 1)[0].rstrip()
+
+
+def _workflow_trigger_lines(text: str) -> list[str]:
+    lines = text.splitlines()
+    for index, row in enumerate(lines):
+        match = re.match(r'''^(?:on|"on"|'on')\s*:\s*(.*?)\s*$''', _yaml_code(row))
+        if not match:
+            continue
+        inline = match.group(1).strip()
+        if inline:
+            return [inline]
+        block: list[str] = []
+        for candidate in lines[index + 1:]:
+            if candidate.strip() and not candidate.startswith((" ", "\t")):
+                break
+            block.append(candidate)
+        return block
+    return []
+
+
+def _workflow_has_pull_request_trigger(text: str) -> bool:
+    trigger = "\n".join(_yaml_code(row) for row in _workflow_trigger_lines(text))
+    return bool(re.search(r"(?<![A-Za-z0-9_])pull_request(?![A-Za-z0-9_])", trigger))
+
+
+def _clean_yaml_scalar(value: str) -> str:
+    return value.strip().strip(",").strip().strip("'\"")
+
+
+def _pull_request_trigger_paths(text: str) -> set[str]:
+    trigger = _workflow_trigger_lines(text)
+    for index, row in enumerate(trigger):
+        code = _yaml_code(row)
+        match = re.match(r'''^(\s*)(?:pull_request|"pull_request"|'pull_request')\s*:\s*(.*?)\s*$''', code)
+        if not match:
+            continue
+        parent_indent = len(match.group(1))
+        branch: list[str] = []
+        for candidate in trigger[index + 1:]:
+            candidate_code = _yaml_code(candidate)
+            if candidate_code.strip() and len(candidate_code) - len(candidate_code.lstrip()) <= parent_indent:
+                break
+            branch.append(candidate)
+        for path_index, candidate in enumerate(branch):
+            candidate_code = _yaml_code(candidate)
+            paths_match = re.match(r"^(\s*)paths\s*:\s*(.*?)\s*$", candidate_code)
+            if not paths_match:
+                continue
+            inline = paths_match.group(2).strip()
+            if inline.startswith("[") and inline.endswith("]"):
+                return {
+                    scalar
+                    for item in inline[1:-1].split(",")
+                    if (scalar := _clean_yaml_scalar(item)) and not scalar.startswith("!")
+                }
+            paths_indent = len(paths_match.group(1))
+            paths: set[str] = set()
+            for item in branch[path_index + 1:]:
+                item_code = _yaml_code(item)
+                if item_code.strip() and len(item_code) - len(item_code.lstrip()) <= paths_indent:
+                    break
+                list_item = re.match(r"^\s*-\s*(.+?)\s*$", item_code)
+                if list_item:
+                    scalar = _clean_yaml_scalar(list_item.group(1))
+                    if scalar and not scalar.startswith("!"):
+                        paths.add(scalar)
+            return paths
+    return set()
+
+
+def _executed_test_paths(text: str) -> set[str]:
+    lines = text.splitlines()
+    paths: set[str] = set()
+    for index, row in enumerate(lines):
+        match = re.match(r"^(\s*)(?:-\s*)?run\s*:\s*(.*?)\s*$", _yaml_code(row))
+        if not match:
+            continue
+        indent = len(match.group(1))
+        inline = match.group(2).strip()
+        command_lines: list[str] = []
+        if inline and inline not in {"|", ">", "|-", ">-", "|+", ">+"}:
+            command_lines.append(inline)
+        else:
+            for candidate in lines[index + 1:]:
+                candidate_code = _yaml_code(candidate)
+                if candidate_code.strip() and len(candidate_code) - len(candidate_code.lstrip()) <= indent:
+                    break
+                if candidate_code.strip():
+                    command_lines.append(candidate_code.strip())
+        for command in command_lines:
+            paths.update(_TEST_PATH_RE.findall(command))
+    return paths
+
+
+def _workflow_shell_operator_expansion(path: str, text: str) -> list[FieldFinding]:
+    pattern = re.compile(
+        r"\$\{[A-Za-z_][A-Za-z0-9_]*:\+[^}\n]*(?:\|\||&&|(?:^|\s)\d?>)[^}\n]*\}"
+    )
+    match = pattern.search(text)
+    if not match:
+        return []
+    line = _line(text, pattern)
+    return [
+        FieldFinding(
+            "Engineer",
+            "api_contract",
+            "major",
+            "Workflow embeds shell control operators inside conditional parameter expansion.",
+            path,
+            line,
+            "Shell parsing happens before parameter expansion, so redirections and boolean operators produced by ${VAR:+...} become literal command arguments rather than control operators.",
+            "workflow-shell-operator-expansion",
+            0.96,
+            ["Checked for an explicit shell if block.", "Checked whether redirection and fallback operators remain parser-visible."],
+            "Use an explicit if block and keep redirection/fallback operators in ordinary shell syntax.",
+        )
+    ]
+
+
 def _workflow_secret_boundaries(path: str, text: str) -> list[FieldFinding]:
     findings: list[FieldFinding] = []
+    pull_request_trigger = _workflow_has_pull_request_trigger(text)
     for job, start, block in _workflow_jobs(text):
         secret_line = _line(block, re.compile(r"\bsecrets\.|\$\{\{\s*secrets\.", re.I))
         has_secrets = bool(re.search(r"\bsecrets\.|\$\{\{\s*secrets\.", block, re.I))
         checks_out_candidate = "actions/checkout" in block and bool(
             re.search(r"pull_request\.(?:head|merge)|github\.sha|refs/pull", block, re.I)
-            or "ref:" not in block
+            or (pull_request_trigger and "ref:" not in block)
         )
         executes_project = bool(
             re.search(r"pip\s+install\s+-e\s+\.|python\s+-m\s+|pytest\b|\bsergeant-[a-z-]+\b", block, re.I)
@@ -179,9 +306,12 @@ def _workflow_contracts(root: Path, changed: list[str], texts: dict[str, str]) -
             if not workflow:
                 continue
             required_tests = sorted(set(_TEST_PATH_RE.findall(doc)))
+            trigger_paths = _pull_request_trigger_paths(workflow)
+            executed_tests = _executed_test_paths(workflow)
             for test_path in required_tests:
-                occurrences = workflow.count(test_path)
-                if occurrences < 2:
+                triggers_on_test = test_path in trigger_paths
+                executes_test = test_path in executed_tests
+                if not (triggers_on_test and executes_test):
                     findings.append(
                         FieldFinding(
                             "Engineer",
@@ -189,8 +319,8 @@ def _workflow_contracts(root: Path, changed: list[str], texts: dict[str, str]) -
                             "major",
                             "Workflow assurance names a focused regression test that the workflow does not both trigger and execute.",
                             workflow_path,
-                            _line(workflow, test_path) if occurrences else 1,
-                            f"{doc_path} requires {test_path}; the workflow contains it {occurrences} time(s), but both path triggering and focused execution are required.",
+                            _line(workflow, test_path) if test_path in workflow else 1,
+                            f"{doc_path} requires {test_path}; pull-request path trigger={triggers_on_test}, executed test command={executes_test}.",
                             "workflow-proof-contract",
                             0.93,
                             ["Checked the workflow path filter.", "Checked the focused test command."],
@@ -304,12 +434,16 @@ def _instruction_echo(path: str, text: str) -> list[FieldFinding]:
 def _ambiguous_security_markers(path: str, text: str) -> list[FieldFinding]:
     if not re.search(r"security|coverage|marker", text, re.I):
         return []
-    ambiguous = [term for term in ("rce", "auth") if re.search(rf"[\"']{term}[\"']", text, re.I)]
+    marker_patterns = {
+        "rce": re.compile(r'''["']rce["']''', re.I),
+        "auth": re.compile(r'''["']auth["']''', re.I),
+    }
+    ambiguous = [term for term, pattern in marker_patterns.items() if pattern.search(text)]
     raw_substring = bool(re.search(r"\b(?:marker|term|keyword)\s+in\s+\w+|any\s*\([^\n]+\s+in\s+\w+", text, re.I))
     bounded = bool(re.search(r"\\b|fullmatch|finditer|re\.(?:search|compile)", text))
     if not ambiguous or not raw_substring or bounded:
         return []
-    line = min(_line(text, f'"{term}"') for term in ambiguous)
+    line = min(_line(text, marker_patterns[term]) for term in ambiguous)
     return [
         FieldFinding(
             "Medic",
@@ -474,6 +608,165 @@ def _verbose_json_tiebreak(path: str, text: str) -> list[FieldFinding]:
     ]
 
 
+def _atomic_replace_without_fsync(path: str, text: str) -> list[FieldFinding]:
+    for match in _PYTHON_FUNCTION_RE.finditer(text):
+        body = match.group("body")
+        creates_temporary = bool(re.search(r"NamedTemporaryFile|mkstemp", body))
+        writes = bool(re.search(r"\.write\s*\(|write_text\s*\(|json\.dump", body))
+        replaces = bool(re.search(r"(?:os\.)?replace\s*\(|\.replace\s*\(", body))
+        durable = bool(re.search(r"\bos\.fsync\s*\(|\bfsync\s*\(", body))
+        if not (creates_temporary and writes and replaces) or durable:
+            continue
+        line = text[:match.start()].count("\n") + 1
+        return [
+            FieldFinding(
+                "Mechanic",
+                "concurrency",
+                "minor",
+                "Atomic file replacement is not durably flushed before publication.",
+                path,
+                line,
+                f"Function {match.group('name')} writes a temporary file and atomically replaces persistent state without fsync, so a crash can publish an empty or incomplete ledger.",
+                "atomic-replace-durability",
+                0.86,
+                ["Checked for handle.flush().", "Checked for os.fsync() before replace."],
+                "Flush the file object and fsync its descriptor before atomically replacing the destination.",
+            )
+        ]
+    return []
+
+
+def _uncanonicalized_severity(path: str, text: str) -> list[FieldFinding]:
+    downstream_lowercase = bool(
+        re.search(
+            r"(?:item\.get\s*\(\s*[\"']severity[\"']\s*\)|\bseverity\b)\s*"
+            r"(?:==|in)\s*(?:[\"'](?:blocker|major)[\"']|\{[^}]*[\"'](?:blocker|major)[\"'])",
+            text,
+        )
+    )
+    if not downstream_lowercase:
+        return []
+    for match in _PYTHON_FUNCTION_RE.finditer(text):
+        if "normal" not in match.group("name").lower():
+            continue
+        body = match.group("body")
+        if "severity" not in body or not re.search(r"dict\s*\(|copy\s*\(", body):
+            continue
+        canonical = bool(re.search(r"severity[^\n]*(?:\.lower\s*\(|\.casefold\s*\()|(?:\.lower\s*\(|\.casefold\s*\()[^\n]*severity", body))
+        if canonical:
+            return []
+        line = text[:match.start()].count("\n") + 1
+        return [
+            FieldFinding(
+                "Engineer",
+                "api_contract",
+                "blocker",
+                "Finding severity is not canonicalized before lowercase verdict comparisons.",
+                path,
+                line,
+                "The normalization path preserves caller casing while downstream verdict logic recognizes only lowercase blocker/major values, allowing an admitted severe finding to produce PASS.",
+                "severity-canonicalization",
+                0.95,
+                ["Checked for lower()/casefold() in the normalization path.", "Checked downstream blocker/major comparisons."],
+                "Canonicalize stored severity once during normalization and reuse that value for admission, status, actions and verdict.",
+            )
+        ]
+    return []
+
+
+def _overwritten_disposition_precedence(path: str, text: str) -> list[FieldFinding]:
+    assignment = re.search(
+        r"(?:disposition|admission_ledger)\s*=\s*\{(?P<body>[\s\S]{0,1200}?)\n\s*\}",
+        text,
+    )
+    if not assignment:
+        return []
+    body = assignment.group("body")
+    admitted_at = body.find("for item in admitted")
+    rejected_at = body.find("for item in rejected")
+    if admitted_at < 0 or rejected_at < 0 or rejected_at < admitted_at:
+        return []
+    line = text[:assignment.start()].count("\n") + 1
+    return [
+        FieldFinding(
+            "Analyst",
+            "api_contract",
+            "major",
+            "Weaker rejected disposition can overwrite the same canonical admitted finding.",
+            path,
+            line,
+            "The disposition mapping expands admitted identities before rejected identities, so a duplicate source claim with the same canonical ID replaces the stronger Judge decision.",
+            "disposition-precedence",
+            0.93,
+            ["Checked for admitted-over-advisory-over-rejected precedence.", "Checked whether source duplicates can share canonical identity."],
+            "Build one canonical disposition map with rejected first, then advisory, then admitted precedence.",
+        )
+    ]
+
+
+def _benchmark_risk_trigger_predictions(path: str, text: str) -> list[FieldFinding]:
+    if "benchmark" not in Path(path).stem.lower() and "metric" not in Path(path).stem.lower():
+        return []
+    if "advisory_findings" not in text or "risk_trigger" not in text:
+        return []
+    admits_risk = bool(
+        re.search(
+            r"(?:admission[^\n]{0,120}|item\.get\s*\(\s*[\"']admission[\"']\s*\)[^\n]{0,120})"
+            r"(?:in|==)[^\n]{0,120}[\"']risk_trigger[\"']",
+            text,
+        )
+    )
+    if not admits_risk:
+        return []
+    line = _line(text, "risk_trigger")
+    return [
+        FieldFinding(
+            "Judge",
+            "testing",
+            "major",
+            "Benchmark prediction extraction admits a non-gating risk trigger.",
+            path,
+            line,
+            "Risk-trigger evidence is explicitly non-actionable, but the benchmark includes it as a prediction and can corrupt precision, recall and finding counts.",
+            "benchmark-risk-trigger-filter",
+            0.94,
+            ["Checked the Judge admission field rather than message text.", "Checked that ordinary minor advisories remain measurable."],
+            "Benchmark admitted findings and true advisories only; exclude every risk_trigger by disposition.",
+        )
+    ]
+
+
+def _formation_evidence_early_return(path: str, text: str) -> list[FieldFinding]:
+    for match in _PYTHON_FUNCTION_RE.finditer(text):
+        name = match.group("name").lower()
+        if "report" not in name or "build" not in name:
+            continue
+        body = match.group("body")
+        branch = re.search(r"if\s+formation_reports\s*:(?P<branch>[\s\S]*?)(?=\n    \S|\Z)", body)
+        if not branch or "return" not in branch.group("branch"):
+            continue
+        branch_text = branch.group("branch")
+        if "learning" in branch_text and "graduation" in branch_text:
+            return []
+        line = text[:match.start()].count("\n") + 1
+        return [
+            FieldFinding(
+                "Archivist",
+                "api_contract",
+                "major",
+                "Canonical formation reports return before learning and graduation evidence is attached.",
+                path,
+                line,
+                "The canonical report branch exits without consuming the supplied learning and graduation packets, making Archivist and Judge evidence decorative or absent.",
+                "formation-evidence-loss",
+                0.91,
+                ["Checked Archivist learning candidates.", "Checked Judge graduation outcome propagation."],
+                "Enrich canonical Archivist and Judge reports with the supplied evidence before returning.",
+            )
+        ]
+    return []
+
+
 _SOURCE_CHECKS: tuple[Callable[[str, str], list[FieldFinding]], ...] = (
     _instruction_echo,
     _ambiguous_security_markers,
@@ -482,6 +775,11 @@ _SOURCE_CHECKS: tuple[Callable[[str, str], list[FieldFinding]], ...] = (
     _process_local_file_lock,
     _generic_quota_429,
     _verbose_json_tiebreak,
+    _atomic_replace_without_fsync,
+    _uncanonicalized_severity,
+    _overwritten_disposition_precedence,
+    _benchmark_risk_trigger_predictions,
+    _formation_evidence_early_return,
 )
 
 
@@ -492,8 +790,8 @@ def run_offline_investigations(root: str | Path, changed_files: Iterable[str]) -
     readable: list[str] = []
     unavailable: list[str] = []
     for relative in changed:
-        _, text = _safe_source(root_path, relative)
-        if text:
+        source_path, text = _safe_source(root_path, relative)
+        if source_path is not None:
             texts[relative] = text
             readable.append(relative)
         else:
@@ -503,6 +801,7 @@ def run_offline_investigations(root: str | Path, changed_files: Iterable[str]) -
     for path, text in texts.items():
         if path.startswith(".github/workflows/") and Path(path).suffix.lower() in {".yml", ".yaml"}:
             findings.extend(_workflow_secret_boundaries(path, text))
+            findings.extend(_workflow_shell_operator_expansion(path, text))
         is_test = path.startswith(("tests/", "test/")) or Path(path).name.lower().startswith("test_")
         if not is_test and Path(path).suffix.lower() in {".py", ".js", ".ts", ".tsx", ".jsx", ".mjs", ".cjs"}:
             for check in _SOURCE_CHECKS:

@@ -24,12 +24,6 @@ BenchmarkMode = Literal["deterministic", "one-model", "council"]
 CASE_SCHEMA = "sergeant.blind-benchmark.case.v1"
 RESULT_SCHEMA = "sergeant.blind-benchmark.result.v1"
 _ALLOWED_SEVERITIES = {"blocker", "major", "minor"}
-_NON_REPORTABLE_RISK_MESSAGES = {
-    "changed file is in a high-risk path.",
-    "high-risk path detected for review attention.",
-}
-
-
 class ReviewBenchmarkError(ValueError):
     """Raised when a blind benchmark case or mode is invalid."""
 
@@ -158,8 +152,7 @@ def extract_predictions(packet: dict[str, Any]) -> tuple[list[dict[str, Any]], i
             ("officer-council", item)
             for item in formation.get("advisory_findings", [])
             if isinstance(item, dict)
-            and item.get("admission") in {"advisory", "risk_trigger"}
-            and str(item.get("message") or "").strip().lower() not in _NON_REPORTABLE_RISK_MESSAGES
+            and item.get("admission") == "advisory"
         )
     else:
         # Backward-compatible packets created before the permanent-officer

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import tempfile
 from dataclasses import replace
@@ -88,6 +89,8 @@ def save_ledger(path: Path, ledger: dict[str, Any]) -> None:
         delete=False,
     ) as handle:
         handle.write(json.dumps(ledger, indent=2, sort_keys=True) + "\n")
+        handle.flush()
+        os.fsync(handle.fileno())
         temporary = Path(handle.name)
     temporary.replace(path)
 

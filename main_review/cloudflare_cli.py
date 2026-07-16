@@ -159,7 +159,7 @@ def _finding_matches_mission_contract(
 
 
 _SECURITY_COVERAGE_PATTERNS = tuple(
-    re.compile(pattern)
+    re.compile(pattern, re.IGNORECASE)
     for pattern in (
         r"\bsecurity\b",
         r"\binjection\b",
@@ -178,12 +178,13 @@ def _coverage_area_matches(expected_category: str, reviewed_areas: set[str]) -> 
     expected = expected_category.strip().lower()
     if not expected:
         return True
-    if expected in reviewed_areas:
+    normalized = {area.strip().lower() for area in reviewed_areas}
+    if expected in normalized:
         return True
     if expected == "security":
         return any(
             pattern.search(area)
-            for area in reviewed_areas
+            for area in normalized
             for pattern in _SECURITY_COVERAGE_PATTERNS
         )
     return False
