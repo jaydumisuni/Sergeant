@@ -12,8 +12,6 @@ jobs:
   main-review:
     runs-on: ubuntu-latest
     env:
-      # Semantic review remains off in public CI unless the repository owner
-      # explicitly configures a route. Product/IDE default is preferred mode.
       SERGEANT_LLM_ENABLED: ${{ vars.SERGEANT_LLM_ENABLED || 'false' }}
       SERGEANT_LLM_POLICY: ${{ vars.SERGEANT_LLM_POLICY || 'preferred' }}
       SERGEANT_LLM_PROVIDER: ${{ vars.SERGEANT_LLM_PROVIDER || 'auto' }}
@@ -21,7 +19,6 @@ jobs:
       SERGEANT_LLM_MODEL: ${{ vars.SERGEANT_LLM_MODEL }}
       SERGEANT_LLM_PROTOCOL: ${{ vars.SERGEANT_LLM_PROTOCOL || 'auto' }}
       SERGEANT_LLM_COUNCIL: ${{ vars.SERGEANT_LLM_COUNCIL || 'adaptive' }}
-      SERGEANT_LLM_API_KEY: ${{ secrets.SERGEANT_LLM_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

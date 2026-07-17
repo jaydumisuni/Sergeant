@@ -10,7 +10,6 @@ from .cpl_council import (
     agreement,
     assess,
     available_models,
-    finding_key,
     finding_reference,
     findings_match,
     gap_signature,
@@ -28,6 +27,7 @@ from .llm_review import (
     SYSTEM_PROMPT,
     _build_user_prompt,
     _merge_passes,
+    _provider_failure_summary,
     _validate_pass,
     collect_changed_file_excerpts,
     run_cpl_review as run_cpl_review_once,
@@ -65,6 +65,36 @@ def _choose_model(models: list[str], used: set[str], fallback: str, member_limit
     if unused and len(used) < member_limit:
         return unused[0], "new_member"
     return fallback, "role_separated_reuse"
+
+
+def _invoke_follow_up_with_failover(
+    route: LLMRoute,
+    *,
+    system_prompt: str,
+    user_prompt: str,
+) -> tuple[dict[str, Any], LLMRoute, list[str]]:
+    """Preserve the runtime transport seam while rerouting failed council members."""
+
+    failed_models: list[str] = []
+    failures: list[LLMProviderError] = []
+    for model in available_models(route):
+        candidate = replace(route, model=model)
+        try:
+            return (
+                invoke_json(candidate, system_prompt=system_prompt, user_prompt=user_prompt),
+                candidate,
+                failed_models,
+            )
+        except LLMProviderError as error:
+            failed_models.append(model)
+            failures.append(error)
+    summary = _provider_failure_summary(failures)
+    suffix = f" ({summary})" if summary else ""
+    raise LLMProviderError(
+        "No configured Cpl council model completed the follow-up officer pass"
+        f"{suffix}.",
+        failed_models=failed_models,
+    )
 
 
 def _coverage(passes: list[dict[str, Any]], original: dict[str, Any]) -> dict[str, Any]:
@@ -106,6 +136,14 @@ def _normalize_resolution(payload: dict[str, Any], command: dict[str, Any], repo
     }
 
 
+def _verdict_for_findings(findings: list[dict[str, Any]]) -> str:
+    if any(item.get("severity") == "blocker" for item in findings):
+        return "BLOCK"
+    if any(item.get("severity") == "major" for item in findings):
+        return "NEEDS WORK"
+    return "PASS"
+
+
 def _effective_passes(passes: list[dict[str, Any]]) -> list[dict[str, Any]]:
     rejected: list[dict[str, Any]] = []
     for report in passes:
@@ -126,6 +164,7 @@ def _effective_passes(passes: list[dict[str, Any]]) -> list[dict[str, Any]]:
             for finding in report.get("findings", [])
             if not any(findings_match(finding, target) for target in rejected)
         ]
+        clone["verdict"] = _verdict_for_findings(clone["findings"])
         effective.append(clone)
     return effective
 
@@ -254,19 +293,30 @@ def run_cpl_review(
         table = report_table(passes)
         officer_report: dict[str, Any] | None = None
         try:
-            payload = invoke_json(
+            payload, completed_route, failed_models = _invoke_follow_up_with_failover(
                 selected_route,
                 system_prompt=specialist_system_prompt(SYSTEM_PROMPT, assignment),
                 user_prompt=follow_up_prompt(base_prompt, table, command, experience, round_number),
             )
-            officer_report = _validate_pass(payload, files, route=selected_route, assignment=assignment)
+            selected_model = completed_route.model
+            actual_admission = (
+                "new_member"
+                if selected_model not in used and len(used) < member_limit
+                else "role_separated_reuse"
+            )
+            recruited["model"] = selected_model
+            recruited["admission"] = actual_admission
+            recruited["selection_score"] = model_score(selected_model, experience, specialist)
+            if failed_models:
+                recruited["failover_from"] = failed_models
+            officer_report = _validate_pass(payload, files, route=completed_route, assignment=assignment)
             resolution = _normalize_resolution(payload, command, officer_report)
             officer_report.update({
                 "council_round": round_number,
                 "council_member_role": "recruited_gap_specialist",
                 "supported_officer": assignment.officer,
                 "instruction_received": command,
-                "admission": admission,
+                "admission": recruited["admission"],
                 "selection_score": recruited["selection_score"],
                 "council_resolution": resolution,
                 "resolved_gap_signature": resolution.get("gap_signature", []),
@@ -275,6 +325,9 @@ def run_cpl_review(
             passes.append(officer_report)
             used.add(selected_model)
         except LLMProviderError as error:
+            exhausted_models = list(error.failed_models)
+            if exhausted_models:
+                recruited["failover_from"] = exhausted_models
             errors.append(f"council round {round_number} / {specialist}: {error}")
         rounds.append({
             "round": round_number,
