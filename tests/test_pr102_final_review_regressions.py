@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import replace
-
 import pytest
 
 from main_review import cpl_runtime, llm_review
@@ -17,6 +15,20 @@ def route(model: str = "model-a") -> LLMRoute:
         model=model,
         protocol="chat_completions",
         discovered_models=("model-a", "model-b"),
+    )
+
+
+def settings() -> LLMSettings:
+    return LLMSettings(
+        enabled=True,
+        policy="preferred",
+        provider="configured",
+        base_url="http://127.0.0.1:8082/v1",
+        model="model-a",
+        protocol="chat_completions",
+        api_key="",
+        timeout_seconds=1.0,
+        max_output_tokens=256,
     )
 
 
@@ -49,7 +61,10 @@ def test_exhausted_follow_up_preserves_attempted_models(monkeypatch: pytest.Monk
     assert caught.value.failed_models == ("model-a", "model-b")
 
 
-def test_successful_specialist_failover_records_actual_completed_model(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
+def test_successful_specialist_failover_records_actual_completed_model(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path,
+) -> None:
     assignment = SPECIALISTS["security"]
     calls = iter([
         ({}, route("model-a"), []),
@@ -73,22 +88,11 @@ def test_successful_specialist_failover_records_actual_completed_model(monkeypat
             "summary": "ok",
         },
     )
-    synthetic_settings = LLMSettings(
-        enabled=True,
-        policy="preferred",
-        provider="configured",
-        base_url="http://127.0.0.1:8082/v1",
-        model="model-a",
-        protocol="chat_completions",
-        api_key="",
-        timeout_seconds=1.0,
-        max_output_tokens=256,
-    )
     result = llm_review.run_cpl_review(
         tmp_path,
         [],
         {},
-        settings=synthetic_settings,
+        settings=settings(),
         route=route(),
     )
     assert result["reasoning_plan"][0]["model"] == "model-b"
@@ -97,11 +101,3 @@ def test_successful_specialist_failover_records_actual_completed_model(monkeypat
         "failed_models": ["model-a"],
         "completed_by": "model-b",
     }]
-
-
-def test_recruited_failover_recomputes_admission_and_score(monkeypatch: pytest.MonkeyPatch) -> None:
-    used = {"model-a"}
-    completed = "model-b"
-    admission = "new_member" if completed not in used and len(used) < 5 else "role_separated_reuse"
-    assert admission == "new_member"
-    assert cpl_runtime.model_score(completed, {}, "security") == cpl_runtime.model_score("model-b", {}, "security")
