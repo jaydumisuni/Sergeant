@@ -167,7 +167,10 @@ def _adjudicate(
         message = _text(finding.get("message")).lower()
         source = _text(finding.get("source"))
         direct = bool(finding.get("direct_evidence"))
-        generic_risk = message in _GENERIC_RISK_MESSAGES or finding.get("admission_hint") == "risk_trigger"
+        generic_risk = (
+            message in _GENERIC_RISK_MESSAGES
+            and not finding.get("executable_flow_proof")
+        ) or finding.get("admission_hint") == "risk_trigger"
 
         if source == "cpl-model-confirmation":
             finding["admission"] = "confirmation"
