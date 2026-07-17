@@ -9,6 +9,7 @@ from typing import Any, Iterable
 
 from .static_recovery_review import run_static_recovery_review
 from .static_stale_state_review import run_static_stale_state_review
+from .static_transfer_review import run_static_transfer_review
 
 
 def _safe_text(root: Path, relative: str) -> str:
@@ -129,12 +130,18 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         for item in stale_state.get("findings", [])
         if isinstance(item, dict)
     )
+    transfer = run_static_transfer_review(root_path, changed)
+    findings.extend(
+        dict(item)
+        for item in transfer.get("findings", [])
+        if isinstance(item, dict)
+    )
     unique: dict[tuple[str, str], dict[str, Any]] = {}
     for finding in findings:
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-status-review.v3",
+        "schema_version": "sergeant.static-status-review.v4",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -147,5 +154,6 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         },
         "static_recovery_review": recovery,
         "static_stale_state_review": stale_state,
+        "static_transfer_review": transfer,
         "executed_project_code": False,
     }
