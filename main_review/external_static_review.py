@@ -26,6 +26,7 @@ from .review_intelligence import run_review_intelligence
 from .review_scope import scope_repository_review
 from .semantic_scope import semantic_review_files
 from .standard_engine import run_standard_engine
+from .static_invariant_review import run_static_invariant_review
 from .static_semantic_review import run_static_semantic_review
 from .verdict import decide_verdict, review_repository
 
@@ -35,8 +36,6 @@ def _normalize_path(value: object) -> str:
 
 
 def _strict_changed_scope(repository_review: dict[str, Any], changed_files: Iterable[str]) -> dict[str, Any]:
-    """Remove unrelated repository-wide history from an external change gate."""
-
     scoped = scope_repository_review(repository_review, changed_files)
     changed = {_normalize_path(path) for path in changed_files if _normalize_path(path)}
     evidence = dict(scoped.get("evidence") or {})
@@ -67,13 +66,10 @@ def _external_standard(root: Path, changed: list[str]) -> dict[str, Any]:
 
 
 def _snapshot_diff(diff: dict[str, Any]) -> dict[str, Any]:
-    """Remove patch-only proof obligations from a historical code snapshot."""
-
     evidence = dict(diff.get("evidence") or {})
     rows = [dict(item) for item in evidence.get("findings", []) if isinstance(item, dict)]
     rows = [
-        item
-        for item in rows
+        item for item in rows
         if str(item.get("root_cause") or "") != "proof-gap"
         and str(item.get("message") or "").lower() != "implementation changed without changed tests in the same pr."
     ]
@@ -88,8 +84,6 @@ def _snapshot_diff(diff: dict[str, Any]) -> dict[str, Any]:
 
 
 def _calibrated_semantic_findings(semantic: dict[str, Any]) -> list[dict[str, Any]]:
-    """Collapse equivalent roots and reject overly broad publication matches."""
-
     selected: dict[tuple[str, str], tuple[int, dict[str, Any]]] = {}
     for raw in semantic.get("findings", []):
         if not isinstance(raw, dict):
@@ -121,31 +115,23 @@ def _calibrated_semantic_findings(semantic: dict[str, Any]) -> list[dict[str, An
 
 
 def _capability_findings_for_mode(
-    capabilities: dict[str, Any],
-    semantic: dict[str, Any],
-    *,
-    review_mode: str,
+    capabilities: dict[str, Any], semantic: dict[str, Any], invariants: dict[str, Any], *, review_mode: str,
 ) -> list[dict[str, Any]]:
     rows = [dict(item) for item in capabilities.get("findings", []) if isinstance(item, dict)]
     if review_mode == "snapshot":
         rows = [
-            item
-            for item in rows
+            item for item in rows
             if str(item.get("root_cause") or "") != "proof-gap"
             and str(item.get("message") or "").lower() != "implementation changed without changed tests in the same pr."
         ]
     rows.extend(_calibrated_semantic_findings(semantic))
+    rows.extend(dict(item) for item in invariants.get("findings", []) if isinstance(item, dict))
     return rows
 
 
 def run_external_static_review(
-    root: str | Path,
-    changed_files: Iterable[str],
-    *,
-    review_mode: str = "change",
+    root: str | Path, changed_files: Iterable[str], *, review_mode: str = "change",
 ) -> dict[str, Any]:
-    """Run the normal Sergeant formation with an external static-review policy."""
-
     if review_mode not in {"change", "snapshot"}:
         raise ValueError("review_mode must be 'change' or 'snapshot'")
     root_path = Path(root).resolve()
@@ -160,14 +146,19 @@ def run_external_static_review(
         diff = _snapshot_diff(diff)
     standard = _external_standard(root_path, changed)
     capabilities = normalize_capability_review(run_capability_engine(root_path, changed), root_path)
-    semantic = run_static_semantic_review(root_path, semantic_files or changed)
+    analysis_scope = semantic_files or changed
+    semantic = run_static_semantic_review(root_path, analysis_scope)
+    invariants = run_static_invariant_review(root_path, analysis_scope)
     calibrated_semantic = _calibrated_semantic_findings(semantic)
-    capability_findings = _capability_findings_for_mode(capabilities, semantic, review_mode=review_mode)
+    capability_findings = _capability_findings_for_mode(
+        capabilities, semantic, invariants, review_mode=review_mode,
+    )
     capabilities = {
         **capabilities,
         "findings": capability_findings,
         "finding_count": len(capability_findings),
         "static_semantic_review": {**semantic, "admitted_candidate_findings": calibrated_semantic},
+        "static_invariant_review": invariants,
     }
     intelligence = run_review_intelligence({"capability_review": capabilities})
     challenge = run_challenge_mode(repository_review)
@@ -211,13 +202,11 @@ def run_external_static_review(
         cpl=cpl,
     )
     cpl = {**cpl, "coordination_status": "completed", "officer_formation": officer_council}
-    consensus = build_consensus([
-        {
-            "source": "officer-council",
-            "verdict": officer_council.get("verdict"),
-            "evidence": officer_council.get("admitted_findings", []),
-        }
-    ])
+    consensus = build_consensus([{
+        "source": "officer-council",
+        "verdict": officer_council.get("verdict"),
+        "evidence": officer_council.get("admitted_findings", []),
+    }])
     verdict = _decide(repository_review, standard, diff, intelligence, challenge, cpl, consensus, officer_council)
     return {
         "schema_version": "sergeant.external-static-review.v1",
