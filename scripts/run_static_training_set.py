@@ -43,6 +43,7 @@ def _summary(case: dict[str, Any], result: dict[str, Any], elapsed: float) -> di
         "source_pr": case["source_pr"],
         "workspace_policy": case.get("workspace_policy", "static_first"),
         "policy_profile": result.get("policy_profile", "external_static"),
+        "review_mode": result.get("review_mode", "snapshot"),
         "verdict": _verdict_value(result),
         "admitted_finding_count": len(admitted),
         "advisory_finding_count": len(advisory),
@@ -90,7 +91,7 @@ def run_manifest(manifest_path: Path, output_path: Path) -> dict[str, Any]:
             raise ValueError(f"case {case.get('case_id')} has no review scope")
 
         started = time.monotonic()
-        result = run_external_static_review(root, requested_files)
+        result = run_external_static_review(root, requested_files, review_mode="snapshot")
         elapsed = time.monotonic() - started
         full_results.append({"case": case, "result": result})
         summaries.append(_summary(case, result, elapsed))
