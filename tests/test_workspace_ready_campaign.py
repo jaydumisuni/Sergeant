@@ -390,3 +390,76 @@ def test_spoofed_adapter_provenance_is_rejected_as_bounded_failure(tmp_path: Pat
     result = dispatch_authorized_requests(campaign, workspace=SpoofedWorkspace())
     assert result["workspace_results"][0]["status"] == "failed"
     assert result["evidence_packets"] == []
+
+
+def test_research_evidence_rejects_source_outside_request_allowlist(tmp_path: Path) -> None:
+    campaign = _campaign(tmp_path)
+
+    class UnauthorizedSourceResearch:
+        name = "unauthorized-source-research"
+
+        def capabilities(self) -> set[str]:
+            return {"research"}
+
+        def lookup(self, request: dict, task: dict) -> dict:
+            return {
+                "request_id": request["request_id"],
+                "task_id": task["task_id"],
+                "evidence_packet": evidence_packet(
+                    mission_id=task["mission_id"],
+                    task_id=task["task_id"],
+                    worker_id="Research-Unauthorized",
+                    claims=({"claim": "unapproved source checked"},),
+                    evidence_refs=("https://unapproved.invalid/report",),
+                    provenance={
+                        "adapter": self.name,
+                        "observed_at": "2026-07-17T00:00:00Z",
+                        "source": "unapproved_blog",
+                        "retrieved_at": "2026-07-17T00:00:00Z",
+                        "supported_claim": "unapproved source checked",
+                        "freshness": "current",
+                    },
+                    confidence=0.8,
+                ),
+            }
+
+    result = dispatch_authorized_requests(campaign, research=UnauthorizedSourceResearch())
+    assert result["research_results"][0]["status"] == "failed"
+    assert result["evidence_packets"] == []
+
+
+def test_research_evidence_accepts_source_inside_request_allowlist(tmp_path: Path) -> None:
+    campaign = _campaign(tmp_path)
+    allowed_source = campaign["research_requests"][0]["allowed_sources"][0]
+
+    class AuthorizedSourceResearch:
+        name = "authorized-source-research"
+
+        def capabilities(self) -> set[str]:
+            return {"research"}
+
+        def lookup(self, request: dict, task: dict) -> dict:
+            return {
+                "request_id": request["request_id"],
+                "task_id": task["task_id"],
+                "evidence_packet": evidence_packet(
+                    mission_id=task["mission_id"],
+                    task_id=task["task_id"],
+                    worker_id="Research-Authorized",
+                    claims=({"claim": "authorized source checked"},),
+                    evidence_refs=("https://official.invalid/reference",),
+                    provenance={
+                        "adapter": self.name,
+                        "observed_at": "2026-07-17T00:00:00Z",
+                        "source": allowed_source,
+                        "retrieved_at": "2026-07-17T00:00:00Z",
+                        "supported_claim": "authorized source checked",
+                        "freshness": "current",
+                    },
+                    confidence=0.8,
+                ),
+            }
+
+    result = dispatch_authorized_requests(campaign, research=AuthorizedSourceResearch())
+    assert result["research_results"][0].get("status") != "failed"
+    assert len(result["evidence_packets"]) == 1

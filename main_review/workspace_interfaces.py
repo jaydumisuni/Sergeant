@@ -106,6 +106,7 @@ def _validate_result(result: object, request: dict[str, Any], task: dict[str, An
 
 def _validate_adapter_evidence(
     result: dict[str, Any],
+    request: dict[str, Any],
     task: dict[str, Any],
     *,
     adapter_name: str,
@@ -125,6 +126,15 @@ def _validate_adapter_evidence(
         raise ValueError(f"adapter evidence is missing provenance fields: {missing}")
     if provenance.get("adapter") != adapter_name:
         raise ValueError("adapter evidence provenance does not match the executing adapter")
+    if research:
+        allowed_sources = {
+            str(item).strip()
+            for item in request.get("allowed_sources", [])
+            if str(item).strip()
+        }
+        source = str(provenance.get("source") or "").strip()
+        if source not in allowed_sources:
+            raise ValueError("research evidence source is not authorized by the originating request")
     return validate_evidence_packet(packet, task)
 
 
@@ -166,7 +176,13 @@ def dispatch_authorized_requests(
             continue
         try:
             result = _validate_result(workspace.execute(request, task), request, task, workspace.name)
-            packet = _validate_adapter_evidence(result, task, adapter_name=workspace.name, research=False)
+            packet = _validate_adapter_evidence(
+                result,
+                request,
+                task,
+                adapter_name=workspace.name,
+                research=False,
+            )
         except Exception as error:  # one failed request must not cancel independent work
             workspace_results.append(_bounded_failure(request, task, workspace.name, "adapter_execution_or_result_error", error))
             continue
@@ -191,7 +207,13 @@ def dispatch_authorized_requests(
             continue
         try:
             result = _validate_result(research.lookup(request, task), request, task, research.name)
-            packet = _validate_adapter_evidence(result, task, adapter_name=research.name, research=True)
+            packet = _validate_adapter_evidence(
+                result,
+                request,
+                task,
+                adapter_name=research.name,
+                research=True,
+            )
         except Exception as error:  # research failure remains bounded to this request
             research_results.append(_bounded_failure(request, task, research.name, "adapter_execution_or_result_error", error))
             continue

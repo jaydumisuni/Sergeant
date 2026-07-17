@@ -692,3 +692,72 @@ def save(a, b, first, second):
 """)
     result = run_offline_investigations(tmp_path, ["src/two_ledgers.py"])
     assert not any(item["root_cause"] == "atomic-replace-durability" for item in result["findings"])
+
+
+def test_string_replace_is_not_treated_as_atomic_file_publication(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/text.py",
+        """def normalize(value):
+    return value.replace('old', 'new')
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, ["src/text.py"])
+
+    assert not any(item["root_cause"] == "atomic-replace-durability" for item in result["findings"])
+
+
+def test_each_publication_requires_a_fresh_durability_sequence(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/ledger.py",
+        """import os
+import tempfile
+
+
+def publish_twice(first, second, payload):
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as handle:
+        handle.write(payload)
+        handle.flush()
+        os.fsync(handle.fileno())
+        temporary = first.__class__(handle.name)
+    temporary.replace(first)
+    temporary.replace(second)
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, ["src/ledger.py"])
+
+    findings = [item for item in result["findings"] if item["root_cause"] == "atomic-replace-durability"]
+    assert len(findings) == 1
+    assert "temporary" in findings[0]["evidence"]
+
+
+def test_independent_temporary_publications_each_with_own_sequence_are_clean(tmp_path: Path) -> None:
+    _write(
+        tmp_path,
+        "src/ledger.py",
+        """import os
+import tempfile
+
+
+def publish_two(first, second, payload):
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as first_handle:
+        first_handle.write(payload)
+        first_handle.flush()
+        os.fsync(first_handle.fileno())
+        first_temp = first.__class__(first_handle.name)
+    first_temp.replace(first)
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as second_handle:
+        second_handle.write(payload)
+        second_handle.flush()
+        os.fsync(second_handle.fileno())
+        second_temp = second.__class__(second_handle.name)
+    second_temp.replace(second)
+""",
+    )
+
+    result = run_offline_investigations(tmp_path, ["src/ledger.py"])
+
+    assert not any(item["root_cause"] == "atomic-replace-durability" for item in result["findings"])

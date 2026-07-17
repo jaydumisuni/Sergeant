@@ -761,17 +761,45 @@ def _atomic_replace_without_fsync(path: str, text: str) -> list[FieldFinding]:
         ):
             fd_paths[match.group("path")] = match.group("fd")
 
+        path_objects: dict[str, str] = {}
+        for match in re.finditer(
+            r"(?m)^\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+            r"(?:pathlib\.)?Path\s*\(\s*(?P<source>[^)\n]+)\s*\)",
+            body,
+        ):
+            path_objects[match.group("name")] = match.group("source").strip()
+        for match in re.finditer(
+            r"(?m)^\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+            r"[A-Za-z_][A-Za-z0-9_]*\.__class__\s*\(\s*(?P<source>[^)\n]+)\s*\)",
+            body,
+        ):
+            path_objects[match.group("name")] = match.group("source").strip()
+        for match in re.finditer(
+            r"(?m)^\s*(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*"
+            r"(?P<source>[A-Za-z_][A-Za-z0-9_]*\.(?:with_suffix|with_name|resolve|absolute)\s*\([^\n]*\))",
+            body,
+        ):
+            path_objects[match.group("name")] = match.group("source").strip()
+
         replacements: list[tuple[int, str]] = []
-        for match in re.finditer(r"(?:os\.)?replace\s*\(\s*([^,\n]+)\s*,", body):
+        for match in re.finditer(
+            r"(?:\bos\.replace|(?<![.\w])replace)\s*\(\s*([^,\n]+)\s*,",
+            body,
+        ):
             replacements.append((match.start(), match.group(1).strip()))
         for match in re.finditer(r"\b([A-Za-z_][A-Za-z0-9_]*)\.replace\s*\(", body):
-            replacements.append((match.start(), match.group(1)))
+            receiver = match.group(1)
+            if receiver in path_objects:
+                replacements.append((match.start(), receiver))
         if not replacements:
             continue
 
         non_durable: list[str] = []
+        last_replace_by_identity: dict[str, int] = {}
         for replace_pos, source in sorted(replacements):
             normalized = source.strip()
+            if normalized in path_objects:
+                normalized = path_objects[normalized]
             handle: str | None = None
             if normalized in aliases:
                 handle = aliases[normalized]
@@ -781,6 +809,8 @@ def _atomic_replace_without_fsync(path: str, text: str) -> list[FieldFinding]:
                 handle = normalized
 
             if handle is not None:
+                identity = f"handle:{handle}"
+                boundary = last_replace_by_identity.get(identity, -1)
                 write_positions = [
                     match.start()
                     for match in re.finditer(rf"\b{re.escape(handle)}\.write\s*\(", body)
@@ -804,13 +834,15 @@ def _atomic_replace_without_fsync(path: str, text: str) -> list[FieldFinding]:
                     )
                 ]
                 durable = any(
-                    write < flush < fsync < replace_pos
+                    boundary < write < flush < fsync < replace_pos
                     for write in write_positions
                     for flush in flush_positions
                     for fsync in fsync_positions
                 )
             elif normalized in fd_paths:
                 fd = fd_paths[normalized]
+                identity = f"fd:{fd}"
+                boundary = last_replace_by_identity.get(identity, -1)
                 writes = [
                     match.start()
                     for match in re.finditer(rf"\bos\.write\s*\(\s*{re.escape(fd)}\s*,", body)
@@ -819,10 +851,16 @@ def _atomic_replace_without_fsync(path: str, text: str) -> list[FieldFinding]:
                     match.start()
                     for match in re.finditer(rf"\bos\.fsync\s*\(\s*{re.escape(fd)}\s*\)", body)
                 ]
-                durable = any(write < fsync < replace_pos for write in writes for fsync in fsyncs)
+                durable = any(
+                    boundary < write < fsync < replace_pos
+                    for write in writes
+                    for fsync in fsyncs
+                )
             else:
+                identity = f"source:{normalized}"
                 durable = False
 
+            last_replace_by_identity[identity] = replace_pos
             if not durable:
                 non_durable.append(source)
 
