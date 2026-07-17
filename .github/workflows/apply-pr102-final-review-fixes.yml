@@ -34,12 +34,24 @@ jobs:
       - name: Apply product and regression corrections
         run: python scripts/apply_pr102_final_review_fixes.py
       - name: Run focused proof
+        shell: bash
         run: |
+          set +e
           python -m pytest \
             tests/test_pr102_final_review_regressions.py \
             tests/test_cpl_noise_governor.py \
             tests/test_coderabbit_rematch_regressions.py \
-            -q
+            -q > focused-proof.log 2>&1
+          status=$?
+          cat focused-proof.log
+          exit $status
+      - name: Upload focused proof output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr102-final-review-focused-proof
+          path: focused-proof.log
+          if-no-files-found: error
       - name: Commit corrected product head
         run: |
           git config user.name "github-actions[bot]"
