@@ -28,7 +28,9 @@ jobs:
           persist-credentials: false
 
       - name: Apply one-time static review integration
-        run: python scripts/apply_review_finish_patch.py
+        run: |
+          python scripts/apply_review_finish_patch.py
+          python scripts/apply_last_coderabbit_fix.py
 
       - name: Commit integrated static review capabilities
         env:
