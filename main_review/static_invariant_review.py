@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .static_cross_path_review import run_static_cross_path_review
+from .static_status_review import run_static_status_review
 
 _SOURCE_SUFFIXES = {".py", ".go", ".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".hxx"}
 
@@ -263,6 +264,8 @@ def run_static_invariant_review(root: str | Path, changed_files: Iterable[str]) 
             findings.extend(_cpp_end_bound_dereference(path, text))
     cross_path = run_static_cross_path_review(root_path, changed)
     findings.extend(dict(item) for item in cross_path.get("findings", []) if isinstance(item, dict))
+    status_review = run_static_status_review(root_path, changed)
+    findings.extend(dict(item) for item in status_review.get("findings", []) if isinstance(item, dict))
     unique: dict[tuple[str, str, int], dict[str, Any]] = {}
     for finding in findings:
         unique[(str(finding["root_cause"]), str(finding["path"]), int(finding["line_start"]))] = finding
@@ -273,5 +276,6 @@ def run_static_invariant_review(root: str | Path, changed_files: Iterable[str]) 
         "findings": list(unique.values()),
         "readable_changed_files": readable,
         "static_cross_path_review": cross_path,
+        "static_status_review": status_review,
         "executed_project_code": False,
     }
