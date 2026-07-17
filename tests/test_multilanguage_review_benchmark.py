@@ -34,8 +34,43 @@ def test_model_free_multilanguage_suite_is_exact() -> None:
         minimum_precision=1.0,
         minimum_recall=1.0,
     )
+    failures = [
+        {
+            "id": case["case_id"],
+            "expected_verdict": case["expected_verdict"],
+            "actual_verdict": case["actual_verdict"],
+            "tp": case["true_positive_count"],
+            "fp": case["false_positive_count"],
+            "fn": case["false_negative_count"],
+            "false_positives": [
+                {
+                    "category": item.get("category"),
+                    "root": item.get("root_cause"),
+                    "message": item.get("message"),
+                }
+                for item in case["false_positive_candidates"]
+            ],
+            "missed": [
+                {
+                    "id": item.get("id"),
+                    "category": item.get("category"),
+                    "root": item.get("root_cause"),
+                }
+                for item in case["missed_expected_findings"]
+            ],
+        }
+        for case in result["cases"]
+        if not case["verdict_correct"]
+        or case["false_positive_count"]
+        or case["false_negative_count"]
+    ]
 
-    assert result["passed"] is True, result
+    assert result["passed"] is True, {
+        "precision": result["precision"],
+        "recall": result["recall"],
+        "verdict_accuracy": result["verdict_accuracy"],
+        "failures": failures,
+    }
     assert result["case_count"] == 12
     assert result["expected_finding_count"] == 9
     assert result["true_positive_count"] == 9
