@@ -1,0 +1,290 @@
+name: Remaining Five Cloudflare Council Certification
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/cloudflare-remaining-five-certification.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: cloudflare-remaining-five-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  SERGEANT_BASELINE_SHA: '3c6be1f063ac0f21f5519041b0f564bc59735833'
+
+jobs:
+  validate-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact certification head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable Sergeant baseline and workflow-only scope
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_BASE_SHA" = "$SERGEANT_BASELINE_SHA"
+          mapfile -t changed < <(git diff --name-only "$EVENT_BASE_SHA" "$EVENT_HEAD_SHA")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = '.github/workflows/cloudflare-remaining-five-certification.yml'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install and prove the existing incremental examiner without secrets
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+          python -m pytest -q \
+            tests/test_cloudflare_full_roster_qualification.py \
+            tests/test_cloudflare_incremental_certification.py \
+            tests/test_cloudflare_mission_qualification.py \
+            tests/test_cloudflare_usage_governor.py
+
+  certify-remaining-five:
+    needs: validate-candidate
+    if: ${{ vars.SERGEANT_CLOUDFLARE_LIVE_CERTIFICATION_ENABLED == 'true' }}
+    environment: sergeant-cloudflare-certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      SERGEANT_CPL_ENABLED: 'true'
+      SERGEANT_CPL_POLICY: required
+      SERGEANT_CPL_PROVIDER: cloudflare
+      SERGEANT_CPL_DEPTH: maximum
+      SERGEANT_CPL_MAX_INPUT_CHARS: '16000'
+      SERGEANT_CLOUDFLARE_TIMEOUT_SECONDS: '90'
+      SERGEANT_CLOUDFLARE_USAGE_STATE: build/cloudflare-usage-state.json
+      SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS || '10000' }}
+      SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS || '2500' }}
+      SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS || '2500' }}
+    steps:
+      - name: Checkout exact certification head without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the approved Sergeant examiner before secret-bearing steps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Restore resumable ledger and today's shared usage state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build /tmp/remaining-five /tmp/battle-usage
+
+          latest_artifact() {
+            local name="$1"
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=${name}&per_page=100" \
+              --jq '.artifacts | map(select(.expired == false)) | sort_by(.created_at) | reverse | .[0].id // empty' \
+              2>/dev/null || true
+          }
+
+          ledger_artifact="$(latest_artifact cloudflare-remaining-five-ledger)"
+          if [ -n "$ledger_artifact" ]; then
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ledger_artifact}/zip" > /tmp/remaining-five.zip
+            unzip -o /tmp/remaining-five.zip -d /tmp/remaining-five >/dev/null
+            [ ! -f /tmp/remaining-five/remaining-five-ledger.json ] || cp /tmp/remaining-five/remaining-five-ledger.json build/remaining-five-ledger.json
+            [ ! -f /tmp/remaining-five/cloudflare-usage-state.json ] || cp /tmp/remaining-five/cloudflare-usage-state.json build/cloudflare-usage-state.json
+          fi
+
+          if [ ! -f build/cloudflare-usage-state.json ]; then
+            battle_artifact="$(latest_artifact model-assisted-battle-round-1)"
+            if [ -n "$battle_artifact" ]; then
+              gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${battle_artifact}/zip" > /tmp/battle-usage.zip
+              unzip -o /tmp/battle-usage.zip -d /tmp/battle-usage >/dev/null
+              [ ! -f /tmp/battle-usage/model-assisted-cloudflare-usage-state.json ] || cp /tmp/battle-usage/model-assisted-cloudflare-usage-state.json build/cloudflare-usage-state.json
+            fi
+          fi
+
+      - name: Create fixed role-mission fixtures
+        run: |
+          mkdir -p build/remaining-five-fixture/src
+          cat > build/remaining-five-fixture/src/auth.py <<'PY'
+          import subprocess
+
+          def run_user_command(request):
+              command = request.args.get("command")
+              return subprocess.run(command, shell=True)
+          PY
+          cat > build/remaining-five-fixture/src/scout.py <<'PY'
+          RETRY_LIMIT = 3
+          TIMEOUT_SECONDS = 15
+          SUPPORTED_LANGUAGES = ["python", "javascript"]
+          PY
+
+      - name: Certify only missing candidates, cheapest first
+        id: incremental
+        env:
+          SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+          SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          from main_review.cloudflare_gateway import CloudflareGatewaySettings
+          from main_review.cloudflare_incremental_certification import (
+              CERTIFICATION_SCHEMA,
+              CONTRACT_VERSION,
+              certify_incrementally,
+          )
+
+          tested_sha = os.environ["SERGEANT_BASELINE_SHA"]
+          root = Path("build/remaining-five-fixture")
+          ledger = Path("build/remaining-five-ledger.json")
+          order = [
+              "@cf/ibm-granite/granite-4.0-h-micro",
+              "@cf/zai-org/glm-4.7-flash",
+              "@cf/qwen/qwen2.5-coder-32b-instruct",
+              "@cf/openai/gpt-oss-120b",
+              "@cf/moonshotai/kimi-k2.7-code",
+          ]
+          run_summaries: list[dict[str, object]] = []
+          stopped_reason = ""
+
+          for index, model in enumerate(order, start=1):
+              os.environ["SERGEANT_CLOUDFLARE_MODELS"] = model
+              summary = certify_incrementally(
+                  CloudflareGatewaySettings.from_environment(),
+                  root=root,
+                  auth_file="src/auth.py",
+                  scout_file="src/scout.py",
+                  tested_sha=tested_sha,
+                  ledger_path=ledger,
+              )
+              summary_path = Path(f"build/remaining-five-member-{index}.json")
+              summary_path.write_text(
+                  json.dumps(summary, indent=2, sort_keys=True) + "\n",
+                  encoding="utf-8",
+              )
+              run_summaries.append(summary)
+              if summary.get("quota_blocked"):
+                  stopped_reason = "quota_blocked_until_next_utc_day"
+                  break
+              if summary.get("budget_blocked"):
+                  stopped_reason = "local_budget_blocked"
+                  break
+
+          ledger_payload = json.loads(ledger.read_text(encoding="utf-8"))
+          members = ledger_payload.get("members", {})
+          certified = [
+              model for model in order
+              if isinstance(members.get(model), dict)
+              and members[model].get("status") == "certified"
+          ]
+          aggregate = {
+              "schema_version": CERTIFICATION_SCHEMA,
+              "contract_version": CONTRACT_VERSION,
+              "tested_sha": tested_sha,
+              "expected_models": order,
+              "certified_models": certified,
+              "pending_models": [model for model in order if model not in certified],
+              "certified_member_count": len(certified),
+              "expected_member_count": len(order),
+              "passed": len(certified) == len(order),
+              "stopped_reason": stopped_reason,
+              "quota_blocked": any(bool(item.get("quota_blocked")) for item in run_summaries),
+              "budget_blocked": any(bool(item.get("budget_blocked")) for item in run_summaries),
+              "runs": run_summaries,
+              "members": [members.get(model, {"model": model, "status": "pending"}) for model in order],
+          }
+          Path("build/remaining-five-certification-summary.json").write_text(
+              json.dumps(aggregate, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Verify credentials are absent from all evidence
+        id: credential_scan
+        if: always()
+        env:
+          SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+          SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          values = [
+              os.getenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", ""),
+              os.getenv("SERGEANT_CLOUDFLARE_API_TOKEN", ""),
+          ]
+          artifacts = list(Path("build").glob("remaining-five-*.json"))
+          artifacts.extend(Path("build").glob("cloudflare-usage-state.json"))
+          assert artifacts, "No certification evidence was produced."
+          for path in artifacts:
+              text = path.read_text(encoding="utf-8", errors="replace")
+              for value in values:
+                  if value:
+                      assert value not in text, f"Configured provider value appeared in {path}"
+          PY
+
+      - name: Upload resumable ledger after this attempt
+        if: always() && steps.credential_scan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-remaining-five-ledger
+          path: |
+            build/remaining-five-ledger.json
+            build/cloudflare-usage-state.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Upload candidate certification evidence
+        if: always() && steps.credential_scan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-remaining-five-certification
+          path: |
+            build/remaining-five-certification-summary.json
+            build/remaining-five-member-*.json
+            build/remaining-five-ledger.json
+            build/cloudflare-usage-state.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce completed five-member certification or honest pause
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("build/remaining-five-certification-summary.json").read_text(encoding="utf-8"))
+          if payload.get("quota_blocked"):
+              raise SystemExit("Certification stopped after the first Cloudflare quota signal; completed members were preserved.")
+          if payload.get("budget_blocked"):
+              raise SystemExit("Certification stopped before further inference by the local neuron governor; completed members were preserved.")
+          assert payload.get("passed") is True, "One or more remaining candidates did not certify."
+          assert payload.get("certified_member_count") == 5
+          PY
