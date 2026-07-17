@@ -1,0 +1,294 @@
+name: Model-Assisted Sergeant Battle Round 1
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/model-assisted-battle-round-1.yml'
+      - 'battlefield/model-assisted-core-round-1/**'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: model-assisted-battle-round-1-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  validate-locked-target:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact battle head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact battle scope and record target integrity
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" | sort > build/actual-battle-files.txt
+          cat > build/expected-battle-files.txt <<'EOF'
+          .github/workflows/model-assisted-battle-round-1.yml
+          battlefield/model-assisted-core-round-1/app/src/main/java/com/almothafar/simplebatterynotifier/receiver/BatteryLevelReceiver.java
+          battlefield/model-assisted-core-round-1/app/src/main/java/com/almothafar/simplebatterynotifier/receiver/PowerConnectionReceiver.java
+          EOF
+          sort -o build/expected-battle-files.txt build/expected-battle-files.txt
+          diff -u build/expected-battle-files.txt build/actual-battle-files.txt
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          paths = [
+              Path('battlefield/model-assisted-core-round-1/app/src/main/java/com/almothafar/simplebatterynotifier/receiver/BatteryLevelReceiver.java'),
+              Path('battlefield/model-assisted-core-round-1/app/src/main/java/com/almothafar/simplebatterynotifier/receiver/PowerConnectionReceiver.java'),
+          ]
+          payload = {
+              'base_sha': os.environ['BASE_SHA'],
+              'head_sha': os.environ['HEAD_SHA'],
+              'files': [
+                  {
+                      'path': path.as_posix(),
+                      'sha256': hashlib.sha256(path.read_bytes()).hexdigest(),
+                      'size_bytes': path.stat().st_size,
+                  }
+                  for path in paths
+              ],
+          }
+          Path('build/model-assisted-target-integrity.json').write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+  run-certified-two-model-council:
+    needs: validate-locked-target
+    environment: sergeant-cloudflare-certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      SERGEANT_CPL_ENABLED: 'true'
+      SERGEANT_CPL_POLICY: required
+      SERGEANT_CPL_PROVIDER: cloudflare
+      SERGEANT_CLOUDFLARE_MODELS: '@cf/qwen/qwen3-30b-a3b-fp8,@cf/openai/gpt-oss-20b'
+      SERGEANT_CPL_DEPTH: maximum
+      SERGEANT_CPL_MAX_PASSES: '6'
+      SERGEANT_CPL_MAX_COUNCIL_MEMBERS: '2'
+      SERGEANT_CPL_MAX_ROUNDS: '3'
+      SERGEANT_CPL_MAX_INPUT_CHARS: '16000'
+      SERGEANT_CLOUDFLARE_TIMEOUT_SECONDS: '90'
+      SERGEANT_CLOUDFLARE_USAGE_STATE: build/model-assisted-cloudflare-usage-state.json
+      SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS || '10000' }}
+      SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS || '2500' }}
+      SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS || '2500' }}
+    steps:
+      - name: Checkout exact battle head without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Sergeant from the exact candidate
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Prepare immutable review scope
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          printf '%s\n' "$HEAD_SHA" > build/model-assisted-tested-sha.txt
+          cat > build/model-assisted-files.txt <<'EOF'
+          app/src/main/java/com/almothafar/simplebatterynotifier/receiver/BatteryLevelReceiver.java
+          app/src/main/java/com/almothafar/simplebatterynotifier/receiver/PowerConnectionReceiver.java
+          EOF
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path('battlefield/model-assisted-core-round-1')
+          relative = [
+              Path('app/src/main/java/com/almothafar/simplebatterynotifier/receiver/BatteryLevelReceiver.java'),
+              Path('app/src/main/java/com/almothafar/simplebatterynotifier/receiver/PowerConnectionReceiver.java'),
+          ]
+          payload = {
+              'base_sha': os.environ['BASE_SHA'],
+              'head_sha': os.environ['HEAD_SHA'],
+              'models_configured': [
+                  '@cf/qwen/qwen3-30b-a3b-fp8',
+                  '@cf/openai/gpt-oss-20b',
+              ],
+              'workspace_evidence': False,
+              'files': [
+                  {
+                      'path': path.as_posix(),
+                      'sha256': hashlib.sha256((root / path).read_bytes()).hexdigest(),
+                      'size_bytes': (root / path).stat().st_size,
+                  }
+                  for path in relative
+              ],
+          }
+          Path('build/model-assisted-target-integrity.json').write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Run the certified two-model Cpl formation
+        id: council
+        env:
+          SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+          SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+        run: |
+          set +e
+          sergeant cpl-status --require --pretty \
+            > build/model-assisted-cpl-status.json \
+            2> build/model-assisted-cpl-status.stderr
+          status_code=$?
+
+          sergeant pr-review battlefield/model-assisted-core-round-1 \
+            --file-list build/model-assisted-files.txt \
+            --pretty \
+            > build/model-assisted-review.json \
+            2> build/model-assisted-review.stderr
+          review_code=$?
+          set -e
+
+          printf '%s\n' "$status_code" > build/model-assisted-status-exit-code.txt
+          printf '%s\n' "$review_code" > build/model-assisted-review-exit-code.txt
+          echo "status_exit_code=$status_code" >> "$GITHUB_OUTPUT"
+          echo "review_exit_code=$review_code" >> "$GITHUB_OUTPUT"
+
+      - name: Build credential-safe battle summary
+        if: always()
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          review_path = Path('build/model-assisted-review.json')
+          payload = json.loads(review_path.read_text(encoding='utf-8')) if review_path.exists() and review_path.stat().st_size else {}
+          cpl = payload.get('cpl_review', {}) if isinstance(payload, dict) else {}
+          council = cpl.get('council', {}) if isinstance(cpl, dict) else {}
+          passes = cpl.get('passes', []) if isinstance(cpl, dict) else []
+          models_used = sorted({
+              str(item.get('model'))
+              for item in passes
+              if isinstance(item, dict) and str(item.get('model') or '').strip()
+          })
+          summary = {
+              'schema_version': 1,
+              'tested_sha': os.environ['HEAD_SHA'],
+              'mode': 'learned_sergeant_plus_two_certified_models',
+              'workspace_used': False,
+              'configured_models': [
+                  '@cf/qwen/qwen3-30b-a3b-fp8',
+                  '@cf/openai/gpt-oss-20b',
+              ],
+              'models_used': models_used,
+              'model_call_passes': len(passes),
+              'sergeant_verdict': (payload.get('verdict') or {}).get('verdict') if isinstance(payload, dict) else None,
+              'sergeant_required_actions': len((payload.get('verdict') or {}).get('required_actions', [])) if isinstance(payload, dict) else 0,
+              'cpl_status': cpl.get('status'),
+              'cpl_verdict': cpl.get('decision_verdict', cpl.get('verdict')),
+              'cpl_findings': len(cpl.get('decision_findings', cpl.get('findings', []))) if isinstance(cpl, dict) else 0,
+              'council_mode': council.get('mode'),
+              'council_member_count': council.get('member_count'),
+              'true_model_independence': council.get('true_model_independence'),
+              'council_complete': council.get('complete'),
+              'final_gap_count': len(council.get('final_gaps', [])) if isinstance(council, dict) else 0,
+              'provider_error_count': len(cpl.get('errors', [])) if isinstance(cpl, dict) else 0,
+              'status_exit_code': int(Path('build/model-assisted-status-exit-code.txt').read_text().strip()) if Path('build/model-assisted-status-exit-code.txt').exists() else None,
+              'review_exit_code': int(Path('build/model-assisted-review-exit-code.txt').read_text().strip()) if Path('build/model-assisted-review-exit-code.txt').exists() else None,
+          }
+          Path('build/model-assisted-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Verify configured credentials are absent from evidence
+        id: credential_scan
+        if: always()
+        env:
+          SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+          SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          values = [
+              os.getenv('SERGEANT_CLOUDFLARE_ACCOUNT_ID', ''),
+              os.getenv('SERGEANT_CLOUDFLARE_API_TOKEN', ''),
+          ]
+          artifacts = [path for path in Path('build').glob('model-assisted-*') if path.is_file()]
+          assert artifacts, 'No battle evidence was produced.'
+          for path in artifacts:
+              text = path.read_text(encoding='utf-8', errors='replace')
+              for value in values:
+                  if value:
+                      assert value not in text, f'Configured provider value appeared in {path}'
+          PY
+
+      - name: Upload frozen model-assisted evidence
+        if: always() && steps.credential_scan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-assisted-battle-round-1
+          path: |
+            build/model-assisted-tested-sha.txt
+            build/model-assisted-target-integrity.json
+            build/model-assisted-cpl-status.json
+            build/model-assisted-cpl-status.stderr
+            build/model-assisted-review.json
+            build/model-assisted-review.stderr
+            build/model-assisted-status-exit-code.txt
+            build/model-assisted-review-exit-code.txt
+            build/model-assisted-summary.json
+            build/model-assisted-cloudflare-usage-state.json
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Enforce a genuine two-model battle run
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(Path('build/model-assisted-summary.json').read_text(encoding='utf-8'))
+          required = {
+              '@cf/qwen/qwen3-30b-a3b-fp8',
+              '@cf/openai/gpt-oss-20b',
+          }
+          assert summary['status_exit_code'] == 0, 'The configured Cpl route was not ready.'
+          assert summary['cpl_status'] in {'completed', 'completed_with_warnings'}, 'Cpl did not complete the battle review.'
+          assert set(summary['models_used']) == required, 'Both previously certified models did not complete passes.'
+          assert summary['council_member_count'] == 2, 'The battle did not use exactly two distinct council members.'
+          assert summary['true_model_independence'] is True, 'True two-model independence was not achieved.'
+          PY
