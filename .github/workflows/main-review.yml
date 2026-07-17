@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           git config user.name "sergeant-review-constructor"
           git config user.email "sergeant-review-constructor@users.noreply.github.com"
-          git add main_review/static_invariant_review.py main_review/offline_investigation.py
+          git add main_review/static_invariant_review.py main_review/offline_investigation.py main_review/capability_policy.py main_review/officer_council.py
           if git diff --cached --quiet; then
             echo "Static review integration already applied."
           else
