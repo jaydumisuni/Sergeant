@@ -29,6 +29,25 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Repair constructor quote boundary
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/apply_workspace_rematch_round2_fixes.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              "    '''from __future__ import annotations",
+              '    """from __future__ import annotations',
+              1,
+          )
+          text = text.replace(
+              "\n    ''',\n    encoding=\"utf-8\",\n)",
+              '\n    """,\n    encoding="utf-8",\n)',
+              1,
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Apply verified rematch fixes
         run: python scripts/apply_workspace_rematch_round2_fixes.py
 
