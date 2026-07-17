@@ -2,6 +2,11 @@ name: Blind Static Training
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/blind-static-training.yml"
+      - "scripts/run_static_training_set.py"
+      - "review-training/unseen-development-set-1.json"
 
 permissions:
   contents: read
@@ -79,6 +84,7 @@ jobs:
 
       - name: Run Sergeant first without models or workspace
         run: |
+          mkdir -p build/static-training
           python scripts/run_static_training_set.py \
             review-training/unseen-development-set-1.json \
             --output build/static-training/unseen-development-set-1.json \
