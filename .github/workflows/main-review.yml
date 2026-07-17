@@ -19,7 +19,6 @@ jobs:
       SERGEANT_LLM_MODEL: ${{ vars.SERGEANT_LLM_MODEL }}
       SERGEANT_LLM_PROTOCOL: ${{ vars.SERGEANT_LLM_PROTOCOL || 'auto' }}
       SERGEANT_LLM_COUNCIL: ${{ vars.SERGEANT_LLM_COUNCIL || 'adaptive' }}
-      SERGEANT_LLM_API_KEY: ${{ secrets.SERGEANT_LLM_API_KEY }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
