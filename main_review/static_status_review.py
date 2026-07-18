@@ -7,6 +7,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any, Iterable
 
+from .static_async_lifecycle_review import run_static_async_lifecycle_review
 from .static_core_contract_review import run_static_core_contract_review
 from .static_recovery_review import run_static_recovery_review
 from .static_stale_state_review import run_static_stale_state_review
@@ -143,12 +144,18 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         for item in core_contract.get("findings", [])
         if isinstance(item, dict)
     )
+    async_lifecycle = run_static_async_lifecycle_review(root_path, changed)
+    findings.extend(
+        dict(item)
+        for item in async_lifecycle.get("findings", [])
+        if isinstance(item, dict)
+    )
     unique: dict[tuple[str, str], dict[str, Any]] = {}
     for finding in findings:
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-status-review.v5",
+        "schema_version": "sergeant.static-status-review.v6",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -163,5 +170,6 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         "static_stale_state_review": stale_state,
         "static_transfer_review": transfer,
         "static_core_contract_review": core_contract,
+        "static_async_lifecycle_review": async_lifecycle,
         "executed_project_code": False,
     }
