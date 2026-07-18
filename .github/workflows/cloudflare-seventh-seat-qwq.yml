@@ -1,0 +1,340 @@
+name: Cloudflare Seventh-Seat QwQ Qualification
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/cloudflare-seventh-seat-qwq.yml'
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: cloudflare-seventh-seat-qwq-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  SERGEANT_BASELINE_SHA: '3c6be1f063ac0f21f5519041b0f564bc59735833'
+  SERGEANT_QWQ_MODEL: '@cf/qwen/qwq-32b'
+
+jobs:
+  validate-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact qualification head without credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify immutable Sergeant baseline and workflow-only scope
+        env:
+          EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          EVENT_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          test "$EVENT_BASE_SHA" = "$SERGEANT_BASELINE_SHA"
+          mapfile -t changed < <(git diff --name-only "$EVENT_BASE_SHA" "$EVENT_HEAD_SHA")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = '.github/workflows/cloudflare-seventh-seat-qwq.yml'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Prove provider and quota machinery without secrets
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+          python -m pytest -q \
+            tests/test_cloudflare_mission_qualification.py \
+            tests/test_cloudflare_usage_governor.py
+
+  qualify-qwq:
+    needs: validate-candidate
+    environment: sergeant-cloudflare-certification
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SERGEANT_CPL_ENABLED: 'true'
+      SERGEANT_CPL_POLICY: required
+      SERGEANT_CPL_PROVIDER: cloudflare
+      SERGEANT_CLOUDFLARE_MODELS: '@cf/qwen/qwq-32b'
+      SERGEANT_CLOUDFLARE_TIMEOUT_SECONDS: '90'
+      SERGEANT_CLOUDFLARE_USAGE_STATE: build/cloudflare-usage-state.json
+      SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_DAILY_BUDGET_NEURONS || '10000' }}
+      SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_SAFETY_RESERVE_NEURONS || '2500' }}
+      SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS: ${{ vars.SERGEANT_CLOUDFLARE_UNKNOWN_MODEL_RESERVATION_NEURONS || '2500' }}
+    steps:
+      - name: Checkout exact qualification head without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install the proved Sergeant route before secrets are exposed
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+
+      - name: Restore latest shared Cloudflare usage state
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build /tmp/qwq-usage
+          artifact_id="$(gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts?name=cloudflare-remaining-five-ledger&per_page=100" \
+            --jq '.artifacts | map(select(.expired == false)) | sort_by(.created_at) | reverse | .[0].id // empty')"
+          if [ -n "$artifact_id" ]; then
+            gh api "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${artifact_id}/zip" > /tmp/qwq-usage.zip
+            unzip -o /tmp/qwq-usage.zip -d /tmp/qwq-usage >/dev/null
+            [ ! -f /tmp/qwq-usage/cloudflare-usage-state.json ] || cp /tmp/qwq-usage/cloudflare-usage-state.json build/cloudflare-usage-state.json
+          fi
+
+      - name: Create bounded Challenger fixture
+        run: |
+          mkdir -p build/qwq-fixture/src
+          cat > build/qwq-fixture/src/session.py <<'PY'
+          async def issue_session(store, refresh_token_id):
+              existing = await store.find_by_refresh_token(refresh_token_id)
+              if existing is None:
+                  await store.insert_session(refresh_token_id)
+              return await store.find_by_refresh_token(refresh_token_id)
+          PY
+
+      - name: Run one guided-json Challenger mission
+        id: mission
+        env:
+          SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+          SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          from main_review.cloudflare_cli import cloudflare_route
+          from main_review.cloudflare_gateway import CloudflareGatewaySettings
+          from main_review.llm_provider import (
+              LLMProviderError,
+              _cloudflare_native_endpoint,
+              _extract_text,
+              _load_model_response,
+              _parse_json_text,
+              _request_headers,
+          )
+
+          model = os.environ["SERGEANT_QWQ_MODEL"]
+          baseline = os.environ["SERGEANT_BASELINE_SHA"]
+          source_path = Path("build/qwq-fixture/src/session.py")
+          source = source_path.read_text(encoding="utf-8")
+          schema = {
+              "type": "object",
+              "properties": {
+                  "status": {"type": "string", "const": "ready"},
+                  "model": {"type": "string", "const": model},
+                  "verdict": {"type": "string", "enum": ["PASS", "NEEDS WORK", "BLOCK"]},
+                  "accepted_hypothesis": {"type": "string"},
+                  "rejected_hypothesis": {"type": "string"},
+                  "coverage": {
+                      "type": "object",
+                      "properties": {
+                          "files_reviewed": {"type": "array", "items": {"type": "string"}},
+                          "areas": {"type": "array", "items": {"type": "string"}},
+                      },
+                      "required": ["files_reviewed", "areas"],
+                  },
+                  "finding": {
+                      "type": "object",
+                      "properties": {
+                          "path": {"type": "string"},
+                          "line_start": {"type": "integer"},
+                          "line_end": {"type": "integer"},
+                          "category": {"type": "string"},
+                          "severity": {"type": "string"},
+                          "root_cause": {"type": "string"},
+                          "evidence": {"type": "string"},
+                          "evidence_verified": {"type": "boolean"},
+                          "falsifier_checked": {"type": "string"},
+                      },
+                      "required": [
+                          "path", "line_start", "line_end", "category", "severity",
+                          "root_cause", "evidence", "evidence_verified", "falsifier_checked"
+                      ],
+                  },
+              },
+              "required": [
+                  "status", "model", "verdict", "accepted_hypothesis",
+                  "rejected_hypothesis", "coverage", "finding"
+              ],
+          }
+          system_prompt = (
+              "You are Sergeant Challenger support. Return only the requested JSON object. "
+              "Adjudicate competing concurrency hypotheses from source evidence; do not vote or invent database guarantees."
+          )
+          user_prompt = json.dumps({
+              "model": model,
+              "path": "src/session.py",
+              "source": source,
+              "hypotheses": {
+                  "H1": "The sequence is safe because each await finishes before the next statement.",
+                  "H2": "Two concurrent calls can both observe no session before either insert completes unless an unseen transaction or uniqueness guarantee exists."
+              },
+              "instruction": (
+                  "Choose the evidence-supported hypothesis, reject the weaker one, and report the review verdict. "
+                  "Treat an absent transaction or unique constraint as an unresolved protection, not as something you may assume exists."
+              ),
+          })
+
+          settings = CloudflareGatewaySettings.from_environment()
+          route = cloudflare_route(settings, model=model, max_output_tokens=1200)
+          body = {
+              "messages": [
+                  {"role": "system", "content": system_prompt},
+                  {"role": "user", "content": user_prompt},
+              ],
+              "temperature": 0,
+              "max_tokens": 1200,
+              "guided_json": schema,
+          }
+          request = urllib.request.Request(
+              _cloudflare_native_endpoint(route),
+              data=json.dumps(body).encode("utf-8"),
+              headers=_request_headers(route.api_key),
+              method="POST",
+          )
+
+          result = {
+              "schema_version": "sergeant.cloudflare-seventh-seat.v1",
+              "contract_version": "role-mission-v3",
+              "tested_sha": baseline,
+              "model": model,
+              "tested_at": datetime.now(timezone.utc).isoformat(),
+              "status": "failed",
+              "structured_transport_passed": False,
+              "role_mission_passed": False,
+              "response": None,
+              "error_kind": "",
+          }
+          try:
+              response = _load_model_response(
+                  route,
+                  request,
+                  system_prompt=system_prompt,
+                  user_prompt=user_prompt,
+                  stage="native_guided_json",
+              )
+              payload = _parse_json_text(_extract_text(response, "chat_completions"))
+              coverage = payload.get("coverage") if isinstance(payload.get("coverage"), dict) else {}
+              reviewed = coverage.get("files_reviewed") if isinstance(coverage.get("files_reviewed"), list) else []
+              areas = coverage.get("areas") if isinstance(coverage.get("areas"), list) else []
+              finding = payload.get("finding") if isinstance(payload.get("finding"), dict) else {}
+              evidence = str(finding.get("evidence") or "").lower()
+              accepted = str(payload.get("accepted_hypothesis") or "").lower()
+              rejected = str(payload.get("rejected_hypothesis") or "").lower()
+              passed = bool(
+                  payload.get("status") == "ready"
+                  and payload.get("model") == model
+                  and payload.get("verdict") in {"NEEDS WORK", "BLOCK"}
+                  and "src/session.py" in {str(item) for item in reviewed}
+                  and any("concurr" in str(item).lower() or "state" in str(item).lower() for item in areas)
+                  and finding.get("path") == "src/session.py"
+                  and str(finding.get("category") or "").lower() in {"correctness", "concurrency"}
+                  and str(finding.get("severity") or "").lower() in {"major", "blocker"}
+                  and finding.get("evidence_verified") is True
+                  and "find_by_refresh_token" in evidence
+                  and "insert_session" in evidence
+                  and ("h2" in accepted or "concurrent" in accepted or "race" in accepted)
+                  and ("h1" in rejected or "safe" in rejected or "await" in rejected)
+              )
+              result.update({
+                  "status": "certified" if passed else "failed",
+                  "structured_transport_passed": True,
+                  "role_mission_passed": passed,
+                  "response": payload,
+              })
+          except LLMProviderError as error:
+              message = str(error).lower()
+              if "4006" in message or "daily allocation" in message or "quota circuit" in message:
+                  kind = "http_429_code_4006_daily_allocation"
+                  result["status"] = "quota_blocked"
+              elif "blocked before inference" in message:
+                  kind = "local_budget_blocked"
+                  result["status"] = "budget_blocked"
+              elif "parseable json" in message or "response" in message:
+                  kind = "response_contract"
+              else:
+                  kind = "provider_error"
+              result["error_kind"] = kind
+
+          Path("build/qwq-seventh-seat-result.json").write_text(
+              json.dumps(result, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Verify credentials are absent from evidence
+        id: credential_scan
+        if: always()
+        env:
+          SERGEANT_CLOUDFLARE_ACCOUNT_ID: ${{ secrets.SERGEANT_CLOUDFLARE_ACCOUNT_ID }}
+          SERGEANT_CLOUDFLARE_API_TOKEN: ${{ secrets.SERGEANT_CLOUDFLARE_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          paths = [Path("build/qwq-seventh-seat-result.json"), Path("build/cloudflare-usage-state.json")]
+          values = [
+              os.getenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", ""),
+              os.getenv("SERGEANT_CLOUDFLARE_API_TOKEN", ""),
+          ]
+          for path in paths:
+              assert path.is_file(), f"Missing evidence: {path}"
+              text = path.read_text(encoding="utf-8", errors="replace")
+              for value in values:
+                  if value:
+                      assert value not in text, f"Configured provider value appeared in {path}"
+          PY
+
+      - name: Upload seventh-seat evidence
+        if: always() && steps.credential_scan.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloudflare-seventh-seat-qwq
+          path: |
+            build/qwq-seventh-seat-result.json
+            build/cloudflare-usage-state.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce accepted Challenger contract or honest rejection
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("build/qwq-seventh-seat-result.json").read_text(encoding="utf-8"))
+          if result.get("status") in {"quota_blocked", "budget_blocked"}:
+              raise SystemExit(f"Qualification paused honestly: {result['status']}")
+          assert result.get("status") == "certified", "QwQ-32B did not satisfy the seventh-seat Challenger contract."
+          assert result.get("structured_transport_passed") is True
+          assert result.get("role_mission_passed") is True
+          PY
