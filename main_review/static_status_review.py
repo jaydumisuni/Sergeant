@@ -9,6 +9,7 @@ from typing import Any, Iterable
 
 from .static_async_epoch_review import run_static_async_epoch_review
 from .static_async_lifecycle_review import run_static_async_lifecycle_review
+from .static_async_publication_review import run_static_async_publication_review
 from .static_await_state_review import run_static_await_state_review
 from .static_core_contract_review import run_static_core_contract_review
 from .static_js_controller_epoch_review import run_static_js_controller_epoch_review
@@ -97,16 +98,13 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
                 "evidence_ref": f"{first_path}:{first_line}",
                 "supporting_evidence_refs": sorted({f"{path}:{line}" for path, line, _ in rows}),
                 "message": "Independent controllers fully replace the same status object and can overwrite fields owned by one another.",
-                "evidence": (
-                    f"{len(distinct_paths)} controller files call Status().Update on {resource_type}. "
-                    "The object type is recovered from local allocations and typed function parameters."
-                ),
+                "evidence": f"{len(distinct_paths)} controller files call Status().Update on {resource_type}.",
                 "falsifiers_checked": [
                     "Checked that the same resource type is written from more than one controller file.",
                     "Checked local allocations and typed function parameters for the updated object.",
                     "Checked that the relevant writes use Status().Update rather than field-scoped MergeFrom patches.",
                 ],
-                "verification_test": "Patch only fields owned by each controller and retry conflicts so unrelated status fields survive concurrent reconciliation.",
+                "verification_test": "Patch only fields owned by each controller and retry conflicts.",
                 "confidence": 0.96,
                 "direct_evidence": True,
                 "admission_hint": "actionable",
@@ -122,6 +120,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
     js_remote_state = run_static_js_remote_state_review(root_path, changed)
     async_epoch = run_static_async_epoch_review(root_path, changed)
     js_controller_epoch = run_static_js_controller_epoch_review(root_path, changed)
+    async_publication = run_static_async_publication_review(root_path, changed)
     for result in (
         recovery,
         stale_state,
@@ -132,6 +131,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         js_remote_state,
         async_epoch,
         js_controller_epoch,
+        async_publication,
     ):
         findings.extend(dict(item) for item in result.get("findings", []) if isinstance(item, dict))
 
@@ -140,7 +140,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-status-review.v10",
+        "schema_version": "sergeant.static-status-review.v11",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -160,5 +160,6 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         "static_js_remote_state_review": js_remote_state,
         "static_async_epoch_review": async_epoch,
         "static_js_controller_epoch_review": js_controller_epoch,
+        "static_async_publication_review": async_publication,
         "executed_project_code": False,
     }
