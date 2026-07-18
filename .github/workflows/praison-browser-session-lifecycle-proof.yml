@@ -9,6 +9,7 @@ on:
       - "scripts/run_static_training_set.py"
       - "main_review/**"
       - "tests/test_static_async_lifecycle_review.py"
+      - "tests/test_pr_review_static_invariant_integration.py"
 
 permissions:
   contents: read
@@ -60,6 +61,37 @@ jobs:
             --output build/praison-browser-session-lifecycle/frozen-result.json \
             | tee build/praison-browser-session-lifecycle/frozen-summary.json
 
+      - name: Prove documented pr-review path catches the real race
+        shell: bash
+        run: |
+          python -m main_review.cli pr-review mechanism-cases/PraisonAI \
+            --files "src/praisonai-browser/praisonai_browser/server.py,src/praisonai-browser/praisonai_browser/sessions.py" \
+            --pretty > build/praison-browser-session-lifecycle/standard-pr-review.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          packet = json.loads(
+              Path("build/praison-browser-session-lifecycle/standard-pr-review.json").read_text()
+          )
+          admitted = {
+              str(item.get("root_cause"))
+              for item in packet.get("officer_council", {}).get("admitted_findings", [])
+              if isinstance(item, dict)
+          }
+          invariant = {
+              str(item.get("root_cause"))
+              for item in packet.get("capability_review", {})
+              .get("static_invariant_review", {})
+              .get("findings", [])
+              if isinstance(item, dict)
+          }
+          assert "resource-claim-after-await" in admitted, admitted
+          assert "resource-claim-after-await" in invariant, invariant
+          assert "terminal-state-without-end-timestamp" not in admitted, admitted
+          assert packet.get("verdict", {}).get("verdict") == "REQUEST_CHANGES"
+          PY
+
       - name: Publish mechanism summary
         run: |
           python - <<'PY'
@@ -77,6 +109,7 @@ jobs:
               f"- Advisory findings: **{item['advisory_finding_count']}**",
               f"- Model calls: **{item['model_calls']}**",
               f"- Elapsed seconds: **{item['elapsed_seconds']}**",
+              '- Documented pr-review CLI: **proved**',
           ]
           Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('\n'.join(lines) + '\n')
           PY
