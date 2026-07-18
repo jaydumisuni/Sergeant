@@ -1,0 +1,167 @@
+name: Model-Free Core Await Transfer 4
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-await-transfer-4.yml"
+      - "scripts/run_static_training_set.py"
+      - "main_review/**"
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout frozen Sergeant reviewer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout Dart notifier fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: dniasoff/learning-tracker
+          ref: f324dc394d04ac3b1a8576b0df87ea4dbfbac25a
+          path: await-transfer-4/learning-tracker
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout React map fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: MayankKotla/SunSpot
+          ref: 2d9204c7fc0304c26c39721ee61812de0a39eae2
+          path: await-transfer-4/sunspot
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout auth refresh fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: themancalledzac/edens.zac
+          ref: f6374cc2bdc9951d9651509879d2eeb6059563ea
+          path: await-transfer-4/edens
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Freeze defective parent revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in await-transfer-4/learning-tracker await-transfer-4/sunspot await-transfer-4/edens; do
+            git -C "$path" checkout --detach HEAD^
+          done
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-await-transfer-4-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install frozen Sergeant package
+        run: python -m pip install .
+
+      - name: Build opaque runtime manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-await-transfer-4
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "case_id": "await-transfer-4-a",
+                  "repository": "dniasoff/learning-tracker",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer-4/learning-tracker",
+                  "changed_files": [
+                      "learning_tracker/lib/features/sacred_time/presentation/providers/sacred_location_provider.dart"
+                  ],
+              },
+              {
+                  "case_id": "await-transfer-4-b",
+                  "repository": "MayankKotla/SunSpot",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer-4/sunspot",
+                  "changed_files": ["frontend/src/components/MapView.tsx"],
+              },
+              {
+                  "case_id": "await-transfer-4-c",
+                  "repository": "themancalledzac/edens.zac",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer-4/edens",
+                  "changed_files": ["app/hooks/useFetchMe.ts", "app/lib/api/auth.ts"],
+              },
+          ]
+          for case in cases:
+              case["defective_ref"] = subprocess.check_output(
+                  ["git", "-C", case["checkout_path"], "rev-parse", "HEAD"],
+                  text=True,
+              ).strip()
+              case["workspace_policy"] = "static_first"
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-await-transfer-4",
+              "purpose": "Fourth untouched transfer validation for provider lifetime, imperative async publication, and auth refresh races. Expected roots remain outside Sergeant input.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "untouched_transfer_validation",
+              },
+              "cases": cases,
+          }
+          Path("build/model-free-core-await-transfer-4/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run normal pr-review on untouched parents
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-await-transfer-4/runtime-manifest.json \
+            --output build/model-free-core-await-transfer-4/frozen-result.json \
+            2>&1 | tee build/model-free-core-await-transfer-4/frozen-summary.json
+
+      - name: Publish frozen transfer summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — await transfer 4"
+            echo
+            echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-await-transfer-4/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable transfer reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-await-transfer-4
+          path: build/model-free-core-await-transfer-4/
+          if-no-files-found: error
+          retention-days: 90
