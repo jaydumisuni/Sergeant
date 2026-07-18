@@ -72,6 +72,15 @@ TEXT_EXTENSIONS = {
     ".yaml", ".yml", ".toml", ".ini", ".cfg", ".conf", ".sh", ".ps1", ".sql", ".html", ".css",
 }
 
+_PUBLIC_BROWSER_SUFFIXES = {".js", ".jsx", ".ts", ".tsx", ".html"}
+_FIREBASE_PUBLIC_MARKERS = (
+    "authdomain",
+    "projectid",
+    "storagebucket",
+    "messagingsenderid",
+    "appid",
+)
+
 
 def _read_text_files(root: Path, insight: RepositoryInsight) -> list[tuple[str, str]]:
     texts: list[tuple[str, str]] = []
@@ -94,6 +103,32 @@ def _placeholder_secret(match: re.Match[str]) -> bool:
     return normalized in SECRET_PLACEHOLDERS or normalized.startswith(("example-", "fake-", "test-", "your-"))
 
 
+def _public_browser_client_api_key(
+    path: str,
+    lines: list[str],
+    line_index: int,
+    match: re.Match[str],
+) -> bool:
+    if Path(path).suffix.lower() not in _PUBLIC_BROWSER_SUFFIXES:
+        return False
+    if match.lastindex is None or match.lastindex < 1:
+        return False
+    key_name = re.sub(r"[^a-z]", "", match.group(1).lower())
+    if key_name != "apikey":
+        return False
+    start = max(0, line_index - 12)
+    end = min(len(lines), line_index + 13)
+    window = "\n".join(lines[start:end]).lower()
+    firebase_context = (
+        "firebaseconfig" in window
+        or "initializeapp(" in window
+        or "firebaseapp.com" in window
+        or "firebaseio.com" in window
+    )
+    marker_count = sum(marker in window for marker in _FIREBASE_PUBLIC_MARKERS)
+    return firebase_context and marker_count >= 3
+
+
 class SecretEvidenceProvider:
     name = "secret-scanner"
 
@@ -110,7 +145,12 @@ class SecretEvidenceProvider:
             for number, line in enumerate(lines, start=1):
                 for label, pattern in SECRET_PATTERNS:
                     match = pattern.search(line)
-                    if match is None or (label == "generic api key assignment" and _placeholder_secret(match)):
+                    if match is None:
+                        continue
+                    if label == "generic api key assignment" and (
+                        _placeholder_secret(match)
+                        or _public_browser_client_api_key(file.path, lines, number - 1, match)
+                    ):
                         continue
                     findings.append(
                         EvidenceFinding(
