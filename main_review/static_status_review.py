@@ -14,6 +14,7 @@ from .static_authenticated_owner_review import run_static_authenticated_owner_re
 from .static_auth_order_review import run_static_auth_order_review
 from .static_await_state_review import run_static_await_state_review
 from .static_component_async_review import run_static_component_async_review
+from .static_contract_surface_review import run_static_contract_surface_review
 from .static_core_contract_review import run_static_core_contract_review
 from .static_dart_provider_lifetime_review import run_static_dart_provider_lifetime_review
 from .static_external_integrity_review import run_static_external_integrity_review
@@ -125,6 +126,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
     stale_state = run_static_stale_state_review(root_path, changed)
     transfer = run_static_transfer_review(root_path, changed)
     core_contract = run_static_core_contract_review(root_path, changed)
+    contract_surface = run_static_contract_surface_review(root_path, changed)
     async_lifecycle = run_static_async_lifecycle_review(root_path, changed)
     await_state = run_static_await_state_review(root_path, changed)
     js_remote_state = run_static_js_remote_state_review(root_path, changed)
@@ -146,6 +148,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         stale_state,
         transfer,
         core_contract,
+        contract_surface,
         async_lifecycle,
         await_state,
         js_remote_state,
@@ -170,7 +173,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-status-review.v17",
+        "schema_version": "sergeant.static-status-review.v18",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -185,6 +188,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         "static_stale_state_review": stale_state,
         "static_transfer_review": transfer,
         "static_core_contract_review": core_contract,
+        "static_contract_surface_review": contract_surface,
         "static_async_lifecycle_review": async_lifecycle,
         "static_await_state_review": await_state,
         "static_js_remote_state_review": js_remote_state,
