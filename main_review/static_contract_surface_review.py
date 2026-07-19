@@ -1,4 +1,4 @@
-"""Static contract checks for UI persistence, response shape, and ambient runtime authority."""
+"""Static contract checks for UI persistence and ambient runtime authority."""
 
 from __future__ import annotations
 
@@ -84,14 +84,12 @@ def _finding(
     root_cause: str,
     path: str,
     line_start: int,
-    severity: str,
     category: str,
     message: str,
     evidence: str,
     falsifiers: Iterable[str],
     verification: str,
     supporting: Iterable[str] = (),
-    confidence: float = 0.97,
 ) -> dict[str, Any]:
     refs = [f"{path}:{line_start}", *[str(item) for item in supporting]]
     return {
@@ -99,7 +97,7 @@ def _finding(
         "officer": "Engineer",
         "capability": category,
         "category": category,
-        "severity": severity,
+        "severity": "major",
         "root_cause": root_cause,
         "path": path,
         "line_start": line_start,
@@ -110,7 +108,7 @@ def _finding(
         "evidence": evidence,
         "falsifiers_checked": list(falsifiers),
         "verification_test": verification,
-        "confidence": confidence,
+        "confidence": 0.97,
         "direct_evidence": True,
         "admission_hint": "actionable",
     }
@@ -175,13 +173,11 @@ def _ui_persistence_findings(path: str, text: str) -> list[dict[str, Any]]:
         ]
         if not clears_editor or not domain_setters or _has_persistence_sink(body):
             continue
-        line = _line(text, offset)
         findings.append(
             _finding(
                 root_cause="ui-save-clears-edit-without-durable-persistence",
                 path=path,
-                line_start=line,
-                severity="major",
+                line_start=_line(text, offset),
                 category="state_lifecycle",
                 message="A user-facing save action updates only local UI state and exits edit mode without proving durable persistence.",
                 evidence=(
@@ -191,7 +187,7 @@ def _ui_persistence_findings(path: str, text: str) -> list[dict[str, Any]]:
                 ),
                 falsifiers=(
                     "Checked that the function is explicitly a save, submit, or commit action.",
-                    "Checked that it mutates non-editor React state and then clears editor/draft state.",
+                    "Checked that it mutates non-editor state and then clears editor/draft state.",
                     "Checked the same function body for fetch, API-client, PATCH/PUT/POST, mutation, or persistence calls.",
                 ),
                 verification=(
@@ -203,72 +199,12 @@ def _ui_persistence_findings(path: str, text: str) -> list[dict[str, Any]]:
     return findings
 
 
-def _dart_collection_contract_findings(path: str, text: str) -> list[dict[str, Any]]:
-    if Path(path).suffix.lower() != ".dart":
-        return []
-    findings: list[dict[str, Any]] = []
-    function_re = re.compile(
-        r"Future\s*<\s*List\s*<[\s\S]{0,180}?>\s*>\s+(?P<name>[A-Za-z_][A-Za-z0-9_]*)"
-        r"\s*\([^)]*\)\s*async\s*\{",
-        re.M,
-    )
-    for function in function_re.finditer(text):
-        opening = function.end() - 1
-        closing = _matching_brace(text, opening)
-        if closing is None:
-            continue
-        body = text[opening + 1 : closing]
-        source = re.search(
-            r"\bfinal\s+(?P<var>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*await\s+"
-            r"[\s\S]{0,300}?(?:get|fetch|request)\s*\(",
-            body,
-            re.I,
-        )
-        if source is None:
-            continue
-        variable = source.group("var")
-        mismatch = re.search(
-            rf"\bif\s*\(\s*{re.escape(variable)}\s+is!\s+List(?:\s*<[^>]+>)?\s*\)"
-            rf"\s*(?:\{{\s*)?return\s*(?:<[^>]+>)?\s*\[\s*\]\s*;",
-            body,
-            re.M,
-        )
-        if mismatch is None:
-            continue
-        line = _line(text, opening + 1 + mismatch.start())
-        findings.append(
-            _finding(
-                root_cause="malformed-collection-response-silently-treated-as-empty",
-                path=path,
-                line_start=line,
-                severity="major",
-                category="api_contract",
-                message="A malformed collection response is converted into a valid empty-domain result.",
-                evidence=(
-                    f"`{function.group('name')}` receives `{variable}` from an awaited request and returns `[]` "
-                    "when the response is not a List, hiding a response-contract failure as legitimate empty data."
-                ),
-                falsifiers=(
-                    "Checked that the function contract returns a collection.",
-                    "Checked that the tested value comes from an awaited request/fetch/get call.",
-                    "Checked that a type mismatch returns an empty list instead of throwing a controlled contract error.",
-                ),
-                verification=(
-                    "Reject unexpected response shapes with a controlled typed error while preserving valid empty lists "
-                    "that arrive as an actual list payload."
-                ),
-            )
-        )
-    return findings
-
-
 def _ambient_cpp_authority_findings(texts: dict[str, str]) -> list[dict[str, Any]]:
     headers = {path: text for path, text in texts.items() if Path(path).suffix.lower() in _CPP_HEADER_SUFFIXES}
     sources = {path: text for path, text in texts.items() if Path(path).suffix.lower() in _CPP_SOURCE_SUFFIXES}
     findings: list[dict[str, Any]] = []
     for header_path, header in headers.items():
-        context = f"{header_path}\n{header}"
-        if re.search(r"(?:registry|factory|command|router|dispatcher)", context, re.I) is None:
+        if re.search(r"(?:registry|factory|command|router|dispatcher)", f"{header_path}\n{header}", re.I) is None:
             continue
         for setter in re.finditer(
             r"\bstatic\s+void\s+set(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\(\s*"
@@ -277,15 +213,14 @@ def _ambient_cpp_authority_findings(texts: dict[str, str]) -> list[dict[str, Any
         ):
             name = setter.group("name")
             resource_type = setter.group("type")
-            getter = re.search(
+            if re.search(
                 rf"\bstatic\s+{re.escape(resource_type)}\s*\*\s*get{re.escape(name)}\s*\(\s*\)\s*;",
                 header,
-            )
-            if getter is None:
+            ) is None:
                 continue
             evidence_refs: list[str] = []
-            source_match: tuple[str, str, int] | None = None
-            for source_path, source in sources.items():
+            source_path: str | None = None
+            for candidate_path, source in sources.items():
                 pointer = re.search(
                     rf"\b{re.escape(resource_type)}\s*\*\s*(?P<var>s_[A-Za-z_][A-Za-z0-9_]*)\s*=\s*nullptr\s*;",
                     source,
@@ -307,24 +242,21 @@ def _ambient_cpp_authority_findings(texts: dict[str, str]) -> list[dict[str, Any
                     re.I,
                 )
                 if setter_impl and getter_impl and factory_use:
-                    source_match = (source_path, source, pointer.start())
+                    source_path = candidate_path
                     evidence_refs.extend(
                         [
-                            f"{source_path}:{_line(source, pointer.start())}",
-                            f"{source_path}:{_line(source, factory_use.start())}",
+                            f"{candidate_path}:{_line(source, pointer.start())}",
+                            f"{candidate_path}:{_line(source, factory_use.start())}",
                         ]
                     )
                     break
-            if source_match is None:
+            if source_path is None:
                 continue
-            source_path, _, _ = source_match
-            line = _line(header, setter.start())
             findings.append(
                 _finding(
                     root_cause="process-wide-mutable-runtime-authority-in-command-registry",
                     path=header_path,
-                    line_start=line,
-                    severity="major",
+                    line_start=_line(header, setter.start()),
                     category="architecture",
                     message="A command/factory registry reaches live runtime authority through a process-wide mutable pointer.",
                     evidence=(
@@ -356,7 +288,6 @@ def run_static_contract_surface_review(root: str | Path, changed_files: Iterable
     findings: list[dict[str, Any]] = []
     for path, text in texts.items():
         findings.extend(_ui_persistence_findings(path, text))
-        findings.extend(_dart_collection_contract_findings(path, text))
     findings.extend(_ambient_cpp_authority_findings(texts))
 
     unique: dict[tuple[str, str], dict[str, Any]] = {}
@@ -364,7 +295,7 @@ def run_static_contract_surface_review(root: str | Path, changed_files: Iterable
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-contract-surface-review.v1",
+        "schema_version": "sergeant.static-contract-surface-review.v2",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
