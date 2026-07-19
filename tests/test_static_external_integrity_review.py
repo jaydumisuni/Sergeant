@@ -125,7 +125,9 @@ class UploadQueue {
     await this.store.set(KEY_QUEUE, items);
   }
 
-  async enqueue(capture: CaptureUpload) {
+  async enqueue(
+    capture: CaptureUpload,
+  ): Promise<{ enqueued: boolean; deduped: boolean; shed: boolean }> {
     const items = await this.load();
     items.push({ capture, attempts: 0 });
     await this.save(items);
