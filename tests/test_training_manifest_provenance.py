@@ -86,6 +86,7 @@ def test_scored_file_not_changed_by_fix_is_rejected(tmp_path: Path) -> None:
     root, defective, fixing = _lineage(tmp_path)
     manifest = _manifest(root, defective, fixing)
     manifest["cases"][0]["changed_files"] = ["src/contract.py"]
+    manifest["cases"][0]["context_files"] = []
     with pytest.raises(ProvenanceError, match="does not modify scored paths"):
         validate_training_manifest(manifest)
 
