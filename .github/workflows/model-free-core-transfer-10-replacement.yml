@@ -1,6 +1,7 @@
 name: Model-Free Core Transfer 10 Replacement
-# Reviewer frozen before target selection: 035ad42ad247f0dc6c9e01bea1b23fadc3c7403e
-# Replaces invalid transfer-10 fixtures whose frozen commits did not touch the reviewed files.
+# Original fresh reviewer head: 035ad42ad247f0dc6c9e01bea1b23fadc3c7403e
+# Fresh first pass at 9c5d687db231cd0a6d9d6ad1ed89cf2e4ba25819 was 0/3.
+# This workflow now reruns only as learned closure and includes unchanged ownership context.
 
 on:
   workflow_dispatch:
@@ -23,7 +24,7 @@ jobs:
       SERGEANT_CPL_POLICY: "disabled"
 
     steps:
-      - name: Checkout frozen Sergeant reviewer
+      - name: Checkout learned Sergeant reviewer
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -70,7 +71,8 @@ jobs:
             joachimBrindeau/elementor-framework \
             1bc48a926f8c218c0001100b42fc2df109c23c20 \
             transfer-10-replacement/elementor-framework \
-            '/includes/atomic/normalize.php'
+            '/includes/atomic/normalize.php' \
+            '/includes/row_definitions/content_block.php'
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -81,10 +83,10 @@ jobs:
         shell: bash
         run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-10-replacement-usage.json" >> "$GITHUB_ENV"
 
-      - name: Install frozen Sergeant package
+      - name: Install learned Sergeant package
         run: python -m pip install .
 
-      - name: Build opaque runtime manifest
+      - name: Build learned-closure runtime manifest
         shell: bash
         run: |
           mkdir -p build/model-free-core-transfer-10-replacement
@@ -134,14 +136,16 @@ jobs:
           manifest = {
               "schema_version": "sergeant.review-training.v1",
               "set_id": "model-free-core-transfer-10-replacement",
-              "purpose": "Replacement tenth untouched transfer validation using verified fixing-PR base revisions. Expected roots and fixing diffs remain outside Sergeant input.",
+              "purpose": "Learned closure for the valid replacement tenth transfer set. Original frozen first pass remains 0/3.",
               "rules": {
                   "models_enabled": False,
                   "workspace_default": "none",
                   "expected_defects_visible_to_sergeant": False,
                   "runtime_is_confirmation_not_discovery": True,
-                  "classification": "untouched_transfer_validation",
-                  "reviewer_code_frozen_before_target_selection": "035ad42ad247f0dc6c9e01bea1b23fadc3c7403e",
+                  "classification": "learned_closure",
+                  "fresh_reviewer_head": "035ad42ad247f0dc6c9e01bea1b23fadc3c7403e",
+                  "fresh_first_pass_head": "9c5d687db231cd0a6d9d6ad1ed89cf2e4ba25819",
+                  "fresh_artifact_digest": "sha256:dddefc54d1b1052d4bc04671000c632288d3237d6bb4420432fd63d729454cb5",
                   "invalidated_predecessor": "model-free-core-transfer-10",
               },
               "cases": cases,
@@ -152,7 +156,7 @@ jobs:
           )
           PY
 
-      - name: Run normal pr-review on untouched revisions
+      - name: Run normal pr-review on learned cases
         shell: bash
         run: |
           set -o pipefail
@@ -161,12 +165,12 @@ jobs:
             --output build/model-free-core-transfer-10-replacement/frozen-result.json \
             2>&1 | tee build/model-free-core-transfer-10-replacement/frozen-summary.json
 
-      - name: Publish frozen transfer summary
+      - name: Publish learned closure summary
         if: always()
         shell: bash
         run: |
           {
-            echo "# Model-free Sergeant core — transfer 10 replacement"
+            echo "# Model-free Sergeant core — transfer 10 replacement learned closure"
             echo
             echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
             echo
@@ -175,7 +179,7 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload immutable transfer reports
+      - name: Upload immutable learned reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
