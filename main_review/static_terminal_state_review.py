@@ -8,7 +8,7 @@ from typing import Any, Iterable
 
 _TERMINAL = {"completed", "failed", "cancelled", "canceled", "interrupted", "aborted", "terminated"}
 _PROGRESS_MARKERS = (
-    "processed", "failed_files", "progress", "heartbeat", "updated_at", "completed_count", "current_step"
+    "processed", "failed_files", "progress", "heartbeat", "completed_count", "current_step"
 )
 
 
@@ -116,7 +116,7 @@ def _finding(path: str, line: int, function_name: str, terminal: set[str]) -> di
         "falsifiers_checked": [
             "Checked that the write updates status together with progress/heartbeat fields rather than being a deliberate status transition.",
             "Checked that multiple terminal state literals exist in the local persistence contract.",
-            "Checked the SQL predicate for status NOT IN/IN, status comparison, or CASE-based monotonic protection.",
+            "Checked the complete SQL literal for status NOT IN/IN, status comparison, or CASE-based monotonic protection.",
         ],
         "verification_test": (
             "Make non-terminal progress writes conditional on the current row not being terminal, and prove a late running/progress "
@@ -135,7 +135,7 @@ def run_static_terminal_state_review(root: str | Path, changed_files: Iterable[s
     readable: list[str] = []
 
     function_re = re.compile(r"func\s*(?:\([^)]*\)\s*)?(?P<name>[A-Za-z_][A-Za-z0-9_]*)\s*\([^)]*\)[^{]*\{", re.M)
-    sql_re = re.compile(r"UPDATE\s+[A-Za-z0-9_]+[\s\S]{0,1800}?WHERE\s+[A-Za-z0-9_.]+\s*=\s*\?", re.I)
+    sql_re = re.compile(r"`(?P<sql>\s*UPDATE\s+[A-Za-z0-9_]+[\s\S]{0,2500}?)`", re.I)
 
     for path in changed:
         if Path(path).suffix.lower() != ".go":
@@ -158,18 +158,20 @@ def run_static_terminal_state_review(root: str | Path, changed_files: Iterable[s
             if not any(marker in body.lower() for marker in _PROGRESS_MARKERS):
                 continue
             for sql in sql_re.finditer(body):
-                statement = sql.group(0)
+                statement = sql.group("sql")
+                if re.search(r"\bWHERE\s+[A-Za-z0-9_.]+\s*=\s*\?", statement, re.I) is None:
+                    continue
                 if re.search(r"SET[\s\S]{0,500}\bstatus\s*=", statement, re.I) is None:
                     continue
                 if _guarded(statement):
                     continue
-                line = _line(text, opening + 1 + sql.start())
+                line = _line(text, opening + 1 + sql.start("sql"))
                 findings.append(_finding(path, line, function.group("name"), terminal))
                 break
 
     unique = {(str(item["root_cause"]), str(item["path"])): item for item in findings}
     return {
-        "schema_version": "sergeant.static-terminal-state-review.v1",
+        "schema_version": "sergeant.static-terminal-state-review.v2",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
