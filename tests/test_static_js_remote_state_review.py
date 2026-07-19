@@ -16,6 +16,7 @@ def test_inline_remote_record_before_local_claim_is_reported(tmp_path: Path) -> 
 let liveCall = null;
 
 function openJitsiModal() {
+  if (!liveCall?.roomName) return;
   connectToRoom(liveCall.roomName);
 }
 
@@ -42,6 +43,7 @@ def test_local_claim_before_remote_record_is_clean(tmp_path: Path) -> None:
 let liveCall = null;
 
 function openJitsiModal() {
+  if (!liveCall?.roomName) return;
   connectToRoom(liveCall.roomName);
 }
 
