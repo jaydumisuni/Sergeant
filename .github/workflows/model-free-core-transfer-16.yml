@@ -131,7 +131,7 @@ jobs:
                   {
                       "case_id": "transfer-16-a",
                       "repository": "AltairaLabs/PromptKit",
-                      "source_pr": None,
+                      "source_pr": 1623,
                       "checkout_path": "transfer-16/promptkit",
                       "defective_ref": "2eab152b5d1c2d51dd2376983b4e37b1dbf557e3",
                       "fixing_ref": "5bcb128715113aa89742ddd84adc2b35a0e26930",
@@ -141,7 +141,7 @@ jobs:
                   {
                       "case_id": "transfer-16-b",
                       "repository": "LadybirdBrowser/ladybird",
-                      "source_pr": None,
+                      "source_pr": 10752,
                       "checkout_path": "transfer-16/ladybird",
                       "defective_ref": "94a55b0e9045b1e96307c5e4f0242309c589ecd4",
                       "fixing_ref": "5a804c40e2f94f7dad607ced2ec984ff9dd2c10d",
@@ -154,7 +154,7 @@ jobs:
                   {
                       "case_id": "transfer-16-c",
                       "repository": "PerryTS/perry",
-                      "source_pr": None,
+                      "source_pr": 6702,
                       "checkout_path": "transfer-16/perry",
                       "defective_ref": "e7626a10204867d576c6a63e4f3eb2f4f6becb2d",
                       "fixing_ref": "09e7cf853779889ff03c854f361a9beaeaa8d625",
