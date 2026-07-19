@@ -33,6 +33,7 @@ from .static_transfer_10_replacement_review import (
 from .static_transfer_11_review import run_static_transfer_11_review
 from .static_transfer_12_review import run_static_transfer_12_review
 from .static_transfer_9_review import run_static_transfer_9_review
+from .static_url_path_contract_review import run_static_url_path_contract_review
 from .static_transfer_review import run_static_transfer_review
 
 
@@ -166,6 +167,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
     transfer_10_replacement = run_static_transfer_10_replacement_review(root_path, changed)
     transfer_11 = run_static_transfer_11_review(root_path, changed)
     transfer_12 = run_static_transfer_12_review(root_path, changed)
+    url_path_contract = run_static_url_path_contract_review(root_path, changed)
     for result in (
         recovery,
         stale_state,
@@ -192,6 +194,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         transfer_10_replacement,
         transfer_11,
         transfer_12,
+        url_path_contract,
     ):
         findings.extend(dict(item) for item in result.get("findings", []) if isinstance(item, dict))
 
@@ -200,7 +203,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-status-review.v23",
+        "schema_version": "sergeant.static-status-review.v24",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -236,5 +239,6 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         "static_transfer_10_replacement_review": transfer_10_replacement,
         "static_transfer_11_review": transfer_11,
         "static_transfer_12_review": transfer_12,
+        "static_url_path_contract_review": url_path_contract,
         "executed_project_code": False,
     }
