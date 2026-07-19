@@ -7,7 +7,11 @@ from pathlib import Path
 from typing import Any, Iterable
 
 _SOURCE_SUFFIXES = {".js", ".jsx", ".ts", ".tsx"}
-_ENABLE_RE = re.compile(r"\b(?P<name>[A-Za-z_$][\w$]*(?:mfa|2fa|auth)[A-Za-z0-9_$]*(?:enable|activate|setup)|(?:enable|activate|setup)[A-Za-z0-9_$]*(?:mfa|2fa|auth)[A-Za-z0-9_$]*)\s*\(", re.I)
+_ENABLE_RE = re.compile(
+    r"\b(?P<name>(?:mfa|2fa|auth)[A-Za-z0-9_$]*(?:enable|activate|setup)|"
+    r"(?:enable|activate|setup)[A-Za-z0-9_$]*(?:mfa|2fa|auth)[A-Za-z0-9_$]*)\s*\(",
+    re.I,
+)
 _READY_RE = re.compile(r"\b(?:mfaVerify|verifyMfa|verify2fa|refreshSession|setSessionToken|mintSession|exchangeSession|establishSession)\s*\(", re.I)
 _INVALIDATE_RE = re.compile(r"\b(?:queryClient|qc)\.(?:invalidateQueries|refetchQueries|resetQueries|clear)\s*\(", re.I)
 _HELPER_RE = re.compile(r"(?:const|let|var)\s+(?P<name>[A-Za-z_$][\w$]*)\s*=\s*\([^)]*\)\s*=>\s*\{", re.M)
@@ -164,8 +168,6 @@ def run_static_auth_order_review(root: str | Path, changed_files: Iterable[str])
                 continue
             before = body[: invalidate.start()]
             after = body[invalidate.end() :]
-            # A fixed flow awaits session readiness in mutationFn before onSettled
-            # invalidation. Any direct/helper readiness proof before invalidation is clean.
             if _session_ready_call(before, helpers):
                 continue
             if not _session_ready_call(after, helpers):
@@ -176,7 +178,7 @@ def run_static_auth_order_review(root: str | Path, changed_files: Iterable[str])
 
     unique = {(str(item["root_cause"]), str(item["path"])): item for item in findings}
     return {
-        "schema_version": "sergeant.static-auth-order-review.v1",
+        "schema_version": "sergeant.static-auth-order-review.v2",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
