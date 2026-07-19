@@ -1,0 +1,206 @@
+name: Model-Free Core Transfer 14
+# Reviewer frozen before target selection: eabadfc62b7a738582bab87b03057f59b7bb9f7f
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-14.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin immutable Sergeant reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach eabadfc62b7a738582bab87b03057f59b7bb9f7f
+          test "$(git rev-parse HEAD)" = "eabadfc62b7a738582bab87b03057f59b7bb9f7f"
+          test ! -e main_review/static_transfer_14_review.py
+
+      - name: Checkout exact defective and fixing lineages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sparse_lineage_checkout() {
+            local repository="$1"
+            local defective="$2"
+            local fixing="$3"
+            local destination="$4"
+            shift 4
+
+            git init "$destination"
+            git -C "$destination" remote add origin "https://github.com/${repository}.git"
+            git -C "$destination" config core.sparseCheckout true
+            : > "$destination/.git/info/sparse-checkout"
+            for pattern in "$@"; do
+              printf '%s\n' "$pattern" >> "$destination/.git/info/sparse-checkout"
+            done
+
+            # Fetch the fixing head with its ancestry. Provenance validation
+            # then proves the scored defective revision is an ancestor and
+            # that every scored path changed on the fixing lineage.
+            git -C "$destination" fetch --no-tags --filter=blob:none origin "$fixing"
+            git -C "$destination" cat-file -e "${defective}^{commit}"
+            git -C "$destination" cat-file -e "${fixing}^{commit}"
+            git -C "$destination" merge-base --is-ancestor "$defective" "$fixing"
+            git -C "$destination" checkout --detach "$defective"
+            test "$(git -C "$destination" rev-parse HEAD)" = "$defective"
+          }
+
+          sparse_lineage_checkout \
+            dipeshbabu/agentloop \
+            94930af7644afe2bfaa138ef963bdf7639a5c937 \
+            2c72a7f503bb829d4a407be055bb62501dbc292b \
+            transfer-14/agentloop \
+            '/agentloop/costs.py'
+
+          sparse_lineage_checkout \
+            Thatisshayan/project-sentinel \
+            694fdc4faa322725c4ddf6ee038f4f8c5caf9ba8 \
+            b9c9f2804cec4c75fd88b3cfed12586362e09502 \
+            transfer-14/project-sentinel \
+            '/ui/app/api/action/route.ts'
+
+          sparse_lineage_checkout \
+            dmitrymomot/forge \
+            f34d1ad2f0f426056e8f124209a59d5e6d9e5071 \
+            10cc1b1f64f87bd8619e62f1fc62e0ac7cc7a341 \
+            transfer-14/forge \
+            '/web/smartlink/manager.go' \
+            '/web/smartlink/resolve.go'
+
+          for file in \
+            transfer-14/agentloop/agentloop/costs.py \
+            transfer-14/project-sentinel/ui/app/api/action/route.ts \
+            transfer-14/forge/web/smartlink/manager.go \
+            transfer-14/forge/web/smartlink/resolve.go; do
+            test -f "$file"
+          done
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-14-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install frozen Sergeant package
+        run: python -m pip install .
+
+      - name: Build opaque frozen manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-transfer-14
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-14",
+              "purpose": "Fourteenth untouched transfer validation across Python measurement integrity, TypeScript dynamic route authorization, and Go cache-generation concurrency. Expected roots and fixing diffs remain outside Sergeant input.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "untouched_transfer_validation",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
+                  "reviewer_code_frozen_before_target_selection": "eabadfc62b7a738582bab87b03057f59b7bb9f7f",
+              },
+              "cases": [
+                  {
+                      "case_id": "transfer-14-a",
+                      "repository": "dipeshbabu/agentloop",
+                      "source_pr": 66,
+                      "checkout_path": "transfer-14/agentloop",
+                      "defective_ref": "94930af7644afe2bfaa138ef963bdf7639a5c937",
+                      "fixing_ref": "2c72a7f503bb829d4a407be055bb62501dbc292b",
+                      "changed_files": ["agentloop/costs.py"],
+                      "workspace_policy": "static_first",
+                  },
+                  {
+                      "case_id": "transfer-14-b",
+                      "repository": "Thatisshayan/project-sentinel",
+                      "source_pr": 33,
+                      "checkout_path": "transfer-14/project-sentinel",
+                      "defective_ref": "694fdc4faa322725c4ddf6ee038f4f8c5caf9ba8",
+                      "fixing_ref": "b9c9f2804cec4c75fd88b3cfed12586362e09502",
+                      "changed_files": ["ui/app/api/action/route.ts"],
+                      "workspace_policy": "static_first",
+                  },
+                  {
+                      "case_id": "transfer-14-c",
+                      "repository": "dmitrymomot/forge",
+                      "source_pr": 71,
+                      "checkout_path": "transfer-14/forge",
+                      "defective_ref": "f34d1ad2f0f426056e8f124209a59d5e6d9e5071",
+                      "fixing_ref": "10cc1b1f64f87bd8619e62f1fc62e0ac7cc7a341",
+                      "changed_files": [
+                          "web/smartlink/manager.go",
+                          "web/smartlink/resolve.go",
+                      ],
+                      "workspace_policy": "static_first",
+                  },
+              ],
+          }
+          Path("build/model-free-core-transfer-14/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run pinned normal pr-review
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-14/runtime-manifest.json \
+            --output build/model-free-core-transfer-14/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-14/frozen-summary.json
+
+      - name: Publish frozen transfer summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — transfer 14"
+            echo
+            echo "Workflow event head: \`${GITHUB_SHA}\`"
+            echo
+            echo "Frozen reviewer head: \`eabadfc62b7a738582bab87b03057f59b7bb9f7f\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-transfer-14/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable transfer reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-14
+          path: build/model-free-core-transfer-14/
+          if-no-files-found: error
+          retention-days: 90
