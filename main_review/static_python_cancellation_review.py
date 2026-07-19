@@ -1,4 +1,4 @@
-"""Static Python shutdown checks for cancellation exception-group handling."""
+"""Static Python shutdown checks for grouped cancellation handling."""
 
 from __future__ import annotations
 
@@ -69,6 +69,35 @@ def _repository_taskgroup_evidence(root: Path, changed_texts: dict[str, str]) ->
     return None
 
 
+def _heterogeneous_task_collection(function: ast.AsyncFunctionDef) -> str | None:
+    """Return the task collection name when shutdown aggregates multiple sources."""
+
+    candidates: set[str] = set()
+    for node in ast.walk(function):
+        if isinstance(node, ast.Assign) and isinstance(node.value, ast.ListComp):
+            if len(node.value.generators) < 2:
+                continue
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    candidates.add(target.id)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if isinstance(node.value, ast.ListComp) and len(node.value.generators) >= 2:
+                candidates.add(node.target.id)
+
+    for collection in sorted(candidates):
+        appends = 0
+        for node in ast.walk(function):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            if node.func.attr == "append" and _name(node.func.value) == collection:
+                appends += 1
+        # A nested comprehension already joins multiple task collections. Appends
+        # from independently-owned attributes strengthen the evidence but are not
+        # required because the nested sources are heterogeneous by construction.
+        return f"{collection}:nested-comprehension+{appends}-append-sources"
+    return None
+
+
 def _cancelled_variables(function: ast.AsyncFunctionDef) -> set[str]:
     result: set[str] = set()
     for node in ast.walk(function):
@@ -101,34 +130,48 @@ def _awaited_names(node: ast.Try) -> set[str]:
     return names
 
 
-def _finding(path: str, line: int, function_name: str, taskgroup_path: str) -> dict[str, Any]:
+def _finding(
+    path: str,
+    line: int,
+    function_name: str,
+    *,
+    taskgroup_path: str | None,
+    heterogeneous_evidence: str | None,
+) -> dict[str, Any]:
+    if taskgroup_path is not None:
+        context = f"repository-local TaskGroup-backed work exists in {taskgroup_path}"
+        support = [f"{path}:{line}", taskgroup_path]
+    else:
+        context = f"shutdown aggregates heterogeneous task sources ({heterogeneous_evidence})"
+        support = [f"{path}:{line}"]
+
     return {
         "source": "static-python-cancellation-officer",
         "officer": "Mechanic",
         "capability": "concurrency",
         "category": "concurrency",
         "severity": "major",
-        "root_cause": "taskgroup-cancellation-not-caught-by-ordinary-except",
+        "root_cause": "grouped-cancellation-not-caught-by-ordinary-except",
         "path": path,
         "line_start": line,
         "line_end": line,
         "evidence_ref": f"{path}:{line}",
-        "supporting_evidence_refs": [f"{path}:{line}", taskgroup_path],
-        "message": "TaskGroup cancellation can escape shutdown because grouped cancellation is handled with ordinary except semantics.",
+        "supporting_evidence_refs": support,
+        "message": "Grouped cancellation can escape shutdown because a multi-task cancellation boundary uses ordinary except semantics.",
         "evidence": (
-            f"{function_name} cancels tracked tasks and awaits their completion inside a normal try/except that catches "
-            f"CancelledError. Repository-local TaskGroup-backed work exists in {taskgroup_path}; Python 3.11 can propagate its "
-            "cancellation as a BaseExceptionGroup that ordinary except CancelledError cannot match."
+            f"{function_name} cancels tracked tasks and awaits completion inside a normal try/except that catches only "
+            f"CancelledError; {context}. Python 3.11 structured concurrency can surface cancellation as a "
+            "BaseExceptionGroup that ordinary except CancelledError cannot match."
         ),
         "falsifiers_checked": [
-            "Checked repository-local Python sources for actual TaskGroup construction.",
+            "Checked for repository-local TaskGroup construction or a heterogeneous multi-source task collection.",
             "Checked that shutdown explicitly cancels tracked tasks before awaiting them.",
             "Checked that the await is guarded by ordinary ast.Try rather than ast.TryStar (except*).",
             "Checked for explicit BaseExceptionGroup or ExceptionGroup handling.",
         ],
         "verification_test": (
             "Use except* CancelledError or explicit BaseExceptionGroup-aware filtering, re-raise non-cancellation members, "
-            "and repeatedly prove shutdown while TaskGroup work is active."
+            "and repeatedly prove shutdown while nested or heterogeneous background work is active."
         ),
         "confidence": 0.97,
         "direct_evidence": True,
@@ -153,40 +196,50 @@ def run_static_python_cancellation_review(root: str | Path, changed_files: Itera
         changed_texts[path] = text
 
     taskgroup_path = _repository_taskgroup_evidence(root_path, changed_texts)
-    if taskgroup_path is not None:
-        for path, text in changed_texts.items():
-            try:
-                tree = ast.parse(text)
-            except SyntaxError:
+    for path, text in changed_texts.items():
+        try:
+            tree = ast.parse(text)
+        except SyntaxError:
+            continue
+        for function in (node for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef)):
+            heterogeneous_evidence = _heterogeneous_task_collection(function)
+            if taskgroup_path is None and heterogeneous_evidence is None:
                 continue
-            for function in (node for node in ast.walk(tree) if isinstance(node, ast.AsyncFunctionDef)):
-                cancelled = _cancelled_variables(function)
-                if not cancelled:
+            cancelled = _cancelled_variables(function)
+            if not cancelled:
+                continue
+            for node in ast.walk(function):
+                if not isinstance(node, ast.Try):
                     continue
-                for node in ast.walk(function):
-                    if not isinstance(node, ast.Try):
-                        continue
-                    handlers = _handler_names(node)
-                    if not any(name.endswith("CancelledError") for name in handlers):
-                        continue
-                    if any(name.endswith(("ExceptionGroup", "BaseExceptionGroup")) for name in handlers):
-                        continue
-                    awaited = _awaited_names(node)
-                    if not awaited:
-                        continue
-                    if cancelled.isdisjoint(awaited) and not any(
-                        isinstance(child, ast.Await) for child in ast.walk(node)
-                    ):
-                        continue
-                    findings.append(_finding(path, int(node.lineno), function.name, taskgroup_path))
-                    break
+                handlers = _handler_names(node)
+                if not any(name.endswith("CancelledError") for name in handlers):
+                    continue
+                if any(name.endswith(("ExceptionGroup", "BaseExceptionGroup")) for name in handlers):
+                    continue
+                awaited = _awaited_names(node)
+                if not awaited:
+                    continue
+                if cancelled.isdisjoint(awaited) and not any(
+                    isinstance(child, ast.Await) for child in ast.walk(node)
+                ):
+                    continue
+                findings.append(
+                    _finding(
+                        path,
+                        int(node.lineno),
+                        function.name,
+                        taskgroup_path=taskgroup_path,
+                        heterogeneous_evidence=heterogeneous_evidence,
+                    )
+                )
+                break
 
     unique = {
         (str(item.get("root_cause")), str(item.get("path"))): item
         for item in findings
     }
     return {
-        "schema_version": "sergeant.static-python-cancellation-review.v2",
+        "schema_version": "sergeant.static-python-cancellation-review.v3",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
