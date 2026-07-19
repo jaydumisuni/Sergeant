@@ -48,3 +48,81 @@ class CategoryController extends _$CategoryController {
     )
     result = run_static_dart_provider_lifetime_review(tmp_path, ["controller.dart"])
     assert "disposed-provider-ref-after-await" not in _roots(result)
+
+
+def test_keep_alive_notifier_state_after_await_is_reported(tmp_path: Path) -> None:
+    source = tmp_path / "sacred_location_provider.dart"
+    source.write_text(
+        """
+@Riverpod(keepAlive: true)
+class SacredLocationNotifier extends _$SacredLocationNotifier {
+  Future<void> setManualCity(Location loc) async {
+    final prefs = await SharedPreferences.getInstance();
+    await writeLocation(prefs, loc);
+    state = loc;
+    ref.invalidate(inIsraelProvider);
+  }
+}
+        """,
+        encoding="utf-8",
+    )
+    result = run_static_dart_provider_lifetime_review(
+        tmp_path,
+        ["sacred_location_provider.dart"],
+    )
+    assert "disposed-provider-ref-after-await" in _roots(result)
+
+
+def test_lifecycle_helper_called_after_await_is_reported(tmp_path: Path) -> None:
+    source = tmp_path / "sacred_location_provider.dart"
+    source.write_text(
+        """
+@Riverpod(keepAlive: true)
+class SacredLocationNotifier extends _$SacredLocationNotifier {
+  Future<void> setManualCoords(Location loc) async {
+    state = loc;
+    final prefs = await SharedPreferences.getInstance();
+    await writeLocation(prefs, loc);
+    await _pushSnapshot();
+  }
+
+  Future<void> _pushSnapshot() async {
+    await ref.read(syncProvider)?.pushSnapshot();
+  }
+}
+        """,
+        encoding="utf-8",
+    )
+    result = run_static_dart_provider_lifetime_review(
+        tmp_path,
+        ["sacred_location_provider.dart"],
+    )
+    assert "disposed-provider-ref-after-await" in _roots(result)
+
+
+def test_mounted_guard_before_lifecycle_helper_is_clean(tmp_path: Path) -> None:
+    source = tmp_path / "sacred_location_provider.dart"
+    source.write_text(
+        """
+@Riverpod(keepAlive: true)
+class SacredLocationNotifier extends _$SacredLocationNotifier {
+  Future<void> setManualCoords(Location loc) async {
+    state = loc;
+    final prefs = await SharedPreferences.getInstance();
+    await writeLocation(prefs, loc);
+    if (!ref.mounted) return;
+    await _pushSnapshot();
+  }
+
+  Future<void> _pushSnapshot() async {
+    await ref.read(syncProvider)?.pushSnapshot();
+  }
+}
+        """,
+        encoding="utf-8",
+    )
+    result = run_static_dart_provider_lifetime_review(
+        tmp_path,
+        ["sacred_location_provider.dart"],
+    )
+    assert "disposed-provider-ref-after-await" not in _roots(result)
