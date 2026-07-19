@@ -30,6 +30,11 @@ _AUTH_CALL_RE = re.compile(
     r"(?:loginAction|loginUser|signIn|signInWithPassword|authenticate|mutateAsync)\s*\(",
     re.I,
 )
+_EXPLICIT_AUTH_CONTEXT_RE = re.compile(
+    r"(?:loginAction|loginUser|signInWithPassword|authenticate|LoginForm|AuthForm|"
+    r"mutationFn\s*:\s*[^\n]{0,240}(?:login|signIn|authenticate))",
+    re.I,
+)
 _CACHE_SYNC_RE = re.compile(
     r"(?:queryClient\.(?:invalidateQueries|refetchQueries|resetQueries|clear)\s*\(|"
     r"authClient[^;\n]*(?:notify|refetch|setSession|update)|"
@@ -162,23 +167,14 @@ def _cache_helpers(text: str) -> dict[str, tuple[str, int, str]]:
     return helpers
 
 
-def _reactive_cache_owner(body: str, helper_name: str, variable: str) -> bool:
-    state = re.search(
-        rf"\[(?P<value>{re.escape(variable)}),\s*(?P<setter>set[A-Za-z_$][\w$]*)\]\s*=\s*"
-        rf"useState\s*\(\s*(?:\(\s*\)\s*=>\s*)?{re.escape(helper_name)}\s*\(",
-        body,
-        re.I,
+def _external_listener(body: str) -> bool:
+    return bool(
+        re.search(
+            r"addEventListener\s*\(\s*[\"'](?:storage|[^\"']*(?:config|auth|account|session|user)[^\"']*)[\"']",
+            body,
+            re.I,
+        )
     )
-    if state is None:
-        return bool(re.search(r"useSyncExternalStore\s*\(", body))
-    setter = state.group("setter")
-    listener = re.search(
-        r"addEventListener\s*\(\s*[\"'](?:storage|[^\"']*(?:config|auth|account|session|user)[^\"']*)[\"']",
-        body,
-        re.I,
-    )
-    refreshes = re.search(rf"\b{re.escape(setter)}\s*\(", body)
-    return bool(listener and refreshes)
 
 
 def _browser_cache_findings(path: str, text: str) -> list[dict[str, Any]]:
@@ -195,33 +191,46 @@ def _browser_cache_findings(path: str, text: str) -> list[dict[str, Any]]:
         if _AUTH_UI_RE.search(body) is None:
             continue
         for helper_name, (_, _, storage_key) in helpers.items():
-            assignment = re.search(
+            if re.search(r"useSyncExternalStore\s*\(", body):
+                continue
+            plain = re.search(
                 rf"(?:const|let|var)\s+(?P<variable>[A-Za-z_$][\w$]*)\s*=\s*{re.escape(helper_name)}\s*\(\s*\)",
                 body,
             )
-            if assignment is None:
+            state = re.search(
+                rf"\[(?P<variable>[A-Za-z_$][\w$]*),\s*(?P<setter>set[A-Za-z_$][\w$]*)\]\s*=\s*"
+                rf"useState\s*\(\s*(?:\(\s*\)\s*=>\s*)?{re.escape(helper_name)}\s*\(",
+                body,
+                re.I,
+            )
+            if plain is None and state is None:
                 continue
-            variable = assignment.group("variable")
-            if _reactive_cache_owner(body, helper_name, variable):
-                continue
-            assignment_line = _line(text, body_offset + assignment.start())
+            selected = state or plain
+            assert selected is not None
+            variable = selected.group("variable")
+            if state is not None:
+                setter = state.group("setter")
+                if _external_listener(body) and re.search(rf"\b{re.escape(setter)}\s*\(", body):
+                    continue
+            assignment_line = _line(text, body_offset + selected.start())
+            ownership = "plain render-time value" if plain is not None else "mount-initialized React state without external invalidation"
             findings.append(
                 _finding(
                     root_cause="browser-auth-cache-read-without-reactive-owner",
                     path=path,
                     line_start=assignment_line,
-                    message="A long-lived React chrome component derives authentication UI from browser storage without reactive ownership or invalidation.",
+                    message="A long-lived React chrome component derives authentication UI from browser storage without reactive invalidation.",
                     evidence=(
                         f"{component_name} reads localStorage key {storage_key!r} through {helper_name} into {variable} at line "
-                        f"{assignment_line}. The value drives auth/account UI, but it is neither owned by React state with an external "
-                        "subscription nor read through useSyncExternalStore. Browser-storage changes therefore do not schedule a render."
+                        f"{assignment_line} as a {ownership}. The value drives auth/account UI, but browser-storage changes do not "
+                        "schedule an authoritative refresh of that state."
                     ),
                     supporting=(f"{path}:{assignment_line}",),
                     falsifiers=(
                         "Checked that the component is long-lived application chrome rather than a short-lived leaf.",
                         "Checked that the helper reads an auth/account/session/config browser-storage key.",
                         "Checked that the returned object drives authentication or account presentation.",
-                        "Checked for useState ownership plus storage/config/auth event invalidation.",
+                        "Checked for React state ownership plus storage/config/auth event invalidation and setter refresh.",
                         "Checked for useSyncExternalStore ownership.",
                     ),
                     verification=(
@@ -235,21 +244,27 @@ def _browser_cache_findings(path: str, text: str) -> list[dict[str, Any]]:
     return findings
 
 
-def _navigation_matches(text: str, method_pattern: str) -> list[re.Match[str]]:
-    return list(re.finditer(rf"\b{method_pattern}\s*\(", text, re.I))
-
-
 def _next_post_auth_findings(path: str, text: str) -> list[dict[str, Any]]:
     if "next/navigation" not in text or "useRouter" not in text:
         return []
-    if _AUTH_CALL_RE.search(text) is None:
+    if _AUTH_CALL_RE.search(text) is None or _EXPLICIT_AUTH_CONTEXT_RE.search(text) is None:
         return []
     findings: list[dict[str, Any]] = []
     for auth_call in _AUTH_CALL_RE.finditer(text):
-        prefix = text[max(0, auth_call.start() - 80) : auth_call.start()]
-        if "await" not in prefix and "mutationFn" not in prefix and "mutateAsync" not in auth_call.group(0):
+        token = auth_call.group(0).lower()
+        if token.startswith("mutateasync") and re.search(
+            r"mutationFn\s*:\s*[^\n]{0,240}(?:login|signIn|authenticate)",
+            text,
+            re.I,
+        ) is None:
             continue
-        navigation = re.search(r"\brouter\.(?P<method>push|replace)\s*\(", text[auth_call.end() : auth_call.end() + 1800])
+        prefix = text[max(0, auth_call.start() - 120) : auth_call.start()]
+        if "await" not in prefix and not token.startswith("mutateasync"):
+            continue
+        navigation = re.search(
+            r"\brouter\.(?P<method>push|replace)\s*\(",
+            text[auth_call.end() : auth_call.end() + 1800],
+        )
         if navigation is None:
             continue
         nav_offset = auth_call.end() + navigation.start()
@@ -274,7 +289,7 @@ def _next_post_auth_findings(path: str, text: str) -> list[dict[str, Any]]:
                 supporting=(f"{path}:{call_line}", f"{path}:{nav_line}"),
                 falsifiers=(
                     "Checked that the file uses Next.js next/navigation client routing.",
-                    "Checked that an authentication mutation completes before the soft navigation.",
+                    "Checked that the awaited mutation is wired to an explicit login/sign-in/authentication action.",
                     "Checked for router.refresh before router.push/replace.",
                     "Checked for explicit session/query invalidation before navigation.",
                 ),
