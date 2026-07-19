@@ -198,6 +198,17 @@ def _serialized_queue(body: str) -> bool:
     )
 
 
+def _nearest_async_method(body: str, offset: int) -> str:
+    names = [
+        match.group("name")
+        for match in re.finditer(
+            r"\basync\s+(?P<name>[A-Za-z_$][\w$]*)\s*\(",
+            body[:offset],
+        )
+    ]
+    return names[-1] if names else "queue mutation"
+
+
 def _queue_mutator_rows(body: str, body_offset: int) -> list[tuple[str, int]]:
     rows: list[tuple[str, int]] = []
     for method in _ASYNC_METHOD_RE.finditer(body):
@@ -223,6 +234,30 @@ def _queue_mutator_rows(body: str, body_offset: int) -> list[tuple[str, int]]:
         )
         if loads and saves:
             rows.append((method.group("name"), body_offset + method.start()))
+
+    # TypeScript object return types contain braces before the real method body,
+    # so the lightweight method-block parser above can stop at the type literal.
+    # Fall back to ownership evidence from repeated helper calls inside the class.
+    if len(rows) < 2:
+        loads = list(
+            re.finditer(
+                r"await\s+this\.(?:[A-Za-z_$][\w$]*(?:load|read)|(?:load|read)[A-Za-z0-9_$]*)\s*\(",
+                body,
+                re.I,
+            )
+        )
+        saves = list(
+            re.finditer(
+                r"await\s+this\.(?:[A-Za-z_$][\w$]*(?:save|write)|(?:save|write)[A-Za-z0-9_$]*)\s*\(",
+                body,
+                re.I,
+            )
+        )
+        if len(loads) >= 2 and len(saves) >= 2:
+            rows = [
+                (_nearest_async_method(body, match.start()), body_offset + match.start())
+                for match in loads[:4]
+            ]
     return rows
 
 
