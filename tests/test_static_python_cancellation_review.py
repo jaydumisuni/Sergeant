@@ -37,6 +37,44 @@ class Worker:
     assert "taskgroup-cancellation-not-caught-by-ordinary-except" in _roots(result)
 
 
+def test_cross_file_taskgroup_evidence_is_used_for_changed_shutdown_loop(tmp_path: Path) -> None:
+    worker = tmp_path / "worker.py"
+    worker.write_text(
+        """
+import asyncio
+
+class Worker:
+    async def stop(self):
+        tasks = list(self._tasks.values())
+        for task in tasks:
+            task.cancel()
+        for task in tasks:
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
+        self._tasks = {}
+        """,
+        encoding="utf-8",
+    )
+    jobs = tmp_path / "jobs.py"
+    jobs.write_text(
+        """
+import asyncio
+
+async def execute_batch():
+    async with asyncio.TaskGroup() as group:
+        group.create_task(run_one())
+        """,
+        encoding="utf-8",
+    )
+
+    result = run_static_python_cancellation_review(tmp_path, ["worker.py"])
+
+    assert "taskgroup-cancellation-not-caught-by-ordinary-except" in _roots(result)
+    assert result["taskgroup_evidence_path"] == "jobs.py"
+
+
 def test_taskgroup_shutdown_with_except_star_is_clean(tmp_path: Path) -> None:
     source = tmp_path / "worker.py"
     source.write_text(
