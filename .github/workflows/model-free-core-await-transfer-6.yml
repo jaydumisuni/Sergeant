@@ -1,0 +1,165 @@
+name: Model-Free Core Await Transfer 6
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-await-transfer-6.yml"
+      - "scripts/run_static_training_set.py"
+      - "main_review/**"
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout frozen Sergeant reviewer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout React code-runner defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: branyang02/notie
+          ref: 215f97770378b8f59807a8306759ef4c369ab0dc
+          path: await-transfer-6/notie
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout React Native storage fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: amoghmokshit-blip/Scale-Chat
+          ref: 3d875ab139871cf44420d3133cd8041cf9123e9a
+          path: await-transfer-6/scale-chat
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout Python worker defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: damien-robotsix/robotsix-mill
+          ref: 055ddb6527a6627569bc2ef97e56482dcdf3d2fd
+          path: await-transfer-6/robotsix
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Freeze Scale-Chat defective parent
+        shell: bash
+        run: git -C await-transfer-6/scale-chat checkout --detach HEAD^
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-await-transfer-6-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install frozen Sergeant package
+        run: python -m pip install .
+
+      - name: Build opaque runtime manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-await-transfer-6
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "case_id": "await-transfer-6-a",
+                  "repository": "branyang02/notie",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer-6/notie",
+                  "changed_files": [
+                      "src/components/CodeBlock.tsx",
+                      "src/service/api.ts"
+                  ],
+              },
+              {
+                  "case_id": "await-transfer-6-b",
+                  "repository": "amoghmokshit-blip/Scale-Chat",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer-6/scale-chat",
+                  "changed_files": ["my-app/src/app/super-group/storage.tsx"],
+              },
+              {
+                  "case_id": "await-transfer-6-c",
+                  "repository": "damien-robotsix/robotsix-mill",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer-6/robotsix",
+                  "changed_files": ["src/robotsix_mill/runtime/worker/core.py"],
+              },
+          ]
+          for case in cases:
+              case["defective_ref"] = subprocess.check_output(
+                  ["git", "-C", case["checkout_path"], "rev-parse", "HEAD"],
+                  text=True,
+              ).strip()
+              case["workspace_policy"] = "static_first"
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-await-transfer-6",
+              "purpose": "Sixth untouched transfer validation across component lifetime, dependency-driven promise publication and Python cancellation-group semantics. Expected roots remain outside Sergeant input.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "untouched_transfer_validation",
+                  "reviewer_code_frozen_before_target_selection": "7a05ac4a20ba91ebb3f960454c91c7c3426aef76",
+              },
+              "cases": cases,
+          }
+          Path("build/model-free-core-await-transfer-6/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run normal pr-review on untouched revisions
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-await-transfer-6/runtime-manifest.json \
+            --output build/model-free-core-await-transfer-6/frozen-result.json \
+            2>&1 | tee build/model-free-core-await-transfer-6/frozen-summary.json
+
+      - name: Publish frozen transfer summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — await transfer 6"
+            echo
+            echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-await-transfer-6/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable transfer reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-await-transfer-6
+          path: build/model-free-core-await-transfer-6/
+          if-no-files-found: error
+          retention-days: 90
