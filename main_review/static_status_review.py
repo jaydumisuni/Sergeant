@@ -10,16 +10,20 @@ from typing import Any, Iterable
 from .static_async_epoch_review import run_static_async_epoch_review
 from .static_async_lifecycle_review import run_static_async_lifecycle_review
 from .static_async_publication_review import run_static_async_publication_review
+from .static_authenticated_owner_review import run_static_authenticated_owner_review
+from .static_auth_order_review import run_static_auth_order_review
 from .static_await_state_review import run_static_await_state_review
 from .static_component_async_review import run_static_component_async_review
 from .static_core_contract_review import run_static_core_contract_review
 from .static_dart_provider_lifetime_review import run_static_dart_provider_lifetime_review
 from .static_js_auth_chrome_review import run_static_js_auth_chrome_review
+from .static_js_auth_transition_review import run_static_js_auth_transition_review
 from .static_js_controller_epoch_review import run_static_js_controller_epoch_review
 from .static_js_remote_state_review import run_static_js_remote_state_review
 from .static_python_cancellation_review import run_static_python_cancellation_review
 from .static_recovery_review import run_static_recovery_review
 from .static_stale_state_review import run_static_stale_state_review
+from .static_terminal_state_review import run_static_terminal_state_review
 from .static_transfer_review import run_static_transfer_review
 
 
@@ -123,12 +127,16 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
     await_state = run_static_await_state_review(root_path, changed)
     js_remote_state = run_static_js_remote_state_review(root_path, changed)
     js_auth_chrome = run_static_js_auth_chrome_review(root_path, changed)
+    js_auth_transition = run_static_js_auth_transition_review(root_path, changed)
+    auth_order = run_static_auth_order_review(root_path, changed)
+    authenticated_owner = run_static_authenticated_owner_review(root_path, changed)
     async_epoch = run_static_async_epoch_review(root_path, changed)
     js_controller_epoch = run_static_js_controller_epoch_review(root_path, changed)
     async_publication = run_static_async_publication_review(root_path, changed)
     dart_provider_lifetime = run_static_dart_provider_lifetime_review(root_path, changed)
     component_async = run_static_component_async_review(root_path, changed)
     python_cancellation = run_static_python_cancellation_review(root_path, changed)
+    terminal_state = run_static_terminal_state_review(root_path, changed)
     for result in (
         recovery,
         stale_state,
@@ -138,12 +146,16 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         await_state,
         js_remote_state,
         js_auth_chrome,
+        js_auth_transition,
+        auth_order,
+        authenticated_owner,
         async_epoch,
         js_controller_epoch,
         async_publication,
         dart_provider_lifetime,
         component_async,
         python_cancellation,
+        terminal_state,
     ):
         findings.extend(dict(item) for item in result.get("findings", []) if isinstance(item, dict))
 
@@ -152,7 +164,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-status-review.v14",
+        "schema_version": "sergeant.static-status-review.v15",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -171,11 +183,15 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         "static_await_state_review": await_state,
         "static_js_remote_state_review": js_remote_state,
         "static_js_auth_chrome_review": js_auth_chrome,
+        "static_js_auth_transition_review": js_auth_transition,
+        "static_auth_order_review": auth_order,
+        "static_authenticated_owner_review": authenticated_owner,
         "static_async_epoch_review": async_epoch,
         "static_js_controller_epoch_review": js_controller_epoch,
         "static_async_publication_review": async_publication,
         "static_dart_provider_lifetime_review": dart_provider_lifetime,
         "static_component_async_review": component_async,
         "static_python_cancellation_review": python_cancellation,
+        "static_terminal_state_review": terminal_state,
         "executed_project_code": False,
     }
