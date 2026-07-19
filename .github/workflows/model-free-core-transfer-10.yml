@@ -1,6 +1,6 @@
 name: Model-Free Core Transfer 10
 # Reviewer frozen before target selection: 89b953ed4e5d1e1f6dc3669185ded9f0d5447516
-# First blind execution trigger; target refs and reviewer implementation are unchanged.
+# First valid execution uses sparse exact-SHA checkouts; targets and reviewer are unchanged.
 
 on:
   workflow_dispatch:
@@ -29,32 +29,47 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Checkout transfer case A
-        uses: actions/checkout@v4
-        with:
-          repository: Greggwolin/landscape
-          ref: c6e82a9724896b1b18860f8fde0622bb69501c8d
-          path: transfer-10/landscape
-          persist-credentials: false
-          fetch-depth: 1
+      - name: Sparse checkout untouched transfer targets
+        shell: bash
+        run: |
+          set -euo pipefail
 
-      - name: Checkout transfer case B
-        uses: actions/checkout@v4
-        with:
-          repository: KanishJebaMathewM/Truxify
-          ref: 5b3b8f9af837ad2240529b00077ee5d80215e471
-          path: transfer-10/truxify
-          persist-credentials: false
-          fetch-depth: 1
+          sparse_checkout() {
+            local repository="$1"
+            local ref="$2"
+            local destination="$3"
+            shift 3
 
-      - name: Checkout transfer case C
-        uses: actions/checkout@v4
-        with:
-          repository: currentsuspect/Aestra
-          ref: f2ee83ac6c29dd75f53ef5e50f2b811d30696e5d
-          path: transfer-10/aestra
-          persist-credentials: false
-          fetch-depth: 1
+            git init "$destination"
+            git -C "$destination" remote add origin "https://github.com/${repository}.git"
+            git -C "$destination" config core.sparseCheckout true
+            : > "$destination/.git/info/sparse-checkout"
+            for pattern in "$@"; do
+              printf '%s\n' "$pattern" >> "$destination/.git/info/sparse-checkout"
+            done
+            git -C "$destination" fetch --depth=1 --filter=blob:none origin "$ref"
+            git -C "$destination" checkout --detach FETCH_HEAD
+            test "$(git -C "$destination" rev-parse HEAD)" = "$ref"
+          }
+
+          sparse_checkout \
+            Greggwolin/landscape \
+            c6e82a9724896b1b18860f8fde0622bb69501c8d \
+            transfer-10/landscape \
+            '/src/app/projects/\[projectId\]/components/tabs/PropertyTab.tsx'
+
+          sparse_checkout \
+            KanishJebaMathewM/Truxify \
+            5b3b8f9af837ad2240529b00077ee5d80215e471 \
+            transfer-10/truxify \
+            '/apps/driver/lib/services/trip_service.dart'
+
+          sparse_checkout \
+            currentsuspect/Aestra \
+            f2ee83ac6c29dd75f53ef5e50f2b811d30696e5d \
+            transfer-10/aestra \
+            '/AestraAudio/include/Commands/CommandRegistry.h' \
+            '/AestraAudio/src/Commands/CommandRegistry.cpp'
 
       - name: Set up Python
         uses: actions/setup-python@v5
