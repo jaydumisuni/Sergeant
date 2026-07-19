@@ -1,5 +1,6 @@
 name: Model-Free Core Transfer 10
 # Reviewer frozen before target selection: 89b953ed4e5d1e1f6dc3669185ded9f0d5447516
+# First blind execution trigger; target refs and reviewer implementation are unchanged.
 
 on:
   workflow_dispatch:
