@@ -12,6 +12,7 @@ import re
 from pathlib import Path
 from typing import Any, Iterable
 
+from .static_js_auth_context_review import run_static_js_auth_context_review
 from .static_js_auth_transition_review import run_static_js_auth_transition_review
 
 _SOURCE_SUFFIXES = {".js", ".jsx", ".ts", ".tsx"}
@@ -270,6 +271,12 @@ def run_static_js_auth_chrome_review(
         for item in transition.get("findings", [])
         if isinstance(item, dict)
     )
+    context = run_static_js_auth_context_review(root_path, changed)
+    findings.extend(
+        dict(item)
+        for item in context.get("findings", [])
+        if isinstance(item, dict)
+    )
 
     unique: dict[tuple[str, str, int], dict[str, Any]] = {}
     for finding in findings:
@@ -281,11 +288,12 @@ def run_static_js_auth_chrome_review(
             )
         ] = finding
     return {
-        "schema_version": "sergeant.static-js-auth-chrome-review.v2",
+        "schema_version": "sergeant.static-js-auth-chrome-review.v3",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
         "readable_changed_files": readable,
         "static_js_auth_transition_review": transition,
+        "static_js_auth_context_review": context,
         "executed_project_code": False,
     }
