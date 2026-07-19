@@ -8,31 +8,6 @@ from typing import Any, Iterable
 
 _GO_SUFFIXES = {".go"}
 _SELECTOR_FIELDS = ("Model", "Provider", "Backend", "Profile", "Engine", "Runtime")
-_SAFE_BACKGROUND_CALLS = {
-    "Add",
-    "Done",
-    "Lock",
-    "Print",
-    "Printf",
-    "Println",
-    "RLock",
-    "RUnlock",
-    "Stop",
-    "Unlock",
-    "Wait",
-}
-_BUILTIN_CALLS = {
-    "append",
-    "cap",
-    "close",
-    "copy",
-    "delete",
-    "len",
-    "make",
-    "new",
-    "panic",
-    "recover",
-}
 
 
 def _safe_text(root: Path, relative: str) -> str:
@@ -113,8 +88,10 @@ def _finding(
     evidence: str,
     falsifiers: Iterable[str],
     verification: str,
+    supporting: Iterable[str] = (),
     confidence: float = 0.97,
 ) -> dict[str, Any]:
+    refs = [f"{path}:{line_start}", *[str(item) for item in supporting]]
     return {
         "source": "static-transfer-13-officer",
         "officer": "Mechanic" if category == "concurrency" else "Engineer",
@@ -126,7 +103,7 @@ def _finding(
         "line_start": line_start,
         "line_end": line_start,
         "evidence_ref": f"{path}:{line_start}",
-        "supporting_evidence_refs": [f"{path}:{line_start}"],
+        "supporting_evidence_refs": list(dict.fromkeys(refs)),
         "message": message,
         "evidence": evidence,
         "falsifiers_checked": list(falsifiers),
@@ -152,45 +129,57 @@ def _go_functions(text: str) -> dict[str, str]:
     return functions
 
 
-def _call_names(body: str) -> list[str]:
-    names: list[str] = []
-    for match in re.finditer(
-        r"\b(?P<call>[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*)\s*\(",
-        body,
-    ):
-        call = match.group("call")
-        final = call.rsplit(".", 1)[-1]
-        if final in _BUILTIN_CALLS or final in _SAFE_BACKGROUND_CALLS:
-            continue
-        if final in {"if", "for", "select", "switch", "return", "defer", "go"}:
-            continue
-        names.append(call)
-    return names
+def _body_is_lock_scoped_mutation_only(body: str) -> bool:
+    """Recognize a tiny guarded mutation with no arbitrary call surface."""
+    if re.search(r"\b[A-Za-z_][A-Za-z0-9_]*\.(?:R?Lock)\s*\(\s*\)", body) is None:
+        return False
+    if re.search(r"\b[A-Za-z_][A-Za-z0-9_]*\.(?:R?Unlock)\s*\(\s*\)", body) is None:
+        return False
 
-
-def _body_has_panic_bearing_work(body: str) -> bool:
-    """Exclude synchronization/log-only goroutines while retaining real work calls."""
-    return bool(_call_names(body))
-
-
-def _goroutine_finding(path: str, line_start: int, evidence: str) -> dict[str, Any]:
-    return _finding(
-        root_cause="detached-goroutine-without-panic-containment",
-        path=path,
-        line_start=line_start,
-        category="concurrency",
-        message="A fire-and-forget goroutine performs panic-bearing work without containing panics.",
-        evidence=evidence,
-        falsifiers=(
-            "Checked that the launch uses the raw `go` statement rather than a structured task group.",
-            "Checked the goroutine entry/target for a recover boundary.",
-            "Excluded synchronization, wait-group, timer-stop, and logging-only bookkeeping.",
-        ),
-        verification=(
-            "Install a deferred panic boundary at the goroutine entry point, preserve cleanup and result signalling, "
-            "and inject a panicking dependency to prove the process survives and callers do not hang."
-        ),
+    scrubbed = re.sub(r"//[^\n]*|/\*[\s\S]*?\*/", "", body)
+    scrubbed = re.sub(r"\bdefer\s+", "", scrubbed)
+    scrubbed = re.sub(
+        r"\b[A-Za-z_][A-Za-z0-9_]*\.(?:R?Lock|R?Unlock)\s*\(\s*\)\s*;?",
+        "",
+        scrubbed,
     )
+    scrubbed = re.sub(
+        r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*"
+        r"\s*(?:\+\+|--)\s*;?",
+        "",
+        scrubbed,
+    )
+    scrubbed = re.sub(
+        r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)*"
+        r"\s*(?:\+=|-=|\*=|/=|=)\s*"
+        r"(?:[A-Za-z_][A-Za-z0-9_.]*|[-+]?\d+(?:\.\d+)?)\s*;?",
+        "",
+        scrubbed,
+    )
+    return re.sub(r"[{};\s]", "", scrubbed) == ""
+
+
+def _body_has_nontrivial_work(body: str) -> bool:
+    scrubbed = re.sub(
+        r"\b(?:recover|panic|close|len|cap|append|make|new)\s*\(",
+        "",
+        body,
+    )
+    scrubbed = re.sub(
+        r"\b[A-Za-z_][A-Za-z0-9_]*\.(?:R?Lock|R?Unlock|Done)\s*\(\s*\)",
+        "",
+        scrubbed,
+    )
+    method_call = re.search(
+        r"\b[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)+\s*\(",
+        scrubbed,
+    )
+    plain_call = re.search(
+        r"\b(?!if\b|for\b|switch\b|select\b|return\b|go\b|defer\b)"
+        r"[A-Za-z_][A-Za-z0-9_]*\s*\(",
+        scrubbed,
+    )
+    return method_call is not None or plain_call is not None
 
 
 def _detached_goroutine_findings(path: str, text: str) -> list[dict[str, Any]]:
@@ -199,7 +188,8 @@ def _detached_goroutine_findings(path: str, text: str) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
     functions = _go_functions(text)
 
-    for match in re.finditer(r"\bgo\s+func\s*\([^)]*\)\s*\{", text, re.M):
+    anonymous = re.compile(r"\bgo\s+func\s*\([^)]*\)\s*\{", re.M)
+    for match in anonymous.finditer(text):
         opening = match.end() - 1
         closing = _matching_brace(text, opening)
         if closing is None:
@@ -207,16 +197,31 @@ def _detached_goroutine_findings(path: str, text: str) -> list[dict[str, Any]]:
         body = text[opening + 1 : closing]
         if re.search(r"\brecover\s*\(", body):
             continue
-        calls = _call_names(body)
-        if not calls:
+        if _body_is_lock_scoped_mutation_only(body):
             continue
+        if not _body_has_nontrivial_work(body):
+            continue
+        line = _line(text, match.start())
         findings.append(
-            _goroutine_finding(
-                path,
-                _line(text, match.start()),
-                "The detached goroutine invokes "
-                + ", ".join(f"`{name}`" for name in calls[:4])
-                + " without a deferred recover boundary; a panic can terminate the Go process.",
+            _finding(
+                root_cause="detached-goroutine-without-panic-containment",
+                path=path,
+                line_start=line,
+                category="concurrency",
+                message="A fire-and-forget goroutine performs nontrivial work without containing panics.",
+                evidence=(
+                    "The raw `go func` launch has no deferred `recover`; a panic in this detached "
+                    "background path terminates the entire Go process rather than only failing the task."
+                ),
+                falsifiers=(
+                    "Checked that this is a raw detached goroutine rather than an errgroup-managed task.",
+                    "Checked the goroutine body for a recover boundary.",
+                    "Excluded tiny lock-scoped mutations and signalling-only bodies with no arbitrary call surface.",
+                ),
+                verification=(
+                    "Install a deferred panic boundary at the goroutine entry point, report the failure through logs or its result channel, "
+                    "and inject a panicking dependency to prove the process survives and callers do not hang."
+                ),
             )
         )
 
@@ -228,23 +233,39 @@ def _detached_goroutine_findings(path: str, text: str) -> list[dict[str, Any]]:
         if text[match.start() : match.end()].startswith("go func"):
             continue
         target = functions.get(match.group("name"))
-        # Cross-file or library targets are not sufficient direct evidence. The
-        # same-file target must be visible and perform real work.
-        if target is None or re.search(r"\brecover\s*\(", target):
+        if target is not None and (
+            re.search(r"\brecover\s*\(", target)
+            or _body_is_lock_scoped_mutation_only(target)
+            or not _body_has_nontrivial_work(target)
+        ):
             continue
-        if not _body_has_panic_bearing_work(target):
-            continue
+        line = _line(text, match.start())
         findings.append(
-            _goroutine_finding(
-                path,
-                _line(text, match.start()),
-                f"`go {match.group('call')}(...)` detaches a same-file worker that performs real calls but has no local recover boundary.",
+            _finding(
+                root_cause="detached-goroutine-without-panic-containment",
+                path=path,
+                line_start=line,
+                category="concurrency",
+                message="A directly launched background function has no visible panic-containment boundary.",
+                evidence=(
+                    f"`go {match.group('call')}(...)` detaches execution; the target has no local recover boundary visible in this file, "
+                    "so a panic can terminate the process."
+                ),
+                falsifiers=(
+                    "Checked that the launch uses the raw `go` statement.",
+                    "Checked a same-file target implementation for deferred recovery when available.",
+                    "Excluded same-file lock-only mutation and signalling helpers.",
+                ),
+                verification=(
+                    "Wrap the detached call in a goroutine entry function with deferred recovery, preserve cleanup/result signalling, "
+                    "and regression-test an injected panic."
+                ),
             )
         )
 
-    unique: dict[int, dict[str, Any]] = {}
+    unique: dict[tuple[str, int], dict[str, Any]] = {}
     for finding in findings:
-        unique[int(finding["line_start"])] = finding
+        unique[(str(finding["path"]), int(finding["line_start"]))] = finding
     return list(unique.values())
 
 
@@ -260,15 +281,20 @@ def _documented_selector_findings(path: str, text: str) -> list[dict[str, Any]]:
         struct_type = struct.group("type")
         before = text[max(0, struct.start() - 700) : struct.start()]
         for field in _SELECTOR_FIELDS:
-            if re.search(rf"(?m)^\s*{re.escape(field)}\s+string\b", struct.group("body")) is None:
+            if re.search(
+                rf"(?m)^\s*{re.escape(field)}\s+string\b",
+                struct.group("body"),
+            ) is None:
                 continue
-            promised_default = re.search(
-                rf"(?:empty\s+`?{re.escape(field)}`?|empty\s+{re.escape(field)}|zero\s+value)"
-                rf"[\s\S]{{0,220}}?(?:resolve|default)",
-                before,
-                re.I,
+            promised_default = bool(
+                re.search(
+                    rf"(?:empty\s+`?{re.escape(field)}`?|empty\s+{re.escape(field)}|zero\s+value)"
+                    rf"[\s\S]{{0,220}}?(?:resolve|default)",
+                    before,
+                    re.I,
+                )
             )
-            if promised_default is None:
+            if not promised_default:
                 continue
             function_re = re.compile(
                 rf"\bfunc\s*(?:\([^)]*\)\s*)?[A-Za-z_][A-Za-z0-9_]*\s*\("
@@ -282,8 +308,8 @@ def _documented_selector_findings(path: str, text: str) -> list[dict[str, Any]]:
                 if closing is None:
                     continue
                 body = text[opening + 1 : closing]
-                variable = function.group("var")
-                selector = rf"{re.escape(variable)}\.{re.escape(field)}"
+                var = function.group("var")
+                selector = rf"{re.escape(var)}\.{re.escape(field)}"
                 forwarded = re.search(
                     rf"\b{re.escape(field)}\s*:\s*{selector}\b|\([^)]*{selector}[^)]*\)",
                     body,
@@ -291,32 +317,33 @@ def _documented_selector_findings(path: str, text: str) -> list[dict[str, Any]]:
                 )
                 if forwarded is None:
                     continue
-                empty_guard = re.search(
+                has_empty_guard = re.search(
                     rf"\bif\s+{selector}\s*==\s*\"\"|\bif\s+len\s*\(\s*{selector}\s*\)\s*==\s*0",
                     body,
                 )
-                resolution = re.search(
+                has_resolution = re.search(
                     rf"{selector}\s*=|\b(?:resolve|default)[A-Za-z0-9_]*{re.escape(field)}\s*\(",
                     body,
                     re.I,
                 )
-                if empty_guard is not None and resolution is not None:
+                if has_empty_guard is not None and has_resolution is not None:
                     continue
+                line = _line(text, function.start())
                 findings.append(
                     _finding(
                         root_cause="documented-default-selector-forwarded-without-resolution",
                         path=path,
-                        line_start=_line(text, function.start()),
+                        line_start=line,
                         category="api_contract",
                         message="An options contract promises default selector resolution, but the operation forwards the empty selector unchanged.",
                         evidence=(
-                            f"`{struct_type}.{field}` is documented as resolving when empty; this operation forwards "
-                            f"`{variable}.{field}` without an empty-value guard, fallback assignment, or resolver call."
+                            f"`{struct_type}.{field}` is documented as resolving when empty; this operation forwards `{var}.{field}` "
+                            "into the runtime without an empty-value guard, fallback assignment, or resolver call."
                         ),
                         falsifiers=(
                             "Checked that the options declaration explicitly promises empty/zero-value default resolution.",
                             "Checked that the operation forwards the same selector into a downstream call or options object.",
-                            "Checked the operation body for an empty-value guard and fallback/resolver assignment.",
+                            "Checked the operation body for an empty-value guard and local fallback/resolver assignment.",
                         ),
                         verification=(
                             "Resolve one authoritative selector before constructing the runtime request, reject unresolved empty values with an actionable error, "
@@ -327,11 +354,15 @@ def _documented_selector_findings(path: str, text: str) -> list[dict[str, Any]]:
     return findings
 
 
-def run_static_transfer_13_review(root: str | Path, changed_files: Iterable[str]) -> dict[str, Any]:
+def run_static_transfer_13_review(
+    root: str | Path,
+    changed_files: Iterable[str],
+) -> dict[str, Any]:
     root_path = Path(root).resolve()
     changed = sorted({str(item) for item in changed_files if str(item)})
     readable: list[str] = []
     findings: list[dict[str, Any]] = []
+
     for path in changed:
         text = _safe_text(root_path, path)
         if not text:
