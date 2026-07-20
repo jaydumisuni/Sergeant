@@ -76,7 +76,7 @@ jobs:
 
           sparse_lineage_checkout \
             Unity-Technologies/mono \
-            8e0f6c5cde15cf8f14b06bd9a5b3a7128f099dc8 \
+            019b13c9ca94fc7f6e99096fa776f896a63f4f66 \
             06c860d167ee1c2c322f5ad62445dd0128c14ff0 \
             transfer-19/mono \
             '/mono/metadata/class-init.c'
@@ -148,7 +148,7 @@ jobs:
                       "repository": "Unity-Technologies/mono",
                       "source_pr": 2220,
                       "checkout_path": "transfer-19/mono",
-                      "defective_ref": "8e0f6c5cde15cf8f14b06bd9a5b3a7128f099dc8",
+                      "defective_ref": "019b13c9ca94fc7f6e99096fa776f896a63f4f66",
                       "fixing_ref": "06c860d167ee1c2c322f5ad62445dd0128c14ff0",
                       "changed_files": ["mono/metadata/class-init.c"],
                       "workspace_policy": "static_first"
