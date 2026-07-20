@@ -1,0 +1,223 @@
+name: Model-Free Core Transfer 22 Learned Closure
+# Learned reviewer frozen after transfer 22's provenance-valid 0/3 first pass: c65d92a4769ef8797ebb4a8d9e4259f8f8477995
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-22-learned.yml"
+      - "main_review/static_transfer_22_review.py"
+      - "main_review/static_remote_contract_review.py"
+      - "tests/test_static_transfer_22_review.py"
+
+permissions:
+  contents: read
+
+jobs:
+  learned-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin learned Sergeant reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach c65d92a4769ef8797ebb4a8d9e4259f8f8477995
+          test "$(git rev-parse HEAD)" = "c65d92a4769ef8797ebb4a8d9e4259f8f8477995"
+          test -e main_review/static_transfer_22_review.py
+          grep -q 'sergeant.static-transfer-22-review.v1' main_review/static_transfer_22_review.py
+          grep -q 'sergeant.static-remote-contract-review.v3' main_review/static_remote_contract_review.py
+          grep -q 'sergeant.static-status-review.v34' main_review/static_status_review.py
+
+      - name: Checkout exact defective and fixing lineages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "repository": "django/django",
+                  "destination": "transfer-22/django",
+                  "defective": "543e17c4405dfdac4f18759fc78b190406d14239",
+                  "fixing": "f7f38f3a0b44d8c6d14344dae66b6ce52cd77b55",
+                  "files": ["django/db/models/fields/tuple_lookups.py"],
+              },
+              {
+                  "repository": "tokio-rs/tokio",
+                  "destination": "transfer-22/tokio",
+                  "defective": "670a907c55c7f7b27da203208e65da60de6598b2",
+                  "fixing": "c207675890e089994b0af8463afeca39017b0ed2",
+                  "files": [
+                      "tokio/src/sync/mpsc/block.rs",
+                      "tokio/src/sync/mpsc/list.rs",
+                      "tokio/src/sync/mpsc/mod.rs",
+                  ],
+              },
+              {
+                  "repository": "microsoft/vscode",
+                  "destination": "transfer-22/vscode",
+                  "defective": "7b17c65f78d7c39e4e06fb924a2002949b9861c4",
+                  "fixing": "53d142256100ae504fdb4a310d5f9598a5f228b5",
+                  "files": ["src/vs/workbench/contrib/chat/browser/chatImageCarouselService.ts"],
+              },
+          ]
+          for case in cases:
+              destination = Path(case["destination"])
+              subprocess.run(["git", "init", str(destination)], check=True)
+              subprocess.run(
+                  ["git", "-C", str(destination), "remote", "add", "origin", f"https://github.com/{case['repository']}.git"],
+                  check=True,
+              )
+              subprocess.run(["git", "-C", str(destination), "config", "core.sparseCheckout", "true"], check=True)
+              sparse = destination / ".git" / "info" / "sparse-checkout"
+              sparse.write_text("".join(f"/{path}\n" for path in case["files"]), encoding="utf-8")
+              subprocess.run(["git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", case["fixing"]], check=True)
+              subprocess.run(["git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", case["defective"]], check=True)
+              subprocess.run(["git", "-C", str(destination), "merge-base", "--is-ancestor", case["defective"], case["fixing"]], check=True)
+              subprocess.run(["git", "-C", str(destination), "checkout", "--detach", case["defective"]], check=True)
+              actual = subprocess.check_output(["git", "-C", str(destination), "rev-parse", "HEAD"], text=True).strip()
+              if actual != case["defective"]:
+                  raise SystemExit(f"checkout mismatch for {case['repository']}")
+              for relative in case["files"]:
+                  if not (destination / relative).is_file():
+                      raise SystemExit(f"missing source: {case['repository']}:{relative}")
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-22-learned-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install learned Sergeant package and test runner
+        run: python -m pip install . pytest
+
+      - name: Run focused transfer 22 controls
+        run: python -m pytest -q tests/test_static_transfer_22_review.py tests/test_pr_review_static_invariant_integration.py
+
+      - name: Build learned closure manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-transfer-22-learned
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-22-learned",
+              "purpose": "Learned closure only. Transfer 22's first provenance-valid 0/3 artifact remains the immutable fresh score.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "classification": "learned_closure",
+                  "historical_fresh_score_immutable": True,
+                  "reviewer_code": "c65d92a4769ef8797ebb4a8d9e4259f8f8477995"
+              },
+              "cases": [
+                  {
+                      "case_id": "transfer-22-a",
+                      "repository": "django/django",
+                      "source_pr": 19331,
+                      "checkout_path": "transfer-22/django",
+                      "defective_ref": "543e17c4405dfdac4f18759fc78b190406d14239",
+                      "fixing_ref": "f7f38f3a0b44d8c6d14344dae66b6ce52cd77b55",
+                      "changed_files": ["django/db/models/fields/tuple_lookups.py"],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-22-b",
+                      "repository": "tokio-rs/tokio",
+                      "source_pr": 8062,
+                      "checkout_path": "transfer-22/tokio",
+                      "defective_ref": "670a907c55c7f7b27da203208e65da60de6598b2",
+                      "fixing_ref": "c207675890e089994b0af8463afeca39017b0ed2",
+                      "changed_files": [
+                          "tokio/src/sync/mpsc/block.rs",
+                          "tokio/src/sync/mpsc/list.rs",
+                          "tokio/src/sync/mpsc/mod.rs"
+                      ],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-22-c",
+                      "repository": "microsoft/vscode",
+                      "source_pr": 303370,
+                      "checkout_path": "transfer-22/vscode",
+                      "defective_ref": "7b17c65f78d7c39e4e06fb924a2002949b9861c4",
+                      "fixing_ref": "53d142256100ae504fdb4a310d5f9598a5f228b5",
+                      "changed_files": ["src/vs/workbench/contrib/chat/browser/chatImageCarouselService.ts"],
+                      "workspace_policy": "static_first"
+                  }
+              ]
+          }
+          Path("build/model-free-core-transfer-22-learned/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Run learned normal pr-review
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-22-learned/runtime-manifest.json \
+            --output build/model-free-core-transfer-22-learned/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-22-learned/frozen-summary.json
+
+      - name: Verify exact learned roots
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("build/model-free-core-transfer-22-learned/frozen-result.json").read_text(encoding="utf-8"))
+          summaries = {row["case_id"]: row for row in result.get("summaries", [])}
+          expected = {
+              "transfer-22-a": {"compound-sql-in-lookup-preserves-null-members"},
+              "transfer-22-b": {"concurrent-unsigned-distance-subtracts-independent-state-marker"},
+              "transfer-22-c": {
+                  "partition-local-fallback-preempts-global-identity-match",
+                  "canonical-resource-uri-discarded-before-identity-lookup",
+              },
+          }
+          if set(summaries) != set(expected):
+              raise SystemExit(f"unexpected cases: {sorted(summaries)}")
+          for case_id, required in expected.items():
+              summary = summaries[case_id]
+              roots = {str(row.get("root_cause")) for row in summary.get("admitted_roots", [])}
+              missing = required - roots
+              if missing:
+                  raise SystemExit(f"{case_id} missing roots {sorted(missing)}; got {sorted(roots)}")
+              if summary.get("verdict") == "APPROVE":
+                  raise SystemExit(f"{case_id} incorrectly approved")
+              if int(summary.get("model_calls") or 0) != 0:
+                  raise SystemExit(f"model call detected in {case_id}")
+          PY
+
+      - name: Upload immutable learned reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-22-learned
+          path: build/model-free-core-transfer-22-learned/
+          if-no-files-found: error
+          retention-days: 90
