@@ -1,0 +1,226 @@
+name: Model-Free Core Transfer 23 Learned Closure
+# Learned reviewer frozen after transfer 23's provenance-valid 0/3 first pass: bca0375e9d0dcfa4c4b42f8ab37628a3cbeb555b
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-23-learned.yml"
+      - "main_review/static_transfer_23_review.py"
+      - "main_review/static_remote_contract_review.py"
+      - "tests/test_static_transfer_23_review.py"
+
+permissions:
+  contents: read
+
+jobs:
+  learned-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin learned Sergeant reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach bca0375e9d0dcfa4c4b42f8ab37628a3cbeb555b
+          test "$(git rev-parse HEAD)" = "bca0375e9d0dcfa4c4b42f8ab37628a3cbeb555b"
+          test -e main_review/static_transfer_23_review.py
+          grep -q 'sergeant.static-transfer-23-review.v1' main_review/static_transfer_23_review.py
+          grep -q 'sergeant.static-remote-contract-review.v4' main_review/static_remote_contract_review.py
+          grep -q 'sergeant.static-status-review.v34' main_review/static_status_review.py
+
+      - name: Checkout exact defective and fixing lineages
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "repository": "etcd-io/etcd",
+                  "destination": "transfer-23/etcd",
+                  "defective": "b48fed443b02262ca87b42a36f18af5b15aac520",
+                  "fixing": "e8ce1ae41f18a938d0d8ad85dbc034c489e468db",
+                  "files": [
+                      "server/etcdserver/apply_auth.go",
+                      "server/etcdserver/v3_server.go",
+                  ],
+              },
+              {
+                  "repository": "spring-projects/spring-security",
+                  "destination": "transfer-23/spring-security",
+                  "defective": "62f33d3fcf137423d941ec969e681e648fc2347c",
+                  "fixing": "b44e65bad03ef66b96089fe340767c99ce1c743d",
+                  "files": [
+                      "web/src/main/java/org/springframework/security/web/savedrequest/HttpSessionRequestCache.java",
+                  ],
+              },
+              {
+                  "repository": "grpc/grpc",
+                  "destination": "transfer-23/grpc",
+                  "defective": "3861e723202850893b703ec601fb0b00bc55f394",
+                  "fixing": "666bb6b5b8c8b82215622d8af55d1a6b8a8c3af6",
+                  "files": [
+                      "src/core/xds/grpc/xds_common_types_parser.cc",
+                  ],
+              },
+          ]
+          for case in cases:
+              destination = Path(case["destination"])
+              subprocess.run(["git", "init", str(destination)], check=True)
+              subprocess.run(
+                  ["git", "-C", str(destination), "remote", "add", "origin", f"https://github.com/{case['repository']}.git"],
+                  check=True,
+              )
+              subprocess.run(["git", "-C", str(destination), "config", "core.sparseCheckout", "true"], check=True)
+              sparse = destination / ".git" / "info" / "sparse-checkout"
+              sparse.write_text("".join(f"/{path}\n" for path in case["files"]), encoding="utf-8")
+              subprocess.run(["git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", case["fixing"]], check=True)
+              subprocess.run(["git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", case["defective"]], check=True)
+              subprocess.run(["git", "-C", str(destination), "merge-base", "--is-ancestor", case["defective"], case["fixing"]], check=True)
+              subprocess.run(["git", "-C", str(destination), "checkout", "--detach", case["defective"]], check=True)
+              actual = subprocess.check_output(["git", "-C", str(destination), "rev-parse", "HEAD"], text=True).strip()
+              if actual != case["defective"]:
+                  raise SystemExit(f"checkout mismatch for {case['repository']}")
+              for relative in case["files"]:
+                  if not (destination / relative).is_file():
+                      raise SystemExit(f"missing source: {case['repository']}:{relative}")
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-23-learned-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install learned Sergeant package and test runner
+        run: python -m pip install . pytest
+
+      - name: Run focused transfer 23 controls
+        run: python -m pytest -q tests/test_static_transfer_23_review.py tests/test_pr_review_static_invariant_integration.py
+
+      - name: Build learned closure manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-transfer-23-learned
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-23-learned",
+              "purpose": "Learned closure only. Transfer 23's first provenance-valid 0/3 artifact remains the immutable fresh score.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "classification": "learned_closure",
+                  "historical_fresh_score_immutable": True,
+                  "reviewer_code": "bca0375e9d0dcfa4c4b42f8ab37628a3cbeb555b"
+              },
+              "cases": [
+                  {
+                      "case_id": "transfer-23-a",
+                      "repository": "etcd-io/etcd",
+                      "source_pr": 21687,
+                      "checkout_path": "transfer-23/etcd",
+                      "defective_ref": "b48fed443b02262ca87b42a36f18af5b15aac520",
+                      "fixing_ref": "e8ce1ae41f18a938d0d8ad85dbc034c489e468db",
+                      "changed_files": [
+                          "server/etcdserver/apply_auth.go",
+                          "server/etcdserver/v3_server.go"
+                      ],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-23-b",
+                      "repository": "spring-projects/spring-security",
+                      "source_pr": 16914,
+                      "checkout_path": "transfer-23/spring-security",
+                      "defective_ref": "62f33d3fcf137423d941ec969e681e648fc2347c",
+                      "fixing_ref": "b44e65bad03ef66b96089fe340767c99ce1c743d",
+                      "changed_files": [
+                          "web/src/main/java/org/springframework/security/web/savedrequest/HttpSessionRequestCache.java"
+                      ],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-23-c",
+                      "repository": "grpc/grpc",
+                      "source_pr": 42677,
+                      "checkout_path": "transfer-23/grpc",
+                      "defective_ref": "3861e723202850893b703ec601fb0b00bc55f394",
+                      "fixing_ref": "666bb6b5b8c8b82215622d8af55d1a6b8a8c3af6",
+                      "changed_files": [
+                          "src/core/xds/grpc/xds_common_types_parser.cc"
+                      ],
+                      "workspace_policy": "static_first"
+                  }
+              ]
+          }
+          Path("build/model-free-core-transfer-23-learned/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Run learned normal pr-review
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-23-learned/runtime-manifest.json \
+            --output build/model-free-core-transfer-23-learned/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-23-learned/frozen-summary.json
+
+      - name: Verify exact learned roots
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          result = json.loads(Path("build/model-free-core-transfer-23-learned/frozen-result.json").read_text(encoding="utf-8"))
+          summaries = {row["case_id"]: row for row in result.get("summaries", [])}
+          expected = {
+              "transfer-23-a": {"nested-operation-bypasses-canonical-authorization-helper"},
+              "transfer-23-b": {"query-only-decision-parses-unrelated-full-request-url"},
+              "transfer-23-c": {"protobuf-bool-wrapper-presence-assigned-as-value"},
+          }
+          if set(summaries) != set(expected):
+              raise SystemExit(f"unexpected cases: {sorted(summaries)}")
+          for case_id, required in expected.items():
+              summary = summaries[case_id]
+              roots = {str(row.get("root_cause")) for row in summary.get("admitted_roots", [])}
+              missing = required - roots
+              if missing:
+                  raise SystemExit(f"{case_id} missing roots {sorted(missing)}; got {sorted(roots)}")
+              if summary.get("verdict") == "APPROVE":
+                  raise SystemExit(f"{case_id} incorrectly approved")
+              if int(summary.get("model_calls") or 0) != 0:
+                  raise SystemExit(f"model call detected in {case_id}")
+          PY
+
+      - name: Upload immutable learned reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-23-learned
+          path: build/model-free-core-transfer-23-learned/
+          if-no-files-found: error
+          retention-days: 90
