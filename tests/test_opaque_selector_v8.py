@@ -10,7 +10,7 @@ def _rows() -> list[dict]:
         {
             "filename": "src/runtime.py",
             "status": "modified",
-            "patch": "@@\n-old_value = legacy()\n-old_result = consume(old_value)\n+new_value = replacement()\n+new_result = consume(new_value)\n",
+            "patch": "@@\n-old_value = legacy()\n-old_result = consume(old_value)\n-old_state = finalize(old_result)\n+new_value = replacement()\n+new_result = consume(new_value)\n+new_state = finalize(new_result)\n",
         },
         {
             "filename": "tests/test_runtime.py",
