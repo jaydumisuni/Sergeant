@@ -51,12 +51,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          set -o pipefail
           mkdir -p build/model-free-core-transfer-26
           python scripts/select_opaque_transfer_candidates.py \
             --reviewer "${REVIEWER_SHA}" \
             --set-id "${SET_ID}" \
             --lanes-json .github/transfer-lanes/transfer-26.json \
-            --output build/model-free-core-transfer-26/opaque-selection.json
+            --output build/model-free-core-transfer-26/opaque-selection.json \
+            2>&1 | tee build/model-free-core-transfer-26/selector.log
 
       - name: Pin canonical Sergeant reviewer
         shell: bash
