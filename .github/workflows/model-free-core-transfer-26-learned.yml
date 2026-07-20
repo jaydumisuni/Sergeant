@@ -1,5 +1,5 @@
 name: Model-Free Core Transfer 26 Learned Closure
-# Learned reviewer frozen after transfer 26 first-pass 0/2 valid: 80885cbfa25a60b96def90ff3951eb209e3082a0
+# Learned reviewer frozen after transfer 26 first-pass 0/2 valid: 3e385061a48f46bb4bc1cb8918ba9b2185a7f834
 
 on:
   workflow_dispatch:
@@ -7,8 +7,10 @@ on:
     paths:
       - ".github/workflows/model-free-core-transfer-26-learned.yml"
       - "main_review/static_transfer_26_review.py"
+      - "main_review/static_protocol_lifecycle_review.py"
       - "main_review/static_remote_contract_review.py"
       - "tests/test_static_transfer_26_review.py"
+      - "tests/test_static_protocol_lifecycle_review.py"
 
 permissions:
   contents: read
@@ -21,7 +23,7 @@ jobs:
       SERGEANT_LLM_ENABLED: "false"
       SERGEANT_CPL_ENABLED: "false"
       SERGEANT_CPL_POLICY: "disabled"
-      REVIEWER_SHA: 80885cbfa25a60b96def90ff3951eb209e3082a0
+      REVIEWER_SHA: 3e385061a48f46bb4bc1cb8918ba9b2185a7f834
 
     steps:
       - name: Checkout workflow event head
@@ -37,8 +39,11 @@ jobs:
           git checkout --detach "${REVIEWER_SHA}"
           test "$(git rev-parse HEAD)" = "${REVIEWER_SHA}"
           test -e main_review/static_transfer_26_review.py
+          test -e main_review/static_protocol_lifecycle_review.py
           grep -q 'sergeant.static-transfer-26-review.v1' main_review/static_transfer_26_review.py
+          grep -q 'sergeant.static-protocol-lifecycle-review.v1' main_review/static_protocol_lifecycle_review.py
           grep -q 'sergeant.static-remote-contract-review.v7' main_review/static_remote_contract_review.py
+          grep -q 'run_static_protocol_lifecycle_review' main_review/static_remote_contract_review.py
           grep -q 'run_static_transfer_26_review' main_review/static_remote_contract_review.py
           grep -q 'sergeant.static-status-review.v34' main_review/static_status_review.py
 
