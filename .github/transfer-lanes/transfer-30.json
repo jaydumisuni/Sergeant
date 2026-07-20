@@ -6,7 +6,15 @@
       "mojolicious/mojo",
       "Perl-Critic/Perl-Critic",
       "libwww-perl/libwww-perl",
-      "Perl-Toolchain-Gang/ExtUtils-MakeMaker"
+      "Perl-Toolchain-Gang/ExtUtils-MakeMaker",
+      "PerlDancer/Dancer2",
+      "perl5-dbi/dbi",
+      "plack/Plack",
+      "moose/Moose",
+      "metacpan/metacpan-api",
+      "houseabsolute/DateTime.pm",
+      "Perl-Toolchain-Gang/Module-Build",
+      "Perl-Toolchain-Gang/CPAN-Meta"
     ],
     "suffixes": [".pl", ".pm"]
   },
