@@ -48,8 +48,17 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install selector test dependency
+        run: python -m pip install pytest
+
       - name: Prove selector v8 controls
-        run: python -m pytest -q tests/test_opaque_selector_v8.py
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          mkdir -p build/model-free-core-transfer-27
+          python -m pytest -q tests/test_opaque_selector_v8.py \
+            2>&1 | tee build/model-free-core-transfer-27/selector-controls.log
 
       - name: Select three opaque behavioral defect lineages
         shell: bash
@@ -107,51 +116,26 @@ jobs:
               destination.mkdir(parents=True, exist_ok=False)
               subprocess.run(["git", "init", str(destination)], check=True)
               subprocess.run(
-                  [
-                      "git", "-C", str(destination), "remote", "add", "origin",
-                      f"https://github.com/{repository}.git",
-                  ],
+                  ["git", "-C", str(destination), "remote", "add", "origin", f"https://github.com/{repository}.git"],
                   check=True,
               )
-              subprocess.run(
-                  ["git", "-C", str(destination), "config", "core.sparseCheckout", "true"],
-                  check=True,
-              )
+              subprocess.run(["git", "-C", str(destination), "config", "core.sparseCheckout", "true"], check=True)
               sparse = destination / ".git" / "info" / "sparse-checkout"
-              sparse.write_text(
-                  "".join(f"/{path}\n" for path in case["changed_files"]),
-                  encoding="utf-8",
-              )
+              sparse.write_text("".join(f"/{path}\n" for path in case["changed_files"]), encoding="utf-8")
               for ref in (fixing, defective):
-                  subprocess.run(
-                      [
-                          "git", "-C", str(destination), "fetch", "--no-tags",
-                          "--filter=blob:none", "origin", ref,
-                      ],
-                      check=True,
-                  )
-              subprocess.run(
-                  [
-                      "git", "-C", str(destination), "merge-base",
-                      "--is-ancestor", defective, fixing,
-                  ],
-                  check=True,
-              )
-              subprocess.run(
-                  ["git", "-C", str(destination), "checkout", "--detach", defective],
-                  check=True,
-              )
-              actual = subprocess.check_output(
-                  ["git", "-C", str(destination), "rev-parse", "HEAD"],
-                  text=True,
-              ).strip()
+                  subprocess.run([
+                      "git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", ref,
+                  ], check=True)
+              subprocess.run([
+                  "git", "-C", str(destination), "merge-base", "--is-ancestor", defective, fixing,
+              ], check=True)
+              subprocess.run(["git", "-C", str(destination), "checkout", "--detach", defective], check=True)
+              actual = subprocess.check_output(["git", "-C", str(destination), "rev-parse", "HEAD"], text=True).strip()
               if actual != defective:
                   raise SystemExit(f"checkout identity mismatch for {repository}")
               for relative in case["changed_files"]:
                   if not (destination / relative).is_file():
-                      raise SystemExit(
-                          f"production source missing at defective ref: {repository}:{relative}"
-                      )
+                      raise SystemExit(f"production source missing at defective ref: {repository}:{relative}")
               case["checkout_path"] = str(destination)
               case["case_id"] = f"transfer-27-{chr(96 + index)}"
               case["workspace_policy"] = "static_first"
@@ -181,10 +165,7 @@ jobs:
           manifest = {
               "schema_version": "sergeant.review-training.v1",
               "set_id": "model-free-core-transfer-27",
-              "purpose": (
-                  "Twenty-seventh untouched transfer validation selected opaquely from "
-                  "behavior-qualified production source across C++, Java and Python ecosystems."
-              ),
+              "purpose": "Twenty-seventh untouched transfer validation selected opaquely from behavior-qualified production source across C++, Java and Python ecosystems.",
               "rules": {
                   "models_enabled": False,
                   "workspace_default": "none",
@@ -204,8 +185,7 @@ jobs:
               "cases": selection["cases"],
           }
           Path("build/model-free-core-transfer-27/runtime-manifest.json").write_text(
-              json.dumps(manifest, indent=2) + "\n",
-              encoding="utf-8",
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
           )
           PY
 
