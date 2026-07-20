@@ -127,7 +127,7 @@ def _cpp_expirable_client_stop_findings(
     for path in cpp_paths:
         text = texts.get(path, "")
         for match in re.finditer(
-            r"\b(?P<member>m_[A-Za-z_][A-Za-z0-9_]*(?:client|connection|transport)[A-Za-z0-9_]*)"
+            r"\b(?P<member>m_[A-Za-z0-9_]*(?:client|connection|transport)[A-Za-z0-9_]*)"
             r"\s*\.\s*strong_ref\s*\(",
             text,
             re.I,
@@ -136,16 +136,11 @@ def _cpp_expirable_client_stop_findings(
                 f"{path}:{_line(text, match.start())}"
             )
         for match in re.finditer(
-            r"(?<!async_)\b(?:IPCProxy::)?(?:stop|cancel|abort)[A-Za-z0-9_]*\s*\(",
+            r"\bIPCProxy::(?P<operation>(?:stop|cancel|abort)[A-Za-z0-9_]*)\s*\(",
             text,
             re.I,
         ):
-            prefix = text[max(0, match.start() - 80) : match.start()]
-            if re.search(r"\basync_[A-Za-z0-9_]*\s*$", prefix, re.I):
-                continue
-            local = text[max(0, match.start() - 200) : match.end() + 200]
-            if "IPCProxy::" in local or "send_sync" in local or "send_sync_but_allow_failure" in local:
-                sync_stops.append((path, _line(text, match.start())))
+            sync_stops.append((path, _line(text, match.start())))
 
     if not strong_members or not sync_stops:
         return []
@@ -198,7 +193,7 @@ def _cpp_expirable_client_stop_findings(
                             "Required independent evidence that the same member supports strong_ref(), proving expirable ownership semantics.",
                             "Checked the lifecycle method for a local strong-reference acquisition before dereference.",
                             "Required a paired synchronous IPC stop/cancel/abort operation in the reviewed scope.",
-                            "Excluded async_* cancellation sends and send_sync_but_allow_failure-style guarded sends.",
+                            "Excluded async_* cancellation sends because they do not match IPCProxy::stop/cancel/abort."
                         ),
                         verification=(
                             "Acquire and test a strong client reference before stopping, use asynchronous or explicitly "
