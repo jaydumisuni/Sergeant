@@ -1,5 +1,5 @@
 name: Model-Free Core Transfer 20 Learned Closure
-# Historical 0/3 frozen before teaching. Learned reviewer: bd75abb1ad30fdfc3d665d26462d226d46a5d966
+# Learned reviewer frozen after transfer 20's 0/2 valid first pass and Vite exclusion: bd75abb1ad30fdfc3d665d26462d226d46a5d966
 
 on:
   workflow_dispatch:
@@ -83,17 +83,13 @@ jobs:
             03e05fb771207a0371c4fbb5084e8efce65d6b75 \
             transfer-20/vite \
             '/packages/vite/src/node/plugins/css.ts' \
-            '/packages/vite/src/node/plugins/html.ts' \
-            '/playground/chunk-importmap/__tests__/chunk-importmap.spec.ts' \
-            '/playground/chunk-importmap/index.js'
+            '/packages/vite/src/node/plugins/html.ts'
 
           for file in \
             transfer-20/pydantic/pydantic/json_schema.py \
             transfer-20/ruff/crates/ruff_linter/src/rules/pyupgrade/rules/pep695/non_pep695_type_alias.rs \
             transfer-20/vite/packages/vite/src/node/plugins/css.ts \
-            transfer-20/vite/packages/vite/src/node/plugins/html.ts \
-            transfer-20/vite/playground/chunk-importmap/__tests__/chunk-importmap.spec.ts \
-            transfer-20/vite/playground/chunk-importmap/index.js; do
+            transfer-20/vite/packages/vite/src/node/plugins/html.ts; do
             test -f "$file"
           done
 
@@ -107,7 +103,7 @@ jobs:
         run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-20-learned-usage.json" >> "$GITHUB_ENV"
 
       - name: Install learned Sergeant package
-        run: python -m pip install .
+        run: python -m pip install . pytest
 
       - name: Run focused transfer 20 controls
         run: python -m pytest -q tests/test_static_transfer_20_review.py tests/test_pr_review_static_invariant_integration.py
@@ -123,7 +119,7 @@ jobs:
           manifest = {
               "schema_version": "sergeant.review-training.v1",
               "set_id": "model-free-core-transfer-20-learned",
-              "purpose": "Learned closure only. Transfer 20 historical fresh result remains 0/3.",
+              "purpose": "Learned closure only. Transfer 20 contributes 0/2 valid fresh; Vite is excluded from fresh scoring because fixing-test evidence entered the original selector scope. This rerun uses production source only and cannot change the historical score.",
               "rules": {
                   "models_enabled": False,
                   "workspace_default": "none",
@@ -161,9 +157,7 @@ jobs:
                       "fixing_ref": "03e05fb771207a0371c4fbb5084e8efce65d6b75",
                       "changed_files": [
                           "packages/vite/src/node/plugins/css.ts",
-                          "packages/vite/src/node/plugins/html.ts",
-                          "playground/chunk-importmap/__tests__/chunk-importmap.spec.ts",
-                          "playground/chunk-importmap/index.js"
+                          "packages/vite/src/node/plugins/html.ts"
                       ],
                       "workspace_policy": "static_first"
                   }
