@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from typing import Any, Iterable
 
+from .static_protocol_lifecycle_review import run_static_protocol_lifecycle_review
 from .static_transfer_21_review import run_static_transfer_21_review
 from .static_transfer_22_review import run_static_transfer_22_review
 from .static_transfer_23_review import run_static_transfer_23_review
@@ -105,6 +106,7 @@ def run_static_remote_contract_review(
             findings.append(_finding(path, line_start, variable))
             break
 
+    protocol_lifecycle = run_static_protocol_lifecycle_review(root_path, changed)
     transfer_21 = run_static_transfer_21_review(root_path, changed)
     transfer_22 = run_static_transfer_22_review(root_path, changed)
     transfer_23 = run_static_transfer_23_review(root_path, changed)
@@ -112,6 +114,7 @@ def run_static_remote_contract_review(
     transfer_25 = run_static_transfer_25_review(root_path, changed)
     transfer_26 = run_static_transfer_26_review(root_path, changed)
     for result in (
+        protocol_lifecycle,
         transfer_21,
         transfer_22,
         transfer_23,
