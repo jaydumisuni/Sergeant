@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .static_transfer_21_review import run_static_transfer_21_review
+from .static_transfer_22_review import run_static_transfer_22_review
 
 
 _DART_SUFFIXES = {".dart"}
@@ -101,11 +102,13 @@ def run_static_remote_contract_review(
             break
 
     transfer_21 = run_static_transfer_21_review(root_path, changed)
-    findings.extend(
-        dict(item)
-        for item in transfer_21.get("findings", [])
-        if isinstance(item, dict)
-    )
+    transfer_22 = run_static_transfer_22_review(root_path, changed)
+    for result in (transfer_21, transfer_22):
+        findings.extend(
+            dict(item)
+            for item in result.get("findings", [])
+            if isinstance(item, dict)
+        )
 
     unique: dict[tuple[str, str, int], dict[str, Any]] = {}
     for finding in findings:
@@ -118,11 +121,12 @@ def run_static_remote_contract_review(
         ] = finding
 
     return {
-        "schema_version": "sergeant.static-remote-contract-review.v2",
+        "schema_version": "sergeant.static-remote-contract-review.v3",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
         "readable_changed_files": readable,
         "static_transfer_21_review": transfer_21,
+        "static_transfer_22_review": transfer_22,
         "executed_project_code": False,
     }
