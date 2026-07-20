@@ -126,8 +126,7 @@ def _board_authority_findings(path: str, text: str) -> list[dict[str, Any]]:
     if install is None:
         return []
     consistency = re.search(
-        r"readPlatformBoard|parseYaml[^\n]*(?:board|variant)|board(?:Mismatch|Disagree|Matches)|"
-        r"yaml[^\n]{0,120}board_id|board_id[^\n]{0,120}yaml",
+        r"readPlatformBoard|parseYaml[^\n]*(?:board|variant)|board(?:Mismatch|Disagree|Matches)",
         text,
         re.I,
     )
