@@ -1,0 +1,240 @@
+name: Model-Free Core Transfer 27 Learned Closure
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-27-learned-closure.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  learned-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+      REVIEWER_SHA: 782bfb2d929f0065e502a4753b02b0c13793b6ca
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin current learned Sergeant reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git cat-file -e "${REVIEWER_SHA}^{commit}"
+          git checkout --detach "${REVIEWER_SHA}"
+          test "$(git rev-parse HEAD)" = "${REVIEWER_SHA}"
+          test -e main_review/static_transfer_27_review.py
+          grep -q 'sergeant.static-transfer-27-review.v1' main_review/static_transfer_27_review.py
+          grep -q 'static_transfer_27_review' main_review/static_remote_contract_review.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Prepare evidence directory
+        shell: bash
+        run: mkdir -p build/model-free-core-transfer-27-learned
+
+      - name: Prove selector and officer controls
+        shell: bash
+        run: |
+          set -o pipefail
+          python -m pytest -q \
+            tests/test_opaque_selector_v8.py \
+            tests/test_static_transfer_27_review.py \
+            2>&1 | tee build/model-free-core-transfer-27-learned/controls.log
+
+      - name: Checkout frozen defective snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "repository": "llvm/llvm-project",
+                  "defective": "6ed829baa3861adbe053c16878fbae74b9c1e9d6",
+                  "fixing": "0113b250ebb4af79a1c5342cc423a49383f08921",
+                  "files": ["llvm/lib/Transforms/InstCombine/InstCombineVectorOps.cpp"],
+              },
+              {
+                  "repository": "apache/kafka",
+                  "defective": "260a39724d3d82a11957ea4689f5ca8f00e60ad3",
+                  "fixing": "8de50bdb0814fd8af169dd4619bf622fb655a8c9",
+                  "files": ["core/src/main/java/kafka/server/share/DelayedShareFetch.java"],
+              },
+              {
+                  "repository": "pandas-dev/pandas",
+                  "defective": "d982e59797d94f7f7bb3e6ed8b1f2a23fe6601b0",
+                  "fixing": "afd641a4bf4f0393fd4020159330c3c874267d43",
+                  "files": ["pandas/core/generic.py", "pandas/core/resample.py"],
+              },
+          ]
+
+          for index, case in enumerate(cases, start=1):
+              destination = Path("transfer-27-learned") / f"case-{index}"
+              destination.mkdir(parents=True, exist_ok=False)
+              subprocess.run(["git", "init", str(destination)], check=True)
+              subprocess.run(
+                  [
+                      "git", "-C", str(destination), "remote", "add", "origin",
+                      f"https://github.com/{case['repository']}.git",
+                  ],
+                  check=True,
+              )
+              subprocess.run(
+                  ["git", "-C", str(destination), "config", "core.sparseCheckout", "true"],
+                  check=True,
+              )
+              sparse = destination / ".git" / "info" / "sparse-checkout"
+              sparse.write_text(
+                  "".join(f"/{path}\n" for path in case["files"]),
+                  encoding="utf-8",
+              )
+              for ref in (case["fixing"], case["defective"]):
+                  subprocess.run(
+                      [
+                          "git", "-C", str(destination), "fetch", "--no-tags",
+                          "--filter=blob:none", "origin", ref,
+                      ],
+                      check=True,
+                  )
+              subprocess.run(
+                  [
+                      "git", "-C", str(destination), "merge-base", "--is-ancestor",
+                      case["defective"], case["fixing"],
+                  ],
+                  check=True,
+              )
+              subprocess.run(
+                  ["git", "-C", str(destination), "checkout", "--detach", case["defective"]],
+                  check=True,
+              )
+              actual = subprocess.check_output(
+                  ["git", "-C", str(destination), "rev-parse", "HEAD"], text=True
+              ).strip()
+              if actual != case["defective"]:
+                  raise SystemExit(f"checkout identity mismatch for {case['repository']}")
+              for relative in case["files"]:
+                  if not (destination / relative).is_file():
+                      raise SystemExit(
+                          f"requested source missing: {case['repository']}:{relative}"
+                      )
+          PY
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-27-learned-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install pinned Sergeant package
+        run: python -m pip install .
+
+      - name: Build learned runtime manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-27-learned",
+              "purpose": (
+                  "Learned closure for the three immutable transfer-27 false negatives. "
+                  "The original 0/3 fresh score remains unchanged."
+              ),
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "learned_closure_only",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
+                  "frozen_first_pass_run": 29768558691,
+                  "frozen_first_pass_artifact": 8471827745,
+                  "reviewer_code": "782bfb2d929f0065e502a4753b02b0c13793b6ca",
+              },
+              "cases": [
+                  {
+                      "case_id": "transfer-27-a",
+                      "repository": "llvm/llvm-project",
+                      "source_pr": 169120,
+                      "defective_ref": "6ed829baa3861adbe053c16878fbae74b9c1e9d6",
+                      "fixing_ref": "0113b250ebb4af79a1c5342cc423a49383f08921",
+                      "checkout_path": "transfer-27-learned/case-1",
+                      "changed_files": ["llvm/lib/Transforms/InstCombine/InstCombineVectorOps.cpp"],
+                      "workspace_policy": "static_first",
+                  },
+                  {
+                      "case_id": "transfer-27-b",
+                      "repository": "apache/kafka",
+                      "source_pr": 22881,
+                      "defective_ref": "260a39724d3d82a11957ea4689f5ca8f00e60ad3",
+                      "fixing_ref": "8de50bdb0814fd8af169dd4619bf622fb655a8c9",
+                      "checkout_path": "transfer-27-learned/case-2",
+                      "changed_files": ["core/src/main/java/kafka/server/share/DelayedShareFetch.java"],
+                      "workspace_policy": "static_first",
+                  },
+                  {
+                      "case_id": "transfer-27-c",
+                      "repository": "pandas-dev/pandas",
+                      "source_pr": 64793,
+                      "defective_ref": "d982e59797d94f7f7bb3e6ed8b1f2a23fe6601b0",
+                      "fixing_ref": "afd641a4bf4f0393fd4020159330c3c874267d43",
+                      "checkout_path": "transfer-27-learned/case-3",
+                      "changed_files": ["pandas/core/generic.py", "pandas/core/resample.py"],
+                      "workspace_policy": "static_first",
+                  },
+              ],
+          }
+          target = Path("build/model-free-core-transfer-27-learned/runtime-manifest.json")
+          target.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Run normal pr-review learned closure
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-27-learned/runtime-manifest.json \
+            --output build/model-free-core-transfer-27-learned/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-27-learned/frozen-summary.json
+
+      - name: Publish learned summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — transfer 27 learned closure"
+            echo
+            echo "Workflow event head: \`${GITHUB_SHA}\`"
+            echo "Pinned reviewer: \`${REVIEWER_SHA}\`"
+            echo "Original fresh result remains: \`0/3\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-transfer-27-learned/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable learned reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-27-learned
+          path: build/model-free-core-transfer-27-learned/
+          if-no-files-found: error
+          retention-days: 90
