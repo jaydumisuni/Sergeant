@@ -17,7 +17,7 @@ jobs:
       SERGEANT_LLM_ENABLED: "false"
       SERGEANT_CPL_ENABLED: "false"
       SERGEANT_CPL_POLICY: "disabled"
-      REVIEWER_SHA: 782bfb2d929f0065e502a4753b02b0c13793b6ca
+      REVIEWER_SHA: e611f115dcb7745a9344bdf70db750c669d924f8
 
     steps:
       - name: Checkout workflow event head
@@ -169,7 +169,7 @@ jobs:
                   "provenance_contract": "sergeant.training-provenance.v1",
                   "frozen_first_pass_run": 29768558691,
                   "frozen_first_pass_artifact": 8471827745,
-                  "reviewer_code": "782bfb2d929f0065e502a4753b02b0c13793b6ca",
+                  "reviewer_code": "e611f115dcb7745a9344bdf70db750c669d924f8",
               },
               "cases": [
                   {
