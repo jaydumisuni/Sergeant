@@ -89,7 +89,8 @@ def _c_protocol_lifecycle_findings(path: str, text: str) -> list[dict[str, Any]]
         for branch in branch_re.finditer(window):
             condition = branch.group("condition")
             body = branch.group("body")
-            if not re.search(rf"\b{re.escape(variable)}\s*->\s*{_PROTOCOL_ID_FIELDS}\b", body):
+            identity = re.search(rf"\b{re.escape(variable)}\s*->\s*{_PROTOCOL_ID_FIELDS}\b", body)
+            if identity is None:
                 continue
             if _PROTOCOL_ACTION_RE.search(body) is None:
                 continue
@@ -128,7 +129,7 @@ def _c_protocol_lifecycle_findings(path: str, text: str) -> list[dict[str, Any]]
                     ),
                     evidence=(
                         f"`{variable}` is obtained from `{assignment.group('factory')}(...)`. A later configuration-change branch does not guard the pointer or its protocol identifier, "
-                        f"yet the branch dereferences `{variable}->{re.search(_PROTOCOL_ID_FIELDS, body).group(0)}` and submits or queues protocol work. "
+                        f"yet the branch dereferences `{variable}->{identity.group(0).split('->')[-1].strip()}` and submits or queues protocol work. "
                         "That path can run before the stream/session has been opened, producing a null/invalid-identity crash or an invalid protocol operation."
                     ),
                     falsifiers=[
@@ -171,7 +172,7 @@ def _haskell_accumulator_order_findings(path: str, text: str) -> list[dict[str, 
         if direct_publish is None:
             continue
         normalization = re.search(
-            rf"\b(?:reverse|sort|sortBy|sortOn)\s*(?:\([^)]*\)\s*)?{re.escape(accumulator)}\b",
+            rf"\b(?:reverse|sort[A-Za-z0-9_']*)\s*(?:\([^)]*\)\s*)?{re.escape(accumulator)}\b",
             text,
             re.M,
         )
@@ -207,7 +208,7 @@ def _haskell_accumulator_order_findings(path: str, text: str) -> list[dict[str, 
                     "Required an accumulator whose semantic name denotes warnings, diagnostics, messages, or notices.",
                     "Required prepend-style accumulation (`item : accumulator` or `newBatch ++ accumulator`).",
                     "Required a run/failure/success/finalization boundary that directly publishes the same accumulator.",
-                    "Checked for reverse/sort normalization before publication.",
+                    "Checked for reverse/sort normalization before publication, including named helper functions.",
                     "Excluded append-in-order accumulation and normalized terminal output.",
                 ],
                 verification=(
