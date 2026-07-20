@@ -1,0 +1,217 @@
+name: Model-Free Core Transfer 29 Learned Closure
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-29-learned-closure.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  learned-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+      REVIEWER_SHA: 812dfbaa79a56676c8c9f008eb150585a871ca55
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin learned reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "${REVIEWER_SHA}"
+          test "$(git rev-parse HEAD)" = "${REVIEWER_SHA}"
+          test -e main_review/static_transfer_29_review.py
+          grep -q 'sergeant.static-transfer-29-review.v1' main_review/static_transfer_29_review.py
+          grep -q 'static_transfer_29_review' main_review/static_remote_contract_review.py
+          grep -q 'sergeant.static-remote-contract-review.v9' main_review/static_remote_contract_review.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install focused test dependency
+        run: python -m pip install pytest
+
+      - name: Prepare evidence and prove controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          mkdir -p build/model-free-core-transfer-29-learned
+          python -m pytest -q tests/test_static_transfer_29_review.py \
+            2>&1 | tee build/model-free-core-transfer-29-learned/controls.log
+
+      - name: Checkout frozen defective snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              (
+                  "ocaml/ocaml",
+                  "89f79a78dc9449b97dd14bf0460ee7a386219c94",
+                  "3e179cf1af35e1ae2ee65886feaa0aa9546d1fa3",
+                  ["typing/env.ml"],
+              ),
+              (
+                  "JuliaLang/julia",
+                  "7d3991f7844adadab51c864e2f36c9bb9d3e06ee",
+                  "f349ecfd1749f7e69db31ed3851fa6299c2eb268",
+                  ["base/strings/string.jl"],
+              ),
+              (
+                  "crystal-lang/crystal",
+                  "abd23b8ef6fa5250edcb4cf18096ade376c47323",
+                  "93dd0552480b5c3635d8a6959c7acb7e24343a2b",
+                  ["src/openssl/bio.cr", "src/openssl/ssl/context.cr", "src/openssl/ssl/socket.cr"],
+              ),
+          ]
+
+          for index, (repository, defective, fixing, files) in enumerate(cases, start=1):
+              destination = Path("transfer-29-learned") / f"case-{index}"
+              destination.mkdir(parents=True, exist_ok=False)
+              subprocess.run(["git", "init", str(destination)], check=True)
+              subprocess.run(
+                  ["git", "-C", str(destination), "remote", "add", "origin", f"https://github.com/{repository}.git"],
+                  check=True,
+              )
+              subprocess.run(["git", "-C", str(destination), "config", "core.sparseCheckout", "true"], check=True)
+              (destination / ".git" / "info" / "sparse-checkout").write_text(
+                  "".join(f"/{path}\n" for path in files), encoding="utf-8"
+              )
+              for ref in (fixing, defective):
+                  subprocess.run(
+                      ["git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", ref],
+                      check=True,
+                  )
+              subprocess.run(
+                  ["git", "-C", str(destination), "merge-base", "--is-ancestor", defective, fixing],
+                  check=True,
+              )
+              subprocess.run(["git", "-C", str(destination), "checkout", "--detach", defective], check=True)
+              actual = subprocess.check_output(
+                  ["git", "-C", str(destination), "rev-parse", "HEAD"], text=True
+              ).strip()
+              if actual != defective:
+                  raise SystemExit(f"checkout identity mismatch for {repository}")
+              for relative in files:
+                  if not (destination / relative).is_file():
+                      raise SystemExit(f"requested source missing: {repository}:{relative}")
+          PY
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-29-learned-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install pinned Sergeant package
+        run: python -m pip install .
+
+      - name: Build learned-only manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-29-learned",
+              "purpose": "Learned closure for the immutable transfer-29 false negatives; the original 0/3 fresh score remains unchanged.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "learned_closure_only",
+                  "frozen_first_pass_run": 29778023934,
+                  "frozen_first_pass_artifact": 8475444401,
+                  "frozen_first_pass_digest": "sha256:9736bd4c790f8d7b42e2f0d92d458d1113224834e871c1fa0df77dd2e997113a",
+                  "reviewer_code": "812dfbaa79a56676c8c9f008eb150585a871ca55",
+              },
+              "cases": [
+                  {
+                      "case_id": "transfer-29-a",
+                      "repository": "ocaml/ocaml",
+                      "source_pr": 14476,
+                      "defective_ref": "89f79a78dc9449b97dd14bf0460ee7a386219c94",
+                      "fixing_ref": "3e179cf1af35e1ae2ee65886feaa0aa9546d1fa3",
+                      "checkout_path": "transfer-29-learned/case-1",
+                      "changed_files": ["typing/env.ml"],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-29-b",
+                      "repository": "JuliaLang/julia",
+                      "source_pr": 25533,
+                      "defective_ref": "7d3991f7844adadab51c864e2f36c9bb9d3e06ee",
+                      "fixing_ref": "f349ecfd1749f7e69db31ed3851fa6299c2eb268",
+                      "checkout_path": "transfer-29-learned/case-2",
+                      "changed_files": ["base/strings/string.jl"],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-29-c",
+                      "repository": "crystal-lang/crystal",
+                      "source_pr": 17059,
+                      "defective_ref": "abd23b8ef6fa5250edcb4cf18096ade376c47323",
+                      "fixing_ref": "93dd0552480b5c3635d8a6959c7acb7e24343a2b",
+                      "checkout_path": "transfer-29-learned/case-3",
+                      "changed_files": ["src/openssl/bio.cr", "src/openssl/ssl/context.cr", "src/openssl/ssl/socket.cr"],
+                      "workspace_policy": "static_first"
+                  }
+              ]
+          }
+          Path("build/model-free-core-transfer-29-learned/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Run normal pr-review learned closure
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-29-learned/runtime-manifest.json \
+            --output build/model-free-core-transfer-29-learned/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-29-learned/frozen-summary.json
+
+      - name: Publish learned summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — transfer 29 learned closure"
+            echo
+            echo "Workflow event head: \`${GITHUB_SHA}\`"
+            echo "Pinned reviewer: \`${REVIEWER_SHA}\`"
+            echo "Original fresh result remains: \`0/3\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-transfer-29-learned/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable learned reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-29-learned
+          path: build/model-free-core-transfer-29-learned/
+          if-no-files-found: error
+          retention-days: 90
