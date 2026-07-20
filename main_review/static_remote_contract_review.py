@@ -11,6 +11,7 @@ from .static_transfer_22_review import run_static_transfer_22_review
 from .static_transfer_23_review import run_static_transfer_23_review
 from .static_transfer_24_review import run_static_transfer_24_review
 from .static_transfer_25_review import run_static_transfer_25_review
+from .static_transfer_26_review import run_static_transfer_26_review
 
 
 _DART_SUFFIXES = {".dart"}
@@ -109,7 +110,15 @@ def run_static_remote_contract_review(
     transfer_23 = run_static_transfer_23_review(root_path, changed)
     transfer_24 = run_static_transfer_24_review(root_path, changed)
     transfer_25 = run_static_transfer_25_review(root_path, changed)
-    for result in (transfer_21, transfer_22, transfer_23, transfer_24, transfer_25):
+    transfer_26 = run_static_transfer_26_review(root_path, changed)
+    for result in (
+        transfer_21,
+        transfer_22,
+        transfer_23,
+        transfer_24,
+        transfer_25,
+        transfer_26,
+    ):
         findings.extend(
             dict(item)
             for item in result.get("findings", [])
@@ -127,7 +136,7 @@ def run_static_remote_contract_review(
         ] = finding
 
     return {
-        "schema_version": "sergeant.static-remote-contract-review.v6",
+        "schema_version": "sergeant.static-remote-contract-review.v7",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -137,5 +146,6 @@ def run_static_remote_contract_review(
         "static_transfer_23_review": transfer_23,
         "static_transfer_24_review": transfer_24,
         "static_transfer_25_review": transfer_25,
+        "static_transfer_26_review": transfer_26,
         "executed_project_code": False,
     }
