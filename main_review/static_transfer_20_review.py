@@ -305,7 +305,7 @@ def _typescript_sidecar_identity_findings(files: dict[str, str]) -> list[dict[st
     for path, text in files.items():
         if Path(path).suffix.lower() not in _TS_SUFFIXES or path == map_path:
             continue
-        if not re.search(r"\bCSS\b|\bcss\b", text):
+        if "css" not in path.lower() and re.search(r"css", text, re.I) is None:
             continue
         emission = re.search(r"emitFile\s*\(\s*\{[\s\S]{0,800}?type\s*:\s*['\"]asset['\"]", text)
         if emission is None:
