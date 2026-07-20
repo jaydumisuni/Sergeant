@@ -1,0 +1,180 @@
+name: Model-Free Core Transfer 19 Learned Closure
+# Learned reviewer frozen after transfer 19's provenance-corrected 0/3 was preserved: 5a313794dada725ea18d5c089b5179fbbed526f2
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-19-learned.yml"
+      - "main_review/static_transfer_19_review.py"
+      - "main_review/static_status_review.py"
+      - "tests/test_static_transfer_19_review.py"
+
+permissions:
+  contents: read
+
+jobs:
+  learned-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin learned Sergeant reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach 5a313794dada725ea18d5c089b5179fbbed526f2
+          test "$(git rev-parse HEAD)" = "5a313794dada725ea18d5c089b5179fbbed526f2"
+          test -e main_review/static_transfer_19_review.py
+          grep -q 'sergeant.static-status-review.v33' main_review/static_status_review.py
+
+      - name: Checkout exact defective and fixing lineages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sparse_lineage_checkout() {
+            local repository="$1"
+            local defective="$2"
+            local fixing="$3"
+            local destination="$4"
+            shift 4
+            git init "$destination"
+            git -C "$destination" remote add origin "https://github.com/${repository}.git"
+            git -C "$destination" config core.sparseCheckout true
+            : > "$destination/.git/info/sparse-checkout"
+            for pattern in "$@"; do printf '%s\n' "$pattern" >> "$destination/.git/info/sparse-checkout"; done
+            git -C "$destination" fetch --no-tags --filter=blob:none origin "$fixing"
+            git -C "$destination" fetch --no-tags --filter=blob:none origin "$defective"
+            git -C "$destination" cat-file -e "${defective}^{commit}"
+            git -C "$destination" cat-file -e "${fixing}^{commit}"
+            git -C "$destination" merge-base --is-ancestor "$defective" "$fixing"
+            git -C "$destination" checkout --detach "$defective"
+            test "$(git -C "$destination" rev-parse HEAD)" = "$defective"
+          }
+
+          sparse_lineage_checkout \
+            elastic/beats \
+            3cdc4724600f0927cd4ce9fc82ae00b64ee47446 \
+            297dd978f3bd69c11445cc82b36718faabdd383b \
+            transfer-19/beats \
+            '/libbeat/common/seccomp/seccomp.go'
+
+          sparse_lineage_checkout \
+            kwwsyk/Endless-Inventory \
+            96d23af4241cf8a7e4b0cf17e4f98501249cfd33 \
+            06ed320d3d1d5629304d6a6366dd4f45800a54a5 \
+            transfer-19/endless-inventory \
+            '/common/src/main/java/com/kwwsyk/endinv/common/options/SpecifiedMenuAttachingConfig.java'
+
+          sparse_lineage_checkout \
+            Unity-Technologies/mono \
+            019b13c9ca94fc7f6e99096fa776f896a63f4f66 \
+            06c860d167ee1c2c322f5ad62445dd0128c14ff0 \
+            transfer-19/mono \
+            '/mono/metadata/class-init.c'
+
+          for file in \
+            transfer-19/beats/libbeat/common/seccomp/seccomp.go \
+            transfer-19/endless-inventory/common/src/main/java/com/kwwsyk/endinv/common/options/SpecifiedMenuAttachingConfig.java \
+            transfer-19/mono/mono/metadata/class-init.c; do
+            test -f "$file"
+          done
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-19-learned-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install learned Sergeant package
+        run: python -m pip install .
+
+      - name: Run focused transfer 19 controls
+        run: python -m pytest -q tests/test_static_transfer_19_review.py tests/test_pr_review_static_invariant_integration.py
+
+      - name: Build learned closure manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-transfer-19-learned
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-19-learned",
+              "purpose": "Learned closure only. Transfer 19 is excluded from fresh scoring because fixing descriptions were opened during provenance repair before the first valid artifact.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "classification": "learned_closure",
+                  "historical_fresh_score_immutable": True,
+                  "reviewer_code": "5a313794dada725ea18d5c089b5179fbbed526f2"
+              },
+              "cases": [
+                  {
+                      "case_id": "transfer-19-a",
+                      "repository": "elastic/beats",
+                      "source_pr": 52010,
+                      "checkout_path": "transfer-19/beats",
+                      "defective_ref": "3cdc4724600f0927cd4ce9fc82ae00b64ee47446",
+                      "fixing_ref": "297dd978f3bd69c11445cc82b36718faabdd383b",
+                      "changed_files": ["libbeat/common/seccomp/seccomp.go"],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-19-b",
+                      "repository": "kwwsyk/Endless-Inventory",
+                      "source_pr": 43,
+                      "checkout_path": "transfer-19/endless-inventory",
+                      "defective_ref": "96d23af4241cf8a7e4b0cf17e4f98501249cfd33",
+                      "fixing_ref": "06ed320d3d1d5629304d6a6366dd4f45800a54a5",
+                      "changed_files": ["common/src/main/java/com/kwwsyk/endinv/common/options/SpecifiedMenuAttachingConfig.java"],
+                      "workspace_policy": "static_first"
+                  },
+                  {
+                      "case_id": "transfer-19-c",
+                      "repository": "Unity-Technologies/mono",
+                      "source_pr": 2220,
+                      "checkout_path": "transfer-19/mono",
+                      "defective_ref": "019b13c9ca94fc7f6e99096fa776f896a63f4f66",
+                      "fixing_ref": "06c860d167ee1c2c322f5ad62445dd0128c14ff0",
+                      "changed_files": ["mono/metadata/class-init.c"],
+                      "workspace_policy": "static_first"
+                  }
+              ]
+          }
+          Path("build/model-free-core-transfer-19-learned/runtime-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Run learned normal pr-review
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-19-learned/runtime-manifest.json \
+            --output build/model-free-core-transfer-19-learned/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-19-learned/frozen-summary.json
+
+      - name: Upload immutable learned reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-19-learned
+          path: build/model-free-core-transfer-19-learned/
+          if-no-files-found: error
+          retention-days: 90
