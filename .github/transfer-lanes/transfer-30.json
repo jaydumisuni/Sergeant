@@ -15,7 +15,17 @@
       "houseabsolute/DateTime.pm",
       "Perl-Toolchain-Gang/Module-Build",
       "Perl-Toolchain-Gang/CPAN-Meta",
-      "preaction/Yancy"
+      "preaction/Yancy",
+      "AlDanial/cloc",
+      "brendangregg/FlameGraph",
+      "so-fancy/diff-so-fancy",
+      "sullo/nikto",
+      "major/MySQLTuner-perl",
+      "sitaramc/gitolite",
+      "exiftool/exiftool",
+      "darold/pgbadger",
+      "jimsalterjrs/sanoid",
+      "rsnapshot/rsnapshot"
     ],
     "suffixes": [".pl", ".pm"]
   },
