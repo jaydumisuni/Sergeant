@@ -13,6 +13,7 @@ on:
       - "scripts/collect_github_learning_candidates.py"
       - "scripts/run_controlled_self_learning.py"
       - "scripts/export_learning_proposals.py"
+      - "scripts/setup_hermes_learning_profiles.sh"
       - "tests/test_adaptive_curriculum.py"
       - "tests/test_hermes_learning.py"
       - "tests/test_self_learning_queue.py"
@@ -89,16 +90,19 @@ jobs:
           count="$(jq -r '.candidate_count' "build/${WEEK_ID}/candidates.json")"
           echo "candidate_count=${count}" >> "$GITHUB_OUTPUT"
 
-      - name: Verify explicit owner authorization gate
+      - name: Verify explicit owner and round authorization gates
         id: authorize
         shell: bash
         run: |
           set -euo pipefail
           labels='${{ toJson(github.event.pull_request.labels.*.name) }}'
-          if jq -e 'index("self-learning-authorized") != null' <<<"${labels}" >/dev/null; then
+          subject="$(git log -1 --pretty=%s)"
+          if jq -e 'index("self-learning-authorized") != null' <<<"${labels}" >/dev/null \
+             && [[ "${subject}" == START_CONTROLLED_SELF_LEARNING* ]]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
           else
             echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Learning skipped: explicit round commit prefix not present."
           fi
 
       - name: Upload validation packet
