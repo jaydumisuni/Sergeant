@@ -100,6 +100,21 @@ def test_success_moves_selection_to_a_larger_repository() -> None:
     assert plan["target_tier"] == 1
     assert plan["cases"][0]["repository"] == "org/bigger"
     assert plan["cases"][0]["difficulty_tier"] == 1
+    assert plan["candidate_shortfall"] is False
+
+
+def test_promoted_curriculum_never_falls_back_to_an_easier_repository() -> None:
+    plan = plan_curriculum_round(
+        candidates=[_candidate("org/tiny", "python", changed_files=3, changed_lines=100)],
+        current_tier=0,
+        recent_results=[_clean_result(), _clean_result(), _clean_result()],
+        language_history=["java"],
+        count=1,
+    )
+
+    assert plan["target_tier"] == 1
+    assert plan["cases"] == []
+    assert plan["candidate_shortfall"] is True
 
 
 def test_rust_accelerates_without_dominating_language_rotation() -> None:
@@ -150,18 +165,23 @@ def test_private_force_scales_with_repository_difficulty_using_ten_times_law() -
         cross_component=True,
         concurrency=True,
     )
-    selected = select_multilingual_candidates(
-        [focused, complex_case],
+    focused_selected = select_multilingual_candidates(
+        [focused],
+        target_tier=0,
+        language_history=["java"],
+        count=1,
+    )[0]
+    complex_selected = select_multilingual_candidates(
+        [complex_case],
         target_tier=4,
         language_history=["java"],
-        count=2,
-    )
+        count=1,
+    )[0]
 
-    by_repository = {item["repository"]: item for item in selected}
-    assert by_repository["org/focused"]["human_equivalent_workers"] == 2
-    assert by_repository["org/focused"]["private_count"] == 20
-    assert by_repository["org/complex"]["human_equivalent_workers"] == 12
-    assert by_repository["org/complex"]["private_count"] == 120
+    assert focused_selected["human_equivalent_workers"] == 2
+    assert focused_selected["private_count"] == 20
+    assert complex_selected["human_equivalent_workers"] == 12
+    assert complex_selected["private_count"] == 120
 
 
 def test_plan_has_no_lesson_promotion_or_merge_authority() -> None:
