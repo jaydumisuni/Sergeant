@@ -21,7 +21,7 @@ permissions: {}
 
 concurrency:
   group: controlled-self-learning-week-1-${{ github.event.pull_request.number }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 env:
   WEEK_ID: week-1-run-${{ github.run_number }}
@@ -83,7 +83,7 @@ jobs:
             --reviewer "${AUTHORITY_HEAD}" \
             --week-id "${WEEK_ID}" \
             --pool-json .github/self-learning/week-1-pool.json \
-            --limit 12 \
+            --limit 6 \
             --output "build/${WEEK_ID}/candidates.json" \
             2>&1 | tee "build/${WEEK_ID}/collector.log"
           count="$(jq -r '.candidate_count' "build/${WEEK_ID}/candidates.json")"
