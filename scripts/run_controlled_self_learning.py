@@ -23,7 +23,11 @@ from main_review.self_learning_queue import (
     transition,
     write_queue,
 )
-from scripts.run_static_training_set import run_manifest
+
+try:
+    from scripts.run_static_training_set import run_manifest
+except ImportError:  # Direct execution as python scripts/<name>.py.
+    from run_static_training_set import run_manifest
 
 
 def _run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
@@ -180,6 +184,7 @@ def run_round(
             state: sum(1 for row in queue["cases"] if row.get("state") == state)
             for state in sorted({str(row.get("state")) for row in queue["cases"]})
         },
+        "worker_error_cases": sum(1 for row in queue["cases"] if row.get("worker_errors")),
         "automatic_promotions": 0,
         "automatic_merges": 0,
     }
