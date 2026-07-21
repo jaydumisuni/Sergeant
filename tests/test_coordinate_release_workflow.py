@@ -9,7 +9,7 @@ ASSURANCE = ROOT / "docs" / "49-coordinate-0.4.1-release-assurance.md"
 NOTES = ROOT / "docs" / "releases" / "v0.4.1.md"
 
 
-def test_coordinate_release_verifies_versions_notes_and_dispatches_all_publishers() -> None:
+def test_coordinate_release_verifies_versions_and_pins_one_release_identity() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "NPM_VERSION=$(node -p" in workflow
@@ -20,17 +20,44 @@ def test_coordinate_release_verifies_versions_notes_and_dispatches_all_publisher
     assert 'test "$JETBRAINS_VERSION" = "$NPM_VERSION-preview"' in workflow
     assert 'test -s "$NOTES"' in workflow
     assert 'echo "tag=v$NPM_VERSION"' in workflow
+    assert 'echo "release_sha=$GITHUB_SHA"' in workflow
+
+    assert "Check out immutable release commit" in workflow
+    assert "ref: ${{ github.sha }}" in workflow
+    assert "fetch-depth: 0" in workflow
+    assert "--target \"$RELEASE_SHA\"" in workflow
+    assert "--target main" not in workflow
+    assert "--ref main" not in workflow
+
+
+def test_existing_tag_must_match_the_proven_commit() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+
+    assert 'git show-ref --tags --verify --quiet "refs/tags/$TAG"' in workflow
+    assert 'TAG_SHA=$(git rev-list -n 1 "$TAG")' in workflow
+    assert 'test "$TAG_SHA" = "$RELEASE_SHA"' in workflow
+    assert "Existing tag $TAG points to $TAG_SHA, expected proven commit $RELEASE_SHA." in workflow
+    assert "Release $TAG exists without a resolvable matching tag." in workflow
+    assert "--verify-tag" in workflow
+    assert 'CREATED_TAG_SHA=$(git rev-list -n 1 "$TAG")' in workflow
+    assert 'test "$CREATED_TAG_SHA" = "$RELEASE_SHA"' in workflow
+
+
+def test_new_release_uses_release_event_and_existing_release_recovers_from_tag() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
 
     assert "gh release create \"$TAG\"" in workflow
     assert '--title "Sergeant v$VERSION — Useful Model-Free Baseline"' in workflow
     assert '--notes-file "$NOTES"' in workflow
-
+    assert "if: steps.release.outputs.created == 'false'" in workflow
+    assert "if: steps.release.outputs.created == 'true'" in workflow
     assert "gh workflow run publish-vscode-marketplace.yml" in workflow
     assert "gh workflow run publish-pypi.yml" in workflow
-    assert '--ref "$TAG"' in workflow
     assert "gh workflow run publish-jetbrains-marketplace.yml" in workflow
-    assert "PYPI_EXISTS=$(python" in workflow
-    assert "sergeant-reviewer $VERSION already exists on PyPI" in workflow
+    assert workflow.count('--ref "$TAG"') == 3
+    assert workflow.count('--field release_tag="$TAG"') == 3
+    assert "release:published event dispatches all three publishers" in workflow
+    assert "duplicate manual dispatch is intentionally skipped" in workflow
 
 
 def test_coordinate_release_keeps_tokens_isolated_and_checkout_uncredentialed() -> None:
@@ -54,6 +81,8 @@ def test_coordinate_release_has_explicit_operational_assurance_and_notes() -> No
     for heading in ["## Purpose", "## Permissions", "## Secrets", "## Rollback", "## Proof"]:
         assert heading in assurance
     assert "v0.4.1" in assurance
+    assert "immutable triggering commit" in assurance
+    assert "mismatched existing tag" in assurance
     assert "published registry versions are immutable" in assurance
     assert "Visual Studio Marketplace and Open VSX expose `0.4.1`" in assurance
     assert "PyPI exposes both the `0.4.1` wheel and source distribution" in assurance
