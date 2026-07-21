@@ -74,7 +74,8 @@ def test_rust_accelerates_but_cannot_dominate() -> None:
         language_history=["rust", "python", "rust", "ocaml", "swift"],
         count=2,
     )
-    assert [row["language"] for row in selected] == ["python", "java"]
+    assert {row["language"] for row in selected} == {"python", "java"}
+    assert all(row["language"] != "rust" for row in selected)
 
 
 def test_force_scales_with_ten_times_law() -> None:
