@@ -194,8 +194,14 @@ try {
   proof.stages.push(sidebar);
   await screenshot("02-sidebar-open.png");
 
-  await waitFor("!!document.querySelector('#sidebar [data-view=\"hunter-chat\"],#sidebar [data-unified-chat]')", "Hunter chat navigation item");
-  const chatSelector = await evaluate(`document.querySelector('#sidebar [data-view="hunter-chat"]')?'#sidebar [data-view="hunter-chat"]':'#sidebar [data-unified-chat]'`);
+  const chatSelector = await evaluate(`(()=>{
+    let button=document.querySelector('#sidebar [data-view="hunter-chat"],#sidebar [data-unified-chat]');
+    if(!button)button=[...document.querySelectorAll('#sidebar button')].find(x=>/Talk to Hunter/i.test((x.textContent||'').replace(/\\s+/g,' ').trim()));
+    if(!button)return null;
+    button.dataset.srgProofTarget='hunter-chat';
+    return '#sidebar [data-srg-proof-target="hunter-chat"]';
+  })()`);
+  if (!chatSelector) throw new Error("Visible Talk to Hunter navigation item was not found.");
   await click(chatSelector);
   await waitFor("document.querySelector('#page-hunter-chat')?.classList.contains('active')", "Hunter chat active");
   await sleep(320);
