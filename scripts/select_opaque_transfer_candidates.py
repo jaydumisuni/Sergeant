@@ -76,6 +76,12 @@ REPOSITORY_PATTERN = re.compile(
     r'(?:repository\s*[:=]\s*|"repository"\s*:\s*")'
     r'([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)'
 )
+PR_FILES_PER_PAGE = 100
+MAX_PR_FILE_PAGES = 30
+
+
+class IncompletePullRequestFileList(RuntimeError):
+    """Raised when GitHub cannot prove a complete changed-file inventory."""
 
 
 def _api(path: str, headers: dict[str, str]) -> Any:
@@ -95,9 +101,37 @@ def _search(query: str, headers: dict[str, str]) -> list[dict[str, Any]]:
 
 
 def _pr_files(repository: str, number: int, headers: dict[str, str]) -> list[dict[str, Any]]:
+    """Return the complete PR file inventory or fail closed.
+
+    GitHub exposes at most 100 files per page and documents a 3,000-file ceiling
+    for this endpoint. A full final page therefore cannot prove completeness and
+    must not be treated as an eligible opaque lineage.
+    """
+
     owner, name = repository.split("/", 1)
-    payload = _api(f"/repos/{owner}/{name}/pulls/{number}/files?per_page=100", headers)
-    return list(payload) if isinstance(payload, list) else []
+    rows: list[dict[str, Any]] = []
+    for page in range(1, MAX_PR_FILE_PAGES + 1):
+        payload = _api(
+            f"/repos/{owner}/{name}/pulls/{number}/files"
+            f"?per_page={PR_FILES_PER_PAGE}&page={page}",
+            headers,
+        )
+        if not isinstance(payload, list):
+            raise IncompletePullRequestFileList(
+                f"GitHub returned a non-list PR file payload for {repository}#{number} page {page}"
+            )
+        page_rows = [dict(item) for item in payload if isinstance(item, dict)]
+        if len(page_rows) != len(payload):
+            raise IncompletePullRequestFileList(
+                f"GitHub returned malformed PR file rows for {repository}#{number} page {page}"
+            )
+        rows.extend(page_rows)
+        if len(payload) < PR_FILES_PER_PAGE:
+            return rows
+    raise IncompletePullRequestFileList(
+        f"PR file inventory reached GitHub's {PR_FILES_PER_PAGE * MAX_PR_FILE_PAGES}-file boundary "
+        f"for {repository}#{number}; completeness cannot be proved"
+    )
 
 
 def _is_test_file(filename: str) -> bool:
@@ -297,6 +331,7 @@ def select(
         "production_source_only": True,
         "behavioral_defect_qualification": True,
         "nontrivial_bidirectional_executable_change_required": True,
+        "complete_pr_file_pagination_required": True,
         "prior_repository_exclusion_count": len(prior),
         "cases": chosen,
     }
