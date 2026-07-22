@@ -21,6 +21,7 @@ let ws, id = 0;
 const pending = new Map();
 function cdp(method, params = {}) { const n = ++id; return new Promise((resolve, reject) => { pending.set(n, { resolve, reject }); ws.send(JSON.stringify({ id: n, method, params })); }); }
 const errors = [];
+const scripts = new Map();
 try {
   const tabs = await waitJson(`http://127.0.0.1:${port}/json/list`);
   const page = tabs.find(x => x.type === "page") || tabs[0];
@@ -29,17 +30,28 @@ try {
   ws.addEventListener("message", async event => {
     const m = JSON.parse(String(event.data));
     if (m.id && pending.has(m.id)) { const p = pending.get(m.id); pending.delete(m.id); m.error ? p.reject(new Error(JSON.stringify(m.error))) : p.resolve(m.result || {}); return; }
+    if (m.method === "Debugger.scriptParsed") {
+      const p = m.params || {};
+      scripts.set(p.scriptId, { scriptId: p.scriptId, url: p.url || "", startLine: p.startLine || 0, startColumn: p.startColumn || 0, endLine: p.endLine || 0, endColumn: p.endColumn || 0 });
+      return;
+    }
     if (m.method !== "Runtime.exceptionThrown") return;
     const d = m.params?.exceptionDetails || {};
     const scriptId = d.scriptId || d.stackTrace?.callFrames?.[0]?.scriptId;
     const lineNumber = d.lineNumber ?? d.stackTrace?.callFrames?.[0]?.lineNumber ?? 0;
-    const item = { description: d.exception?.description || d.text || "Runtime error", scriptId, lineNumber, columnNumber: d.columnNumber, url: d.url || d.stackTrace?.callFrames?.[0]?.url || "" };
+    const meta = scripts.get(scriptId) || { startLine: 0, startColumn: 0 };
+    const localLine = Math.max(0, lineNumber - (meta.startLine || 0));
+    const item = { description: d.exception?.description || d.text || "Runtime error", scriptId, lineNumber, localLine, columnNumber: d.columnNumber, url: d.url || d.stackTrace?.callFrames?.[0]?.url || "", scriptMeta: meta };
     if (scriptId) {
       try {
         const source = await cdp("Debugger.getScriptSource", { scriptId });
-        const lines = String(source.scriptSource || "").split("\n");
-        item.sourceLines = lines.slice(Math.max(0, lineNumber - 5), lineNumber + 6).map((text, i) => ({ line: Math.max(0, lineNumber - 5) + i + 1, text }));
+        const scriptSource = String(source.scriptSource || "");
+        const lines = scriptSource.split("\n");
+        const from = Math.max(0, localLine - 5);
+        item.sourceLines = lines.slice(from, localLine + 6).map((text, i) => ({ line: from + i + 1, text }));
         item.scriptLength = lines.length;
+        item.sourceFile = `runtime-script-${scriptId}.js`;
+        await writeFile(join(outDir, item.sourceFile), scriptSource, "utf8");
       } catch (error) { item.sourceError = String(error); }
     }
     errors.push(item);
