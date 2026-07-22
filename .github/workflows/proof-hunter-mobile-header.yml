@@ -1,0 +1,72 @@
+name: Proof Hunter Mobile Header
+
+on:
+  push:
+    branches:
+      - proof/hunter-mobile-header-20260721
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: proof-hunter-mobile-header-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout Sergeant proof branch
+        uses: actions/checkout@v4
+
+      - name: Use Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Verify Chrome is available
+        run: |
+          test -x /usr/bin/google-chrome
+          /usr/bin/google-chrome --version
+
+      - name: Prove one touch opens the sidebar at the top without scrolling
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          HUNTER_REVIEW_URL: https://a449d774-hunter-ui-review.thetechguy712.workers.dev/portal
+          PROOF_DIR: artifacts/hunter-mobile-touch-sidebar
+        run: node tools/proof_hunter_mobile_touch_sidebar.mjs
+
+      - name: Render and exercise exact Hunter mobile preview
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          HUNTER_REVIEW_URL: https://a449d774-hunter-ui-review.thetechguy712.workers.dev/portal
+          PROOF_DIR: artifacts/hunter-mobile-header
+        run: node tools/proof_hunter_mobile_header.mjs
+
+      - name: Diagnose the mobile composer hit stack
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          HUNTER_REVIEW_URL: https://a449d774-hunter-ui-review.thetechguy712.workers.dev/portal
+          PROOF_DIR: artifacts/hunter-mobile-composer-hit
+        run: node tools/diagnose_hunter_mobile_composer_hit.mjs
+
+      - name: Prove real mobile typing and iPhone dictation fallback
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          HUNTER_REVIEW_URL: https://a449d774-hunter-ui-review.thetechguy712.workers.dev/portal
+          PROOF_DIR: artifacts/hunter-mobile-composer
+        run: node tools/proof_hunter_mobile_composer_v2.mjs
+
+      - name: Upload screenshots and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hunter-mobile-header-proof
+          path: artifacts
+          if-no-files-found: error
+          retention-days: 14
