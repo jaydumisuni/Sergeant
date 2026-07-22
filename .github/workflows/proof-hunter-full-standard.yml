@@ -34,68 +34,24 @@ jobs:
           test -x /usr/bin/google-chrome
           /usr/bin/google-chrome --version
 
-      - name: Prepare dual-drawer full standard scanner
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          p = Path('tools/proof_hunter_full_standard_v2.mjs')
-          s = p.read_text()
-          old = "drawer:!!s?.classList.contains('open'),scrim:"
-          new = "drawer:!!s?.classList.contains('open')||!!document.querySelector('#hcs2Side')?.classList.contains('open'),scrim:"
-          if old not in s:
-              raise SystemExit('shell drawer marker missing')
-          s = s.replace(old, new, 1)
-          start = s.index('async function openDrawer(p) {')
-          end = s.index('\nasync function roles()', start)
-          replacement = r'''async function openDrawer(p) {
-            const selector = await visibleMenuSelector();
-            if (!selector) throw new Error(`${p.name}: no visible mobile menu control`);
-            const already = await evalJs("document.querySelector('#sidebar')?.classList.contains('open')||document.querySelector('#hcs2Side')?.classList.contains('open')");
-            if (!already) await activate(selector, p, 300);
-            try {
-              await waitFor("document.querySelector('#sidebar')?.classList.contains('open')||document.querySelector('#hcs2Side')?.classList.contains('open')", `${p.name} drawer open`, 100, 70);
-            } catch (error) {
-              throw new Error(`${p.name}: drawer did not open through ${selector}; state=${JSON.stringify(await shell())}; point=${JSON.stringify(await point(selector))}`);
-            }
-            const st = await shell();
-            const chat = await evalJs("document.querySelector('#hcs2Side')?.classList.contains('open')||false");
-            if (!chat && !st.scrim) throw new Error(`${p.name}: Employee OS drawer opened without scrim through ${selector}`);
-            return selector;
-          }
-          async function closeDrawer(p) {
-            const main = await evalJs("document.querySelector('#sidebar')?.classList.contains('open')||document.querySelector('#drawerScrim')?.classList.contains('open')");
-            const chat = await evalJs("document.querySelector('#hcs2Side')?.classList.contains('open')||false");
-            if (!main && !chat) return;
-            if (chat) await activate('#hcs2Menu', p, 240);
-            else {
-              const closeVisible = await evalJs(`(()=>{const e=document.querySelector('#hunterMobileSidebarClose');if(!e)return false;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return s.display!=='none'&&r.width>=24&&r.height>=24})()`);
-              await activate(closeVisible ? '#hunterMobileSidebarClose' : '#drawerScrim', p, 220);
-            }
-            await waitFor("!document.querySelector('#sidebar')?.classList.contains('open')&&!document.querySelector('#drawerScrim')?.classList.contains('open')&&!document.querySelector('#hcs2Side')?.classList.contains('open')", `${p.name} drawer close`, 100, 70);
-          }
-          '''
-          s = s[:start] + replacement + s[end:]
-          p.write_text(s)
-          PY
-
       - name: Prove zero Hunter runtime exceptions
         env:
           CHROME_PATH: /usr/bin/google-chrome
-          HUNTER_REVIEW_URL: https://a785cfd3-hunter-ui-review.thetechguy712.workers.dev/portal
+          HUNTER_REVIEW_URL: https://0a59daf8-hunter-ui-review.thetechguy712.workers.dev/portal
           PROOF_DIR: artifacts/hunter-runtime-source
         run: node tools/diagnose_hunter_runtime_source.mjs
 
-      - name: Trace regular Hunter chat menu real touch
+      - name: Prove regular Hunter uses the permanent mobile sidebar
         env:
           CHROME_PATH: /usr/bin/google-chrome
-          HUNTER_REVIEW_URL: https://a785cfd3-hunter-ui-review.thetechguy712.workers.dev/portal
+          HUNTER_REVIEW_URL: https://0a59daf8-hunter-ui-review.thetechguy712.workers.dev/portal
           PROOF_DIR: artifacts/hunter-chat-menu-touch
         run: node tools/diagnose_hunter_chat_menu_touch.mjs
 
       - name: Prove full mobile and desktop interface standard
         env:
           CHROME_PATH: /usr/bin/google-chrome
-          HUNTER_REVIEW_URL: https://a785cfd3-hunter-ui-review.thetechguy712.workers.dev/portal
+          HUNTER_REVIEW_URL: https://0a59daf8-hunter-ui-review.thetechguy712.workers.dev/portal
           PROOF_DIR: artifacts/hunter-full-standard
         run: node tools/proof_hunter_full_standard_v2.mjs
 
