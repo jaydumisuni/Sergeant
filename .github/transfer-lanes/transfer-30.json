@@ -1,0 +1,54 @@
+[
+  {
+    "lane": "perl",
+    "repos": [
+      "Perl/perl5",
+      "mojolicious/mojo",
+      "Perl-Critic/Perl-Critic",
+      "libwww-perl/libwww-perl",
+      "Perl-Toolchain-Gang/ExtUtils-MakeMaker",
+      "PerlDancer/Dancer2",
+      "perl5-dbi/dbi",
+      "plack/Plack",
+      "moose/Moose",
+      "metacpan/metacpan-api",
+      "houseabsolute/DateTime.pm",
+      "Perl-Toolchain-Gang/Module-Build",
+      "Perl-Toolchain-Gang/CPAN-Meta",
+      "preaction/Yancy",
+      "AlDanial/cloc",
+      "brendangregg/FlameGraph",
+      "so-fancy/diff-so-fancy",
+      "sullo/nikto",
+      "major/MySQLTuner-perl",
+      "sitaramc/gitolite",
+      "exiftool/exiftool",
+      "darold/pgbadger",
+      "jimsalterjrs/sanoid",
+      "rsnapshot/rsnapshot"
+    ],
+    "suffixes": [".pl", ".pm"]
+  },
+  {
+    "lane": "fsharp",
+    "repos": [
+      "dotnet/fsharp",
+      "fsprojects/FSharpPlus",
+      "giraffe-fsharp/Giraffe",
+      "fsprojects/FSharp.Data",
+      "fsprojects/Paket"
+    ],
+    "suffixes": [".fs", ".fsi", ".fsx"]
+  },
+  {
+    "lane": "nim",
+    "repos": [
+      "nim-lang/Nim",
+      "nim-lang/nimble",
+      "status-im/nim-chronos",
+      "nim-lang/fusion",
+      "nim-lang/packages"
+    ],
+    "suffixes": [".nim"]
+  }
+]

@@ -1,0 +1,53 @@
+{
+  "schema_version": "sergeant.review-training.v1",
+  "set_id": "model-free-core-campaign-2",
+  "purpose": "Fresh model-free static development cases. Sergeant reviews each defective revision before expected-fix evidence is opened.",
+  "rules": {
+    "models_enabled": false,
+    "workspace_default": "none",
+    "expected_defects_visible_to_sergeant": false,
+    "runtime_is_confirmation_not_discovery": true,
+    "mechanism_diagnosis_required_before_patch": true
+  },
+  "cases": [
+    {
+      "case_id": "openlogi-macos-hook-shutdown",
+      "repository": "AprilNEA/OpenLogi",
+      "defective_ref": "d46f81d2fcf163a7ffda4efc23e1629edfbb3a76",
+      "source_pr": 263,
+      "checkout_path": "training-cases/openlogi",
+      "changed_files": [
+        "crates/openlogi-hook/src/macos.rs",
+        "crates/openlogi-hook/src/linux.rs",
+        "crates/openlogi-hook/src/lib.rs"
+      ],
+      "workspace_policy": "static_first"
+    },
+    {
+      "case_id": "wardnet-forwarding-install-contract",
+      "repository": "wardnet/wardnet",
+      "defective_ref": "0bd4a430565e4da4e3b7c68330a08145e010b058",
+      "source_pr": 949,
+      "checkout_path": "training-cases/wardnet",
+      "changed_files": [
+        "deploy/install.sh",
+        "deploy/wardnetd.service",
+        "source/daemon/crates/wardnetd/src/policy_router_netlink.rs"
+      ],
+      "workspace_policy": "static_first"
+    },
+    {
+      "case_id": "pennywise-indian-bank-transaction-classification",
+      "repository": "sarim2000/pennywiseai-tracker",
+      "defective_ref": "9577b63f2da4be7498a99d83f4ffa92bf2ae2cb1",
+      "source_pr": 617,
+      "checkout_path": "training-cases/pennywise",
+      "changed_files": [
+        "parser-core/src/main/kotlin/com/pennywiseai/parser/core/bank/IndianBankParser.kt",
+        "parser-core/src/main/kotlin/com/pennywiseai/parser/core/bank/BaseIndianBankParser.kt",
+        "parser-core/src/main/kotlin/com/pennywiseai/parser/core/bank/BankParser.kt"
+      ],
+      "workspace_policy": "static_first"
+    }
+  ]
+}

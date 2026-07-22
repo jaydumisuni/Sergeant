@@ -1,0 +1,164 @@
+name: Model-Free Core Transfer 24 Learned Closure
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-24-learned.yml"
+      - "main_review/static_transfer_24_review.py"
+      - "main_review/static_remote_contract_review.py"
+      - "tests/test_static_transfer_24_review.py"
+
+permissions:
+  contents: read
+
+jobs:
+  learned-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout learned Sergeant reviewer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prove transfer 24 officer is connected
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -e main_review/static_transfer_24_review.py
+          grep -q 'sergeant.static-transfer-24-review.v1' main_review/static_transfer_24_review.py
+          grep -q 'sergeant.static-remote-contract-review.v7' main_review/static_remote_contract_review.py
+          grep -q 'run_static_transfer_24_review' main_review/static_remote_contract_review.py
+
+      - name: Checkout Rails defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: rails/rails
+          ref: 9c98ac6ebe93593e3bdd7ca1db65c1b338ab6f01
+          path: transfer-24/rails
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            activesupport/lib/active_support/cache/strategy/local_cache.rb
+            railties/lib/rails/application.rb
+
+      - name: Checkout Laravel defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: laravel/framework
+          ref: e68358dc4072b0826e193826e62b886d3f6322df
+          path: transfer-24/laravel
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            src/Illuminate/Queue/Worker.php
+
+      - name: Checkout SwiftNIO defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: apple/swift-nio
+          ref: a863732fbcc087f627cb47655ccf54a9ffbdee96
+          path: transfer-24/swift-nio
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            Sources/NIOHTTP1/HTTPEncoder.swift
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-24-learned-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install learned Sergeant package
+        run: python -m pip install .
+
+      - name: Build learned closure manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-transfer-24-learned
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          cases = [
+              {
+                  "case_id": "transfer-24-a",
+                  "repository": "rails/rails",
+                  "source_pr": 58061,
+                  "checkout_path": "transfer-24/rails",
+                  "defective_ref": "9c98ac6ebe93593e3bdd7ca1db65c1b338ab6f01",
+                  "fixing_ref": "c6127f884ef66be2423ca8a642b6562a70a64ad8",
+                  "changed_files": [
+                      "activesupport/lib/active_support/cache/strategy/local_cache.rb",
+                      "railties/lib/rails/application.rb",
+                  ],
+                  "workspace_policy": "static_first",
+              },
+              {
+                  "case_id": "transfer-24-b",
+                  "repository": "laravel/framework",
+                  "source_pr": 15319,
+                  "checkout_path": "transfer-24/laravel",
+                  "defective_ref": "e68358dc4072b0826e193826e62b886d3f6322df",
+                  "fixing_ref": "54d2c6b8e38e90da7466fb5f306e1dbbe08a28e9",
+                  "changed_files": ["src/Illuminate/Queue/Worker.php"],
+                  "workspace_policy": "static_first",
+              },
+              {
+                  "case_id": "transfer-24-c",
+                  "repository": "apple/swift-nio",
+                  "source_pr": 3631,
+                  "checkout_path": "transfer-24/swift-nio",
+                  "defective_ref": "a863732fbcc087f627cb47655ccf54a9ffbdee96",
+                  "fixing_ref": "243f85783108f196ddad1db6d0b9f57a20cda8f3",
+                  "changed_files": ["Sources/NIOHTTP1/HTTPEncoder.swift"],
+                  "workspace_policy": "static_first",
+              },
+          ]
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-24-learned",
+              "purpose": "Learned closure for transfer set 24 after immutable first-pass failure was frozen.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "learned_closure",
+              },
+              "cases": cases,
+          }
+          Path("build/model-free-core-transfer-24-learned/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run normal pr-review learned closure
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-24-learned/runtime-manifest.json \
+            --output build/model-free-core-transfer-24-learned/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-24-learned/frozen-summary.json
+
+      - name: Upload immutable learned reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-24-learned
+          path: build/model-free-core-transfer-24-learned/
+          if-no-files-found: error
+          retention-days: 90

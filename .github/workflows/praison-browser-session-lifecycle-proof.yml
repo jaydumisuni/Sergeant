@@ -1,0 +1,123 @@
+name: Praison Browser Session Lifecycle Mechanism Proof
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/praison-browser-session-lifecycle-proof.yml"
+      - "review-training/praison-browser-session-lifecycle.json"
+      - "scripts/run_static_training_set.py"
+      - "main_review/**"
+      - "tests/test_static_async_lifecycle_review.py"
+      - "tests/test_pr_review_static_invariant_integration.py"
+
+permissions:
+  contents: read
+
+jobs:
+  mechanism-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout Sergeant head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout real defective Praison revision
+        uses: actions/checkout@v4
+        with:
+          repository: MervinPraison/PraisonAI
+          ref: 254f1ef7e4e45a9646d69abbd090fbdd83920f32
+          path: mechanism-cases/PraisonAI
+          persist-credentials: false
+          fetch-depth: 1
+          sparse-checkout: |
+            src/praisonai-browser
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider usage state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/praison-mechanism-proof-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install Sergeant package
+        run: python -m pip install .
+
+      - name: Run static mechanism proof without models or workspace
+        run: |
+          mkdir -p build/praison-browser-session-lifecycle
+          python scripts/run_static_training_set.py \
+            review-training/praison-browser-session-lifecycle.json \
+            --output build/praison-browser-session-lifecycle/frozen-result.json \
+            | tee build/praison-browser-session-lifecycle/frozen-summary.json
+
+      - name: Prove documented pr-review path catches the real race
+        shell: bash
+        run: |
+          python -m main_review.cli pr-review mechanism-cases/PraisonAI \
+            --files "src/praisonai-browser/praisonai_browser/server.py,src/praisonai-browser/praisonai_browser/sessions.py" \
+            --pretty > build/praison-browser-session-lifecycle/standard-pr-review.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          packet = json.loads(
+              Path("build/praison-browser-session-lifecycle/standard-pr-review.json").read_text()
+          )
+          admitted = {
+              str(item.get("root_cause"))
+              for item in packet.get("officer_council", {}).get("admitted_findings", [])
+              if isinstance(item, dict)
+          }
+          invariant = {
+              str(item.get("root_cause"))
+              for item in packet.get("capability_review", {})
+              .get("static_invariant_review", {})
+              .get("findings", [])
+              if isinstance(item, dict)
+          }
+          assert "resource-claim-after-await" in admitted, admitted
+          assert "resource-claim-after-await" in invariant, invariant
+          assert "terminal-state-without-end-timestamp" not in admitted, admitted
+          assert packet.get("verdict", {}).get("verdict") == "REQUEST_CHANGES"
+          PY
+
+      - name: Publish mechanism summary
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          data = json.loads(Path('build/praison-browser-session-lifecycle/frozen-result.json').read_text())
+          item = data['summaries'][0]
+          lines = [
+              '# Praison browser lifecycle mechanism proof',
+              '',
+              f"Exact Sergeant head: `{os.environ['GITHUB_SHA']}`",
+              '',
+              f"- Verdict: **{item['verdict']}**",
+              f"- Admitted findings: **{item['admitted_finding_count']}**",
+              f"- Advisory findings: **{item['advisory_finding_count']}**",
+              f"- Model calls: **{item['model_calls']}**",
+              f"- Elapsed seconds: **{item['elapsed_seconds']}**",
+              '- Documented pr-review CLI: **proved**',
+          ]
+          Path(os.environ['GITHUB_STEP_SUMMARY']).write_text('\n'.join(lines) + '\n')
+          PY
+
+      - name: Upload immutable mechanism report
+        uses: actions/upload-artifact@v4
+        with:
+          name: praison-browser-session-lifecycle-mechanism-proof
+          path: build/praison-browser-session-lifecycle/
+          if-no-files-found: error
+          retention-days: 90

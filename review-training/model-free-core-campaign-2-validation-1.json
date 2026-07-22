@@ -1,0 +1,54 @@
+{
+  "schema_version": "sergeant.review-training.v1",
+  "set_id": "model-free-core-campaign-2-validation-1",
+  "purpose": "Untouched semantic variants used only after campaign 2 learning rules were frozen.",
+  "rules": {
+    "models_enabled": false,
+    "workspace_default": "none",
+    "expected_defects_visible_to_sergeant": false,
+    "runtime_is_confirmation_not_discovery": true,
+    "detector_changes_after_start": false
+  },
+  "cases": [
+    {
+      "case_id": "trading-engine-cancel-without-join",
+      "repository": "yoon627/coin-trading-bot",
+      "defective_ref": "533857281398f178599ddb45205ba8e5d327db7e",
+      "source_pr": 43,
+      "checkout_path": "validation-cases/coin-trading-bot",
+      "changed_files": [
+        "bot/src/main/kotlin/com/trading/bot/engine/TradingEngine.kt",
+        "bot/src/main/kotlin/com/trading/bot/engine/PositionManager.kt",
+        "bot/src/main/kotlin/com/trading/bot/engine/UserTradingManager.kt"
+      ],
+      "workspace_policy": "static_first"
+    },
+    {
+      "case_id": "backup-script-vs-systemd-hardening",
+      "repository": "noorinalabs/noorinalabs-deploy",
+      "defective_ref": "fd42c4b643e42a9010e0ce18e23ccf7a28dcb959",
+      "source_pr": 654,
+      "checkout_path": "validation-cases/noorinalabs-deploy",
+      "changed_files": [
+        "scripts/backup.sh",
+        "scripts/b2_preflight.sh",
+        "scripts/emit-backup-failure-marker.sh",
+        "systemd/isnad-backup.service",
+        "systemd/isnad-backup-failure-marker.service"
+      ],
+      "workspace_policy": "static_first"
+    },
+    {
+      "case_id": "mcp-structured-format-behind-json-gate",
+      "repository": "tkhq/valet",
+      "defective_ref": "c6446a2b97e0ef4bb6fd9fab749ebe9b6ef49789",
+      "source_pr": 127,
+      "checkout_path": "validation-cases/valet",
+      "changed_files": [
+        "packages/sdk/src/mcp/action-source.ts",
+        "packages/sdk/src/mcp/action-source.test.ts"
+      ],
+      "workspace_policy": "static_first"
+    }
+  ]
+}

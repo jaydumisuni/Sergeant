@@ -1,0 +1,206 @@
+name: Model-Free Core Transfer 15 Learned Closure
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-15-learned.yml"
+      - "main_review/static_transfer_15_review.py"
+      - "main_review/static_status_review.py"
+      - "tests/test_static_transfer_15_review.py"
+
+permissions:
+  contents: read
+
+jobs:
+  learned-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin learned Sergeant reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach c4545144c02b86290a1f3fa149647fff69fdc955
+          test "$(git rev-parse HEAD)" = "c4545144c02b86290a1f3fa149647fff69fdc955"
+          test -e main_review/static_transfer_15_review.py
+          grep -q 'run_static_transfer_15_review' main_review/static_status_review.py
+
+      - name: Checkout exact defective and fixing lineages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          sparse_lineage_checkout() {
+            local repository="$1"
+            local defective="$2"
+            local fixing="$3"
+            local destination="$4"
+            shift 4
+
+            git init "$destination"
+            git -C "$destination" remote add origin "https://github.com/${repository}.git"
+            git -C "$destination" config core.sparseCheckout true
+            : > "$destination/.git/info/sparse-checkout"
+            for pattern in "$@"; do
+              printf '%s\n' "$pattern" >> "$destination/.git/info/sparse-checkout"
+            done
+
+            git -C "$destination" fetch --no-tags --filter=blob:none origin "$fixing"
+            git -C "$destination" cat-file -e "${defective}^{commit}"
+            git -C "$destination" cat-file -e "${fixing}^{commit}"
+            git -C "$destination" merge-base --is-ancestor "$defective" "$fixing"
+            git -C "$destination" checkout --detach "$defective"
+            test "$(git -C "$destination" rev-parse HEAD)" = "$defective"
+          }
+
+          sparse_lineage_checkout \
+            homeassistant-ai/ha-mcp \
+            4b5c75db520a24445bcb571196656455b8ad51b9 \
+            a996f7ddcc8b618036ba79e1dba3d73122d50efc \
+            transfer-15-learned/ha-mcp \
+            '/src/ha_mcp/client/rest_client.py'
+
+          sparse_lineage_checkout \
+            bee-san/kanji_anki \
+            93e3fad7ef91a72bb70ce77b2f6836461ebcbefc \
+            013ee4dcceee0ae38bb27edfec863dc8f8ceb7ad \
+            transfer-15-learned/kanji-anki \
+            '/app/src/main/kotlin/dev/bee/kanjianki/widget/KaniWidgetRegistry.kt'
+
+          sparse_lineage_checkout \
+            tddworks/ClaudeBar \
+            02d4b3c44f7d2decd2e09e6611634e38516493c4 \
+            bf7334655ca79eda6712e5b4f50c79d814f59d48 \
+            transfer-15-learned/claudebar \
+            '/Sources/Infrastructure/Claude/ClaudeAPIUsageProbe.swift'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-15-learned-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install learned Sergeant package and proof dependency
+        run: python -m pip install . pytest
+
+      - name: Run focused positive and clean controls
+        run: python -m pytest tests/test_static_transfer_15_review.py -q
+
+      - name: Build learned-closure manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-transfer-15-learned
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-15-learned-closure",
+              "purpose": "Learned closure for transfer 15 after the immutable blind 0/3 was frozen.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "classification": "learned_closure",
+                  "historical_first_pass": "0/3",
+                  "historical_first_pass_immutable": True,
+                  "reviewer_code": "c4545144c02b86290a1f3fa149647fff69fdc955",
+              },
+              "cases": [
+                  {
+                      "case_id": "transfer-15-learned-a",
+                      "repository": "homeassistant-ai/ha-mcp",
+                      "source_pr": 1966,
+                      "checkout_path": "transfer-15-learned/ha-mcp",
+                      "defective_ref": "4b5c75db520a24445bcb571196656455b8ad51b9",
+                      "fixing_ref": "a996f7ddcc8b618036ba79e1dba3d73122d50efc",
+                      "changed_files": ["src/ha_mcp/client/rest_client.py"],
+                      "workspace_policy": "static_first",
+                  },
+                  {
+                      "case_id": "transfer-15-learned-b",
+                      "repository": "bee-san/kanji_anki",
+                      "source_pr": 557,
+                      "checkout_path": "transfer-15-learned/kanji-anki",
+                      "defective_ref": "93e3fad7ef91a72bb70ce77b2f6836461ebcbefc",
+                      "fixing_ref": "013ee4dcceee0ae38bb27edfec863dc8f8ceb7ad",
+                      "changed_files": ["app/src/main/kotlin/dev/bee/kanjianki/widget/KaniWidgetRegistry.kt"],
+                      "workspace_policy": "static_first",
+                  },
+                  {
+                      "case_id": "transfer-15-learned-c",
+                      "repository": "tddworks/ClaudeBar",
+                      "source_pr": 226,
+                      "checkout_path": "transfer-15-learned/claudebar",
+                      "defective_ref": "02d4b3c44f7d2decd2e09e6611634e38516493c4",
+                      "fixing_ref": "bf7334655ca79eda6712e5b4f50c79d814f59d48",
+                      "changed_files": ["Sources/Infrastructure/Claude/ClaudeAPIUsageProbe.swift"],
+                      "workspace_policy": "static_first",
+                  },
+              ],
+          }
+          Path("build/model-free-core-transfer-15-learned/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run learned normal pr-review
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-15-learned/runtime-manifest.json \
+            --output build/model-free-core-transfer-15-learned/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-15-learned/frozen-summary.json
+
+      - name: Enforce expected learned roots
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          payload = json.loads(Path("build/model-free-core-transfer-15-learned/frozen-result.json").read_text())
+          expected = {
+              "transfer-15-learned-a": "transport-no-answer-collapsed-into-authoritative-failure-envelope",
+              "transfer-15-learned-b": "coroutine-cancellation-swallowed-by-per-item-isolation",
+              "transfer-15-learned-c": "present-invalid-optional-field-collapsed-into-absent-semantics",
+          }
+          rows = {item["case"]["case_id"]: item for item in payload["full_results"]}
+          for case_id, root in expected.items():
+              result = rows[case_id]["result"]
+              roots = {
+                  str(item.get("root_cause"))
+                  for item in result.get("officer_council", {}).get("admitted_findings", [])
+              }
+              if root not in roots:
+                  raise SystemExit(f"{case_id} missing expected learned root {root}: {sorted(roots)}")
+              if result.get("verdict") == "APPROVE":
+                  raise SystemExit(f"{case_id} remained APPROVE")
+          PY
+
+      - name: Upload immutable learned reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-15-learned-closure
+          path: build/model-free-core-transfer-15-learned/
+          if-no-files-found: error
+          retention-days: 90

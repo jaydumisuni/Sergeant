@@ -1,0 +1,28 @@
+name: Model-Free Core Transfer 20 Frozen Record
+
+# Transfer 20's first valid artifact is immutable. The original opaque selector
+# contained a known test/playground scope leak and must not reselect candidates
+# after later workflows expand the prior-repository exclusion set.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-frozen-record:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify immutable transfer 20 boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "frozen_reviewer=9a4ed0aab1bbbaa9b96779c366c25e85360457c1"
+          echo "workflow_head=9173bbf603d67601d0cb22cdacd10ab1105059c8"
+          echo "workflow_run=29729892228"
+          echo "artifact_id=8455825699"
+          echo "artifact_digest=sha256:945af2b1b487374d4c7199b2080124577a1913d0b18c8fd7399345edb974d9db"
+          echo "valid_fresh_score=0/2"
+          echo "excluded_selector_cases=1"
+          echo "models=0 workspace=none"

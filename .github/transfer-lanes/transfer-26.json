@@ -1,0 +1,32 @@
+[
+  {
+    "lane": "c",
+    "repos": [
+      "curl/curl",
+      "redis/redis",
+      "systemd/systemd",
+      "php/php-src"
+    ],
+    "suffixes": [".c", ".h"]
+  },
+  {
+    "lane": "haskell",
+    "repos": [
+      "haskell/cabal",
+      "commercialhaskell/stack",
+      "unisonweb/unison",
+      "haskell/haskell-language-server"
+    ],
+    "suffixes": [".hs"]
+  },
+  {
+    "lane": "clojure",
+    "repos": [
+      "babashka/babashka",
+      "clj-kondo/clj-kondo",
+      "metabase/metabase",
+      "nextjournal/clerk"
+    ],
+    "suffixes": [".clj", ".cljc"]
+  }
+]

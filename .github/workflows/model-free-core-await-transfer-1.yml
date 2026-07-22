@@ -1,0 +1,166 @@
+name: Model-Free Core Await Transfer 1
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-await-transfer-1.yml"
+      - "scripts/run_static_training_set.py"
+      - "main_review/**"
+      - "tests/test_pr_review_static_invariant_integration.py"
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout frozen Sergeant head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout transfer candidate A fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: ayal/switcher-hack
+          ref: 4fc69e017c68ff324a0c26e7de3f11ab62d48f46
+          path: await-transfer/switcher
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout transfer candidate B fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: boysclubcabo-prog/stoked-command-center
+          ref: 8dea5ba3a0107adfbd67277039007c4cb7f65b42
+          path: await-transfer/stoked
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout transfer candidate C fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: spy4x/caldav-tasks-web
+          ref: 1daa378e1953fe3a112b5071e6aac7ef10b3eb08
+          path: await-transfer/caldav
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Freeze defective parent revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in await-transfer/switcher await-transfer/stoked await-transfer/caldav; do
+            git -C "$path" checkout --detach HEAD^
+          done
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider usage state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-await-transfer-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install frozen Sergeant package
+        run: python -m pip install .
+
+      - name: Build opaque runtime manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-await-transfer-1
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "case_id": "await-transfer-a",
+                  "repository": "ayal/switcher-hack",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer/switcher",
+                  "changed_files": ["auto_cloud.py"],
+              },
+              {
+                  "case_id": "await-transfer-b",
+                  "repository": "boysclubcabo-prog/stoked-command-center",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer/stoked",
+                  "changed_files": ["app.js"],
+              },
+              {
+                  "case_id": "await-transfer-c",
+                  "repository": "spy4x/caldav-tasks-web",
+                  "source_pr": None,
+                  "checkout_path": "await-transfer/caldav",
+                  "changed_files": ["apps/web/src/components/Sidebar.tsx"],
+              },
+          ]
+          for case in cases:
+              case["defective_ref"] = subprocess.check_output(
+                  ["git", "-C", case["checkout_path"], "rev-parse", "HEAD"],
+                  text=True,
+              ).strip()
+              case["workspace_policy"] = "static_first"
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-await-transfer-1",
+              "purpose": "Fresh transfer validation for await-ordering and concurrent state obligations. Expected roots remain outside Sergeant input.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "untouched_transfer_validation",
+              },
+              "cases": cases,
+          }
+          Path("build/model-free-core-await-transfer-1/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run normal pr-review on untouched parents
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-await-transfer-1/runtime-manifest.json \
+            --output build/model-free-core-await-transfer-1/frozen-result.json \
+            2>&1 | tee build/model-free-core-await-transfer-1/frozen-summary.json
+
+      - name: Publish frozen transfer summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — await transfer 1"
+            echo
+            echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-await-transfer-1/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable transfer reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-await-transfer-1
+          path: build/model-free-core-await-transfer-1/
+          if-no-files-found: error
+          retention-days: 90

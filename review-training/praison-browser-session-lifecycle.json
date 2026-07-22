@@ -1,0 +1,26 @@
+{
+  "schema_version": "sergeant.review-training.v1",
+  "set_id": "praison-browser-session-lifecycle-mechanism-proof",
+  "purpose": "Learned mechanism proof against the real defective Praison browser revision after the original miss was frozen and independently diagnosed.",
+  "rules": {
+    "models_enabled": false,
+    "workspace_default": "none",
+    "expected_defects_visible_to_sergeant": false,
+    "runtime_is_confirmation_not_discovery": true,
+    "classification": "learned_mechanism_proof_not_validation"
+  },
+  "cases": [
+    {
+      "case_id": "praison-browser-session-lifecycle",
+      "repository": "MervinPraison/PraisonAI",
+      "defective_ref": "254f1ef7e4e45a9646d69abbd090fbdd83920f32",
+      "source_pr": 3119,
+      "checkout_path": "mechanism-cases/PraisonAI",
+      "changed_files": [
+        "src/praisonai-browser/praisonai_browser/server.py",
+        "src/praisonai-browser/praisonai_browser/sessions.py"
+      ],
+      "workspace_policy": "static_first"
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+name: Model-Free Core Auth Transfer 7
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-auth-transfer-7.yml"
+      - "scripts/run_static_training_set.py"
+      - "main_review/**"
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout frozen Sergeant reviewer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout candidate A fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: jraversbcn21/PlayQAcademy
+          ref: 90418d017ce04b41e643a044a52ead93c6fd03a0
+          path: auth-transfer-7/playq-academy
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout candidate B fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: JuanCeja/WagerInsights
+          ref: 8b87a93e867f56ac85c2d355afe271f096c4bfcc
+          path: auth-transfer-7/wager-insights
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Checkout candidate C fixing commit
+        uses: actions/checkout@v4
+        with:
+          repository: Hassad674/DesignedTrust-Services
+          ref: ae4082aa4d8aefd95529434209d732a97d9d854b
+          path: auth-transfer-7/designed-trust
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Freeze defective parent revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in auth-transfer-7/playq-academy auth-transfer-7/wager-insights auth-transfer-7/designed-trust; do
+            git -C "$path" checkout --detach HEAD^
+          done
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-auth-transfer-7-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install frozen Sergeant package
+        run: python -m pip install .
+
+      - name: Build opaque runtime manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-auth-transfer-7
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "case_id": "auth-transfer-7-a",
+                  "repository": "jraversbcn21/PlayQAcademy",
+                  "source_pr": None,
+                  "checkout_path": "auth-transfer-7/playq-academy",
+                  "changed_files": ["src/app/[lng]/auth/sign-in/SignInForm.tsx"],
+              },
+              {
+                  "case_id": "auth-transfer-7-b",
+                  "repository": "JuanCeja/WagerInsights",
+                  "source_pr": None,
+                  "checkout_path": "auth-transfer-7/wager-insights",
+                  "changed_files": [
+                      "frontend/src/pages/Login.jsx",
+                      "frontend/src/contexts/UserContext.jsx",
+                      "frontend/src/components/Navbar.jsx"
+                  ],
+              },
+              {
+                  "case_id": "auth-transfer-7-c",
+                  "repository": "Hassad674/DesignedTrust-Services",
+                  "source_pr": None,
+                  "checkout_path": "auth-transfer-7/designed-trust",
+                  "changed_files": [
+                      "web/src/features/auth/components/login-form.tsx",
+                      "web/src/shared/hooks/use-user.ts"
+                  ],
+              },
+          ]
+          for case in cases:
+              case["defective_ref"] = subprocess.check_output(
+                  ["git", "-C", case["checkout_path"], "rev-parse", "HEAD"],
+                  text=True,
+              ).strip()
+              case["workspace_policy"] = "static_first"
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-auth-transfer-7",
+              "purpose": "Seventh untouched transfer validation over fresh authentication propagation and navigation-cache defects. Expected roots remain outside Sergeant input.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "untouched_transfer_validation",
+                  "reviewer_code_frozen_before_target_selection": "aae3f9d5722b130ceec9d0c75dc7a74fe039c09b",
+              },
+              "cases": cases,
+          }
+          Path("build/model-free-core-auth-transfer-7/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run normal pr-review on untouched parents
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-auth-transfer-7/runtime-manifest.json \
+            --output build/model-free-core-auth-transfer-7/frozen-result.json \
+            2>&1 | tee build/model-free-core-auth-transfer-7/frozen-summary.json
+
+      - name: Publish frozen transfer summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — auth transfer 7"
+            echo
+            echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-auth-transfer-7/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable transfer reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-auth-transfer-7
+          path: build/model-free-core-auth-transfer-7/
+          if-no-files-found: error
+          retention-days: 90

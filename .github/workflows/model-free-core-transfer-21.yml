@@ -1,0 +1,28 @@
+name: Model-Free Core Transfer 21 Frozen Record
+
+# Transfer 21's first valid artifact is immutable. This workflow is manual-only
+# because re-running opaque candidate selection after later transfer workflows
+# are added changes the exclusion set and corrupts historical provenance.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-frozen-record:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify immutable transfer 21 boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "frozen_reviewer=bd75abb1ad30fdfc3d665d26462d226d46a5d966"
+          echo "workflow_head=1808938af62ad3610d749417f0a1ad3268015d3c"
+          echo "workflow_run=29732343569"
+          echo "artifact_id=8456827678"
+          echo "artifact_digest=sha256:d223b762019ba3538441f8e262653b72f1d1e0f324cbcfb2189fd8f58c85ee0b"
+          echo "valid_fresh_score=0/1"
+          echo "excluded_selector_cases=2"
+          echo "models=0 workspace=none"

@@ -1,0 +1,427 @@
+name: Model-Free Core Transfer 23
+# Reviewer frozen before opaque behavioral-defect selection: c65d92a4769ef8797ebb4a8d9e4259f8f8477995
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-23.yml"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  frozen-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout workflow event head
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Pin canonical Sergeant reviewer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach c65d92a4769ef8797ebb4a8d9e4259f8f8477995
+          test "$(git rev-parse HEAD)" = "c65d92a4769ef8797ebb4a8d9e4259f8f8477995"
+          test -e main_review/static_transfer_22_review.py
+          grep -q 'sergeant.static-transfer-22-review.v1' main_review/static_transfer_22_review.py
+          grep -q 'sergeant.static-remote-contract-review.v3' main_review/static_remote_contract_review.py
+          grep -q 'sergeant.static-status-review.v34' main_review/static_status_review.py
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Select three opaque behavioral defect lineages
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p build/model-free-core-transfer-23
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import re
+          import time
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          REVIEWER = "c65d92a4769ef8797ebb4a8d9e4259f8f8477995"
+          token = os.environ.get("GH_TOKEN", "")
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "User-Agent": "sergeant-transfer-23-selector",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          if token:
+              headers["Authorization"] = f"Bearer {token}"
+
+          def api(path: str) -> object:
+              request = urllib.request.Request(f"https://api.github.com{path}", headers=headers)
+              with urllib.request.urlopen(request, timeout=45) as response:
+                  return json.loads(response.read().decode("utf-8"))
+
+          def search(query: str) -> list[dict]:
+              payload = api(f"/search/issues?q={urllib.parse.quote(query)}&sort=updated&order=desc&per_page=50")
+              return list(payload.get("items", [])) if isinstance(payload, dict) else []
+
+          def pr_files(repository: str, number: int) -> list[dict]:
+              owner, name = repository.split("/", 1)
+              payload = api(f"/repos/{owner}/{name}/pulls/{number}/files?per_page=100")
+              return list(payload) if isinstance(payload, list) else []
+
+          excluded_parts = {
+              "test", "tests", "testing", "unittest", "unittests", "__tests__",
+              "spec", "specs", "fixture", "fixtures", "snapshot", "snapshots",
+              "playground", "playgrounds", "example", "examples", "sample", "samples",
+              "bench", "benches", "benchmark", "benchmarks", "docs", "doc", ".github",
+              "generated", "vendor", "third_party", "third-party", "node_modules",
+          }
+          excluded_names = {
+              "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "cargo.lock",
+              "poetry.lock", "go.sum", "gradle.lockfile",
+          }
+          excluded_fragments = (
+              ".test.", ".tests.", ".spec.", "_test.", "_tests.",
+              "test_", "tests_", ".snap", ".golden", ".fixture.",
+          )
+          test_parts = {"test", "tests", "testing", "unittest", "unittests", "__tests__", "spec", "specs"}
+          test_fragments = (".test.", ".spec.", "_test.", "test_", "tests_", "unittest")
+
+          disallowed_title = re.compile(
+              r"^\s*(?:chore|docs?|documentation|typo|javadoc|format|formatting|lint|style|cleanup|clean-up|refactor)(?:\b|\s*[:(])",
+              re.I,
+          )
+          disallowed_phrases = (
+              "no functional change", "no behavior change", "no behavioural change",
+              "no user-facing change", "no runtime change", "documentation only",
+              "comment only", "comments only", "javadoc only", "typo only",
+              "formatting only", "lint only", "style only", "refactor only",
+              "cleanup only", "static analysis cleanup",
+          )
+          positive_clues = re.compile(
+              r"\b(?:fix|bug|incorrect|wrong|broken|regression|crash|panic|race|deadlock|hang|leak|loss|corrupt|overflow|underflow|security|vulnerab|fail|error|missing|invalid|stale|duplicate|idempot|timeout|cancel|exception)\w*\b",
+              re.I,
+          )
+          comment_only = re.compile(
+              r"^(?:\s*(?://|///|//!|#|/\*|\*|\*/|<!--|-->|'''|\"\"\"|@(?:param|return|throws|see)\b).*)?$"
+          )
+
+          lanes = [
+              {
+                  "lane": "go",
+                  "repos": [
+                      "etcd-io/etcd", "caddyserver/caddy", "hashicorp/consul",
+                      "grafana/loki", "kubernetes/kubernetes",
+                  ],
+                  "suffixes": {".go"},
+              },
+              {
+                  "lane": "java",
+                  "repos": [
+                      "spring-projects/spring-security", "apache/kafka", "jenkinsci/jenkins",
+                      "apache/cassandra", "elastic/elasticsearch",
+                  ],
+                  "suffixes": {".java"},
+              },
+              {
+                  "lane": "cpp",
+                  "repos": [
+                      "grpc/grpc", "bitcoin/bitcoin", "opencv/opencv",
+                      "electron/electron", "llvm/llvm-project",
+                  ],
+                  "suffixes": {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp"},
+              },
+          ]
+
+          repository_pattern = re.compile(
+              r"(?:repository\s*[:=]\s*|\"repository\"\s*:\s*\")"
+              r"([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)"
+          )
+          prior_repositories: set[str] = set()
+          for workflow in Path(".github/workflows").glob("model-free-core-*.yml"):
+              if workflow.name.startswith("model-free-core-transfer-23"):
+                  continue
+              prior_repositories.update(
+                  repository_pattern.findall(workflow.read_text(encoding="utf-8", errors="ignore"))
+              )
+          prior_repositories.update({
+              "django/django", "tokio-rs/tokio", "microsoft/vscode",
+              "pydantic/pydantic", "astral-sh/ruff", "vitejs/vite",
+              "elastic/beats", "kwwsyk/Endless-Inventory", "Unity-Technologies/mono",
+              "prometheus/prometheus", "spring-projects/spring-framework", "dotnet/runtime",
+          })
+
+          def is_test_file(filename: str) -> bool:
+              path = Path(filename.replace("\\", "/"))
+              lowered = path.name.lower()
+              parts = {part.lower() for part in path.parts}
+              return bool(parts & test_parts) or any(fragment in lowered for fragment in test_fragments)
+
+          def is_production_source(filename: str, suffixes: set[str]) -> bool:
+              normalized = filename.replace("\\", "/")
+              lowered = normalized.lower()
+              path = Path(normalized)
+              parts = {part.lower() for part in path.parts}
+              name = path.name.lower()
+              if path.suffix.lower() not in suffixes:
+                  return False
+              if name in excluded_names or parts & excluded_parts:
+                  return False
+              if any(fragment in name for fragment in excluded_fragments):
+                  return False
+              if any(segment in lowered for segment in (
+                  "/src/test/", "/src/tests/", "/test/", "/tests/", "/unittests/",
+                  "/spec/", "/specs/", "/playground/", "/examples/", "/samples/",
+              )):
+                  return False
+              return True
+
+          def changed_patch_lines(patch: str) -> list[str]:
+              rows: list[str] = []
+              for line in patch.splitlines():
+                  if line.startswith(("+++", "---", "@@")):
+                      continue
+                  if line.startswith(("+", "-")):
+                      rows.append(line[1:])
+              return rows
+
+          def non_comment_code_changes(rows: list[dict], source_files: set[str]) -> int:
+              total = 0
+              for row in rows:
+                  filename = str(row.get("filename") or "")
+                  if filename not in source_files:
+                      continue
+                  for line in changed_patch_lines(str(row.get("patch") or "")):
+                      if line.strip() and not comment_only.match(line):
+                          total += 1
+              return total
+
+          def qualifies(pr: dict, rows: list[dict], source_files: list[str]) -> bool:
+              title = str(pr.get("title") or "")
+              body = str(pr.get("body") or "")
+              combined = f"{title}\n{body}".lower()
+              if disallowed_title.search(title):
+                  return False
+              if any(phrase in combined for phrase in disallowed_phrases):
+                  return False
+              if not positive_clues.search(f"{title}\n{body}"):
+                  return False
+              if not any(is_test_file(str(row.get("filename") or "")) for row in rows):
+                  return False
+              if non_comment_code_changes(rows, set(source_files)) < 3:
+                  return False
+              return True
+
+          def eligible_sources(rows: list[dict], suffixes: set[str]) -> list[str]:
+              result: list[str] = []
+              for row in rows:
+                  if not isinstance(row, dict) or row.get("status") != "modified":
+                      continue
+                  filename = str(row.get("filename") or "")
+                  if is_production_source(filename, suffixes):
+                      result.append(filename)
+              return sorted(dict.fromkeys(result))
+
+          chosen: list[dict] = []
+          used = set(prior_repositories)
+          for lane in lanes:
+              selected = None
+              for repository in lane["repos"]:
+                  if repository in used:
+                      continue
+                  candidates: list[dict] = []
+                  seen: set[int] = set()
+                  for query in (
+                      f"repo:{repository} is:pr is:merged label:bug",
+                      f"repo:{repository} is:pr is:merged in:title fix",
+                      f"repo:{repository} is:pr is:merged in:title regression",
+                  ):
+                      for item in search(query):
+                          number = int(item.get("number") or 0)
+                          if number and number not in seen:
+                              candidates.append(item)
+                              seen.add(number)
+                      if len(candidates) >= 20:
+                          break
+
+                  owner, name = repository.split("/", 1)
+                  for item in candidates:
+                      number = int(item.get("number") or 0)
+                      if not number:
+                          continue
+                      pr = api(f"/repos/{owner}/{name}/pulls/{number}")
+                      if not isinstance(pr, dict) or not pr.get("merged_at"):
+                          continue
+                      base = str((pr.get("base") or {}).get("sha") or "")
+                      head = str((pr.get("head") or {}).get("sha") or "")
+                      if not base or not head or base == head:
+                          continue
+                      rows = pr_files(repository, number)
+                      sources = eligible_sources(rows, set(lane["suffixes"]))
+                      if not (1 <= len(sources) <= 4):
+                          continue
+                      if not qualifies(pr, rows, sources):
+                          continue
+                      compare = api(f"/repos/{owner}/{name}/compare/{base}...{head}")
+                      if not isinstance(compare, dict):
+                          continue
+                      if str((compare.get("merge_base_commit") or {}).get("sha") or "") != base:
+                          continue
+                      if str(compare.get("status") or "") != "ahead" or int(compare.get("ahead_by") or 0) < 1:
+                          continue
+                      selected = {
+                          "lane": lane["lane"],
+                          "repository": repository,
+                          "source_pr": number,
+                          "defective_ref": base,
+                          "fixing_ref": head,
+                          "changed_files": sources,
+                      }
+                      break
+                  if selected is not None:
+                      break
+                  time.sleep(0.2)
+
+              if selected is None:
+                  raise SystemExit(f"No opaque behavioral-defect candidate found for lane {lane['lane']}")
+              used.add(str(selected["repository"]))
+              chosen.append(selected)
+
+          if len(chosen) != 3:
+              raise SystemExit("Expected exactly three opaque candidates")
+
+          output = {
+              "schema_version": "sergeant.opaque-candidate-selection.v5",
+              "reviewer_frozen_before_selection": REVIEWER,
+              "titles_bodies_patches_tests_persisted": False,
+              "production_source_only": True,
+              "behavioral_defect_qualification": True,
+              "prior_repository_exclusion_count": len(prior_repositories),
+              "cases": chosen,
+          }
+          target = Path("build/model-free-core-transfer-23/opaque-selection.json")
+          target.write_text(json.dumps(output, indent=2) + "\n", encoding="utf-8")
+          for row in chosen:
+              print(
+                  f"selected lane={row['lane']} repository={row['repository']} "
+                  f"pr={row['source_pr']} production_files={len(row['changed_files'])}"
+              )
+          PY
+
+      - name: Checkout selected defective snapshots
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          source = Path("build/model-free-core-transfer-23/opaque-selection.json")
+          payload = json.loads(source.read_text(encoding="utf-8"))
+          cases = payload.get("cases", [])
+          for index, case in enumerate(cases, start=1):
+              repository = str(case["repository"])
+              defective = str(case["defective_ref"])
+              fixing = str(case["fixing_ref"])
+              destination = Path("transfer-23") / f"case-{index}"
+              destination.mkdir(parents=True, exist_ok=False)
+              subprocess.run(["git", "init", str(destination)], check=True)
+              subprocess.run(
+                  ["git", "-C", str(destination), "remote", "add", "origin", f"https://github.com/{repository}.git"],
+                  check=True,
+              )
+              subprocess.run(["git", "-C", str(destination), "config", "core.sparseCheckout", "true"], check=True)
+              sparse = destination / ".git" / "info" / "sparse-checkout"
+              sparse.write_text("".join(f"/{path}\n" for path in case["changed_files"]), encoding="utf-8")
+              subprocess.run(["git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", fixing], check=True)
+              subprocess.run(["git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", defective], check=True)
+              subprocess.run(["git", "-C", str(destination), "merge-base", "--is-ancestor", defective, fixing], check=True)
+              subprocess.run(["git", "-C", str(destination), "checkout", "--detach", defective], check=True)
+              actual = subprocess.check_output(["git", "-C", str(destination), "rev-parse", "HEAD"], text=True).strip()
+              if actual != defective:
+                  raise SystemExit(f"checkout identity mismatch for {repository}")
+              for relative in case["changed_files"]:
+                  if not (destination / relative).is_file():
+                      raise SystemExit(f"production source missing at defective ref: {repository}:{relative}")
+              case["checkout_path"] = str(destination)
+              case["case_id"] = f"transfer-23-{chr(96 + index)}"
+              case["workspace_policy"] = "static_first"
+          payload["cases"] = cases
+          source.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+          PY
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-23-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install frozen Sergeant package
+        run: python -m pip install .
+
+      - name: Build opaque runtime manifest
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          reviewer = "c65d92a4769ef8797ebb4a8d9e4259f8f8477995"
+          source = Path("build/model-free-core-transfer-23/opaque-selection.json")
+          selection = json.loads(source.read_text(encoding="utf-8"))
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-23",
+              "purpose": "Twenty-third untouched transfer validation selected opaquely from behavior-qualified production source across Go, Java and C/C++ ecosystems.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "untouched_transfer_validation",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
+                  "reviewer_code_frozen_before_target_selection": reviewer,
+                  "opaque_selector": "sergeant.opaque-candidate-selection.v5",
+                  "production_source_only": True,
+                  "behavioral_defect_qualification": True,
+              },
+              "cases": selection["cases"],
+          }
+          Path("build/model-free-core-transfer-23/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+
+      - name: Run frozen normal pr-review
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-23/runtime-manifest.json \
+            --output build/model-free-core-transfer-23/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-23/frozen-summary.json
+
+      - name: Upload immutable first-pass reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-23
+          path: build/model-free-core-transfer-23/
+          if-no-files-found: error
+          retention-days: 90

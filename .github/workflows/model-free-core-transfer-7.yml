@@ -1,0 +1,161 @@
+name: Model-Free Core Transfer 7
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/model-free-core-transfer-7.yml"
+      - "scripts/run_static_training_set.py"
+      - "main_review/**"
+
+permissions:
+  contents: read
+
+jobs:
+  frozen-transfer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERGEANT_LLM_ENABLED: "false"
+      SERGEANT_CPL_ENABLED: "false"
+      SERGEANT_CPL_POLICY: "disabled"
+
+    steps:
+      - name: Checkout frozen Sergeant reviewer
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout Go terminal-status defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: acoseac/1-bit-bridge
+          ref: 896128113a76684c1fe75c41b86d5eb1f25bdc87
+          path: transfer-7/bridge
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout React MFA defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: SpiritSLO-UK/HomeAssistant-expenses-analytics
+          ref: cd5f5e1ec69d878ff1e878b9c37a2617e4790bc8
+          path: transfer-7/mfa
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Checkout wallet ownership defective revision
+        uses: actions/checkout@v4
+        with:
+          repository: Ithastobe1/Velesia-codex
+          ref: c81b3d80880a4181e5e0ec5bdef533fd5bad3807
+          path: transfer-7/wallet
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure isolated provider state
+        shell: bash
+        run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-transfer-7-usage.json" >> "$GITHUB_ENV"
+
+      - name: Install frozen Sergeant package
+        run: python -m pip install .
+
+      - name: Build opaque runtime manifest
+        shell: bash
+        run: |
+          mkdir -p build/model-free-core-transfer-7
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          cases = [
+              {
+                  "case_id": "transfer-7-a",
+                  "repository": "acoseac/1-bit-bridge",
+                  "source_pr": None,
+                  "checkout_path": "transfer-7/bridge",
+                  "changed_files": ["internal/manifest/store.go"],
+              },
+              {
+                  "case_id": "transfer-7-b",
+                  "repository": "SpiritSLO-UK/HomeAssistant-expenses-analytics",
+                  "source_pr": None,
+                  "checkout_path": "transfer-7/mfa",
+                  "changed_files": ["frontend/src/pages/Settings.tsx"],
+              },
+              {
+                  "case_id": "transfer-7-c",
+                  "repository": "Ithastobe1/Velesia-codex",
+                  "source_pr": None,
+                  "checkout_path": "transfer-7/wallet",
+                  "changed_files": [
+                      "glamcode-flutter-main/lib/data/api/api_helper.dart",
+                      "AdminPanel-main/routes/api.php"
+                  ],
+              },
+          ]
+          for case in cases:
+              case["defective_ref"] = subprocess.check_output(
+                  ["git", "-C", case["checkout_path"], "rev-parse", "HEAD"],
+                  text=True,
+              ).strip()
+              case["workspace_policy"] = "static_first"
+
+          manifest = {
+              "schema_version": "sergeant.review-training.v1",
+              "set_id": "model-free-core-transfer-7",
+              "purpose": "Seventh untouched transfer validation across terminal-state monotonicity, MFA session ordering and authenticated-owner routing. Expected roots remain outside Sergeant input.",
+              "rules": {
+                  "models_enabled": False,
+                  "workspace_default": "none",
+                  "expected_defects_visible_to_sergeant": False,
+                  "runtime_is_confirmation_not_discovery": True,
+                  "classification": "untouched_transfer_validation",
+                  "reviewer_code_frozen_before_target_selection": "c06f9cd394488188ed1e458bbfcdbc0331ff0ec1"
+              },
+              "cases": cases,
+          }
+          Path("build/model-free-core-transfer-7/runtime-manifest.json").write_text(
+              json.dumps(manifest, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Run normal pr-review on untouched revisions
+        shell: bash
+        run: |
+          set -o pipefail
+          python scripts/run_static_training_set.py \
+            build/model-free-core-transfer-7/runtime-manifest.json \
+            --output build/model-free-core-transfer-7/frozen-result.json \
+            2>&1 | tee build/model-free-core-transfer-7/frozen-summary.json
+
+      - name: Publish frozen transfer summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "# Model-free Sergeant core — transfer 7"
+            echo
+            echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
+            echo
+            echo '```json'
+            cat build/model-free-core-transfer-7/frozen-summary.json 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload immutable transfer reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-free-core-transfer-7
+          path: build/model-free-core-transfer-7/
+          if-no-files-found: error
+          retention-days: 90
