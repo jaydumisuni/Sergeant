@@ -62,7 +62,7 @@ def test_publish_job_is_a_read_only_owner_handoff() -> None:
     assert "pull-requests: write" not in publish
     assert "git push" not in publish
     assert "gh pr create" not in publish
-    assert 'test "$(jq -r \' .automatic_promotions\' "${index}")" = "0"'.replace("' ", "'") in publish
-    assert 'test "$(jq -r \' .automatic_merges\' "${index}")" = "0"'.replace("' ", "'") in publish
-    assert 'test "$(jq -r \' .authority_head\' "${index}")" = "${AUTHORITY_HEAD}"'.replace("' ", "'") in publish
+    assert "test \"$(jq -r '.automatic_promotions' \"${index}\")\" = \"0\"" in publish
+    assert "test \"$(jq -r '.automatic_merges' \"${index}\")\" = \"0\"" in publish
+    assert "test \"$(jq -r '.authority_head' \"${index}\")\" = \"${AUTHORITY_HEAD}\"" in publish
     assert "This workflow has no branch, pull-request, merge, or promotion authority." in publish
