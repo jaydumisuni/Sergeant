@@ -1,0 +1,163 @@
+{
+  "authority": {
+    "may_auto_merge": false,
+    "may_auto_promote": false,
+    "requires_negative_controls": true,
+    "requires_unrelated_language_transfer": true
+  },
+  "authority_head": "bdc91c6b423ab97fe518bbb880edb44945ff2e25",
+  "blind_result_digest": "db6a07e6b6adc2c5ab47216424bf1882c64a015e766482e367fb6608b2a8dec0",
+  "case_id": "learn-b4647b541555",
+  "defective_ref": "942dbf9adc4620d506b239760791bc948fb64a11",
+  "fixing_ref": "ca6f41e27615cac46aad721e3a7514518c613de1",
+  "language": "go",
+  "repository": "prometheus/prometheus",
+  "schema_version": "sergeant.learning-proposal.v1",
+  "scored_paths": [
+    "model/labels/regexp.go"
+  ],
+  "source_pr": 19167,
+  "state": "council_complete",
+  "truth_packet_digest": "889629a6ab2201271eb0b1bbf83f10f29feacfa1fa3184162c1a47d5600978e7",
+  "week_id": "week-1-run-14",
+  "workers": {
+    "defender": {
+      "case_id": "learn-b4647b541555",
+      "confidence": 1.0,
+      "counterexamples": [
+        {
+          "actual": false,
+          "description": "The original code uses strings.EqualFold(s[0:len(prefix)], prefix) for case-insensitive prefix matching. This fails for Unicode codepoints where case folding changes the encoded length, e.g., U+212A (Kelvin sign) folds with 'k'. For example, s = \"\u212afoo\" (where \u212a is U+212A, 3 bytes) and prefix = \"k\" (1 byte): strings.EqualFold(s[0:len(prefix)], prefix) slices s incorrectly, resulting in a false negative.",
+          "expected": true,
+          "input": {
+            "prefix": "k",
+            "s": "\u212afoo"
+          }
+        },
+        {
+          "actual": false,
+          "description": "For suffix matching, strings.EqualFold(s[len(s)-len(suffix):], suffix) can slice in the middle of a rune. For s = \"foo\u212a\" and suffix = \"k\", the original code slices incorrectly, failing to match even though Unicode simple case folding would allow it.",
+          "expected": true,
+          "input": {
+            "s": "foo\u212a",
+            "suffix": "k"
+          }
+        }
+      ],
+      "false_positive_risks": [
+        {
+          "description": "If the original code is used, it may incorrectly reject valid matches for Unicode codepoints with different encoded lengths after case folding, leading to false negatives rather than false positives."
+        }
+      ],
+      "missing_evidence": [
+        {
+          "description": "No evidence is provided that the original implementation correctly handles Unicode case folding for prefixes/suffixes with different encoded lengths. The fix introduces explicit handling for these cases."
+        }
+      ],
+      "role": "defender",
+      "transport": {
+        "backend": "github_models",
+        "endpoint_class": "github-models",
+        "model": "openai/gpt-4.1"
+      },
+      "verdict": "supports"
+    },
+    "prosecutor": {
+      "case_id": "learn-b4647b541555",
+      "claim": "The defective revision 942dbf9adc4620d506b239760791bc948fb64a11 violates a pre-existing behavioral contract by incorrectly handling case-insensitive prefix and suffix matching for Unicode strings, resulting in erroneous string matcher behavior. Specifically, the contract requires that case-insensitive matching must respect Unicode simple case folding and not slice strings in the middle of a rune, but the defective revision uses strings.EqualFold with naive slicing, which fails for multi-byte Unicode characters.",
+      "competing_explanations_rejected": [
+        "The issue is not merely a performance optimization; it is a correctness violation. The root cause is not a missing optimization for ASCII, but a fundamental misunderstanding of Unicode case folding and string slicing.",
+        "The problem is not caused by the matcher logic itself (e.g., the right/left matcher callbacks), but by the implementation of hasPrefixCaseInsensitive and hasSuffixCaseInsensitive, which do not respect rune boundaries and Unicode folding.",
+        "The defect is not due to external library limitations; Go's unicode.SimpleFold and utf8.DecodeRuneInString provide the necessary primitives, but the defective revision fails to use them."
+      ],
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "description": "The behavioral contract is that case-insensitive prefix/suffix matching must be Unicode-aware and not slice strings in the middle of a rune, as documented in the fixing revision's comments and required by Unicode simple case folding.",
+          "type": "contract"
+        },
+        {
+          "description": "The defective revision uses: 'return len(s) >= len(prefix) && strings.EqualFold(s[0:len(prefix)], prefix)' for prefix matching, which slices s at arbitrary byte offsets, potentially in the middle of a multi-byte rune.",
+          "type": "code_diff"
+        },
+        {
+          "description": "The fixing revision replaces this with prefixCaseInsensitiveMatchLen, which carefully iterates over runes and applies Unicode simple case folding, ensuring correct behavior for multi-byte characters.",
+          "type": "code_diff"
+        },
+        {
+          "description": "Similarly, for suffix matching, the defective revision uses: 'return len(s) >= len(suffix) && strings.EqualFold(s[len(s)-len(suffix):], suffix)', which can slice s in the middle of a rune. The fixing revision introduces suffixCaseInsensitiveMatchLen, which avoids this.",
+          "type": "code_diff"
+        },
+        {
+          "description": "The fixing revision's comments explicitly state the contract: 'simple case folding does not preserve the encoded length of a rune... strings.EqualFold(s[:len(prefix)], prefix) check is not equivalent: it would slice s in the middle of a rune and fail to match.'",
+          "type": "commentary"
+        },
+        {
+          "description": "The literalPrefixInsensitiveStringMatcher and literalSuffixStringMatcher rely on correct prefix/suffix matching for their Matches() methods. The defective revision's incorrect slicing leads to false negatives for valid Unicode matches.",
+          "type": "code_usage"
+        }
+      ],
+      "role": "prosecutor",
+      "root_cause": "The root cause is the use of naive byte slicing combined with strings.EqualFold for case-insensitive prefix and suffix matching, which violates the contract by failing to respect Unicode rune boundaries and simple case folding. This results in incorrect matcher behavior for strings containing multi-byte Unicode characters.",
+      "transport": {
+        "backend": "github_models",
+        "endpoint_class": "github-models",
+        "model": "openai/gpt-4.1"
+      }
+    },
+    "teacher": {
+      "case_id": "learn-b4647b541555",
+      "confidence": 0.97,
+      "generalized_mechanism": "Case-insensitive prefix and suffix matching must account for Unicode simple case folding, which can change the encoded length of runes. A correct mechanism computes the actual byte length of the matched prefix/suffix in the input string, rather than assuming the encoded length matches the comparison string. This avoids slicing in the middle of a rune and ensures accurate matching for all Unicode cases.",
+      "negative_controls": [
+        {
+          "description": "Code that computes the byte length of the matched prefix/suffix under Unicode simple case folding before slicing, then compares. Detector should not flag.",
+          "expected": "No defect flagged; correct handling.",
+          "input": {
+            "prefix": "k",
+            "string": "\u212atest"
+          }
+        },
+        {
+          "description": "Code that only performs case-sensitive matching using HasPrefix or HasSuffix and slices accordingly. Detector should not flag.",
+          "expected": "No defect flagged; case-sensitive matching is safe.",
+          "input": {
+            "prefix": "Test",
+            "string": "TestString"
+          }
+        }
+      ],
+      "positive_tests": [
+        {
+          "description": "A string with a Unicode character whose case-folded form has a different byte length than the original (e.g., Kelvin sign '\u212a' vs. 'k'). The detector should flag code that slices using len(prefix) and compares with EqualFold.",
+          "expected": "Incorrect match or slice; detector flags improper slicing.",
+          "input": {
+            "prefix": "k",
+            "string": "\u212atest"
+          }
+        },
+        {
+          "description": "ASCII case-insensitive prefix matching where the code slices using len(prefix) and compares with EqualFold. Detector should flag this as potentially unsafe for non-ASCII.",
+          "expected": "Detector flags code for not handling Unicode properly.",
+          "input": {
+            "prefix": "test",
+            "string": "TestString"
+          }
+        }
+      ],
+      "proposed_detector": "For any function that checks whether a string starts or ends with a case-insensitive prefix or suffix, flag if it slices the input string using the length of the comparison string (e.g., s[:len(prefix)] or s[len(s)-len(suffix):]) and then uses a case-insensitive comparison (such as EqualFold). Instead, require that the code computes the actual byte length of the matched prefix/suffix under Unicode simple case folding before slicing. If the code does not do this, report a potential defect.",
+      "role": "teacher",
+      "transfer_languages": [
+        "Python",
+        "JavaScript",
+        "Java",
+        "Rust"
+      ],
+      "transport": {
+        "backend": "github_models",
+        "endpoint_class": "github-models",
+        "model": "openai/gpt-4.1"
+      }
+    }
+  }
+}

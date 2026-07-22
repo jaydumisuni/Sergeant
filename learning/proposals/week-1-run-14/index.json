@@ -1,0 +1,12 @@
+{
+  "authority_head": "bdc91c6b423ab97fe518bbb880edb44945ff2e25",
+  "automatic_merges": 0,
+  "automatic_promotions": 0,
+  "proposal_count": 2,
+  "proposals": [
+    "learning/proposals/week-1-run-14/learn-b4647b541555.json",
+    "learning/proposals/week-1-run-14/learn-0e620d48e9cb.json"
+  ],
+  "schema_version": "sergeant.learning-proposal-index.v1",
+  "week_id": "week-1-run-14"
+}

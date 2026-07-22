@@ -1,0 +1,132 @@
+{
+  "authority": {
+    "may_auto_merge": false,
+    "may_auto_promote": false,
+    "requires_negative_controls": true,
+    "requires_unrelated_language_transfer": true
+  },
+  "authority_head": "bdc91c6b423ab97fe518bbb880edb44945ff2e25",
+  "blind_result_digest": "0598af4cbf0b21d76caeb43cedec5f3ee26a9f875e3d153b73ef9510df596fb9",
+  "case_id": "learn-0e620d48e9cb",
+  "defective_ref": "2a28fec025f28241b0f1ceef606b4ff5fd182f51",
+  "fixing_ref": "b9832021faf90c0b7baf1796380695449a546d2f",
+  "language": "swift",
+  "repository": "realm/realm-swift",
+  "schema_version": "sergeant.learning-proposal.v1",
+  "scored_paths": [
+    "RealmSwift/SwiftUI.swift"
+  ],
+  "source_pr": 8295,
+  "state": "council_complete",
+  "truth_packet_digest": "b10bed800162d16d758fba498374df3a8eae59ba7173daff34e0f056ca77283c",
+  "week_id": "week-1-run-14",
+  "workers": {
+    "defender": {
+      "case_id": "learn-0e620d48e9cb",
+      "confidence": 0.0,
+      "counterexamples": [
+        {
+          "code": "/* Hypothetical: List with only insertions, no deletions, using old ObservedSectionedResults. If diffing works, defect claim is invalid. But evidence suggests diffing breaks on deletions, so this is not a clean counterexample. */",
+          "description": "The previous implementation observed SectionedResults directly. If the SwiftUI diffing mechanism worked correctly in all cases (including deletions in Lists), then the defect claim would be invalid. However, the fix's comment and code indicate that observing SectionedResults causes the previous state to be updated prematurely, breaking diffing. If there existed a scenario where observing SectionedResults did NOT break diffing (e.g., a List with only insertions or updates, no deletions), this would be a counterexample. But the fix and comments suggest this is not the case."
+        }
+      ],
+      "false_positive_risks": [
+        {
+          "code": "/* Example: Using ObservedSectionedResults in a static view with no List deletions. The defect does not manifest, so the fix is unnecessary for this use case. */",
+          "description": "The defect claim is specific to SwiftUI diffing on deletions in Lists. If the use case does not involve deletions, or does not use SwiftUI diffing, the defect may not manifest. Thus, the fix may be overfitting to a specific scenario and could be a false positive for other usages."
+        }
+      ],
+      "missing_evidence": [
+        {
+          "code": "/* No failing SwiftUI test case provided for List deletion with old ObservedSectionedResults. */",
+          "description": "There is no executable test or demonstration in the provided evidence showing the broken diffing behavior in SwiftUI when observing SectionedResults directly. The claim relies on comments and reasoning, not on a failing test or reproducible bug."
+        }
+      ],
+      "role": "defender",
+      "transport": {
+        "backend": "github_models",
+        "endpoint_class": "github-models",
+        "model": "openai/gpt-4.1"
+      },
+      "verdict": "needs_more_evidence"
+    },
+    "prosecutor": {
+      "case_id": "learn-0e620d48e9cb",
+      "claim": "The defective revision violates a pre-existing behavioral contract by breaking the expected stable diffing behavior of SwiftUI Lists using @ObservedSectionedResults, resulting in incorrect UI updates and potential data inconsistency.",
+      "competing_explanations_rejected": [
+        {
+          "explanation": "The issue is caused by incorrect sort descriptors or filter logic.",
+          "reason": "The sort/filter logic is unchanged between revisions; the behavioral contract violation is due to observation strategy, not sorting/filtering."
+        },
+        {
+          "explanation": "The issue is due to improper use of Realm's API or configuration.",
+          "reason": "Realm configuration and API usage remain consistent; only the observation target changes, which directly impacts SwiftUI diffing."
+        },
+        {
+          "explanation": "The issue is a UI bug unrelated to data observation.",
+          "reason": "The UI bug is a symptom of the underlying contract violation in data observation, not an independent UI issue."
+        }
+      ],
+      "confidence": 0.98,
+      "evidence": [
+        {
+          "detail": "In the defective revision, Storage observes sectioned results directly: 'super.init(value.sectioned(sortDescriptors: self.sortDescriptors, self.sectionBlock), keyPaths)'. In the fixing revision, Storage observes the parent Results and stores a frozen copy of sectioned results: 'super.init(value, keyPaths)' and 'sectionedResults = value.sectioned(sortDescriptors: sortDescriptors, sectionBlock).freeze()'.",
+          "type": "code_diff"
+        },
+        {
+          "detail": "The fixing revision explicitly documents the behavioral contract: 'Observing the sectioned results directly doesn't allow the SwiftUI diff to work correctly as the previous state of the sectioned results will have the new values... The solution around this is to store a frozen copy of the sectioned results and observe the parent Results instead.'",
+          "type": "commentary"
+        },
+        {
+          "detail": "SwiftUI List diffing relies on stable snapshots of collections between transactions. The contract is that the observed collection must not mutate during the diffing process, otherwise UI updates become inconsistent.",
+          "type": "behavioral_contract"
+        },
+        {
+          "detail": "When an item is deleted in a List containing sectioned results, the diff needs a stable state of the previous transaction, but the defective revision causes the collection to be brought up to date immediately, breaking this requirement.",
+          "type": "symptom"
+        }
+      ],
+      "role": "prosecutor",
+      "root_cause": "The root cause is the change in observation strategy: the defective revision observes the sectioned results directly, causing the sectioned collection to be updated immediately upon observation callback. This breaks SwiftUI's diffing mechanism, as the previous state is lost and the collection always reflects the latest transaction, violating the contract that requires a stable, frozen snapshot for correct UI diffing.",
+      "transport": {
+        "backend": "github_models",
+        "endpoint_class": "github-models",
+        "model": "openai/gpt-4.1"
+      }
+    },
+    "teacher": {
+      "case_id": "learn-0e620d48e9cb",
+      "confidence": 0.92,
+      "generalized_mechanism": "When observing a sectioned collection for UI updates, do not directly observe the sectioned results object. Instead, observe the underlying base collection, and on each observation event, recompute and freeze the sectioned results. This ensures that UI diffing mechanisms receive a stable snapshot of the previous state, avoiding premature updates caused by eager recomputation of sections.",
+      "negative_controls": [
+        {
+          "code_snippet": "Observe sectionedCollection directly; expose sectionedCollection to UI.",
+          "description": "Observation is performed directly on the sectioned collection, causing UI diffing to fail due to premature updates."
+        },
+        {
+          "code_snippet": "Observe baseCollection; expose baseCollection to UI without recomputing sectionedCollection.",
+          "description": "Observation is performed on a non-sectioned collection, but recomputation/freeze of sectioned results is missing."
+        }
+      ],
+      "positive_tests": [
+        {
+          "code_snippet": "Observe baseCollection; on change, sectionedCollection = baseCollection.sectioned(...).freeze(); expose sectionedCollection to UI.",
+          "description": "A property wrapper exposes a sectioned collection to a UI. The observation is performed on the base collection, and the sectioned collection is recomputed and frozen in response to observation events."
+        }
+      ],
+      "proposed_detector": "Detect property wrappers or observable objects that expose a sectioned or grouped collection to a UI framework. If the observation is set directly on the sectioned/grouped collection, flag as a potential miss. Require that the observation is instead performed on the underlying base collection, and that the sectioned/grouped collection is recomputed and frozen only in response to observation events.",
+      "role": "teacher",
+      "transfer_languages": [
+        "Kotlin",
+        "TypeScript",
+        "Python",
+        "C#"
+      ],
+      "transport": {
+        "backend": "github_models",
+        "endpoint_class": "github-models",
+        "model": "openai/gpt-4.1"
+      }
+    }
+  }
+}
