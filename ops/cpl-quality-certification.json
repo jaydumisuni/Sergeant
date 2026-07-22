@@ -1,0 +1,142 @@
+{
+  "configured_models": [
+    "@cf/qwen/qwen3-30b-a3b-fp8",
+    "@cf/openai/gpt-oss-20b"
+  ],
+  "council": {
+    "adjudicated_final_gaps": [],
+    "adjudicated_findings": [
+      {
+        "category": "security",
+        "disposition": "admitted_novel",
+        "evidence": "subprocess.run(command, shell=True)",
+        "evidence_verified": true,
+        "line_end": 5,
+        "line_range_valid": true,
+        "line_start": 4,
+        "message": "Direct shell command execution with user-provided input",
+        "path": "src/auth.py",
+        "safer_alternative": "Use non-shell execution with argument splitting or implement strict input validation",
+        "severity": "blocker",
+        "source": "cpl",
+        "supporting_models": [
+          "@cf/openai/gpt-oss-20b",
+          "@cf/qwen/qwen3-30b-a3b-fp8"
+        ],
+        "supporting_specialists": [
+          "generalist",
+          "security"
+        ],
+        "why_it_matters": "Allows arbitrary code execution through command injection attacks"
+      }
+    ],
+    "agreement": 1.0,
+    "complete": true,
+    "confidence_gaps": [],
+    "core_round": 1,
+    "effective_findings": [
+      {
+        "category": "security",
+        "evidence": "subprocess.run(command, shell=True)",
+        "evidence_verified": true,
+        "line_end": 5,
+        "line_start": 4,
+        "message": "Direct shell command execution with user-provided input",
+        "path": "src/auth.py",
+        "safer_alternative": "Use non-shell execution with argument splitting or implement strict input validation",
+        "severity": "blocker",
+        "supporting_models": [
+          "@cf/qwen/qwen3-30b-a3b-fp8",
+          "@cf/openai/gpt-oss-20b"
+        ],
+        "supporting_specialists": [
+          "generalist",
+          "security"
+        ],
+        "why_it_matters": "Allows arbitrary code execution through command injection attacks"
+      }
+    ],
+    "final_gaps": [],
+    "informational_gaps": [],
+    "limitations": [],
+    "max_members": 2,
+    "max_rounds": 2,
+    "member_count": 2,
+    "members": [
+      {
+        "experience_profile": {},
+        "model": "@cf/qwen/qwen3-30b-a3b-fp8",
+        "provider": "cloudflare-workers-ai",
+        "reports": 1,
+        "roles": [
+          "generalist"
+        ],
+        "rounds": [
+          1
+        ],
+        "selection_score": 0.5
+      },
+      {
+        "experience_profile": {},
+        "model": "@cf/openai/gpt-oss-20b",
+        "provider": "cloudflare-workers-ai",
+        "reports": 1,
+        "roles": [
+          "security"
+        ],
+        "rounds": [
+          1
+        ],
+        "selection_score": 0.5
+      }
+    ],
+    "mode": "elastic_multi_model",
+    "model_independence": 1.0,
+    "officer_instructions": [],
+    "recruitment": [],
+    "round_count": 1,
+    "rounds": [],
+    "suppressed_finding_gaps": [],
+    "true_model_independence": true,
+    "verdict_complete": true,
+    "verdict_gaps": []
+  },
+  "council_complete": true,
+  "distinct_models": [
+    "@cf/openai/gpt-oss-20b",
+    "@cf/qwen/qwen3-30b-a3b-fp8"
+  ],
+  "errors": [],
+  "expected_finding": {
+    "expected_category": "security",
+    "expected_evidence": "shell=true",
+    "expected_path": "src/auth.py",
+    "expected_severity": "blocker",
+    "matches": [
+      {
+        "category": "security",
+        "message": "Direct shell command execution with user-provided input",
+        "path": "src/auth.py",
+        "severity": "blocker",
+        "support_count": 2,
+        "supporting_models": [
+          "@cf/openai/gpt-oss-20b",
+          "@cf/qwen/qwen3-30b-a3b-fp8"
+        ]
+      }
+    ],
+    "minimum_supporting_models": 2,
+    "passed": true,
+    "required": true
+  },
+  "expected_verdict": "BLOCK",
+  "final_gaps": [],
+  "model_call_count": 2,
+  "passed": true,
+  "provider": "cloudflare-workers-ai",
+  "schema_version": "sergeant.cloudflare-council-proof.v1",
+  "status": "completed",
+  "true_model_independence": true,
+  "verdict": "BLOCK",
+  "verdict_matches": true
+}

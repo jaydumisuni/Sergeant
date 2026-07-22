@@ -20,6 +20,7 @@ from .cpl_council import (
 )
 from .cpl_council_prompt import follow_up_prompt, member_records, report_table
 from .cpl_experience import detect_recurrences, retrieve_experience
+from .finding_adjudication import adjudicate_cpl_findings, classify_council_gaps
 from .cpl_reasoning import SPECIALISTS, specialist_system_prompt
 from .cpl_reliability import attach_model_profiles, model_score, rank_models
 from .llm_provider import LLMProviderError, LLMRoute, LLMSettings, discover_route, invoke_json
@@ -340,12 +341,21 @@ def run_cpl_review(
         })
 
     effective_passes = _effective_passes(passes)
-    findings, verdict, confidence = _merge_passes(effective_passes)
-    _annotate_confirmations(findings, passes)
+    raw_findings, raw_verdict, confidence = _merge_passes(effective_passes)
+    _annotate_confirmations(raw_findings, passes)
     final_gaps = _all_gaps(passes, plan, errors, models, experience)
-    if final_gaps and verdict == "PASS":
-        verdict = "NEEDS WORK"
+    gap_classification = classify_council_gaps(final_gaps)
     unique_models = {str(item.get("model")) for item in passes if item.get("model")}
+    minimum_supporting_models = 2 if len(unique_models) > 1 else 1
+    adjudication = adjudicate_cpl_findings(
+        raw_findings,
+        deterministic_context,
+        minimum_supporting_models=minimum_supporting_models,
+    )
+    findings = list(adjudication["actionable_findings"])
+    verdict = str(adjudication["verdict"])
+    if gap_classification["verdict_gaps"] and verdict == "PASS":
+        verdict = "NEEDS WORK"
     independence = round(len(unique_models) / max(1, len(passes)), 3)
     if final_gaps:
         confidence = max(0.0, confidence - min(0.25, 0.04 * len(final_gaps)))
@@ -361,16 +371,22 @@ def run_cpl_review(
     result.update({
         "status": "completed" if not errors else "completed_with_warnings",
         "verdict": verdict,
+        "raw_verdict": raw_verdict,
         "confidence": round(confidence, 3),
         "summary": _final_summary(round_count, len(unique_models), findings, final_gaps),
         "findings": findings,
+        "raw_findings": raw_findings,
+        "adjudication": adjudication,
+        "confirmations": adjudication["confirmations"],
+        "advisory_findings": adjudication["advisory_findings"],
+        "rejected_findings": adjudication["rejected_findings"],
         "passes": passes,
         "coverage": _coverage(effective_passes, result.get("coverage", {})),
         "unanswered_questions": unresolved_questions,
         "errors": errors,
-        "reason": "Cpl retrieved verified experience, selected council members from proven service records, tabled officer reports, explicitly adjudicated earlier findings, and returned grounded evidence to Sergeant.",
+        "reason": "Cpl retrieved verified experience, selected council members from proven service records, tabled officer reports, explicitly adjudicated earlier findings, and returned grounded evidence to Sergeant. Deterministic Sergeant findings retain gate authority; Cpl confirmations, advice, and rejected claims remain separately auditable.",
     })
-    result["recurrences"] = detect_recurrences(findings, experience)
+    result["recurrences"] = detect_recurrences(raw_findings, experience)
     result["council"] = {
         "mode": "elastic_multi_model" if len(unique_models) > 1 else "single_model_role_separated",
         "core_round": 1,
@@ -385,10 +401,15 @@ def run_cpl_review(
         "model_independence": independence,
         "true_model_independence": len(unique_models) > 1,
         "final_gaps": final_gaps,
+        "verdict_gaps": gap_classification["verdict_gaps"],
+        "confidence_gaps": gap_classification["confidence_gaps"],
+        "informational_gaps": gap_classification["informational_gaps"],
         "complete": not final_gaps,
+        "verdict_complete": not gap_classification["verdict_gaps"],
         "limitations": ["Only one model served multiple role-separated passes."] if len(unique_models) == 1 and len(passes) > 1 else [],
         "officer_instructions": [command for item in rounds for command in item.get("instructions", [])],
-        "effective_findings": findings,
+        "effective_findings": raw_findings,
+        "adjudicated_findings": findings,
     }
     return result
 
