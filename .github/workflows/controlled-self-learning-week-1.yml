@@ -3,7 +3,7 @@ name: Controlled Self-Learning Week 1
 on:
   pull_request:
     branches:
-      - fix/coderabbit-campaign-integrity
+      - main
     paths:
       - ".github/workflows/controlled-self-learning-week-1.yml"
       - ".github/self-learning/**"
@@ -15,6 +15,7 @@ on:
       - "scripts/export_learning_proposals.py"
       - "scripts/setup_hermes_learning_profiles.sh"
       - "tests/test_adaptive_curriculum.py"
+      - "tests/test_controlled_self_learning_workflow.py"
       - "tests/test_hermes_learning.py"
       - "tests/test_self_learning_queue.py"
 
@@ -27,7 +28,7 @@ concurrency:
 env:
   WEEK_ID: week-1-run-${{ github.run_number }}
   AUTHORITY_HEAD: ${{ github.event.pull_request.head.sha }}
-  TARGET_BRANCH: train/adaptive-curriculum-on-integrity
+  TARGET_BRANCH: ${{ github.event.pull_request.head.ref }}
   SERGEANT_LLM_ENABLED: "false"
   SERGEANT_CPL_ENABLED: "false"
   SERGEANT_CPL_POLICY: "disabled"
@@ -67,6 +68,7 @@ jobs:
         run: |
           python -m pytest -q \
             tests/test_adaptive_curriculum.py \
+            tests/test_controlled_self_learning_workflow.py \
             tests/test_hermes_learning.py \
             tests/test_self_learning_queue.py \
             tests/test_opaque_selector_pagination.py \
@@ -191,6 +193,7 @@ jobs:
           retention-days: 90
 
   publish:
+    name: Stage owner-controlled proposal handoff
     needs:
       - validate
       - learn
@@ -201,46 +204,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     steps:
-      - name: Checkout exact authorized head
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-
       - name: Download bounded proposal artifact only
         uses: actions/download-artifact@v4
         with:
           name: controlled-self-learning-${{ env.WEEK_ID }}
           path: downloaded
 
-      - name: Publish a draft proposal PR without merge authority
+      - name: Validate owner-controlled publication handoff
         shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           source_dir="downloaded/learning/proposals/${WEEK_ID}"
-          proposal_count="$(jq -r '.proposal_count' "${source_dir}/index.json")"
-          if [ "${proposal_count}" -eq 0 ]; then
-            echo "No council-complete proposal to publish"
-            exit 0
+          index="${source_dir}/index.json"
+          test -s "${index}"
+          proposal_count="$(jq -er '.proposal_count | select(type == "number" and . >= 0)' "${index}")"
+          test "$(jq -r '.automatic_promotions' "${index}")" = "0"
+          test "$(jq -r '.automatic_merges' "${index}")" = "0"
+          test "$(jq -r '.authority_head' "${index}")" = "${AUTHORITY_HEAD}"
+          if grep -R -n -E '(github_pat_[A-Za-z0-9_]+|ghp_[A-Za-z0-9]+|sk-[A-Za-z0-9]{20,})' "${source_dir}"; then
+            echo "credential-like material found in publication handoff" >&2
+            exit 1
           fi
-          mkdir -p "learning/proposals/${WEEK_ID}"
-          cp -a "${source_dir}/." "learning/proposals/${WEEK_ID}/"
-          branch="learning/${WEEK_ID}-${GITHUB_RUN_ID}"
-          git config user.name "Sergeant Learning Bot"
-          git config user.email "sergeant-learning@users.noreply.github.com"
-          git switch -c "${branch}"
-          git add "learning/proposals/${WEEK_ID}"
-          git commit -m "Record controlled learning proposals for ${WEEK_ID}"
-          git push origin "HEAD:${branch}"
-          gh pr create \
-            --repo "${GITHUB_REPOSITORY}" \
-            --draft \
-            --base "${TARGET_BRANCH}" \
-            --head "${branch}" \
-            --title "Learning proposals: ${WEEK_ID}" \
-            --body "Automated, evidence-bound lesson proposals from ${WEEK_ID}. No automatic promotion or merge. Negative controls and unrelated-language transfer remain mandatory before admission."
+          echo "Validated ${proposal_count} bounded proposal(s) for owner-controlled draft-PR publication."
+          echo "This workflow has no branch, pull-request, merge, or promotion authority."
