@@ -50,15 +50,22 @@ jobs:
           replacement = r'''async function openDrawer(p) {
             const selector = await visibleMenuSelector();
             if (!selector) throw new Error(`${p.name}: no visible mobile menu control`);
-            await activate(selector, p, 300);
-            await waitFor("document.querySelector('#sidebar')?.classList.contains('open')||document.querySelector('#hcs2Side')?.classList.contains('open')", `${p.name} drawer open`, 100, 70);
+            const already = await evalJs("document.querySelector('#sidebar')?.classList.contains('open')||document.querySelector('#hcs2Side')?.classList.contains('open')");
+            if (!already) await activate(selector, p, 300);
+            try {
+              await waitFor("document.querySelector('#sidebar')?.classList.contains('open')||document.querySelector('#hcs2Side')?.classList.contains('open')", `${p.name} drawer open`, 100, 70);
+            } catch (error) {
+              throw new Error(`${p.name}: drawer did not open through ${selector}; state=${JSON.stringify(await shell())}; point=${JSON.stringify(await point(selector))}`);
+            }
             const st = await shell();
             const chat = await evalJs("document.querySelector('#hcs2Side')?.classList.contains('open')||false");
             if (!chat && !st.scrim) throw new Error(`${p.name}: Employee OS drawer opened without scrim through ${selector}`);
             return selector;
           }
           async function closeDrawer(p) {
+            const main = await evalJs("document.querySelector('#sidebar')?.classList.contains('open')||document.querySelector('#drawerScrim')?.classList.contains('open')");
             const chat = await evalJs("document.querySelector('#hcs2Side')?.classList.contains('open')||false");
+            if (!main && !chat) return;
             if (chat) await activate('#hcs2Menu', p, 240);
             else {
               const closeVisible = await evalJs(`(()=>{const e=document.querySelector('#hunterMobileSidebarClose');if(!e)return false;const r=e.getBoundingClientRect(),s=getComputedStyle(e);return s.display!=='none'&&r.width>=24&&r.height>=24})()`);
