@@ -6,20 +6,45 @@ runs and cannot grant cleanup authority by inference.
 
 from __future__ import annotations
 
+from datetime import datetime
 import re
 from typing import Any, Mapping, Sequence
 
 LEDGER_SCHEMA_VERSION = "sergeant.actions-evidence-ledger.v1"
 REPLAY_SCHEMA_VERSION = "sergeant.actions-recovery-replay.v1"
+CLEANUP_MANIFEST_SCHEMA_VERSION = "sergeant.actions-cleanup-manifest.v1"
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
-def validate_preservation_ledger(payload: Mapping[str, Any]) -> list[str]:
+def _non_empty_string(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _valid_timestamp(value: object) -> bool:
+    if not _non_empty_string(value):
+        return False
+    try:
+        datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return True
+
+
+def validate_preservation_ledger(payload: object) -> list[str]:
     """Return every integrity error found in a preservation ledger."""
+
+    if not isinstance(payload, Mapping):
+        return ["Actions evidence ledger root must be an object"]
 
     errors: list[str] = []
     if payload.get("schema_version") != LEDGER_SCHEMA_VERSION:
         errors.append("unsupported Actions evidence ledger schema")
+    if not _non_empty_string(payload.get("repository")):
+        errors.append("ledger repository is required")
+    if not _non_empty_string(payload.get("durable_root")):
+        errors.append("ledger durable_root is required")
+    if not _valid_timestamp(payload.get("generated_at")):
+        errors.append("ledger generated_at must be a valid timestamp")
     if payload.get("deletion_authorized") is not False:
         errors.append("ledger must not authorize artifact deletion")
     if payload.get("workflow_run_deletion_authorized") is not False:
@@ -42,7 +67,7 @@ def validate_preservation_ledger(payload: Mapping[str, Any]) -> list[str]:
             continue
 
         name = record.get("name")
-        if not isinstance(name, str) or not name.strip():
+        if not _non_empty_string(name):
             errors.append(f"{prefix}.name is required")
         elif name in names:
             errors.append(f"duplicate artifact name: {name}")
@@ -50,7 +75,7 @@ def validate_preservation_ledger(payload: Mapping[str, Any]) -> list[str]:
             names.add(name)
 
         size = record.get("size_bytes")
-        if not isinstance(size, int) or size < 0:
+        if type(size) is not int or size < 0:
             errors.append(f"{prefix}.size_bytes must be a non-negative integer")
         else:
             total_bytes += size
@@ -63,7 +88,7 @@ def validate_preservation_ledger(payload: Mapping[str, Any]) -> list[str]:
             errors.append(f"{prefix} durable-copy size is not verified")
         if record.get("deletion_authorized") is not False:
             errors.append(f"{prefix} must remain non-deletable")
-        if not isinstance(record.get("durable_folder"), str) or not record.get("durable_folder"):
+        if not _non_empty_string(record.get("durable_folder")):
             errors.append(f"{prefix}.durable_folder is required")
 
         github = record.get("github")
@@ -161,24 +186,26 @@ def validate_recovery_replay(
 def cleanup_eligible(
     record: Mapping[str, Any],
     *,
-    owner_authorized: bool,
+    cleanup_manifest: Mapping[str, Any] | None,
     recovery_replay_verified: bool,
     content_equivalent: bool,
 ) -> bool:
-    """Return true only for an explicitly authorized, replayed duplicate.
-
-    The record itself must name the exact GitHub artifact and carry the durable
-    digest. Unknown or locally recovered evidence never becomes eligible through
-    this helper.
-    """
+    """Return true only for an exact-artifact authorized, replayed duplicate."""
 
     github = record.get("github")
+    artifact_id = github.get("artifact_id") if isinstance(github, Mapping) else None
+    manifest_matches = bool(
+        isinstance(cleanup_manifest, Mapping)
+        and cleanup_manifest.get("schema_version") == CLEANUP_MANIFEST_SCHEMA_VERSION
+        and cleanup_manifest.get("owner_authorized") is True
+        and type(cleanup_manifest.get("artifact_id")) is int
+        and cleanup_manifest.get("artifact_id") == artifact_id
+    )
     return bool(
-        owner_authorized
+        manifest_matches
         and recovery_replay_verified
         and content_equivalent
-        and isinstance(github, Mapping)
-        and isinstance(github.get("artifact_id"), int)
+        and type(artifact_id) is int
         and record.get("size_verified") is True
         and isinstance(record.get("sha256"), str)
         and _SHA256.fullmatch(record["sha256"]) is not None
@@ -192,5 +219,5 @@ def retained_bytes(records: Sequence[Mapping[str, Any]]) -> int:
     return sum(
         size
         for record in records
-        if isinstance((size := record.get("size_bytes")), int) and size >= 0
+        if type((size := record.get("size_bytes"))) is int and size >= 0
     )
