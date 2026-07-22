@@ -74,7 +74,7 @@ async function screenshot(name) {
   await writeFile(join(outDir, name), Buffer.from(result.data, "base64"));
 }
 async function voiceState(stage) {
-  return evalJs(`(()=>{const layer=document.querySelector('#hunterVoiceLayer'),button=document.querySelector('#hcs2Voice'),input=document.querySelector('#hcs2Input');const r=layer?.getBoundingClientRect(),s=layer?getComputedStyle(layer):null;return{stage:${JSON.stringify(stage)},overlayVisible:!!layer&&s.display!=='none'&&s.visibility!=='hidden'&&r.width>300&&r.height>300,buttonLabel:button?.getAttribute('aria-label')||'',buttonExpanded:button?.getAttribute('aria-expanded')||'',transcript:document.querySelector('#hunterVoiceTranscript')?.textContent?.trim()||'',status:document.querySelector('#hunterVoiceStatus')?.textContent?.trim()||'',input:input?.value||'',userMessages:document.querySelectorAll('.hcs2-row.user').length,hunterMessages:document.querySelectorAll('.hcs2-row.hunter').length,audit:globalThis.__HUNTER_VOICE_MODE_AUDIT__||null}})()`);
+  return evalJs(`(()=>{const layer=document.querySelector('#hunterVoiceLayer'),button=document.querySelector('#hcs2Voice'),input=document.querySelector('#hcs2Input');const r=layer?.getBoundingClientRect(),s=layer?getComputedStyle(layer):null;return{stage:${JSON.stringify(stage)},overlayVisible:!!layer&&s.display!=='none'&&s.visibility!=='hidden'&&r.width>300&&r.height>300,buttonLabel:button?.getAttribute('aria-label')||'',buttonExpanded:button?.getAttribute('aria-expanded')||'',transcript:document.querySelector('#hunterVoiceTranscript')?.textContent?.trim()||'',status:document.querySelector('#hunterVoiceStatus')?.textContent?.trim()||'',input:input?.value||'',userMessages:document.querySelectorAll('.hcs2-row.user').length,hunterMessages:document.querySelectorAll('.hcs2-row.hunter').length,latestHunterMessage:globalThis.__HUNTER_VOICE_MODE__?.latestHunterMessage?.()||'',speechEvents:globalThis.__SRG_SPEECH_EVENTS__||[],audit:globalThis.__HUNTER_VOICE_MODE_AUDIT__||null,stabilityAudit:globalThis.__HUNTER_VOICE_MODE_STABILITY_AUDIT__||null}})()`);
 }
 
 const proof = { targetUrl, viewport: { width: 390, height: 844 }, input: "real touch with deterministic browser speech fixture", stages: [], startedAt: new Date().toISOString() };
@@ -99,8 +99,12 @@ try {
     }
     globalThis.SpeechRecognition=SergeantSpeechRecognition;
     globalThis.webkitSpeechRecognition=SergeantSpeechRecognition;
+    globalThis.__SRG_SPEECH_EVENTS__=[];
     globalThis.SpeechSynthesisUtterance=class{constructor(text){this.text=text;this.rate=1;this.lang='en-ZM';}};
-    globalThis.speechSynthesis={cancel(){},speak(utterance){utterance.onstart?.();setTimeout(()=>utterance.onend?.(),60);}};
+    globalThis.speechSynthesis={
+      cancel(){globalThis.__SRG_SPEECH_EVENTS__.push({type:'cancel',at:performance.now()});},
+      speak(utterance){globalThis.__SRG_SPEECH_EVENTS__.push({type:'speak',text:utterance.text,at:performance.now()});utterance.onstart?.();setTimeout(()=>{globalThis.__SRG_SPEECH_EVENTS__.push({type:'end',at:performance.now()});utterance.onend?.();},60);}
+    };
   ` });
   await cdp("Emulation.setDeviceMetricsOverride", { width: 390, height: 844, deviceScaleFactor: 3, mobile: true, screenWidth: 390, screenHeight: 844 });
   await cdp("Emulation.setTouchEmulationEnabled", { enabled: true, maxTouchPoints: 5 });
@@ -110,7 +114,7 @@ try {
 
   await touch("#mobileMenu", 100);
   await waitFor("document.querySelector('#sidebar')?.classList.contains('open')", "sidebar open");
-  const chatSelector = await evalJs(`(()=>{const candidates=[...document.querySelectorAll('#sidebar button,#sidebar a')];const button=candidates.find(x=>/Talk to Hunter/i.test((x.textContent||'').replace(/\\s+/g,' ').trim()));if(!button)return null;button.dataset.srgVoiceChat='true';return '#sidebar [data-srg-voice-chat="true"]'})()`);
+  const chatSelector = await evalJs(`(()=>{const candidates=[...document.querySelectorAll('#sidebar button,#sidebar a')];const button=candidates.find(x=>/Talk to Hunter/i.test((x.textContent||'').replace(/\s+/g,' ').trim()));if(!button)return null;button.dataset.srgVoiceChat='true';return '#sidebar [data-srg-voice-chat="true"]'})()`);
   if (!chatSelector) throw new Error("Talk to Hunter was not available from the open sidebar.");
   await touch(chatSelector, 200);
   await waitFor("document.querySelector('#page-hunter-chat')?.classList.contains('active')&&!!document.querySelector('#hcs2Voice')&&!!globalThis.__HUNTER_VOICE_MODE__", "Hunter voice composer");
@@ -140,13 +144,15 @@ try {
 
   await touch("#hcs2Voice", 100);
   await waitFor("!!document.querySelector('#hunterVoiceLayer')", "voice overlay reopened");
-  await touch("#hunterVoiceRead", 80);
-  await waitFor("/Reading Hunter|Finished reading/.test(document.querySelector('#hunterVoiceStatus')?.textContent||'')", "read aloud status");
-  await sleep(100);
-  const read = await voiceState("read-last-response"); proof.stages.push(read);
-  if (!/Reading Hunter|Finished reading/.test(read.status)) throw new Error(`Read aloud did not run: ${read.status}`);
-  if (!read.audit?.passed) throw new Error(`Hunter voice audit failed: ${JSON.stringify(read.audit)}`);
-  await screenshot("05-read-last-response.png");
+  const beforeRead = await voiceState("before-read-touch"); proof.stages.push(beforeRead);
+  await touch("#hunterVoiceRead", 120);
+  await sleep(240);
+  const read = await voiceState("after-read-touch"); proof.stages.push(read);
+  await screenshot("05-read-action-result.png");
+  if (!/Reading Hunter|Finished reading/.test(read.status)) {
+    throw new Error(`Read aloud did not run: ${JSON.stringify({status:read.status,latestHunterMessage:read.latestHunterMessage,speechEvents:read.speechEvents,lastAction:read.stabilityAudit?.lastAction,stability:read.stabilityAudit},null,2)}`);
+  }
+  if (!read.audit?.passed || !read.stabilityAudit?.passed) throw new Error(`Hunter voice audits failed: ${JSON.stringify({voice:read.audit,stability:read.stabilityAudit})}`);
 
   proof.passed = true;
   proof.completedAt = new Date().toISOString();
