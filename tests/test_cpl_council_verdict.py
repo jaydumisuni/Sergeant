@@ -20,7 +20,12 @@ def test_unresolved_council_gap_prevents_a_pass_verdict(tmp_path: Path, monkeypa
             "confidence": 0.8,
             "summary": "The supplied excerpt looks safe, but a required proof is absent.",
             "findings": [],
-            "unanswered_questions": ["Runtime proof for the changed branch is missing."],
+            "unanswered_questions": [
+                {
+                    "question": "Runtime proof for the changed branch is missing.",
+                    "required_assurance": True,
+                }
+            ],
             "coverage": {"files_reviewed": ["src/app.py"], "areas": ["correctness"]},
         },
     )
@@ -49,5 +54,6 @@ def test_unresolved_council_gap_prevents_a_pass_verdict(tmp_path: Path, monkeypa
     assert result["verdict"] == "NEEDS WORK"
     assert result["council"]["complete"] is False
     assert result["council"]["final_gaps"][0]["type"] == "unanswered_question"
+    assert result["council"]["final_gaps"][0]["required_assurance"] is True
     assert result["unanswered_questions"] == ["Runtime proof for the changed branch is missing."]
-    assert "1 council gap(s) are unresolved" in result["summary"]
+    assert "1 effective council gap(s) are unresolved" in result["summary"]

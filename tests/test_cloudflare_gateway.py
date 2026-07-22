@@ -206,6 +206,60 @@ def test_council_proof_requires_complete_real_model_independence(
     ]
 
 
+def test_council_proof_uses_raw_effective_findings_after_product_adjudication(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    finding = {
+        "severity": "blocker",
+        "category": "security",
+        "path": "sample.py",
+        "line_start": 2,
+        "line_end": 2,
+        "message": "Untrusted input reaches shell execution.",
+        "evidence": "subprocess.run(command, shell=True)",
+        "evidence_verified": True,
+    }
+    passes = [
+        {"model": "@cf/zai-org/glm-4.7-flash", "findings": [finding]},
+        {"model": "@cf/openai/gpt-oss-120b", "findings": [finding]},
+    ]
+    monkeypatch.setattr(
+        cloudflare_cli,
+        "run_cpl_review",
+        lambda *args, **kwargs: {
+            "status": "completed",
+            "verdict": "BLOCK",
+            "findings": [],
+            "passes": passes,
+            "errors": [],
+            "council": {
+                "true_model_independence": True,
+                "complete": True,
+                "final_gaps": [],
+                "effective_findings": [finding],
+                "adjudicated_findings": [],
+            },
+        },
+    )
+
+    result = cloudflare_cli.run_council_proof(
+        settings(),
+        root=tmp_path,
+        changed_files=["sample.py"],
+        expected_verdict="BLOCK",
+        expected_path="sample.py",
+        expected_category="security",
+        expected_severity="blocker",
+        expected_evidence="shell=True",
+        minimum_supporting_models=2,
+    )
+
+    assert result["passed"] is True
+    assert result["expected_finding"]["passed"] is True
+    assert result["expected_finding"]["matches"][0]["support_count"] == 2
+
+
 @pytest.mark.parametrize(
     ("status", "complete", "errors", "gaps"),
     [

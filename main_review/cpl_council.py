@@ -1,6 +1,8 @@
 """Elastic council helpers for Cpl."""
 from __future__ import annotations
 
+import ast
+import json
 import os
 import re
 from collections import Counter
@@ -183,6 +185,32 @@ def _resolved_signatures(passes: list[dict[str, Any]]) -> set[tuple[str, str, st
     }
 
 
+def _question_record(raw: object) -> tuple[str, bool] | None:
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text.startswith("{") and text.endswith("}"):
+            decoded: object | None = None
+            try:
+                decoded = json.loads(text)
+            except ValueError:
+                try:
+                    decoded = ast.literal_eval(text)
+                except (SyntaxError, ValueError):
+                    decoded = None
+            if isinstance(decoded, dict):
+                raw = decoded
+
+    if isinstance(raw, dict):
+        reason = str(raw.get("question") or raw.get("reason") or raw.get("text") or "").strip()
+        required_assurance = raw.get("required_assurance") is True
+    else:
+        reason = str(raw or "").strip()
+        required_assurance = False
+    if not reason:
+        return None
+    return reason, required_assurance
+
+
 def assess(passes: list[dict[str, Any]], plan: list[dict[str, Any]], errors: list[str], model_count: int) -> list[dict[str, Any]]:
     gaps: list[dict[str, Any]] = []
     completed = {str(item.get("specialist")) for item in passes}
@@ -196,9 +224,24 @@ def assess(passes: list[dict[str, Any]], plan: list[dict[str, Any]], errors: lis
     verdicts = {str(item.get("verdict")) for item in passes if item.get("verdict")}
     if len(verdicts) > 1:
         gaps.append({"type": "disagreement", "specialist": "tests_contracts", "officer": "Engineer", "reason": f"Council verdicts disagree: {', '.join(sorted(verdicts))}."})
-    for question in sorted({str(q) for item in passes for q in item.get("unanswered_questions", []) if str(q).strip()})[:4]:
+
+    questions: dict[str, bool] = {}
+    for report in passes:
+        for raw_question in report.get("unanswered_questions", []):
+            record = _question_record(raw_question)
+            if record is not None:
+                reason, required_assurance = record
+                questions[reason] = questions.get(reason, False) or required_assurance
+    for question, required_assurance in sorted(questions.items())[:4]:
         specialist = specialist_for_text(question)
-        gaps.append({"type": "unanswered_question", "specialist": specialist, "officer": SPECIALISTS[specialist].officer, "reason": question})
+        gaps.append({
+            "type": "unanswered_question",
+            "specialist": specialist,
+            "officer": SPECIALISTS[specialist].officer,
+            "reason": question,
+            "required_assurance": required_assurance,
+        })
+
     if model_count > 1:
         confirmation_targets: list[dict[str, Any]] = []
         for report in passes:
