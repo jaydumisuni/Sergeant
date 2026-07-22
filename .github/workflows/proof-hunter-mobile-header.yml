@@ -48,6 +48,13 @@ jobs:
           PROOF_DIR: artifacts/hunter-mobile-header
         run: node tools/proof_hunter_mobile_header.mjs
 
+      - name: Diagnose the mobile composer hit stack
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          HUNTER_REVIEW_URL: https://ce980ef6-hunter-ui-review.thetechguy712.workers.dev/portal
+          PROOF_DIR: artifacts/hunter-mobile-composer-hit
+        run: node tools/diagnose_hunter_mobile_composer_hit.mjs
+
       - name: Prove real mobile typing and iPhone dictation fallback
         env:
           CHROME_PATH: /usr/bin/google-chrome
