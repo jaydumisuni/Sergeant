@@ -60,7 +60,7 @@ jobs:
           CHROME_PATH: /usr/bin/google-chrome
           HUNTER_REVIEW_URL: https://ce980ef6-hunter-ui-review.thetechguy712.workers.dev/portal
           PROOF_DIR: artifacts/hunter-mobile-composer
-        run: node tools/proof_hunter_mobile_composer.mjs
+        run: node tools/proof_hunter_mobile_composer_v2.mjs
 
       - name: Upload screenshots and evidence
         if: always()
