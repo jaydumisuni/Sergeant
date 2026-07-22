@@ -34,7 +34,7 @@ jobs:
           test -x /usr/bin/google-chrome
           /usr/bin/google-chrome --version
 
-      - name: Include current Hunter navigation controls in the inventory
+      - name: Prepare current Hunter control inventory and desktop transition
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -44,7 +44,13 @@ jobs:
           new = "'data-promo-placement','data-unified-back','data-unified-new'];return"
           if old not in s:
               raise SystemExit('Hunter control inventory marker missing')
-          p.write_text(s.replace(old, new, 1))
+          s = s.replace(old, new, 1)
+          old_touch = "maxTouchPoints: p.mobile ? 5 : 0"
+          new_touch = "maxTouchPoints: p.mobile ? 5 : 1"
+          if old_touch not in s:
+              raise SystemExit('desktop touch-transition marker missing')
+          s = s.replace(old_touch, new_touch, 1)
+          p.write_text(s)
           PY
 
       - name: Prove zero Hunter runtime exceptions
