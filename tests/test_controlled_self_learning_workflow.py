@@ -26,13 +26,25 @@ def test_controlled_learning_targets_main_and_uses_the_active_pr_branch() -> Non
     assert '--target-branch "${TARGET_BRANCH}"' in workflow
 
 
-def test_round_authorization_remains_explicit_and_model_free_review_is_preserved() -> None:
+def test_round_authorization_precedes_and_gates_candidate_collection() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     validate = _job_block(workflow, "validate", next_job="learn")
-    learn = _job_block(workflow, "learn", next_job="publish")
 
+    authorize_marker = "      - name: Verify explicit owner and round authorization gates"
+    collect_marker = "      - name: Collect authorized candidates or record a zero-work packet"
+    assert validate.index(authorize_marker) < validate.index(collect_marker)
     assert 'index("self-learning-authorized") != null' in validate
     assert '[[ "${subject}" == START_CONTROLLED_SELF_LEARNING* ]]' in validate
+    assert 'READY: ${{ steps.authorize.outputs.ready }}' in validate
+    assert 'if [ "${READY}" != "true" ]; then' in validate
+    assert 'collection_skipped:"round_not_authorized"' in validate
+    assert 'echo "candidate_count=0" >> "$GITHUB_OUTPUT"' in validate
+
+
+def test_model_free_review_and_bounded_worker_permissions_are_preserved() -> None:
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    learn = _job_block(workflow, "learn", next_job="publish")
+
     assert 'SERGEANT_LLM_ENABLED: "false"' in workflow
     assert 'SERGEANT_CPL_ENABLED: "false"' in workflow
     assert "models: read" in learn
@@ -50,7 +62,7 @@ def test_publish_job_is_a_read_only_owner_handoff() -> None:
     assert "pull-requests: write" not in publish
     assert "git push" not in publish
     assert "gh pr create" not in publish
-    assert 'test "$(jq -r \'.automatic_promotions\' "${index}")" = "0"' in publish
-    assert 'test "$(jq -r \'.automatic_merges\' "${index}")" = "0"' in publish
-    assert 'test "$(jq -r \'.authority_head\' "${index}")" = "${AUTHORITY_HEAD}"' in publish
+    assert 'test "$(jq -r \' .automatic_promotions\' "${index}")" = "0"'.replace("' ", "'") in publish
+    assert 'test "$(jq -r \' .automatic_merges\' "${index}")" = "0"'.replace("' ", "'") in publish
+    assert 'test "$(jq -r \' .authority_head\' "${index}")" = "${AUTHORITY_HEAD}"'.replace("' ", "'") in publish
     assert "This workflow has no branch, pull-request, merge, or promotion authority." in publish
