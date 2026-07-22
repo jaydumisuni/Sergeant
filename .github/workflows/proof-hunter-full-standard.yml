@@ -34,6 +34,13 @@ jobs:
           test -x /usr/bin/google-chrome
           /usr/bin/google-chrome --version
 
+      - name: Capture exact runtime error source
+        env:
+          CHROME_PATH: /usr/bin/google-chrome
+          HUNTER_REVIEW_URL: https://a449d774-hunter-ui-review.thetechguy712.workers.dev/portal
+          PROOF_DIR: artifacts/hunter-runtime-source
+        run: node tools/diagnose_hunter_runtime_source.mjs
+
       - name: Prove full mobile and desktop interface standard
         env:
           CHROME_PATH: /usr/bin/google-chrome
@@ -46,6 +53,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: hunter-full-standard-proof
-          path: artifacts/hunter-full-standard
+          path: artifacts
           if-no-files-found: error
           retention-days: 14
