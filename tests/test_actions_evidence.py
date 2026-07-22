@@ -3,11 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from main_review.actions_evidence import cleanup_eligible, retained_bytes, validate_preservation_ledger
+from main_review.actions_evidence import (
+    cleanup_eligible,
+    retained_bytes,
+    validate_preservation_ledger,
+    validate_recovery_replay,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
 LEDGER = ROOT / "evidence" / "actions" / "2026-07-22-preservation-ledger.json"
+REPLAY = ROOT / "evidence" / "actions" / "2026-07-22-recovery-replay.json"
 
 
 def test_preservation_ledger_is_complete_and_deletion_is_disabled() -> None:
@@ -19,6 +25,32 @@ def test_preservation_ledger_is_complete_and_deletion_is_disabled() -> None:
     assert payload["deletion_authorized"] is False
     assert payload["workflow_run_deletion_authorized"] is False
     assert retained_bytes(payload["records"]) == payload["total_bytes"]
+
+
+def test_all_durable_copies_were_downloaded_and_digest_verified() -> None:
+    ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
+    replay = json.loads(REPLAY.read_text(encoding="utf-8"))
+
+    assert validate_recovery_replay(ledger, replay) == []
+    assert replay["artifact_count"] == replay["verified_count"] == 29
+    assert replay["failed_count"] == 0
+    assert replay["total_bytes"] == 13_772_291
+    assert replay["cleanup_authorized"] is False
+    assert replay["workflow_run_deletion_authorized"] is False
+    assert all(record["recovery_replay_verified"] is True for record in replay["records"])
+
+
+def test_recovery_replay_fails_on_digest_or_inventory_drift() -> None:
+    ledger = json.loads(LEDGER.read_text(encoding="utf-8"))
+    replay = json.loads(REPLAY.read_text(encoding="utf-8"))
+
+    replay["records"][0]["sha256"] = "0" * 64
+    replay["records"].pop()
+    errors = validate_recovery_replay(ledger, replay)
+
+    assert any(error.startswith("replay missing artifacts:") for error in errors)
+    assert any(error.startswith("recovery digest mismatch:") for error in errors)
+    assert "replay artifact_count does not match records" in errors
 
 
 def test_unique_failures_and_learning_evidence_are_retained() -> None:
