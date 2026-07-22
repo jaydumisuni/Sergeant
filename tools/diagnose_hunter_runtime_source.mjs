@@ -61,9 +61,10 @@ try {
   await cdp("Page.enable");
   await cdp("Page.navigate", { url: `${targetUrl}${targetUrl.includes("?") ? "&" : "?"}srg-runtime-source=${Date.now()}` });
   await sleep(3500);
-  await writeFile(join(outDir, "runtime-source.json"), JSON.stringify({ targetUrl, errors, capturedAt: new Date().toISOString() }, null, 2));
-  if (!errors.length) throw new Error("Expected runtime error was not reproduced.");
-  console.log(JSON.stringify(errors, null, 2));
+  const report = { targetUrl, passed: errors.length === 0, errors, capturedAt: new Date().toISOString() };
+  await writeFile(join(outDir, "runtime-source.json"), JSON.stringify(report, null, 2));
+  if (errors.length) throw new Error(`Hunter runtime exceptions remain: ${JSON.stringify(errors, null, 2)}`);
+  console.log("SRG RUNTIME PASS: zero uncaught Hunter page exceptions.");
 } finally {
   try { ws?.close(); } catch {}
   chrome.kill("SIGTERM");
