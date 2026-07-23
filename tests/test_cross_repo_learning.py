@@ -128,7 +128,8 @@ def test_signal_rejects_repository_mismatch_and_credentials() -> None:
         classify_signal(signal)
 
     signal = _ready_signal()
-    signal["summary"] = "authorization=ghp_abcdefghijklmnopqrstuv"
+    token_shaped_value = "gh" + "p_" + "a" * 22
+    signal["summary"] = "authorization=" + token_shaped_value
     with pytest.raises(CrossRepositorySignalError, match="credential-like"):
         classify_signal(signal)
 
