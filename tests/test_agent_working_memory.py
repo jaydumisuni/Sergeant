@@ -10,6 +10,7 @@ COPILOT_MEMORY = ROOT / ".github" / "copilot-instructions.md"
 OPERATIONAL_CONTRACTS = ROOT / "main_review" / "operational_contracts.py"
 ADAPTIVE_CURRICULUM = ROOT / "main_review" / "adaptive_curriculum.py"
 TENFOLD_DOCTRINE = ROOT / "docs" / "50-tenfold-operating-doctrine.md"
+EXTERNAL_LEARNING_POLICY = ROOT / "docs" / "EXTERNAL_REPOSITORY_LEARNING_POLICY.md"
 
 
 def test_tenfold_method_has_agent_and_sergeant_applications() -> None:
@@ -94,3 +95,24 @@ def test_full_tenfold_doctrine_documents_review_learning_and_command_chain() -> 
     assert "rapid code review and rapid governed learning" in doctrine
     assert "Teacher, Prosecutor, Defender" in doctrine
     assert "Hermes does not command" in doctrine
+
+
+def test_external_repository_activity_is_governed_candidate_learning() -> None:
+    memory = AGENT_MEMORY.read_text(encoding="utf-8")
+    policy = EXTERNAL_LEARNING_POLICY.read_text(encoding="utf-8")
+
+    assert "External repository activity can teach Sergeant" in memory
+    assert "does not become knowledge automatically" in memory
+    assert "TechGuyCheckm8" in memory
+    assert "lumi-dm" in memory
+    assert "freeze Sergeant's blind review" in memory
+    assert "negative controls" in memory
+    assert "Sergeant-owned rules, tests, benchmarks, tools, or durable memory" in memory
+    assert "Rejected lessons" in memory
+
+    assert "A notification, commit, bot comment, script execution, or green workflow is only a signal" in policy
+    assert "defective or pre-fix commit" in policy
+    assert "fixing commit" in policy
+    assert "test transfer on unrelated repositories or languages" in policy
+    assert "No automatic promotion or merge" in policy
+    assert "Sergeant remains final admission authority" in policy
