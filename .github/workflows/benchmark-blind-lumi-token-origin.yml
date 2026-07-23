@@ -1,6 +1,9 @@
 name: Blind Benchmark - Lumi Token Origin
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
       - benchmark/blind-lumi-token-origin
