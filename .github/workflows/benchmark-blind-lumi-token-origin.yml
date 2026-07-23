@@ -49,17 +49,52 @@ jobs:
         run: |
           sergeant pr-review target \
             --files "browser-extension/security-shim.js" \
-            --pretty | tee blind-sergeant-report.json
+            --pretty > blind-sergeant-report.json
           test -s blind-sergeant-report.json
-      - name: Print frozen report digest
+      - name: Print frozen report digest and decision evidence
         run: |
           sha256sum blind-sergeant-report.json
           python - <<'PY'
           import json
           from pathlib import Path
+
           report = json.loads(Path("blind-sergeant-report.json").read_text())
-          print("top_level_keys=", sorted(report))
-          for key in ("verdict", "status", "summary", "findings", "required_actions", "cpl"):
-              if key in report:
-                  print(f"{key}=", json.dumps(report[key], sort_keys=True)[:12000])
+          verdict = report.get("verdict", {})
+          council = report.get("officer_council", {})
+          cpl = report.get("cpl_review", {})
+
+          print("SERGEANT_VERDICT=", verdict.get("verdict"))
+          print("SERGEANT_CONFIDENCE=", verdict.get("confidence"))
+          print("SERGEANT_REASON=", verdict.get("reason"))
+          print("SERGEANT_REQUIRED_ACTIONS=", json.dumps(verdict.get("required_actions", []), sort_keys=True))
+          print("OFFICER_COUNCIL_VERDICT=", council.get("verdict"))
+          print("OFFICER_COUNCIL_REQUIRED_ACTIONS=", json.dumps(council.get("required_actions", []), sort_keys=True))
+          print("CPL_STATUS=", cpl.get("status"))
+          print("CPL_POLICY=", cpl.get("policy"))
+          print("CPL_DECISION_VERDICT=", cpl.get("decision_verdict", cpl.get("verdict")))
+
+          sources = {
+              "officer_admitted": council.get("admitted_findings", []),
+              "officer_rejected": council.get("rejected_findings", []),
+              "capability": report.get("capability_review", {}).get("findings", []),
+              "review_intelligence": report.get("review_intelligence", {}).get("promoted_findings", []),
+              "cpl_actionable": cpl.get("actionable_findings", cpl.get("findings", [])),
+          }
+          for source, findings in sources.items():
+              print(f"{source.upper()}_COUNT=", len(findings) if isinstance(findings, list) else "not-list")
+              if not isinstance(findings, list):
+                  continue
+              for index, finding in enumerate(findings, 1):
+                  if not isinstance(finding, dict):
+                      print(f"{source}[{index}]=", repr(finding))
+                      continue
+                  compact = {
+                      key: finding.get(key)
+                      for key in (
+                          "severity", "category", "root_cause", "path", "line_start",
+                          "line_end", "message", "evidence", "suggested_action", "status",
+                      )
+                      if key in finding
+                  }
+                  print(f"{source}[{index}]=", json.dumps(compact, sort_keys=True))
           PY
