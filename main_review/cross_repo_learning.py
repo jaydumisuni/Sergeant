@@ -60,16 +60,30 @@ def _validate_signal(signal: Mapping[str, Any]) -> dict[str, Any]:
         raise CrossRepositorySignalError("repository must use owner/name form")
     if event_kind not in _ALLOWED_EVENT_KINDS:
         raise CrossRepositorySignalError(f"unsupported event kind: {event_kind or 'missing'}")
-    if not source_url.startswith("https://github.com/"):
-        raise CrossRepositorySignalError("source_url must be an explicit GitHub URL")
+    repository_url = f"https://github.com/{repository}"
+    if source_url != repository_url and not source_url.startswith(f"{repository_url}/"):
+        raise CrossRepositorySignalError("source_url must identify the declared GitHub repository")
+    source_event_url = str(payload.get("source_event_url") or "").strip()
+    if source_event_url and source_event_url != repository_url and not source_event_url.startswith(f"{repository_url}/"):
+        raise CrossRepositorySignalError("source_event_url must identify the declared GitHub repository")
     serialized = json.dumps(payload, sort_keys=True, default=str)
     if _SECRET_RE.search(serialized):
         raise CrossRepositorySignalError("signal contains credential-like material")
     payload["repository"] = repository
     payload["event_kind"] = event_kind
     payload["source_url"] = source_url
+    if source_event_url:
+        payload["source_event_url"] = source_event_url
     payload["scored_paths"] = _clean_string_list(payload.get("scored_paths"))
     payload["evidence_refs"] = _clean_string_list(payload.get("evidence_refs"))
+    if payload.get("source_pr") is not None:
+        try:
+            source_pr = int(payload["source_pr"])
+        except (TypeError, ValueError) as error:
+            raise CrossRepositorySignalError("source_pr must be a positive integer") from error
+        if source_pr < 1:
+            raise CrossRepositorySignalError("source_pr must be a positive integer")
+        payload["source_pr"] = source_pr
     return payload
 
 
@@ -93,6 +107,18 @@ def _has_lineage(signal: Mapping[str, Any]) -> bool:
         and _SHA_RE.fullmatch(fixing)
         and defective != fixing
         and (signal.get("source_pr") or signal.get("source_event_url"))
+    )
+
+
+def _candidate_complete(signal: Mapping[str, Any]) -> bool:
+    return bool(
+        _has_lineage(signal)
+        and signal.get("defect_confirmed") is True
+        and signal.get("fix_verified") is True
+        and signal.get("blind_review_possible") is True
+        and str(signal.get("language") or "").strip()
+        and signal.get("scored_paths")
+        and signal.get("evidence_refs")
     )
 
 
@@ -125,16 +151,7 @@ def classify_signal(signal: Mapping[str, Any]) -> dict[str, Any]:
         })
         return classification
 
-    complete_candidate = bool(
-        _has_lineage(payload)
-        and payload.get("defect_confirmed") is True
-        and payload.get("fix_verified") is True
-        and payload.get("blind_review_possible") is True
-        and str(payload.get("language") or "").strip()
-        and payload.get("scored_paths")
-        and payload.get("evidence_refs")
-    )
-    if complete_candidate:
+    if _candidate_complete(payload):
         classification.update({
             "disposition": "candidate_ready",
             "reason": "provenance-complete behavioral lineage can enter the governed queue",
@@ -145,6 +162,7 @@ def classify_signal(signal: Mapping[str, Any]) -> dict[str, Any]:
     has_useful_context = bool(
         payload.get("source_ref")
         or payload.get("source_pr")
+        or payload.get("source_event_url")
         or payload.get("evidence_refs")
         or payload.get("scored_paths")
         or payload.get("summary")
@@ -165,12 +183,15 @@ def to_queue_candidate(signal: Mapping[str, Any]) -> dict[str, Any]:
     """Convert a fully qualified signal into the existing governed queue shape."""
 
     payload = _validate_signal(signal)
-    if not _has_lineage(payload):
-        raise CrossRepositorySignalError("candidate requires distinct full defective/fixing refs and a source event")
+    if not _candidate_complete(payload):
+        raise CrossRepositorySignalError(
+            "candidate requires a verified defect/fix lineage, blind-review boundary, language, paths, and evidence"
+        )
     repository = payload["repository"]
     defective = str(payload["defective_ref"]).lower()
     seed = f"{repository}:{payload.get('source_pr') or payload.get('source_event_url')}:{defective}"
     case_id = str(payload.get("case_id") or f"learn-{hashlib.sha256(seed.encode()).hexdigest()[:12]}")
+    human_workers = _human_equivalent_workers(payload)
     candidate = {
         "case_id": case_id,
         "repository": repository,
@@ -183,8 +204,8 @@ def to_queue_candidate(signal: Mapping[str, Any]) -> dict[str, Any]:
         "evidence_refs": list(payload["evidence_refs"]),
         "provenance_complete": True,
         "cross_repository": repository != "jaydumisuni/Sergeant",
-        "human_equivalent_workers": _human_equivalent_workers(payload),
-        "private_count": private_force_size(_human_equivalent_workers(payload)),
+        "human_equivalent_workers": human_workers,
+        "private_count": private_force_size(human_workers),
     }
     if payload.get("source_pr"):
         candidate["source_pr"] = int(payload["source_pr"])
