@@ -2,6 +2,11 @@
 
 Read and follow [`AGENTS.md`](AGENTS.md) as the canonical repository working memory.
 
-The key rule is that **10-for-2 / Hunter's tenfold method governs how the assistant executes work**: one coordinating lead splits substantial work into distinct parallel specialist lanes, cross-checks the results, reconciles them, and finishes faster without weakening proof.
+The phrase **10-for-2 / Hunter's tenfold method has two valid meanings**:
 
-Do not reinterpret that workflow rule as a Sergeant product feature, architecture change, training system, model requirement, or worker subsystem unless the user explicitly requests one. The user's exact words define the scope.
+1. For assistant execution, one coordinating lead divides substantial work into distinct parallel specialist lanes, cross-checks the results, reconciles them, and finishes faster without weakening proof.
+2. Inside Sergeant, the same phrase also names the officer/private-force doctrine: normally justified human-equivalent workers are multiplied by ten, so 2 workers map to 20 privates, 5 to 50, and the force scales from there under Sergeant and Cpl authority.
+
+Do not erase either meaning. Use context to determine whether the user means assistant execution, Sergeant's internal review/learning force, or both.
+
+Useful fixes, review activity, failures, and workflow corrections from other repositories may become controlled Sergeant learning inputs. Treat them as candidate evidence only: pin provenance, freeze blind review before revealing the fix, verify the lesson, challenge it with Teacher/Prosecutor/Defender and negative controls, and admit only transferable value into Sergeant-owned rules, tests, benchmarks, tools, or durable memory.
