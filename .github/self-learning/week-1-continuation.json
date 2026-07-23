@@ -8,9 +8,11 @@
   "remaining_controlled_rounds": 4,
   "authorized_round": null,
   "next_round_authorized": false,
-  "priority_candidates": ["learn-lumi-token-origin-20260723"],
-  "priority_stage": "controls_transfer_and_hidden_holdout",
-  "accepted_lessons": 0,
+  "priority_candidates": [],
+  "priority_stage": "next_cross_repository_candidate_selection",
+  "accepted_lessons": 1,
+  "accepted_lesson_ids": ["lumi-token-origin-20260723"],
+  "owner_controlled_promotions": 1,
   "automatic_promotions": 0,
   "automatic_merges": 0,
   "normal_review_models_enabled": false,
@@ -27,5 +29,14 @@
     "durable_copy": "google-drive:1cqN8sLaZBAMbnk5sAQSMvBeAYfE_Q4iQ",
     "durable_replay_verified": true
   },
-  "notes": "Round 3 completed with the Lumi token-origin proposal at council_complete. It is not an accepted lesson. The next valid work is executable positive and negative controls, unrelated transfer, and hidden holdout. A new model-learning round still requires the self-learning-authorized label and a final commit subject beginning START_CONTROLLED_SELF_LEARNING."
+  "latest_promotion": {
+    "lesson_id": "lumi-token-origin-20260723",
+    "mode": "owner_controlled",
+    "promotion_authority_head": "d026221f173d909a38c876cf79f95df86a1aa4af",
+    "controls_passed": true,
+    "unrelated_language_transfer_passed": true,
+    "hidden_holdout_passed": true,
+    "canonical_path_wired": true
+  },
+  "notes": "Round 3 produced the first owner-controlled accepted lesson. The Lumi credential-origin rule is now implemented model-free through Medic and the canonical review path. Four controlled rounds remain. A new model-learning round still requires the self-learning-authorized label and a final commit subject beginning START_CONTROLLED_SELF_LEARNING. Automatic promotion and automatic merge remain disabled."
 }
