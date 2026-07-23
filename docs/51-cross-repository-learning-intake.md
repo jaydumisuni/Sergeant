@@ -85,6 +85,26 @@ A shell trace locating and inspecting `browser-extension/background-v5.js` is a 
 
 Lumi pull requests, accepted review findings, runtime failures, and permanent regressions are valid Sergeant training sources when those requirements are satisfied.
 
+### Lumi token-origin benchmark
+
+The real-code benchmark in Sergeant PR `#143` is now a **candidate-ready** learning signal, not an accepted lesson.
+
+Pinned lineage:
+
+```text
+repository: jaydumisuni/lumi-dm
+pre-fix: 8f63f832112a2e0772e954c3e0319109ce21b6a9
+fix: a8d572258a4d53e9620970e5236ab21aa903580f
+file: browser-extension/security-shim.js
+```
+
+The pre-fix extension attached its bearer credential to any loopback-host `/api/` destination. The repair binds credential attachment to the exact configured Lumi server origin. Current model-free Sergeant returned the same generic missing-tests finding for both code states, so the benchmark froze two learning objectives:
+
+1. learn the generalized credential-destination boundary across host, port, scheme, subdomain, IPv4/IPv6 loopback, redirects, malformed configuration, request-object forms, and existing credential headers;
+2. improve clean-control discrimination so a vulnerable snapshot and its repaired control do not receive an identical unrelated finding.
+
+The source record is `.github/self-learning/signals/lumi-token-origin-2026-07-23.json`. It may enter Teacher, Prosecutor, and Defender work, but it cannot become a permanent officer or detector until executable positive cases, clean controls, unrelated transfer, and hidden holdout pass.
+
 ## Tenfold triage
 
 Every retained cross-repository signal receives a human-equivalent workload estimate. Sergeant applies the existing private-force law through `private_force_size`:
