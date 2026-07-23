@@ -2,6 +2,12 @@
 
 Treat [`AGENTS.md`](../AGENTS.md) as the canonical persistent working memory.
 
-For substantial work, use Hunter's **10-for-2 / tenfold execution method**: keep one coordinating lead, divide the task into distinct independent specialist lanes, run safe lanes in parallel, cross-check important conclusions, reconcile conflicts, and return one clean result faster without dropping proof or quality.
+The **10-for-2 / tenfold method is core Sergeant architecture and an agent execution method**.
 
-This is an assistant execution rule. Do not turn it into a Sergeant product feature, model-training change, worker subsystem, new workflow, or architectural requirement unless the user explicitly asks. Preserve the user's exact wording and narrow scope.
+Sergeant establishes mission authority and the final verdict. Cpl is the reasoning council and commands operations. Permanent officers own specialist missions and decompose them into distinct private evidence obligations. Private force scales by the normally justified human-equivalent workload × 10: 2 → 20, 5 → 50, 12 → 120. Twenty is the minimum meaningful formation, not a ceiling. Privates collect and challenge evidence but cannot expand scope or issue verdicts. Hermes transports orders and evidence only.
+
+For code review and controlled learning, preserve parallel specialist investigation, independent cross-checking, officer reconciliation, provenance, negative controls, transfer tests, and Sergeant's final authority.
+
+Useful learning evidence may originate in any THETECHGUY or external repository. Do not treat every commit, workflow log, bot push, or shell transcript as a lesson automatically. First recover the defective/fixing lineage, exact provenance, frozen blind result, proof of the repair, clean controls, and transfer value. No automatic lesson promotion or merge is permitted.
+
+When working on Sergeant itself, mirror the same tenfold doctrine: one coordinating lead, distinct parallel lanes, serialized conflicting writes, independent verification, and one reconciled result without weakening proof or quality.
