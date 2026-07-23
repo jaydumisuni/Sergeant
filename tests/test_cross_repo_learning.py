@@ -15,6 +15,9 @@ from main_review.self_learning_queue import QueueContractError, add_case, new_qu
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCES = ROOT / ".github" / "self-learning" / "cross-repository-sources.json"
+LUMI_TOKEN_ORIGIN_SIGNAL = (
+    ROOT / ".github" / "self-learning" / "signals" / "lumi-token-origin-2026-07-23.json"
+)
 DOCTRINE = ROOT / "docs" / "51-cross-repository-learning-intake.md"
 AGENTS = ROOT / "AGENTS.md"
 
@@ -98,6 +101,36 @@ def test_verified_direct_event_becomes_cross_repository_queue_candidate() -> Non
     assert queue["authority"]["may_auto_merge"] is False
 
 
+def test_real_lumi_token_origin_miss_is_candidate_ready_but_unpromoted() -> None:
+    signal = json.loads(LUMI_TOKEN_ORIGIN_SIGNAL.read_text(encoding="utf-8"))
+    result = classify_signal(signal)
+
+    assert result["disposition"] == "candidate_ready"
+    assert result["human_equivalent_workers"] == 4
+    assert result["triage_private_count"] == 40
+    assert result["authority"] == {
+        "may_auto_promote": False,
+        "may_auto_merge": False,
+        "final_verdict": "Sergeant",
+    }
+
+    candidate = result["candidate"]
+    assert candidate["case_id"] == "learn-lumi-token-origin-20260723"
+    assert candidate["defective_ref"] == "8f63f832112a2e0772e954c3e0319109ce21b6a9"
+    assert candidate["fixing_ref"] == "a8d572258a4d53e9620970e5236ab21aa903580f"
+    assert candidate["scored_paths"] == ["browser-extension/security-shim.js"]
+    assert candidate["language"] == "javascript"
+    assert candidate["private_count"] == 40
+    assert signal["authority"]["may_auto_promote"] is False
+    assert signal["authority"]["may_auto_merge"] is False
+
+    queue = new_queue("week-1-lumi", authority_head="d" * 40, target_branch="train/cross-repo")
+    case = add_case(queue, candidate)
+    assert case["state"] == "collected"
+    assert queue["authority"]["may_auto_promote"] is False
+    assert queue["authority"]["may_auto_merge"] is False
+
+
 def test_direct_candidate_conversion_fails_without_full_learning_boundary() -> None:
     signal = _ready_signal()
     signal["fix_verified"] = False
@@ -146,5 +179,6 @@ def test_source_registry_and_doctrine_keep_all_useful_repositories_eligible() ->
     assert registry["policy"]["automatic_merges"] == 0
     assert {"jaydumisuni/TechGuyCheckm8", "jaydumisuni/lumi-dm"} <= repositories
     assert "A signal does not need to originate in the Sergeant repository" in doctrine
+    assert "Lumi token-origin benchmark" in doctrine
     assert "all useful THETECHGUY and external repository signals" in agents
     assert "not automatically a lesson" in agents
