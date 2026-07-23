@@ -22,6 +22,14 @@ except ImportError:  # Direct execution as python scripts/<name>.py.
 
 _SHA = re.compile(r"^[0-9a-f]{40}$")
 MAX_CANDIDATES_PER_REPOSITORY = 8
+PROCESSED_SIGNAL_STATES = {
+    "council_complete",
+    "controls_passed",
+    "transfer_passed",
+    "promotion_ready",
+    "accepted",
+    "rejected",
+}
 LIFECYCLE_WORDS = {
     "async", "await", "thread", "lock", "queue", "session", "runtime",
     "endpoint", "connection", "stream", "socket", "lifecycle", "state",
@@ -78,7 +86,7 @@ def _bounded_novelty(value: object, fallback: float = 0.85) -> float:
 
 
 def _signal_candidates(signals_dir: Path | None) -> list[dict[str, Any]]:
-    """Load provenance-complete direct-event candidates without promoting them."""
+    """Load unprocessed, provenance-complete direct-event candidates."""
 
     if signals_dir is None or not signals_dir.is_dir():
         return []
@@ -90,6 +98,9 @@ def _signal_candidates(signals_dir: Path | None) -> list[dict[str, Any]]:
             raise ValueError(f"invalid learning signal {path}: {error}") from error
         if not isinstance(payload, dict):
             raise ValueError(f"learning signal must be an object: {path}")
+        learning_state = str(payload.get("learning_state") or "collected").strip().lower()
+        if learning_state in PROCESSED_SIGNAL_STATES:
+            continue
         try:
             classification = classify_signal(payload)
         except CrossRepositorySignalError as error:

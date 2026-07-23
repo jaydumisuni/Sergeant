@@ -126,6 +126,7 @@ def test_real_lumi_token_origin_miss_is_candidate_ready_but_unpromoted() -> None
     assert candidate["private_count"] == 40
     assert signal["authority"]["may_auto_promote"] is False
     assert signal["authority"]["may_auto_merge"] is False
+    assert signal["accepted_lesson"] is False
 
     queue = new_queue("week-1-lumi", authority_head="d" * 40, target_branch="train/cross-repo")
     case = add_case(queue, candidate)
@@ -134,10 +135,11 @@ def test_real_lumi_token_origin_miss_is_candidate_ready_but_unpromoted() -> None
     assert queue["authority"]["may_auto_merge"] is False
 
 
-def test_direct_signal_collector_prioritizes_the_real_lumi_case(tmp_path: Path) -> None:
+def test_direct_signal_collector_prioritizes_an_unprocessed_lumi_case(tmp_path: Path) -> None:
     signals = tmp_path / "signals"
     signals.mkdir()
     signal = json.loads(LUMI_TOKEN_ORIGIN_SIGNAL.read_text(encoding="utf-8"))
+    signal["learning_state"] = "collected"
     (signals / "lumi.json").write_text(json.dumps(signal), encoding="utf-8")
 
     candidates = _signal_candidates(signals)
@@ -150,6 +152,16 @@ def test_direct_signal_collector_prioritizes_the_real_lumi_case(tmp_path: Path) 
     assert candidate["provenance_complete"] is True
     assert candidate["security_or_integrity"] is True
     assert candidate["learning_objectives"]
+
+
+def test_processed_direct_signal_is_not_retrained_in_the_next_round(tmp_path: Path) -> None:
+    signals = tmp_path / "signals"
+    signals.mkdir()
+    signal = json.loads(LUMI_TOKEN_ORIGIN_SIGNAL.read_text(encoding="utf-8"))
+    assert signal["learning_state"] == "council_complete"
+    (signals / "lumi.json").write_text(json.dumps(signal), encoding="utf-8")
+
+    assert _signal_candidates(signals) == []
 
 
 def test_direct_event_lineage_survives_blind_manifest_and_proposal_export(tmp_path: Path) -> None:
