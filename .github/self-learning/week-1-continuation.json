@@ -1,0 +1,17 @@
+{
+  "schema_version": "sergeant.controlled-learning-continuation.v1",
+  "status": "active",
+  "base_main": "3c5869b72198f7b5deaad93f0d701ccd5b4cc24b",
+  "foundation_pr": 131,
+  "cross_repository_intake_pr": 142,
+  "completed_rounds": ["week-1-run-9", "week-1-run-14"],
+  "remaining_controlled_rounds": 5,
+  "next_round_authorized": false,
+  "priority_candidates": ["learn-lumi-token-origin-20260723"],
+  "accepted_lessons": 0,
+  "automatic_promotions": 0,
+  "automatic_merges": 0,
+  "normal_review_models_enabled": false,
+  "proposal_publication": "owner_controlled",
+  "notes": "The verified Lumi token-origin miss is collected as a candidate, not an accepted lesson. Each model-learning round requires the self-learning-authorized label and a final commit subject beginning START_CONTROLLED_SELF_LEARNING. Council-complete proposals remain unpromoted until executable negative controls, clean counterexamples, unrelated transfer, and hidden holdout pass."
+}
