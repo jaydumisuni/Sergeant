@@ -6,10 +6,10 @@
   "cross_repository_intake_pr": 142,
   "completed_rounds": ["week-1-run-9", "week-1-run-14", "week-1-run-29", "week-1-run-42", "week-1-run-46"],
   "remaining_controlled_rounds": 2,
-  "authorized_round": null,
-  "next_round_authorized": false,
+  "authorized_round": "day-6",
+  "next_round_authorized": true,
   "priority_candidates": [],
-  "priority_stage": "select_next_multilingual_round_from_rotated_pool",
+  "priority_stage": "blind_cross_repository_collection",
   "accepted_lessons": 1,
   "accepted_lesson_ids": ["lumi-token-origin-20260723"],
   "owner_controlled_promotions": 1,
@@ -46,5 +46,5 @@
     "hidden_holdout_passed": true,
     "canonical_path_wired": true
   },
-  "notes": "Day 5 is now counted complete after independent GitHub and Google Drive downloads matched at 283079 bytes, SHA-256 52869b392270d19ed0bcb4cdc90c54982aba3b36f223e98b58504b79d7a5be2c, and exact raw bytes. All three proposed lessons were rejected by Defender. Two controlled rounds remain. A later round still requires explicit label and START_CONTROLLED_SELF_LEARNING commit authorization."
+  "notes": "Day 6 is explicitly authorized only after the day-5 GitHub-to-Drive digest and byte replay completed. The collector may select a fresh multilingual set from the rotated pool. Blind freeze, Teacher, Prosecutor, Defender, controls, unrelated transfer, hidden holdout, owner promotion and merge authority remain separate gates. Automatic promotion and automatic merge remain disabled."
 }
