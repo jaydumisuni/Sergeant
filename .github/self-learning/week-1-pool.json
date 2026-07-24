@@ -1,9 +1,6 @@
 [
-  {"language":"erlang","repos":["erlang/otp","rabbitmq/rabbitmq-server","emqx/emqx"],"suffixes":[".erl",".hrl"]},
   {"language":"r","repos":["tidyverse/dplyr","r-lib/rlang","rstudio/shiny"],"suffixes":[".r",".R"]},
   {"language":"rust","repos":["tokio-rs/tokio","rust-lang/cargo","serde-rs/serde"],"suffixes":[".rs"]},
-  {"language":"python","repos":["pallets/flask","encode/httpx","pydantic/pydantic"],"suffixes":[".py"]},
-  {"language":"elixir","repos":["elixir-lang/elixir","livebook-dev/livebook","dashbitco/broadway"],"suffixes":[".ex",".exs"]},
   {"language":"java","repos":["google/guava","apache/kafka","spring-projects/spring-framework"],"suffixes":[".java"]},
   {"language":"typescript","repos":["axios/axios","nestjs/nest","reduxjs/redux-toolkit"],"suffixes":[".ts",".tsx"]},
   {"language":"zig","repos":["ziglang/zig","tigerbeetle/tigerbeetle","mitchellh/libxev"],"suffixes":[".zig"]},
@@ -13,5 +10,8 @@
   {"language":"ocaml","repos":["mirage/ocaml-cohttp","ocaml/ocaml"],"suffixes":[".ml",".mli"]},
   {"language":"cpp","repos":["electron/electron","grpc/grpc"],"suffixes":[".cc",".cpp",".cxx",".h",".hpp"]},
   {"language":"ruby","repos":["rspec/rspec-core","ruby/ruby"],"suffixes":[".rb"]},
-  {"language":"nim","repos":["nim-lang/Nim","status-im/nim-chronos"],"suffixes":[".nim"]}
+  {"language":"nim","repos":["nim-lang/Nim","status-im/nim-chronos"],"suffixes":[".nim"]},
+  {"language":"erlang","repos":["erlang/otp","rabbitmq/rabbitmq-server"],"suffixes":[".erl",".hrl"]},
+  {"language":"python","repos":["encode/httpx","pydantic/pydantic"],"suffixes":[".py"]},
+  {"language":"elixir","repos":["elixir-lang/elixir","dashbitco/broadway"],"suffixes":[".ex",".exs"]}
 ]
