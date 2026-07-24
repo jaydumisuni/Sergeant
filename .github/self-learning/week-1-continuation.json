@@ -4,12 +4,12 @@
   "base_main": "3c5869b72198f7b5deaad93f0d701ccd5b4cc24b",
   "foundation_pr": 131,
   "cross_repository_intake_pr": 142,
-  "completed_rounds": ["week-1-run-9", "week-1-run-14", "week-1-run-29", "week-1-run-42", "week-1-run-46"],
-  "remaining_controlled_rounds": 2,
-  "authorized_round": "day-6-retry",
-  "next_round_authorized": true,
+  "completed_rounds": ["week-1-run-9", "week-1-run-14", "week-1-run-29", "week-1-run-42", "week-1-run-46", "week-1-run-53"],
+  "remaining_controlled_rounds": 1,
+  "authorized_round": null,
+  "next_round_authorized": false,
   "priority_candidates": [],
-  "priority_stage": "fresh_blind_cross_repository_collection",
+  "priority_stage": "select_final_fresh_multilingual_round",
   "accepted_lessons": 1,
   "accepted_lesson_ids": ["lumi-token-origin-20260723"],
   "owner_controlled_promotions": 1,
@@ -18,28 +18,29 @@
   "normal_review_models_enabled": false,
   "proposal_publication": "owner_controlled",
   "latest_completed_round": {
-    "round_id": "week-1-run-46",
-    "day": 5,
-    "authority_head": "9486736fc8de29c2af3854f2cbeba401137e4bbc",
-    "selected_languages": ["cpp", "nim", "ruby"],
-    "selected_repositories": ["bitcoin/bitcoin", "nim-lang/nimble", "rubocop/rubocop"],
+    "round_id": "week-1-run-53",
+    "day": 6,
+    "authority_head": "65cc6004754a7e83b1f6e8719000d0c398eae02f",
+    "selected_languages": ["elixir", "erlang", "python"],
+    "selected_repositories": ["livebook-dev/livebook", "emqx/emqx", "pallets/flask"],
     "state_counts": {
-      "rejected": 3
+      "truth_revealed": 3
     },
-    "artifact_size_bytes": 283079,
-    "artifact_sha256": "52869b392270d19ed0bcb4cdc90c54982aba3b36f223e98b58504b79d7a5be2c",
-    "durable_copy": "google-drive:16GcMKYIxlpZ3yccoP1iKPAstOln39iji",
+    "planned_private_count": 100,
+    "worker_error_cases": 3,
+    "proposal_count": 0,
+    "artifact_size_bytes": 182369,
+    "artifact_sha256": "c3e4cbc931f6b259377281aaee9f335a9c80076f5865f51afd8ef7a39da06793",
+    "github_artifact_id": 8589935198,
+    "durable_copy": "google-drive:16i25KdtyNe4GYuqdR6spOC9Cwj5eetFh",
+    "durable_replay_verified": true,
     "byte_identical_replay_verified": true
   },
-  "latest_attempt": {
+  "blocked_attempt": {
     "round_id": "week-1-run-50",
-    "authority_head": "f694d17afb54fba7d01a3c6777a81c4e4752bf3d",
-    "counted_as_completed_round": false,
     "integrity_status": "replay_rejected",
-    "duplicate_case_ids": ["learn-61f8d18b9773", "learn-c5fab3ee3f29", "learn-d79233a4196f"],
-    "proposal_count": 1,
+    "counted_as_completed_round": false,
     "proposal_disposition": "blocked_as_duplicate_training_evidence",
-    "artifact_size_bytes": 285630,
     "artifact_sha256": "6738da376846b44a3f7e67a59332d6093b50b2d9d8c17f118c168b066a97e246",
     "durable_copy": "google-drive:16yjnmHmGTvo_gOAntWoQYalLnTt-eWj2",
     "byte_identical_replay_verified": true
@@ -53,5 +54,5 @@
     "hidden_holdout_passed": true,
     "canonical_path_wired": true
   },
-  "notes": "The first day-6 attempt was preserved and rejected because it replayed all three day-5 case IDs. The candidate pool now excludes previously reviewed repositories and prioritizes fresh Erlang, R, Rust, Python, Elixir, Java, TypeScript and Zig lanes. This retry is explicitly authorized. Automatic promotion and automatic merge remain disabled."
+  "notes": "Day 6 is counted complete after independent GitHub and Drive downloads matched at 182369 bytes, SHA-256 c3e4cbc931f6b259377281aaee9f335a9c80076f5865f51afd8ef7a39da06793, and exact raw bytes. All three cases remain truth_revealed because isolated workers received HTTP 429 rate limits; no proposal was exported or accepted. One controlled round remains."
 }
