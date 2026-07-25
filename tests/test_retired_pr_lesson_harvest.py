@@ -39,11 +39,13 @@ EXPECTED_REJECTED_DISPOSITIONS = {
 }
 HARVEST_HEAD = "62691d0d1f99491f3440a52702a5dd5487bc8b6a"
 HARVEST_MERGE = "e7d0e99e8e3ef14d98707b60959c50748355726c"
-VISUAL_PACKAGE_SHA256 = "6a9b466a09f497920e545f9bbc665e540c5aa48405fd5bcf71d3105316947c65"
+VISUAL_PACKAGE_SHA256 = "d93bb4214daa1cb0d86be06bb473cfbc7fe4df9cc4659fb28733ad0882d3d139"
+VISUAL_COLLAGE_SHA256 = "f4db511969051dcb4e7329716218d6eba84e8b39b64edf9a2b81aa8031a584cf"
 VISUAL_DRIVE_FOLDER = "1ooIA_u_1MVmNO-GgdwWTOIg3fSvdosR4"
 VISUAL_DRIVE_FILE = "1HWOLOtAnNBeL073Az0qnGOzp4LPNxQer"
-VISUAL_DRIVE_SIZE = "188,170 bytes"
-VISUAL_DRIVE_SHA256 = "a2e1200168440f291b46ec4c73dee29d5c702b475e8f5a2c38959e8289798466"
+VISUAL_DRIVE_NAME = "pr146-visual-verification-evidence-corrected.jpg"
+VISUAL_DRIVE_SIZE = "122,451 bytes"
+VISUAL_DRIVE_SHA256 = VISUAL_COLLAGE_SHA256
 
 
 def _read_json(path: Path) -> dict:
@@ -110,17 +112,17 @@ def test_unproven_findings_remain_candidates_or_benchmarks() -> None:
 def test_harvest_accounts_for_every_branch_retirement_pr_group() -> None:
     text = HARVEST.read_text(encoding="utf-8")
     for token in (
-        "#141",
-        "#105",
-        "#65, #47",
-        "#132",
-        "#96",
-        "#133",
-        "#124–#128",
-        "#118–#113",
-        "#106/#107",
-        "#108",
-        "#104, #97",
+        "PR #141",
+        "PR #105",
+        "PRs #65 and #47",
+        "PR #132",
+        "PR #96",
+        "PR #133",
+        "PRs #124–#128",
+        "PRs #113–#118",
+        "PRs #106 and #107",
+        "PR #108",
+        "PRs #104 and #97",
     ):
         assert token in text
     assert "PR #106 was the original invalidated battle" in text
@@ -156,16 +158,20 @@ def test_visual_proof_covers_every_changed_file_and_viewport() -> None:
         assert path in text
     assert "1600 × 1200" in text
     assert "390 × 844" in text
-    assert "Desktop render: PASS" in text
-    assert "390 × 844 mobile render: PASS" in text
+    assert "Desktop render after correction: PASS" in text
+    assert "390 × 844 mobile render after correction: PASS" in text
     assert "Overflow and overlap inspection: PASS" in text
+    assert "FAILED initially → REPAIRED → PASS" in text
+    assert "COMPRESSED initially → REPAIRED → PASS" in text
     assert VISUAL_PACKAGE_SHA256 in text
+    assert VISUAL_COLLAGE_SHA256 in text
     assert VISUAL_DRIVE_FOLDER in text
     assert VISUAL_DRIVE_FILE in text
+    assert VISUAL_DRIVE_NAME in text
     assert VISUAL_DRIVE_SIZE in text
     assert VISUAL_DRIVE_SHA256 in text
-    assert "Durable visual copy: PASS" in text
-    assert "Recovery byte replay: PASS" in text
+    assert "Corrected durable visual copy: PASS" in text
+    assert "Corrected recovery byte replay: PASS" in text
     assert "Unknown branch-only work: REQUIRES SEPARATE INSPECTION" in text
 
 

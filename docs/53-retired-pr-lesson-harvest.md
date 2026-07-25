@@ -92,19 +92,62 @@ Candidate record: `.github/self-learning/retrospective-candidates-20260724.json`
 
 ## Inspected PR dispositions
 
-| PRs | Disposition | Reason |
-|---|---|---|
-| #141 | duplicate / superseded | Cross-repository intake and policy landed through PR #142 and current `main`. |
-| #105 | duplicate / superseded | Permanent deterministic officers and tests landed through the later council/campaign integration. |
-| #65, #47 | superseded release/documentation work | Current Command Center, packaging, README, and release state are newer. No unique defect lineage remains. |
-| #132 | design reference | The stale 0.5.0 branch must be recut from current `main`; its old release plan is not training truth. |
-| #96 | accepted through later correction | Generalized Cpl-noise lesson is recorded above and implemented through PR #102. |
-| #133 | benchmark only | Useful responsive interaction proof, but no complete fixing lineage. |
-| #124–#128 | accepted through later correction | CodeRabbit findings were verified and repaired through PR #130; no duplicate detector is added. |
-| #118–#113 | evidence only | Trigger/closure lanes preserve frozen scores and artifacts; their mechanisms are already represented by the parent campaign and transfer modules. |
-| #106/#107 | candidate with explicit lineage | PR #106 was the original invalidated battle; PR #107 reviewed identical target bytes and produced the retained findings. Fixing lineage and transfer proof are still required. |
-| #108 | candidate | Workflow, null-ordering, and atomicity findings preserved; no automatic promotion. |
-| #104, #97 | observer only | Comparison/certification observers add evidence, not a new transferable defect mechanism. |
+The dispositions use responsive records instead of a wide table so they remain readable at desktop and 390-pixel mobile widths.
+
+### PR #141
+
+- **Disposition:** duplicate / superseded
+- **Reason:** Cross-repository intake and policy landed through PR #142 and current `main`.
+
+### PR #105
+
+- **Disposition:** duplicate / superseded
+- **Reason:** Permanent deterministic officers and tests landed through the later council/campaign integration.
+
+### PRs #65 and #47
+
+- **Disposition:** superseded release/documentation work
+- **Reason:** Current Command Center, packaging, README, and release state are newer. No unique defect lineage remains.
+
+### PR #132
+
+- **Disposition:** design reference
+- **Reason:** The stale 0.5.0 branch must be recut from current `main`; its old release plan is not training truth.
+
+### PR #96
+
+- **Disposition:** accepted through later correction
+- **Reason:** The generalized Cpl-noise lesson is recorded above and implemented through PR #102.
+
+### PR #133
+
+- **Disposition:** benchmark only
+- **Reason:** The responsive-interaction evidence is useful, but it lacks a complete fixing lineage.
+
+### PRs #124–#128
+
+- **Disposition:** accepted through later correction
+- **Reason:** CodeRabbit findings were verified and repaired through PR #130; no duplicate detector is added.
+
+### PRs #113–#118
+
+- **Disposition:** evidence only
+- **Reason:** Trigger and learned-closure lanes preserve frozen scores and artifacts; their mechanisms are already represented by the parent campaign and transfer modules.
+
+### PRs #106 and #107
+
+- **Disposition:** candidate with explicit lineage
+- **Reason:** PR #106 was the original invalidated battle; PR #107 reviewed identical target bytes and produced the retained findings. Fixing lineage and transfer proof are still required.
+
+### PR #108
+
+- **Disposition:** candidate
+- **Reason:** Workflow, null-ordering, and atomicity findings are preserved without automatic promotion.
+
+### PRs #104 and #97
+
+- **Disposition:** observer only
+- **Reason:** Comparison and certification observers add evidence, not a new transferable defect mechanism.
 
 ## Deletion boundary
 
