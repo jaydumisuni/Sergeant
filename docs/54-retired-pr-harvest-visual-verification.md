@@ -27,22 +27,35 @@ The inspected authority began from `main` after PR #145 merged as `e7d0e99e8e3ef
 
 ## Visual render matrix
 
-| View | Width × initial height | Result |
-|---|---:|---|
-| Retirement document 52 — desktop | 1600 × 1200 | PASS |
-| Retirement document 52 — mobile | 390 × 844 | PASS |
-| Lesson-harvest document 53 — desktop | 1600 × 1200 | PASS after repair |
-| Lesson-harvest document 53 — mobile | 390 × 844 | PASS after repair |
-| Accepted-lesson/candidate dashboard — desktop | 1600 × 1200 | PASS |
-| Accepted-lesson/candidate dashboard — mobile | 390 × 844 | PASS after responsive-card repair |
-| JSON and Python syntax audit — desktop | 1600 × 1200 | PASS |
-| JSON and Python syntax audit — mobile | 390 × 844 | PASS |
+The matrix is written as responsive records so the proof document itself remains readable at 390 pixels.
+
+### Retirement document 52
+
+- **Desktop viewport:** 1600 × 1200 — PASS
+- **Mobile viewport:** 390 × 844 — PASS
+
+### Lesson-harvest document 53
+
+- **Desktop viewport:** 1600 × 1200 — PASS after repair
+- **Mobile viewport:** 390 × 844 — PASS after repair
+
+### Accepted-lesson and candidate dashboard
+
+- **Desktop viewport:** 1600 × 1200 — PASS
+- **Mobile viewport:** 390 × 844 — PASS after responsive-card repair
+
+### JSON and Python syntax audit
+
+- **Desktop viewport:** 1600 × 1200 — PASS
+- **Mobile viewport:** 390 × 844 — PASS
 
 ## Visual defect found and repaired
 
 The first render exposed a real mobile-readability failure: the three-column PR-disposition table in document 53 compressed into narrow columns at 390 pixels. The information technically remained present, but the table was not comfortably readable and therefore did not meet the THETECHGUY visual standard.
 
 The repair replaced that wide table with responsive per-PR records containing explicit **Disposition** and **Reason** fields. The structured dashboard used for visual cross-checking was also changed from a clipped mobile table to stacked labelled candidate cards. The complete render matrix was regenerated after both repairs.
+
+The proof document's own render matrix was then visually inspected. Its original table was readable but unnecessarily compressed on mobile, so it was also converted into responsive records before final verification.
 
 This correction demonstrates the required rule:
 
@@ -57,6 +70,7 @@ The corrected render inspection verified:
 - long source-code blocks remain bounded and horizontally scrollable rather than overlapping surrounding content;
 - long commit SHAs, file paths, and lesson IDs wrap without covering adjacent text;
 - all PR dispositions are readable without a wide table on mobile;
+- the visual proof matrix is readable without a wide table on mobile;
 - the three accepted lessons are visibly distinct from the seven governed candidates;
 - the PR #106/#107 original/replacement lineage remains visible in documentation and structured evidence;
 - zero automatic promotions, zero automatic merges, and Sergeant final authority remain visible;
@@ -98,6 +112,7 @@ Desktop render after correction: PASS
 Accepted/candidate visual separation: PASS
 Overflow and overlap inspection: PASS
 Mobile disposition-table readability: FAILED initially → REPAIRED → PASS
+Visual-proof matrix readability: COMPRESSED initially → REPAIRED → PASS
 Post-merge deletion-state wording: CORRECTED
 Unknown branch-only work: REQUIRES SEPARATE INSPECTION
 ```
