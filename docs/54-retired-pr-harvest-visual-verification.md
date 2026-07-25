@@ -101,7 +101,17 @@ review collage size: 122,451 bytes
 review collage SHA-256: f4db511969051dcb4e7329716218d6eba84e8b39b64edf9a2b81aa8031a584cf
 ```
 
-The corrected compact collage must replace or supersede the earlier durable visual copy before this correction merges. The resulting Drive file ID, size, digest, and byte-replay result must be recorded in the pull request and then bound into this document before final merge.
+The corrected compact collage replaced the earlier Drive evidence in place:
+
+```text
+Drive folder ID: 1ooIA_u_1MVmNO-GgdwWTOIg3fSvdosR4
+Drive file ID: 1HWOLOtAnNBeL073Az0qnGOzp4LPNxQer
+Drive file name: pr146-visual-verification-evidence-corrected.jpg
+size: 122,451 bytes
+SHA-256: f4db511969051dcb4e7329716218d6eba84e8b39b64edf9a2b81aa8031a584cf
+```
+
+The Drive file was downloaded again after replacement. The recovery copy matched the corrected local collage at the exact byte length, SHA-256 digest, and raw bytes.
 
 The repository documents and tests remain the authority. Render evidence does not authorize deletion of any branch outside the enumerated PR-backed set.
 
@@ -116,7 +126,7 @@ Overflow and overlap inspection: PASS
 Mobile disposition-table readability: FAILED initially → REPAIRED → PASS
 Visual-proof matrix readability: COMPRESSED initially → REPAIRED → PASS
 Post-merge deletion-state wording: CORRECTED
-Corrected durable visual copy: PENDING
-Corrected recovery byte replay: PENDING
+Corrected durable visual copy: PASS
+Corrected recovery byte replay: PASS
 Unknown branch-only work: REQUIRES SEPARATE INSPECTION
 ```
