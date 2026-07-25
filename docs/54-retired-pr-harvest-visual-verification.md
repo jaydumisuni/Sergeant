@@ -115,6 +115,17 @@ SHA-256: e1d4dd9db87bbcb20c4a7ab06c873aced9e7afc5555db67d92946dffc8bda211
 
 The Drive file was downloaded again after replacement. The recovery copy matched the exact local collage at the byte length, SHA-256 digest, and raw bytes.
 
+### Superseded intermediate evidence
+
+The earlier correction attempt remains recorded as lineage, but it is not the final visual authority:
+
+```text
+intermediate package SHA-256: d93bb4214daa1cb0d86be06bb473cfbc7fe4df9cc4659fb28733ad0882d3d139
+intermediate review collage SHA-256: f4db511969051dcb4e7329716218d6eba84e8b39b64edf9a2b81aa8031a584cf
+intermediate Drive file name: pr146-visual-verification-evidence-corrected.jpg
+intermediate size: 122,451 bytes
+```
+
 The repository documents and tests remain the authority. Render evidence does not authorize deletion of any branch outside the enumerated PR-backed set.
 
 ## Verdict
