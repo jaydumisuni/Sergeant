@@ -49,6 +49,8 @@ The matrix is written as responsive records so the proof document itself remains
 - **Desktop viewport:** 1600 × 1200 — PASS
 - **Mobile viewport:** 390 × 844 — PASS
 
+The proof document itself was rendered separately at both viewports after its final wording was frozen. It is intentionally excluded from the core package hash below so the evidence record does not attempt to contain a hash of itself.
+
 ## Visual defects found and repaired
 
 The first render exposed a real mobile-readability failure: the three-column PR-disposition table in document 53 compressed into narrow columns at 390 pixels. The information technically remained present, but the table was not comfortably readable and therefore did not meet the THETECHGUY visual standard.
@@ -90,28 +92,28 @@ The verification pass updated documents 52 and 53 to record:
 
 ## Corrected render evidence identifiers
 
-The corrected local package contains eight full-page screenshots and four rendered HTML views.
+The stable core package contains the four authoritative rendered views—documents 52 and 53, the accepted/candidate dashboard, and the JSON/Python syntax audit—at desktop and mobile sizes. The proof document is excluded from this package to avoid a self-referential digest.
 
 ```text
-package size: 5,934,913 bytes
-package SHA-256: d93bb4214daa1cb0d86be06bb473cfbc7fe4df9cc4659fb28733ad0882d3d139
-full collage size: 545,838 bytes
-full collage SHA-256: 4ff993efdb896587ee64ab57660ece9661dd4ce62549c06b045314e162597d8c
-review collage size: 122,451 bytes
-review collage SHA-256: f4db511969051dcb4e7329716218d6eba84e8b39b64edf9a2b81aa8031a584cf
+core package size: 5,934,676 bytes
+core package SHA-256: 73c8bcb798a02cf1cc25c86b3e959fdfa6b7476d98f6e2c31dd39a7f7e39dccb
+full core collage size: 546,015 bytes
+full core collage SHA-256: 8370677def147d099f4ddaa064ae3334707f6e001e29152e9847416dd7bff6b1
+review collage size: 97,059 bytes
+review collage SHA-256: e1d4dd9db87bbcb20c4a7ab06c873aced9e7afc5555db67d92946dffc8bda211
 ```
 
-The corrected compact collage replaced the earlier Drive evidence in place:
+The exact review collage replaced the earlier Drive evidence in place:
 
 ```text
 Drive folder ID: 1ooIA_u_1MVmNO-GgdwWTOIg3fSvdosR4
 Drive file ID: 1HWOLOtAnNBeL073Az0qnGOzp4LPNxQer
-Drive file name: pr146-visual-verification-evidence-corrected.jpg
-size: 122,451 bytes
-SHA-256: f4db511969051dcb4e7329716218d6eba84e8b39b64edf9a2b81aa8031a584cf
+Drive file name: pr149-visual-verification-evidence-exact.jpg
+size: 97,059 bytes
+SHA-256: e1d4dd9db87bbcb20c4a7ab06c873aced9e7afc5555db67d92946dffc8bda211
 ```
 
-The Drive file was downloaded again after replacement. The recovery copy matched the corrected local collage at the exact byte length, SHA-256 digest, and raw bytes.
+The Drive file was downloaded again after replacement. The recovery copy matched the exact local collage at the byte length, SHA-256 digest, and raw bytes.
 
 The repository documents and tests remain the authority. Render evidence does not authorize deletion of any branch outside the enumerated PR-backed set.
 
