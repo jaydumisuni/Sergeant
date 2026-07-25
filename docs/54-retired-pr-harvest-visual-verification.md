@@ -61,17 +61,29 @@ The same verification pass therefore updated documents 52 and 53 to record:
 - explicit authorization to delete the enumerated PR-backed historical branches;
 - the requirement to inspect any branch that never had a PR separately.
 
-## Render evidence identifiers
+## Render evidence and replay
 
-A local visual package containing eight full-page screenshots, four rendered HTML views, a structured dashboard, and the syntax audit was generated during this verification.
+The complete local render package contained eight full-page screenshots, four rendered HTML views, a structured dashboard, and the syntax audit.
 
 ```text
-package size: 4,701,909 bytes
-package SHA-256: 6a9b466a09f497920e545f9bbc665e540c5aa48405fd5bcf71d3105316947c65
-visual collage SHA-256: 64e219bc065767e032d98439eb7547ed60adf625c6af4a732ec623981e9bbb3e
+local package size: 4,701,909 bytes
+local package SHA-256: 6a9b466a09f497920e545f9bbc665e540c5aa48405fd5bcf71d3105316947c65
+original visual collage SHA-256: 64e219bc065767e032d98439eb7547ed60adf625c6af4a732ec623981e9bbb3e
 ```
 
-The repository documents and tests remain the authority. These hashes identify the render evidence inspected in this session; they do not authorize deletion of any branch outside the enumerated PR-backed set.
+A compact visual evidence sheet covering the corrected documents, dashboard, and code audit was then copied into the private Google Recovery evidence folder:
+
+```text
+Drive folder ID: 1ooIA_u_1MVmNO-GgdwWTOIg3fSvdosR4
+Drive file ID: 1HWOLOtAnNBeL073Az0qnGOzp4LPNxQer
+Drive file name: pr146-visual-verification-evidence.jpg
+size: 188,170 bytes
+SHA-256: a2e1200168440f291b46ec4c73dee29d5c702b475e8f5a2c38959e8289798466
+```
+
+The Drive file was downloaded again after upload. The recovery download matched the source at the exact byte length, SHA-256 digest, and raw bytes.
+
+The repository documents and tests remain the authority. The durable image is visual recovery evidence; it does not authorize deletion of any branch outside the enumerated PR-backed set.
 
 ## Verdict
 
@@ -82,5 +94,7 @@ Desktop render: PASS
 Accepted/candidate visual separation: PASS
 Overflow and overlap inspection: PASS
 Post-merge deletion-state wording: CORRECTED
+Durable visual copy: PASS
+Recovery byte replay: PASS
 Unknown branch-only work: REQUIRES SEPARATE INSPECTION
 ```
