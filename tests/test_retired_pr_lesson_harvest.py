@@ -40,6 +40,10 @@ EXPECTED_REJECTED_DISPOSITIONS = {
 HARVEST_HEAD = "62691d0d1f99491f3440a52702a5dd5487bc8b6a"
 HARVEST_MERGE = "e7d0e99e8e3ef14d98707b60959c50748355726c"
 VISUAL_PACKAGE_SHA256 = "6a9b466a09f497920e545f9bbc665e540c5aa48405fd5bcf71d3105316947c65"
+VISUAL_DRIVE_FOLDER = "1ooIA_u_1MVmNO-GgdwWTOIg3fSvdosR4"
+VISUAL_DRIVE_FILE = "1HWOLOtAnNBeL073Az0qnGOzp4LPNxQer"
+VISUAL_DRIVE_SIZE = "188,170 bytes"
+VISUAL_DRIVE_SHA256 = "a2e1200168440f291b46ec4c73dee29d5c702b475e8f5a2c38959e8289798466"
 
 
 def _read_json(path: Path) -> dict:
@@ -156,6 +160,12 @@ def test_visual_proof_covers_every_changed_file_and_viewport() -> None:
     assert "390 × 844 mobile render: PASS" in text
     assert "Overflow and overlap inspection: PASS" in text
     assert VISUAL_PACKAGE_SHA256 in text
+    assert VISUAL_DRIVE_FOLDER in text
+    assert VISUAL_DRIVE_FILE in text
+    assert VISUAL_DRIVE_SIZE in text
+    assert VISUAL_DRIVE_SHA256 in text
+    assert "Durable visual copy: PASS" in text
+    assert "Recovery byte replay: PASS" in text
     assert "Unknown branch-only work: REQUIRES SEPARATE INSPECTION" in text
 
 
