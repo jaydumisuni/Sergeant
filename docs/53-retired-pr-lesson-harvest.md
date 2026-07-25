@@ -108,7 +108,11 @@ Candidate record: `.github/self-learning/retrospective-candidates-20260724.json`
 
 ## Deletion boundary
 
-Historical branches are safe to delete only after this harvest PR is merged and its exact head passes the normal proof matrix. The candidate records must remain on `main`; deleting a branch must not delete the only copy of a useful finding.
+Historical branches are safe to delete only after the harvest PR is merged and its exact head passes the normal proof matrix. The candidate records must remain on `main`; deleting a branch must not delete the only copy of a useful finding.
+
+This gate was satisfied by PR #145: exact head `62691d0d1f99491f3440a52702a5dd5487bc8b6a` passed the full proof matrix and merged as `e7d0e99e8e3ef14d98707b60959c50748355726c`. A desktop and 390×844 mobile render inspection of the complete harvest is recorded in `docs/54-retired-pr-harvest-visual-verification.md`.
+
+The PR-backed historical branches enumerated by `docs/52-open-pr-closure-and-branch-retirement.md` may now be deleted. Any branch that never had a PR must be inspected separately before deletion.
 
 Future work may promote a candidate only through the normal governed path:
 

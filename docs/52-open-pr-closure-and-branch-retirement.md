@@ -45,6 +45,10 @@ Keep `main` as the only permanent branch. Create temporary feature, proof, relea
 
 ## Canonical checkpoint
 
-At the time of the original cleanup, controlled self-learning Week 1 was merged through PR #136 with merge commit `32b50050779751f825b15e25a2af518e5e3b27af`. The accepted Lumi credential-origin lesson, seven counted rounds, blocked duplicate attempt, zero automatic promotions, and zero automatic merges are preserved on `main`.
+Controlled self-learning Week 1 was merged through PR #136 with merge commit `32b50050779751f825b15e25a2af518e5e3b27af`. The accepted Lumi credential-origin lesson, seven counted rounds, blocked duplicate attempt, zero automatic promotions, and zero automatic merges are preserved on `main`.
 
-The retirement decision becomes complete only after the retrospective lesson harvest is merged. Until then, branch deletion is not authorized by this document.
+The retrospective lesson harvest was completed through PR #145. Its final reviewed head `62691d0d1f99491f3440a52702a5dd5487bc8b6a` passed CI, Main Review, Multiplatform Proof, Standalone Service Proof, Controlled Self-Learning Week 1 validation, Live GitHub Ingestion Proof, Reviewer Comparison Proof, Review Intelligence Proof, and Final Static Transfer Holdout before merge commit `e7d0e99e8e3ef14d98707b60959c50748355726c` entered `main`.
+
+A desktop and 390×844 mobile render inspection of every PR #145 file is recorded in `docs/54-retired-pr-harvest-visual-verification.md`.
+
+The PR-backed historical branches classified by this record are now authorized for deletion. Before deleting an unknown branch that never had a PR, inspect it separately; this record cannot classify branch-only work it did not enumerate.

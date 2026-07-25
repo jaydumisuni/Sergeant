@@ -8,7 +8,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LESSONS = ROOT / ".github" / "self-learning" / "lessons"
 CANDIDATES = ROOT / ".github" / "self-learning" / "retrospective-candidates-20260724.json"
+RETIREMENT = ROOT / "docs" / "52-open-pr-closure-and-branch-retirement.md"
 HARVEST = ROOT / "docs" / "53-retired-pr-lesson-harvest.md"
+VISUAL_PROOF = ROOT / "docs" / "54-retired-pr-harvest-visual-verification.md"
 WEEK_HISTORY = ROOT / ".github" / "self-learning" / "week-1-history.json"
 
 RETROSPECTIVE_LESSONS = {
@@ -35,6 +37,9 @@ EXPECTED_REJECTED_DISPOSITIONS = {
     ((118, 117, 116, 115, 114, 113), "evidence_only"),
     ((104, 97), "observer_only"),
 }
+HARVEST_HEAD = "62691d0d1f99491f3440a52702a5dd5487bc8b6a"
+HARVEST_MERGE = "e7d0e99e8e3ef14d98707b60959c50748355726c"
+VISUAL_PACKAGE_SHA256 = "6a9b466a09f497920e545f9bbc665e540c5aa48405fd5bcf71d3105316947c65"
 
 
 def _read_json(path: Path) -> dict:
@@ -118,6 +123,40 @@ def test_harvest_accounts_for_every_branch_retirement_pr_group() -> None:
     assert "PR #107 reviewed identical target bytes" in text
     assert "Closing a pull request preserves its Git history, but preservation alone is not learning." in text
     assert "Automatic promotion and automatic merge remain forbidden." in text
+    assert HARVEST_HEAD in text
+    assert HARVEST_MERGE in text
+    assert "may now be deleted" in text
+    assert "Any branch that never had a PR must be inspected separately" in text
+
+
+def test_retirement_record_closes_the_completed_harvest_gate() -> None:
+    text = RETIREMENT.read_text(encoding="utf-8")
+    assert HARVEST_HEAD in text
+    assert HARVEST_MERGE in text
+    assert "are now authorized for deletion" in text
+    assert "branch that never had a PR" in text
+    assert "docs/54-retired-pr-harvest-visual-verification.md" in text
+
+
+def test_visual_proof_covers_every_changed_file_and_viewport() -> None:
+    text = VISUAL_PROOF.read_text(encoding="utf-8")
+    for path in (
+        ".github/self-learning/lessons/cpl-adjudication-noise-20260724.json",
+        ".github/self-learning/lessons/review-evidence-integrity-20260724.json",
+        ".github/self-learning/lessons/preserve-before-delete-20260724.json",
+        ".github/self-learning/retrospective-candidates-20260724.json",
+        "docs/52-open-pr-closure-and-branch-retirement.md",
+        "docs/53-retired-pr-lesson-harvest.md",
+        "tests/test_retired_pr_lesson_harvest.py",
+    ):
+        assert path in text
+    assert "1600 × 1200" in text
+    assert "390 × 844" in text
+    assert "Desktop render: PASS" in text
+    assert "390 × 844 mobile render: PASS" in text
+    assert "Overflow and overlap inspection: PASS" in text
+    assert VISUAL_PACKAGE_SHA256 in text
+    assert "Unknown branch-only work: REQUIRES SEPARATE INSPECTION" in text
 
 
 def test_week_one_history_is_not_rewritten_by_retrospective_harvest() -> None:
