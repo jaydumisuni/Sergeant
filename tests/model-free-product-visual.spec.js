@@ -30,6 +30,12 @@ for (const view of [
     await expect(page.locator('body')).toContainText('Sergeant is a model-free engineering review system');
     await expect(page.locator('body')).toContainText('Optional extra reasoning');
     await expect(page.locator('body')).toContainText('A multi-model council is only one optional configuration');
+    const hero = page.locator('img[alt="Sergeant - open-source engineering reviewer"]');
+    await expect(hero).toBeVisible();
+    expect(await hero.evaluate((image) => ({ complete: image.complete, width: image.naturalWidth }))).toEqual({
+      complete: true,
+      width: 960,
+    });
     await expectNoDocumentOverflow(page);
     await page.screenshot({
       path: path.join(artifacts, `model-free-docs-${view.name}.png`),
