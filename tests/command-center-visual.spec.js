@@ -48,6 +48,14 @@ async function assertCommandCenter(page, screenshotName) {
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).first().click();
   await expect(page.locator('#semanticRoute')).toHaveText('Model-free');
+  const quickActions = page.locator('.quick-actions');
+  if (await quickActions.isVisible()) {
+    const routeBox = await page.locator('#semanticRoute').boundingBox();
+    const actionsBox = await quickActions.boundingBox();
+    expect(routeBox).not.toBeNull();
+    expect(actionsBox).not.toBeNull();
+    expect(routeBox.x + routeBox.width).toBeLessThanOrEqual(actionsBox.x - 4);
+  }
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
   expect(pageErrors).toEqual([]);
