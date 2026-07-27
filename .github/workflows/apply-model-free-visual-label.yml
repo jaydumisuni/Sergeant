@@ -1,0 +1,37 @@
+name: Apply Model-Free Visual Label
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/apply_model_free_visual_label.py
+      - .github/workflows/apply-model-free-visual-label.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/model-free-default-and-docs
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply exact visual-label correction
+        run: python scripts/apply_model_free_visual_label.py
+
+      - name: Commit correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add resources/sergeant-command-center-v2.js tests/command-center-visual.spec.js
+          git commit -m "Show the full model-free formation"
+          git push origin HEAD:fix/model-free-default-and-docs
