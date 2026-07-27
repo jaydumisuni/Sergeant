@@ -166,7 +166,7 @@
       ['Priority', $('#priority').value],
       ['Permissions', 'Read + Proof'],
       ['Optional Model Reasoning', cplRouteLabel(settings)],
-      ['Council Limits', `${settings.maxRounds} rounds · ${settings.maxMembers} members`],
+      ['Optional Model Limits', `${settings.maxRounds} rounds · ${settings.maxMembers} members`],
       ['Commander', 'Ready', 'pass'],
     ].map(([label, value, className = '']) => (
       `<div class="row"><span>${label}</span><b class="${className}">${value}</b></div>`

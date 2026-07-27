@@ -2,6 +2,6 @@
 /* Model-support controls must remain readable in the narrow mission side panel. */
 .two-col>article.panel>label{display:grid;gap:6px;margin:0 0 10px;min-width:0}
 .two-col>article.panel>label input,.two-col>article.panel>label select,.two-col>article.panel .form-grid input,.two-col>article.panel .form-grid select{width:100%;min-width:0;max-width:100%}
-.two-col>article.panel .form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.two-col>article.panel .form-grid{grid-template-columns:1fr}
 .quick-actions[hidden]{display:none!important}
 @media(max-width:600px){.two-col>article.panel .form-grid{grid-template-columns:1fr}}

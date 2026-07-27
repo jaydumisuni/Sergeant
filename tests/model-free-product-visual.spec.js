@@ -60,6 +60,11 @@ for (const view of [
         expect(overlaps, `${first.id} overlaps ${second.id}`).toBeFalsy();
       }
     }
+    if (view.name === 'desktop') {
+      const reasoningWidth = await page.locator('#llmCouncilSelect').evaluate((element) => element.getBoundingClientRect().width);
+      expect(reasoningWidth).toBeGreaterThan(230);
+    }
+    await expect(page.locator('body')).toContainText('Optional Model Limits');
     await expectNoDocumentOverflow(page);
     await page.screenshot({
       path: path.join(artifacts, `model-free-command-center-${view.name}.png`),
