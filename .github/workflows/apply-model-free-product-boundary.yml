@@ -7,10 +7,17 @@ on:
     paths:
       - scripts/apply_model_free_product_boundary.py
       - .github/workflows/apply-model-free-product-boundary.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/apply_model_free_product_boundary.py
+      - .github/workflows/apply-model-free-product-boundary.yml
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: read
 
 jobs:
   apply:
