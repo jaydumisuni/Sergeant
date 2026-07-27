@@ -36,3 +36,5 @@ replace_once(
 )
 
 print("Applied verified PR #152 review repairs.")
+
+# Trigger the already-installed one-use repair workflow.
