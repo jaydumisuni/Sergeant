@@ -119,7 +119,7 @@
   function cplRouteLabel(settings = selectedSettings()) {
     const provider = settings.provider || 'auto';
     const model = settings.model || 'best available models';
-    if (settings.policy === 'disabled' || provider === 'disabled') return 'Model-free · Cpl + officers + privates';
+    if (settings.policy === 'disabled' || provider === 'disabled') return 'Model-free';
     return `Cpl · ${settings.council || 'adaptive'} council · ${provider} · ${model} · ${settings.maxRounds || 2}r/${settings.maxMembers || 5}m`;
   }
 
