@@ -85,7 +85,7 @@ The shipped default is `SERGEANT_CPL_POLICY=disabled`: model calls are opt-in, w
 
 For backward-compatible explicit opt-in, `SERGEANT_CPL_ENABLED=true` selects the optional `preferred` policy when the owner has not supplied a policy. An explicitly supplied `disabled` policy still wins.
 
-Remote endpoints are never guessed. Remote code transmission requires an explicit owner-configured route. Credentials remain environment-only.
+Remote endpoints are never guessed. Remote code transmission requires an explicit owner-configured route. Credentials remain environment-only and are attached only after the request destination matches the exact configured scheme, host, and effective port. A credentialed cross-origin redirect is rejected.
 
 ## Visual verification requirement
 
