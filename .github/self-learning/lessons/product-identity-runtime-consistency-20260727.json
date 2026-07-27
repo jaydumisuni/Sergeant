@@ -54,8 +54,9 @@
     ],
     "exact_fix_head": "e94c198300d7221e5a19c61f94642a5a8865d2ec",
     "merged_fix": "6c99974c3687da0f6a2edcc2283b91b6aa0fdec0",
-    "proof_matrix": "CI and clean-clone proof, Main Review, Multiplatform Proof with desktop and compact visual evidence, Standalone Service Proof, Live GitHub Ingestion Proof, Reviewer Comparison Proof, Review Intelligence Proof, Cloudflare Connector Proof, and Final Static Transfer Holdout passed on the fixing head.",
-    "external_review_disposition": "CodeRabbit supplied valid findings during PR #152 and those threads were repaired and resolved. Its final incremental rereview was rate-limited, so no completed final-head external rereview is claimed."
+    "retrospective_harvest_proof_head": "50469dbf4dea567b8cd7bb52f8e920d1c5e3233a",
+    "proof_matrix": "CI and clean-clone proof, Main Review, Multiplatform Proof with desktop and compact visual evidence, Standalone Service Proof, Live GitHub Ingestion Proof, Reviewer Comparison Proof, Review Intelligence Proof, Cloudflare Connector Proof, and Final Static Transfer Holdout passed on the fixing and retrospective harvest proof heads.",
+    "external_review_disposition": "CodeRabbit supplied valid findings during PR #152 and those threads were repaired and resolved. CodeRabbit reviewed all twelve PR #155 harvest files from base 6c99974c3687da0f6a2edcc2283b91b6aa0fdec0 through harvest head 49b3a89e67b636372a51bb19c1e9c99e90f73517 and generated no actionable comments."
   },
   "authority": {
     "promotion_mode": "owner_controlled_retrospective",
@@ -69,6 +70,6 @@
     "focused_regressions_present": true,
     "clean_controls_present": true,
     "historical_exact_head_proof_present": true,
-    "retrospective_harvest_exact_head_pending": true
+    "retrospective_harvest_exact_head_pending": false
   }
 }
