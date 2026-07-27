@@ -28,8 +28,8 @@ replace_once(
 )
 replace_once(
     "resources/sergeant-command-center-v2.js",
-    "['Council Limits', `${settings.maxRounds || 2} rounds · ${settings.maxMembers || 5} members`],",
-    "['Optional Model Limits', `${settings.maxRounds || 2} rounds · ${settings.maxMembers || 5} members`],",
+    "['Council Limits', `${settings.maxRounds} rounds · ${settings.maxMembers} members`],",
+    "['Optional Model Limits', `${settings.maxRounds} rounds · ${settings.maxMembers} members`],",
 )
 
 spec = read("tests/model-free-product-visual.spec.js")
