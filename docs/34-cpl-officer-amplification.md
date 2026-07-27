@@ -1,6 +1,8 @@
-# Cpl Officer Amplification
+# Optional Cpl officer amplification
 
-Cpl is Sergeant's senior field-reasoning officer. Cpl does not replace the permanent squad.
+> **Status:** Optional owner-enabled capability. Sergeant's permanent officers and normal review path are model-free.
+
+Cpl is Sergeant's Corporal Specialist and coordinates the permanent squad. Cpl does not require a model and does not replace the officers.
 
 Every permanent officer retains:
 
@@ -9,21 +11,36 @@ Every permanent officer retains:
 - mission-specific Armoury loadouts;
 - evidence and confidence obligations;
 - its own officer report;
-- verified specialist experience that remains when model engines change.
+- verified experience that remains when model engines change or are absent.
 
-Cpl adds a higher field-command reasoning layer:
+## Normal model-free path
 
-- shared grounded mission intelligence for every deployed officer;
-- deterministic decomposition of specialist support assignments;
-- replaceable model-powered bots attached to matching permanent officers;
-- elastic multi-model council formation;
-- repeated issue table, officer-report, council-rebrief loops;
-- model rotation and role-specific model selection;
-- context, retry, fallback, and completion control;
-- verified experience retrieval and recurrence detection;
-- auditable return of supported findings and unresolved gaps to Sergeant.
+```text
+Sergeant commands
+→ Cpl coordinates
+→ permanent officers investigate
+→ Analyst reconciles
+→ Challenger attacks claims
+→ Judge admits or rejects evidence
+→ Hermes delivers the ledger
+→ Sergeant issues the verdict
+```
 
-Current Cpl support mapping:
+This is the product architecture and does not require a provider login, API key, local model, or GPU.
+
+## Optional amplification
+
+When the owner explicitly enables model support, Cpl may attach replaceable model-powered support to a matching permanent officer for:
+
+- a named semantic gap;
+- independent confirmation;
+- unfamiliar framework behavior;
+- deeper architecture, security, contract, or concurrency reasoning;
+- a bounded follow-up challenge.
+
+A single model may support several role-separated passes. A bounded multi-model council may be used when the owner wants additional independent reasoning. Neither mode creates the officers or votes directly on the final verdict.
+
+Current optional support mapping:
 
 | Support specialty | Permanent officer |
 | --- | --- |
@@ -33,23 +50,19 @@ Current Cpl support mapping:
 | Security | Medic |
 | Performance and concurrency | Mechanic |
 
-The general Cpl pass is shared field intelligence. It benefits the whole deployed squad. Targeted support bots deepen the relevant permanent officer's investigation. Later council rounds can recruit another model for a named gap and issue a better instruction to the responsible officer.
-
-The command relationship is:
+## Command relationship
 
 ```text
 Sergeant commands.
-Cpl councils, remembers, rebriefs, and amplifies the field operation.
-Permanent officers own their specialties and specialist experience.
-Models power Cpl council members and officer-support bots.
-The Armoury equips the officers and bots.
+Cpl coordinates the permanent field operation.
+Permanent officers own their specialties and experience.
+Deterministic tools, tests, scanners, and workspace evidence are the normal weapons.
+Optional models may amplify a named officer question when the owner enables them.
 Judge qualifies outcomes.
 Archivist governs durable experience.
-Hermes delivers the final evidence accurately.
+Hermes delivers final evidence accurately.
 ```
 
 A model is never an officer. A support bot is never allowed to impersonate Cpl or replace the permanent officer to which it is attached.
 
-This layer preserves provider routing, grounding, adaptive depth, fallback behavior, and compatibility aliases. It ensures the reasoning machinery strengthens the established squad instead of collapsing the squad into Cpl.
-
-The complete council, repeated feedback, experience, recurrence, output, and safety contract is documented in [`35-cpl-council-command-and-experience.md`](35-cpl-council-command-and-experience.md).
+The current product boundary is documented in [`55-model-free-core-and-optional-model-reasoning.md`](55-model-free-core-and-optional-model-reasoning.md). Optional council behavior is documented in [`35-cpl-council-command-and-experience.md`](35-cpl-council-command-and-experience.md).
