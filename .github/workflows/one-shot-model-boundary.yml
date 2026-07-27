@@ -4,13 +4,19 @@ on:
   push:
     branches:
       - docs/model-free-core-optional-reasoning
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/one_shot_correct_model_boundary.py
+      - .github/workflows/one-shot-model-boundary.yml
 
 permissions:
   contents: write
 
 jobs:
   correct:
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'docs/model-free-core-optional-reasoning'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
