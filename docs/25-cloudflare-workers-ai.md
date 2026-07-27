@@ -1,6 +1,6 @@
-# Cloudflare Workers AI connector
+# Optional Cloudflare Workers AI connector
 
-Sergeant can use a user's own Cloudflare Workers AI account without storing the
+Sergeant's core reviewer is model-free. When a user wants extra model reasoning, Sergeant can optionally use that user's own Cloudflare Workers AI account without storing the
 credential in the public repository. The connector exposes a loopback-only
 OpenAI-compatible gateway, so the existing Cpl reasoning council, VS Code,
 JetBrains and other Sergeant clients can use the same local route.
@@ -9,10 +9,10 @@ JetBrains and other Sergeant clients can use the same local route.
 
 The repository contains:
 
-- the provider-neutral Cpl council;
+- the model-free Cpl/officer core plus an optional provider-neutral model-support council;
 - the loopback Cloudflare gateway;
 - model-roster and structured-output proof commands;
-- deterministic and multi-model benchmark contracts;
+- deterministic benchmark contracts and optional multi-model benchmark contracts;
 - no THETECHGUY account IDs, tokens or private model-routing policy.
 
 Every user supplies their own Cloudflare Account ID and scoped API token. Model
@@ -100,7 +100,7 @@ sergeant-cloudflare env --shell bash
 Then run normal Sergeant commands. The existing Cpl router discovers the model
 roster from the local `/v1/models` endpoint.
 
-## Prove a real multi-model council
+## Optionally prove a real multi-model support council
 
 ```bash
 sergeant-cloudflare --pretty council-proof . \

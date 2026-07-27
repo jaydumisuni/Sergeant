@@ -54,7 +54,7 @@ The current build includes:
 - [x] Requests-style benchmark
 - [x] Flask architecture benchmark
 - [x] Battle-test validator
-- [x] Cpl multi-model council and verified experience
+- [x] Model-free Cpl/officer review and verified experience; optional multi-model support proof
 - [x] Production sandbox and permission boundary
 - [x] Real GitHub API ingestion proof
 - [x] Sanitized proof artifact
@@ -96,7 +96,7 @@ Do not say that Sergeant writes GitHub reviews, applies patches, or executes pul
 
 ## Why it matters for the hackathon
 
-Sergeant strengthens the full submission because it is not only an AI tool; it is proof infrastructure around AI-built systems.
+Sergeant strengthens the full submission because it is a model-free proof and review system around AI-built systems, with optional model reasoning when a user chooses it.
 
 It shows that the project can:
 

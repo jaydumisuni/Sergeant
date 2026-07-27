@@ -8,6 +8,8 @@
 
 Sergeant inspects repositories, reviews pull requests, verifies engineering standards, and produces evidence-based reports. It is not a one-shot coding assistant. It is the reviewer that challenges assumptions, checks proof, and reports what remains before merge or release.
 
+**Sergeant's reviewer core is model-free.** Cpl, permanent officers, privates, deterministic rules, repository evidence, scanners, tests, runtime proof, and verified lessons operate without an AI login, API key, local model, hosted provider, or large GPU. A user may optionally connect one or more models for extra reasoning, but models are support evidence—not Sergeant's identity, command system, or final authority. See [`docs/55-model-free-core-and-optional-model-reasoning.md`](docs/55-model-free-core-and-optional-model-reasoning.md).
+
 ```text
 PASS
 NEEDS WORK
@@ -25,14 +27,14 @@ Cpl briefs permanent officers
         ↓
 Officer field investigations
         ↓
-Optional model support amplifies officer packets
+Optional owner-enabled model support may add extra reasoning
         ↓
 Analyst reconciliation + Challenger + Judge ledger
         ↓
 Commander verdict
 ```
 
-**Sergeant Main Review is the reviewer core. Cpl — Corporal Specialist — is Sergeant's native reasoning officer.** Models and gateways are replaceable engines beneath Cpl, not the product identity and not the architectural ceiling.
+**Sergeant Main Review is the model-free reviewer core. Cpl — Corporal Specialist — is Sergeant's native coordination and reasoning officer.** Cpl, permanent officers and privates remain active without models. A configured model or bounded model roster is an optional support engine for extra reasoning; it is not the product identity, a dependency, or the architectural ceiling.
 
 Every accepted Cpl blocker or major finding must identify a supplied repository path, a valid line range, and supporting source text. Unsupported high-severity claims are discarded before consensus. Deterministic tests, runtime proof, explicit contracts, and verified repository facts outrank model speculation.
 
@@ -65,7 +67,7 @@ A gateway only forwards requests. Cpl:
 1. receives changed-file scope and deterministic Sergeant evidence;
 2. coordinates the permanent-officer formation even when no model route is available;
 3. assigns deterministic repository investigations to the responsible officers;
-4. recruits and rotates available models only when they can strengthen a named officer question;
+4. when the owner enables model support, may recruit one or more available models only for a named officer question;
 5. preserves confirmations, advisories, rejected claims, and unresolved assurance separately;
 6. sends the canonical Judge ledger—not raw scanner or model votes—to Sergeant;
 7. returns an auditable ground report with evidence, falsifiers, transactions, and required actions.
@@ -85,7 +87,7 @@ Current specialists:
 - **Maximum** — deploy all current specialists up to the pass budget.
 - **Single** — one Cpl generalist pass.
 
-### Engine routes
+### Optional model engine routes
 
 | Engine route | Default endpoint | Protocol |
 | --- | --- | --- |
@@ -94,9 +96,9 @@ Current specialists:
 | LM Studio | `http://127.0.0.1:1234/v1` | Chat Completions |
 | Explicit hosted/self-hosted endpoint | owner configured | Responses or Chat Completions |
 
-Automatic discovery probes loopback endpoints only. Sergeant never guesses a remote service. Code can leave the machine only when an owner explicitly configures a remote base URL.
+These routes are optional. The model-free reviewer does not require any of them. Compatibility discovery probes loopback endpoints only; Sergeant never guesses a remote service. Code can leave the machine only when an owner explicitly configures a remote base URL.
 
-When multiple models are exposed and no model is pinned, Cpl currently prefers:
+When optional model support is enabled, an endpoint exposes multiple models, and no model is pinned, Cpl currently prefers:
 
 1. GLM-5.2
 2. Qwen3-Coder-Next
@@ -110,10 +112,10 @@ This is a configurable routing policy, not a permanent claim that one model is u
 
 ### Cpl policies
 
-**Preferred** is the product default:
+**Preferred** is the compatibility policy for optional model assistance—not Sergeant's product identity or a requirement:
 
-- deploy Cpl when a route is available;
-- keep Cpl's deterministic permanent-officer formation active when a model route is not available;
+- keep Cpl's model-free permanent-officer formation active at all times;
+- add model reasoning only when a valid route is available;
 - state clearly in the report whether Cpl ran.
 
 **Required** is the strict release gate:
@@ -171,7 +173,7 @@ The interface includes:
 
 - Commander dashboard and live workspace state.
 - Mission Planner for repository, changed-file, release, battle, final-proof, IDE, and custom missions.
-- Cpl controls for policy, engine route, model, base URL, protocol, and reasoning depth.
+- Optional model-reasoning controls for policy, engine route, model, base URL, protocol, and reasoning depth; the normal officer review remains model-free.
 - Live mission progress and evidence.
 - Evidence views for static, runtime, Cpl, UI, documentation, battle, and optional external review.
 - Evidence Locker with report history, open, copy, export, and refresh actions.
@@ -197,7 +199,7 @@ The interface includes:
 - Documentation drift checks.
 - Evidence consensus and standards verification.
 - Evidence-grounded Cpl reasoning.
-- Adaptive multi-specialist and multi-model review.
+- Adaptive multi-specialist model-free review, with optional one-model or bounded multi-model reasoning support.
 - Verified learning and squad-style review intelligence.
 
 ### Developer workflow
@@ -392,9 +394,9 @@ Sergeant refuses to:
 - Auto-discover remote model endpoints.
 - Emit the Cpl API key in status or reports.
 
-## Strictest defensible review gate
+## Optional strict model-assisted review gate
 
-For high-risk releases:
+For a high-risk release where the owner explicitly wants model reasoning in addition to the model-free gate:
 
 ```bash
 export SERGEANT_CPL_POLICY=required

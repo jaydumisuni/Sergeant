@@ -1,55 +1,45 @@
-# Cpl Officer Amplification
+# Cpl Officer Coordination and Optional Reasoning Amplification
 
-Cpl is Sergeant's senior field-reasoning officer. Cpl does not replace the permanent squad.
+Cpl is Sergeant's senior native coordination and reasoning officer. Cpl and the permanent squad are model-free and remain fully operational when no model route exists.
 
-Every permanent officer retains:
+Every permanent officer retains universal training, specialist doctrine, mission loadouts, evidence obligations, an officer report and verified experience. Privates investigate bounded evidence obligations through deterministic rules, repository evidence, scanners, tests, runtime proof, verified lessons and approved tools.
 
-- universal officer training;
-- permanent doctrine and specialist responsibility;
-- mission-specific Armoury loadouts;
-- evidence and confidence obligations;
-- its own officer report;
-- verified specialist experience that remains when model engines change.
+## Native model-free duties
 
-Cpl adds a higher field-command reasoning layer:
+Cpl provides:
 
-- shared grounded mission intelligence for every deployed officer;
-- deterministic decomposition of specialist support assignments;
-- replaceable model-powered bots attached to matching permanent officers;
-- elastic multi-model council formation;
-- repeated issue table, officer-report, council-rebrief loops;
-- model rotation and role-specific model selection;
-- context, retry, fallback, and completion control;
+- shared grounded mission intelligence;
+- deterministic specialist assignment;
+- officer/private decomposition and cross-checking;
+- repeated issue-table and rebrief loops;
 - verified experience retrieval and recurrence detection;
-- auditable return of supported findings and unresolved gaps to Sergeant.
+- auditable supported findings and unresolved gaps returned to Sergeant.
 
-Current Cpl support mapping:
+## Optional model support
 
-| Support specialty | Permanent officer |
+If the owner enables it, Cpl may attach one model or a bounded model roster to a named officer question for extra semantic reasoning or independent confirmation. This is additive support, not the foundation of Cpl or the squad.
+
+Current optional support mapping:
+
+| Extra reasoning specialty | Responsible permanent officer |
 | --- | --- |
-| Correctness | Engineer |
-| Architecture | Engineer |
-| Tests and contracts | Engineer |
+| Correctness / Architecture / Tests | Engineer |
 | Security | Medic |
-| Performance and concurrency | Mechanic |
-
-The general Cpl pass is shared field intelligence. It benefits the whole deployed squad. Targeted support bots deepen the relevant permanent officer's investigation. Later council rounds can recruit another model for a named gap and issue a better instruction to the responsible officer.
+| Performance / Concurrency | Mechanic |
 
 The command relationship is:
 
 ```text
 Sergeant commands.
-Cpl councils, remembers, rebriefs, and amplifies the field operation.
-Permanent officers own their specialties and specialist experience.
-Models power Cpl council members and officer-support bots.
-The Armoury equips the officers and bots.
+Cpl coordinates the model-free field operation.
+Permanent officers own their specialties and experience.
+Privates gather evidence through approved capabilities.
+Optional models may support a named question when enabled.
 Judge qualifies outcomes.
 Archivist governs durable experience.
-Hermes delivers the final evidence accurately.
+Hermes delivers evidence accurately.
 ```
 
-A model is never an officer. A support bot is never allowed to impersonate Cpl or replace the permanent officer to which it is attached.
+A model is never an officer. A model response cannot replace the permanent officer, promote a lesson, write code, merge a branch or issue Sergeant's verdict.
 
-This layer preserves provider routing, grounding, adaptive depth, fallback behavior, and compatibility aliases. It ensures the reasoning machinery strengthens the established squad instead of collapsing the squad into Cpl.
-
-The complete council, repeated feedback, experience, recurrence, output, and safety contract is documented in [`35-cpl-council-command-and-experience.md`](35-cpl-council-command-and-experience.md).
+The optional council contract is documented in [`35-cpl-council-command-and-experience.md`](35-cpl-council-command-and-experience.md).

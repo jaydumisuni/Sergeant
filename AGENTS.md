@@ -24,6 +24,12 @@ Owner
 
 Hermes carries orders, evidence, status, and provenance across every level. Hermes does not command, promote lessons, or issue Sergeant's final verdict.
 
+## Model-free product boundary
+
+Sergeant's core reviewer is model-free. Cpl, permanent officers and privates are native Sergeant roles, not model personas. They operate through deterministic rules, repository evidence, scanners, tests, runtime proof, verified lessons and approved tools without requiring an AI login, API key, local model, hosted provider or large GPU.
+
+One model or a bounded multi-model council may be connected only as **optional owner-enabled extra reasoning** for named officer questions. Models are replaceable support evidence beneath the command chain; they are not required for normal review or learning and never receive lesson-promotion, write, merge or final-verdict authority. Future documentation must use the phrase **model-free core with optional model reasoning** and must not present Sergeant itself as a multi-model reviewer.
+
 ## Sergeant private-force law
 
 Sergeant estimates the normally justified human-equivalent worker requirement and deploys ten times that number as privates:
@@ -36,7 +42,7 @@ Sergeant estimates the normally justified human-equivalent worker requirement an
 
 Twenty privates is the minimum machine-scale formation for work equivalent to two ordinary workers. It is not a ceiling. Larger missions scale proportionally, and a mission may contain multiple bounded private cells.
 
-Permanent officers own specialist doctrine and split code review or learning work into distinct evidence obligations. Privates investigate those obligations in parallel through deterministic checks, models, tools, scanners, repository evidence, or approved workspace capabilities. The responsible officer cross-checks and reconciles the evidence before it moves upward. Sergeant remains final authority.
+Permanent officers own specialist doctrine and split code review or learning work into distinct evidence obligations. Privates investigate those obligations in parallel through deterministic checks, tools, scanners, repository evidence, verified lessons, or approved workspace capabilities; optional models may contribute only when the owner has enabled that support. The responsible officer cross-checks and reconciles the evidence before it moves upward. Sergeant remains final authority.
 
 This tenfold private-force system is one of the mechanisms that gives Sergeant rapid code review and rapid learning without sacrificing proof.
 

@@ -2,13 +2,13 @@
 
 ## Status
 
-Implemented as an additive layer between Cpl's raw council output and Sergeant's final action/consensus surface.
+Implemented as an additive governor for optional model-support output before it reaches Sergeant's final action/consensus surface. Sergeant's model-free officer path does not depend on this layer.
 
 Cpl still records every grounded model finding, council pass, resolution, and route event. The governor does not hide or delete the audit trail. It separates evidence that strengthens an existing Sergeant finding from evidence that creates a genuinely new action.
 
 ## Why this layer exists
 
-A multi-model council can be useful without every model report becoming a separate review comment.
+When a user enables a multi-model support council, it can add useful reasoning without every model report becoming a separate review comment.
 
 The same defect may already be present in deterministic Sergeant evidence and then be independently confirmed by Cpl with different wording, category names, or a nearby line range. Counting each confirmation as another defect increases noise, lowers precision, and can make a satisfied review appear less reliable than it is.
 
@@ -86,7 +86,7 @@ Sergeant uses `decision_verdict` and `actionable_findings` for final required ac
 
 ## Route failover
 
-A selected model is not the officer and is not allowed to collapse the officer pass merely because its route fails.
+A selected optional model is not the officer and is not allowed to collapse the native officer pass merely because its route fails.
 
 For primary, specialist, and recruited follow-up passes, Cpl tries the remaining configured council models in bounded roster order before reporting the pass as failed.
 

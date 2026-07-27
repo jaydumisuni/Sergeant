@@ -9,4 +9,6 @@ Hunter's **10-for-2 / tenfold method has two linked applications**:
 
 The workload scale is 2 human-equivalent workers → 20 privates, 5 → 50, and 12 → 120. Twenty is the minimum formation for two-worker-equivalent work, not a ceiling.
 
+Sergeant itself is a **model-free engineering reviewer**. Cpl, officers and privates do not require models. One or multiple models are optional owner-enabled extra reasoning only, never the product identity or final authority.
+
 Do not remove, weaken, or reinterpret the existing private-force mechanism. Do not invent a duplicate tenfold subsystem. Keep Sergeant's command chain, evidence gates, lesson-promotion boundaries, and final authority intact.

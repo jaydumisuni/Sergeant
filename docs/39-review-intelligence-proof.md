@@ -33,8 +33,8 @@ The benchmark reports:
 - duplicate rate;
 - finding completeness;
 - review duration;
-- Cpl pass count and distinct models;
-- route readiness.
+- model-free Cpl/officer coverage;
+- optional model pass count, distinct models and route readiness when enabled.
 
 Review-output completeness is not a score for the quality of the code. When Sergeant produces no ranked findings, the completeness score is reported as not evaluated rather than a misleading `100`.
 
@@ -47,8 +47,10 @@ sergeant-bench --mode council --require-route
 ```
 
 - `deterministic` proves the scanners, policy, intelligence and final gate without a model route.
-- `one-model` measures one configured model serving bounded Cpl passes.
-- `council` measures the configured multi-model Cpl council.
+- `one-model` optionally measures one configured model adding bounded reasoning support.
+- `council` optionally measures a configured multi-model support council.
+
+Neither optional mode defines Sergeant's core reviewer; `deterministic` exercises the normal model-free product path.
 
 Model/provider configuration remains external. The public benchmark records only generic route status, model identifiers returned by the configured route, and aggregate metrics. Private provider choice and internal deployment remain outside this repository.
 
