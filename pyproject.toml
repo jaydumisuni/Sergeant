@@ -78,3 +78,7 @@ packages = ["main_review"]
   "review-benchmarks/multilanguage/typescript-command-clean.json",
   "review-benchmarks/multilanguage/typescript-command-injection.json",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
