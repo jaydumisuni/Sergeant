@@ -12,8 +12,8 @@
     'Custom Mission': 'v2Mission',
   };
   const officers = [
-    ['Cpl', 'Council-led field reasoning'],
-    ['Quartermaster', 'Models + weapons + loadout'],
+    ['Cpl', 'Coordinates permanent officers'],
+    ['Quartermaster', 'Capacity + weapons + loadout'],
     ['Scout', 'Repository discovery'],
     ['Engineer', 'Construction + contracts'],
     ['Medic', 'Diagnosis + safe repair'],
@@ -29,9 +29,10 @@
     'Static Analysis',
     'Regression Tests',
     'Security Scanner',
-    'Cpl Council Reasoning',
+    'Permanent Officer Reasoning',
     'Verified Experience Retrieval',
     'Recurrence Detection',
+    'Optional Model Reasoning',
     'Battle Compare',
     'Evidence Export',
     'IDE Contract Probe',
@@ -44,8 +45,8 @@
     last: null,
     platform: 'IDE',
     settings: {
-      policy: 'preferred',
-      provider: 'auto',
+      policy: 'disabled',
+      provider: 'disabled',
       baseUrl: '',
       model: '',
       protocol: 'auto',
@@ -84,7 +85,7 @@
     $('#progressBar').style.width = `${percentage}%`;
     $('#dashboardPhase').style.width = `${percentage}%`;
     $('#progressPct').textContent = `${percentage}%`;
-    const labels = ['Mission Started', 'Evidence Collected', 'Cpl Council', 'Officer Rebrief', 'Commander Report'];
+    const labels = ['Mission Started', 'Evidence Collected', 'Officer Review', 'Evidence Challenge', 'Sergeant Report'];
     $('#timeline').innerHTML = labels.map((label, index) => {
       const cutoff = (index + 1) * 20;
       const className = percentage >= cutoff ? 'done' : percentage > index * 20 ? 'running' : '';
@@ -98,7 +99,7 @@
     if (!council) return;
     const row = document.createElement('div');
     row.className = 'form-grid';
-    row.innerHTML = '<label>Maximum Council Rounds<input id="cplMaxRoundsInput" type="number" min="1" max="6" value="2"></label><label>Maximum Council Members<input id="cplMaxMembersInput" type="number" min="1" max="12" value="5"></label>';
+    row.innerHTML = '<label>Maximum Optional Rounds<input id="cplMaxRoundsInput" type="number" min="1" max="6" value="2"></label><label>Maximum Optional Models<input id="cplMaxMembersInput" type="number" min="1" max="12" value="5"></label>';
     council.closest('.form-grid')?.after(row);
   }
 
@@ -116,17 +117,32 @@
     };
   }
 
+  function modelSupportEnabled(settings = selectedSettings()) {
+    return settings.policy !== 'disabled' && settings.provider !== 'disabled';
+  }
+
   function cplRouteLabel(settings = selectedSettings()) {
-    const provider = settings.provider || 'auto';
-    const model = settings.model || 'best available models';
-    if (settings.policy === 'disabled' || provider === 'disabled') return 'Deterministic only';
-    return `Cpl · ${settings.council || 'adaptive'} council · ${provider} · ${model} · ${settings.maxRounds || 2}r/${settings.maxMembers || 5}m`;
+    const provider = settings.provider || 'disabled';
+    const model = settings.model || 'provider selection';
+    if (!modelSupportEnabled(settings)) return 'Disabled · model-free permanent officers';
+    return `Optional · ${settings.council || 'adaptive'} · ${provider} · ${model} · ${settings.maxRounds || 2}r/${settings.maxMembers || 5}m`;
+  }
+
+  function synchronizeOptionalCheckbox(settings = selectedSettings()) {
+    const control = $('#optionalModelReasoning');
+    if (control) control.checked = modelSupportEnabled(settings);
+    const indicator = $('#optionalModelState');
+    if (indicator) {
+      indicator.textContent = modelSupportEnabled(settings) ? 'ENABLED' : 'DISABLED';
+      indicator.className = modelSupportEnabled(settings) ? 'pass' : 'work';
+    }
   }
 
   function saveCplSettings() {
     const settings = selectedSettings();
     state.settings = { ...state.settings, ...settings };
     $('#semanticRoute').textContent = cplRouteLabel(settings);
+    synchronizeOptionalCheckbox(settings);
     missionSummary();
     send({ type: 'saveSettings', settings });
   }
@@ -152,19 +168,22 @@
       }
     }
     $('#semanticRoute').textContent = cplRouteLabel(state.settings);
+    synchronizeOptionalCheckbox(state.settings);
   }
 
   function missionSummary() {
     const mission = $('input[name="level"]:checked')?.value || 'Repository Review';
     const settings = selectedSettings();
+    const enabled = modelSupportEnabled(settings);
     $('#missionSummary').innerHTML = [
       ['Mission', mission],
       ['Workspace', state.workspace],
       ['Priority', $('#priority').value],
       ['Permissions', 'Read + Proof'],
-      ['Cpl Council', cplRouteLabel(settings)],
-      ['Council Limits', `${settings.maxRounds} rounds · ${settings.maxMembers} members`],
-      ['Commander', 'Ready', 'pass'],
+      ['Permanent Officers', 'Model-free formation ready', 'pass'],
+      ['Optional Model Support', cplRouteLabel(settings), enabled ? 'pass' : 'work'],
+      ['Optional Limits', enabled ? `${settings.maxRounds} rounds · ${settings.maxMembers} models` : 'Not applicable'],
+      ['Sergeant', 'Final authority', 'pass'],
     ].map(([label, value, className = '']) => (
       `<div class="row"><span>${label}</span><b class="${className}">${value}</b></div>`
     )).join('');
@@ -174,67 +193,70 @@
     const card = (officer, index) => `<div class="officer"><b>${officer[0]}</b><small>${officer[1]}</small><div class="row"><span>Status</span><b class="${index < 8 ? 'pass' : 'work'}">${index < 8 ? 'READY' : 'IDLE'}</b></div></div>`;
     $('#officers').innerHTML = officers.map(card).join('');
     $('#dashboardOfficers').innerHTML = officers.slice(0, 5).map(card).join('');
-    $('#armoury').innerHTML = weapons.map((weapon) => `<div class="weapon"><b>${weapon}</b><small>Available weapon · permission gated · evidence output.</small><div class="row"><span>Status</span><b class="pass">READY</b></div></div>`).join('');
+    $('#armoury').innerHTML = weapons.map((weapon) => `<div class="weapon"><b>${weapon}</b><small>Available weapon · permission gated · evidence output.</small><div class="row"><span>Status</span><b class="${weapon === 'Optional Model Reasoning' ? 'work' : 'pass'}">${weapon === 'Optional Model Reasoning' ? 'OPT-IN' : 'READY'}</b></div></div>`).join('');
   }
 
   function renderConfidence() {
     const rows = [
       ['Deterministic Evidence', 98],
-      ['Officer Experience', 92],
-      ['Council Grounding', 94],
-      ['Model Independence', 88],
-      ['Commander', 95],
+      ['Permanent Officer Coverage', 96],
+      ['Judge Admission Discipline', 94],
+      ['Verified Experience', 92],
+      ['Sergeant Authority', 100],
     ];
     $('#confidence').innerHTML = rows.map((row) => `<div class="confidence-line"><span>${row[0]}</span><span class="bar"><i style="width:${row[1]}%"></i></span><b>${row[1]}%</b></div>`).join('');
   }
 
   function renderDoctrine() {
     const cards = [
+      ['Model-Free Core', 'Cpl and the permanent officers review repositories without requiring a provider login, model API, local model or GPU.'],
       ['Evidence First', 'Static findings, runtime proof, officer findings, UI behavior, docs proof, API results and conflicts are gathered before claims.'],
-      ['Council Command', 'Cpl tables officer reports before multiple model members, recruits only for named gaps and repeats within strict round and member limits.'],
       ['Permanent Officers', 'Every officer receives universal training, owns a specialty, retrieves verified experience and can request a safer rebrief.'],
-      ['Verified Experience', 'Only human/Judge-confirmed outcomes update Cpl, officer, model and weapon experience. Raw model opinions never become doctrine.'],
+      ['Optional Model Support', 'One model or a bounded multi-model council may deepen a named question only after the owner enables it. Models are support engines, not officers or votes.'],
+      ['Verified Experience', 'Only human/Judge-confirmed outcomes update Cpl, officers, optional model support and weapon experience. Raw model opinions never become doctrine.'],
       ['Anti-Repeat', 'Applicable previous experience must influence the next mission or Cpl records why it could not be reused. Recurrence triggers stronger prevention proof.'],
       ['Cross Verification', 'Evidence sources are compared and disagreements are investigated rather than averaged away.'],
-      ['Bounded Growth', 'Cpl forms the smallest sufficient council and adds another model only when a missing capability is named.'],
       ['Finish, Then Prove', 'Complete the intended implementation, review it, freeze it, then perform clean-clone and runtime proof.'],
       ['Claims Match Implementation', 'Documentation and marketing claims are checked against actual behavior before release.'],
     ];
     $('#doctrineCards').innerHTML = cards.map((card) => `<div class="evidence"><h3>${card[0]}</h3><p>${card[1]}</p></div>`).join('');
     const roadmap = [
       ['Operations', 'Live mission monitoring, reusable templates and multi-repository operations.'],
-      ['Battle Calibration', 'Larger verified battle history, scoped model reliability and confidence calibration.'],
+      ['Battle Calibration', 'Larger verified battle history, optional model reliability and confidence calibration.'],
       ['Review Collaboration', 'Collaborative reviews, replay and shared audit trails.'],
       ['Knowledge / Learning', 'Knowledge base integration, analytics and recurring-issue trends.'],
       ['Plugin / Weapon SDK', 'Permission-gated analysis weapons with defined inputs, outputs and evidence formats.'],
     ];
     $('#roadmapCards').innerHTML = roadmap.map((card) => `<div class="evidence"><h3>${card[0]}</h3><p>${card[1]}</p><b class="work">POST‑V2</b></div>`).join('');
-    const guide = ['What is Sergeant?', 'Review Doctrine', 'How Sergeant Reviews', 'Mission System', 'Cpl Council Command', 'Council Formation', 'Council Rounds', 'Verified Experience', 'Permanent Officers', 'Armoury', 'Evidence', 'Battle Testing', 'Safety', 'FAQ'];
-    $('#guideCards').innerHTML = guide.map((title) => `<div class="guide"><b>${title}</b><p>Explains how ${title.toLowerCase()} fits Commander → Cpl Council → Permanent Officers → Armoury → Evidence → Rebrief → Commander Verdict → Verified Experience.</p></div>`).join('');
+    const guide = ['What is Sergeant?', 'Model-Free Review Doctrine', 'How Sergeant Reviews', 'Mission System', 'Cpl Coordination', 'Permanent Officers', 'Optional Model Reasoning', 'Optional Council Limits', 'Verified Experience', 'Armoury', 'Evidence', 'Battle Testing', 'Safety', 'FAQ'];
+    $('#guideCards').innerHTML = guide.map((title) => `<div class="guide"><b>${title}</b><p>Explains how ${title.toLowerCase()} fits Owner → Sergeant → Cpl → Permanent Officers → Armoury → Evidence → Judge → Sergeant Verdict, with optional models only after explicit opt-in.</p></div>`).join('');
   }
 
   function settings(tab = 'general') {
+    const enabled = modelSupportEnabled(state.settings);
     const providerDetails = [
-      'Officer: Cpl — Council-led Corporal Specialist',
-      `Policy: ${state.settings.policy || 'preferred'}`,
-      `Engine route: ${state.settings.provider || 'auto'}`,
-      `Primary model: ${state.settings.model || 'Cpl automatic council formation'}`,
+      'Sergeant core: model-free permanent officers',
+      `Optional model support: ${enabled ? 'enabled' : 'disabled'}`,
+      `Policy: ${state.settings.policy || 'disabled'}`,
+      `Engine route: ${state.settings.provider || 'disabled'}`,
+      `Optional model: ${state.settings.model || 'none selected'}`,
       `Protocol: ${state.settings.protocol || 'auto'}`,
-      `Council mode: ${state.settings.council || 'adaptive'}`,
-      `Maximum rounds: ${state.settings.maxRounds || 2}`,
-      `Maximum members: ${state.settings.maxMembers || 5}`,
+      `Optional depth: ${state.settings.council || 'adaptive'}`,
+      `Maximum optional rounds: ${state.settings.maxRounds || 2}`,
+      `Maximum optional models: ${state.settings.maxMembers || 5}`,
       'API credentials: environment only',
+      'Final authority: Sergeant',
     ];
     const map = {
-      general: ['Auto-save reports', 'Confirm before launch', 'Show commander summary'],
+      general: ['Auto-save reports', 'Confirm before launch', 'Show commander summary', 'Model-free review is the default'],
       providers: providerDetails,
       writer: ['Disabled by default', 'Draft patch only', 'Human approval required', 'Never auto-merge'],
       permissions: ['Owner approval gates', 'Read-only default', 'Final proof confirmation'],
       ide: ['Workspace awareness', 'Active file', 'Git branch', 'Changed files', 'Python / Git / virtual environment'],
       github: ['Repository status', 'PR comments planned', 'Commit evidence'],
-      battle: ['Battle comparison', 'UI proof checks', 'Regression baseline', 'Officer/model/weapon outcomes'],
-      debug: ['Runtime logs', 'Bridge diagnostics', 'Council rounds and final gaps', 'Cpl route available through sergeant cpl-status'],
-      advanced: ['Export UI contract', 'Reset local evidence', 'Required Cpl policy', 'Maximum bounded council'],
+      battle: ['Battle comparison', 'UI proof checks', 'Regression baseline', 'Permanent-officer and optional-model outcomes'],
+      debug: ['Runtime logs', 'Bridge diagnostics', 'Optional model rounds and final gaps', 'Optional route status through sergeant cpl-status'],
+      advanced: ['Export UI contract', 'Reset local evidence', 'Owner-selected required model policy', 'Maximum bounded optional council'],
     };
     $$('#settingTabs button').forEach((button) => button.classList.toggle('active', button.dataset.tab === tab));
     $('#settingsContent').innerHTML = (map[tab] || []).map((item) => `<div class="setting"><span>${item}</span><span class="toggle"></span></div>`).join('');
@@ -245,9 +267,10 @@
     const defaults = [
       ['Static Evidence', 'Repository structure, changed files and source findings.'],
       ['Runtime Evidence', 'Command exit status and captured runtime output.'],
-      ['Cpl Council Evidence', 'Grounded reports, council rounds, recruited members, disagreements and officer rebriefs.'],
+      ['Permanent Officer Evidence', 'Grounded reports, disagreements, falsifiers and officer rebriefs.'],
       ['Experience Evidence', 'Verified and rejected prior outcomes supplied to Cpl and the permanent officers.'],
       ['Recurrence Evidence', 'Previous incidents and the stronger prevention proof required when an issue returns.'],
+      ['Optional Model Evidence', modelSupportEnabled(state.settings) ? 'Owner-enabled model support and its Judge-qualified disposition.' : 'Disabled for this model-free mission.'],
       ['UI Evidence', 'Command Center controls and rendered behavior.'],
       ['Docs Verification', 'README, release notes and workflow claims.'],
       ['Battle Evidence', 'Comparison fixtures, regressions and disagreements.'],
@@ -270,7 +293,7 @@
     applySettings(state.settings || {});
     const running = Boolean(state.running) || String(state.status).toLowerCase() === 'running';
     $('#sideStatus').textContent = running ? 'Reviewing' : state.status;
-    $('#sideMessage').textContent = running ? 'Cpl council and officers are working against live evidence.' : 'Mission ready. Awaiting orders.';
+    $('#sideMessage').textContent = running ? 'Permanent officers are working against live evidence.' : 'Model-free mission ready. Awaiting orders.';
     $('#commanderStatus').textContent = running ? 'Reviewing' : state.status;
     $('#currentMission').textContent = state.runningTitle || state.last?.title || 'Repository Review';
     $('#currentWorkspace').textContent = state.workspace;
@@ -288,12 +311,12 @@
     workspace.value = state.workspace;
     phase(running ? state.progress || 36 : state.last ? 100 : 0);
     $('#operation').textContent = running
-      ? state.runningTitle || 'Council and officers are collecting evidence…'
+      ? state.runningTitle || 'Permanent officers are collecting and challenging evidence…'
       : state.last
         ? `${state.last.summary?.verdict || state.last.verdict} — report ready.`
         : 'Waiting for runtime…';
     $('#liveLog').textContent = running
-      ? `[${new Date().toLocaleTimeString()}] Cpl mission running through ${state.platform} host using ${cplRouteLabel(state.settings)}…`
+      ? `[${new Date().toLocaleTimeString()}] Sergeant model-free mission running through ${state.platform} host. ${cplRouteLabel(state.settings)}.`
       : state.last
         ? `[${new Date().toLocaleTimeString()}] Mission completed. Evidence Locker updated.`
         : '';
@@ -309,7 +332,7 @@
   function launch(action) {
     page('progress');
     phase(12);
-    $('#operation').textContent = 'Commander accepted the mission. Waiting for deterministic evidence, Cpl council, and officer reports…';
+    $('#operation').textContent = 'Sergeant accepted the mission. Waiting for deterministic evidence and permanent-officer reports…';
     send({
       type: 'run',
       action,
@@ -345,6 +368,16 @@
   for (const selector of ['#llmPolicySelect', '#providerSelect', '#llmBaseUrlInput', '#llmModelInput', '#llmProtocolSelect', '#llmCouncilSelect', '#cplMaxRoundsInput', '#cplMaxMembersInput']) {
     $(selector).addEventListener('change', saveCplSettings);
   }
+  $('#optionalModelReasoning').addEventListener('change', (event) => {
+    if (event.target.checked) {
+      $('#llmPolicySelect').value = 'preferred';
+      if ($('#providerSelect').value === 'disabled') $('#providerSelect').value = 'auto';
+    } else {
+      $('#llmPolicySelect').value = 'disabled';
+      $('#providerSelect').value = 'disabled';
+    }
+    saveCplSettings();
+  });
   $('#workspaceSelect').onchange = () => send({ type: 'selectWorkspace', workspace: $('#workspaceSelect').value });
   $('#openLatestReport').onclick = () => send({ type: 'openLast' });
   $('#exportBattleReport').onclick = () => send({ type: 'exportLast' });
@@ -375,6 +408,6 @@
   missionSummary();
   phase(0);
   if (!send({ type: 'ready' })) {
-    notice('Standalone preview mode — open through the Sergeant IDE extension for live missions.');
+    notice('Standalone preview mode — model-free by default. Open through the Sergeant IDE extension for live missions.');
   }
 })();

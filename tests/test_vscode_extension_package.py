@@ -117,32 +117,35 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
         "Mission Planner",
         "Evidence Locker",
         "Officer System / Armoury",
-        "Cpl — Corporal Specialist",
+        "Optional Model Reasoning",
         "Cpl Local Gateway",
-        "GLM-5.2",
         "Qwen3-Coder-Next",
-        "Kimi K2.5",
-        "Maximum reasoning",
+        "Maximum optional council",
         "Pass to Writer",
         "Sergeant V2 Review Doctrine",
         "Post‑V2 Roadmap",
         "◇ What is Sergeant?",
         "Commander → Mission → Officers → Weapon Manifest → Evidence → Verdict → Audit Trail",
-        "Cpl Reasoning Evidence",
+        "model-free permanent officers",
+        "Sergeant remains final authority",
     ]:
         assert expected in command_center
+    assert "AI CODE REVIEWER" not in command_center
     assert "Free Claude Code" not in command_center
     assert "sergeantHostSend" in command_center_js
     assert "saveCplSettings" in command_center_js
     assert "window.addEventListener('message'" in command_center_js
-    assert "Cpl Council Reasoning" in command_center_js
+    assert "Permanent Officer Reasoning" in command_center_js
+    assert "Optional Model Reasoning" in command_center_js
     assert "Verified Experience Retrieval" in command_center_js
     assert "Recurrence Detection" in command_center_js
-    assert "Council Command" in command_center_js
+    assert "Model-Free Core" in command_center_js
     assert "Permanent Officers" in command_center_js
     assert "Anti-Repeat" in command_center_js
     assert "cplMaxRoundsInput" in command_center_js
     assert "cplMaxMembersInput" in command_center_js
+    assert "policy: 'disabled'" in command_center_js
+    assert "provider: 'disabled'" in command_center_js
     assert "grid-template-columns:270px" in command_center_css
     assert "Math.random" not in command_center_js
     assert "sgtTimer" not in command_center_js
@@ -193,6 +196,7 @@ def test_command_center_visible_controls_are_wired() -> None:
         "llmBaseUrlInput",
         "llmProtocolSelect",
         "llmCouncilSelect",
+        "optionalModelReasoning",
         "workspaceSelect",
         "globalSearch",
         "quickCopy",
@@ -222,7 +226,7 @@ def test_command_center_has_single_mission_execution_boundary() -> None:
     assert "event.stopImmediatePropagation()" in command_center
     assert "queueMicrotask" in command_center
     assert "window.sergeantMissionLock" in command_center
-    assert "sends only one mission while a run is active" in visual_proof
+    assert "sends one model-free mission while a run is active" in visual_proof
     assert "toHaveLength(1)" in visual_proof
     assert ".github/workflows/multiplatform-proof.yml" in closure
     assert "scripts/build-command-center-preview.js" in closure

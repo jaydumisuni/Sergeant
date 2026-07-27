@@ -30,7 +30,7 @@ async function assertCommandCenter(page, screenshotName) {
   }
 
   await page.getByRole('button', { name: 'Mission Planner', exact: true }).first().click();
-  await expect(page.getByRole('heading', { name: 'Cpl — Corporal Specialist' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Optional Model Reasoning' })).toBeVisible();
   await expect(page.locator('#llmPolicySelect')).toBeVisible();
   await expect(page.locator('#providerSelect')).toBeVisible();
   await expect(page.locator('#llmModelInput')).toBeVisible();
@@ -39,33 +39,36 @@ async function assertCommandCenter(page, screenshotName) {
   await expect(page.locator('#llmCouncilSelect')).toBeVisible();
   await expect(page.locator('#cplMaxRoundsInput')).toBeVisible();
   await expect(page.locator('#cplMaxMembersInput')).toBeVisible();
+  await expect(page.locator('#optionalModelReasoning')).not.toBeChecked();
   await expect(page.locator('#deployBtn')).toBeVisible();
-  await expect(page.locator('#providerSelect')).toHaveValue('auto');
-  await expect(page.locator('#llmPolicySelect')).toHaveValue('preferred');
+  await expect(page.locator('#providerSelect')).toHaveValue('disabled');
+  await expect(page.locator('#llmPolicySelect')).toHaveValue('disabled');
   await expect(page.locator('#llmCouncilSelect')).toHaveValue('adaptive');
   await expect(page.locator('#cplMaxRoundsInput')).toHaveValue('2');
   await expect(page.locator('#cplMaxMembersInput')).toHaveValue('5');
+  await expect(page.locator('#missionSummary')).toContainText('Model-free formation ready');
+  await expect(page.locator('#missionSummary')).toContainText('Disabled · model-free permanent officers');
+  await expect(page.locator('#missionSummary')).toContainText('Final authority');
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).first().click();
-  await expect(page.locator('#semanticRoute')).toContainText('Cpl · adaptive council · auto');
-  await expect(page.locator('#semanticRoute')).toContainText('2r/5m');
+  await expect(page.locator('#semanticRoute')).toContainText('Disabled · model-free permanent officers');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
   expect(pageErrors).toEqual([]);
   await page.screenshot({ path: path.join('artifacts', screenshotName), fullPage: true });
 }
 
-test('full Command Center renders and navigates', async ({ page }) => {
+test('full Command Center renders model-free default and navigates', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
-  await assertCommandCenter(page, 'command-center-1600.png');
+  await assertCommandCenter(page, 'command-center-model-free-1600.png');
 });
 
-test('compact IDE width remains usable', async ({ page }) => {
+test('compact IDE width keeps model-free default usable', async ({ page }) => {
   await page.setViewportSize({ width: 420, height: 920 });
-  await assertCommandCenter(page, 'command-center-420.png');
+  await assertCommandCenter(page, 'command-center-model-free-420.png');
 });
 
-test('Cpl router persists an explicit maximum-reasoning configuration', async ({ page }) => {
+test('optional model reasoning requires an explicit owner choice', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto(previewUrl);
   await page.evaluate(() => {
@@ -77,6 +80,16 @@ test('Cpl router persists an explicit maximum-reasoning configuration', async ({
   });
 
   await page.getByRole('button', { name: 'Mission Planner', exact: true }).first().click();
+  await expect(page.locator('#llmPolicySelect')).toHaveValue('disabled');
+  await expect(page.locator('#providerSelect')).toHaveValue('disabled');
+  await page.locator('#optionalModelReasoning').check();
+  await expect(page.locator('#llmPolicySelect')).toHaveValue('preferred');
+  await expect(page.locator('#providerSelect')).toHaveValue('auto');
+
+  const optInPayloads = await page.evaluate(() => window.__sergeantPayloads.filter((item) => item.type === 'saveSettings'));
+  expect(optInPayloads.at(-1).settings.policy).toBe('preferred');
+  expect(optInPayloads.at(-1).settings.provider).toBe('auto');
+
   await page.locator('#llmPolicySelect').selectOption('required');
   await page.locator('#providerSelect').selectOption('cpl');
   await page.locator('#llmModelInput').fill('provider/qwen3-coder-next');
@@ -91,7 +104,7 @@ test('Cpl router persists an explicit maximum-reasoning configuration', async ({
   await page.locator('#cplMaxMembersInput').dispatchEvent('change');
 
   const savePayloads = await page.evaluate(() => window.__sergeantPayloads.filter((item) => item.type === 'saveSettings'));
-  expect(savePayloads.length).toBeGreaterThanOrEqual(8);
+  expect(savePayloads.length).toBeGreaterThanOrEqual(9);
   expect(savePayloads.at(-1)).toEqual({
     type: 'saveSettings',
     settings: {
@@ -106,11 +119,12 @@ test('Cpl router persists an explicit maximum-reasoning configuration', async ({
     },
   });
 
-  await expect(page.locator('#missionSummary')).toContainText('Cpl · maximum council · cpl · provider/qwen3-coder-next · 4r/9m');
-  await expect(page.locator('#missionSummary')).toContainText('4 rounds · 9 members');
+  await expect(page.locator('#missionSummary')).toContainText('Optional · maximum · cpl · provider/qwen3-coder-next · 4r/9m');
+  await expect(page.locator('#missionSummary')).toContainText('4 rounds · 9 models');
+  await expect(page.locator('#missionSummary')).toContainText('Final authority');
 });
 
-test('Command Center sends only one mission while a run is active', async ({ page }) => {
+test('Command Center sends one model-free mission while a run is active', async ({ page }) => {
   await page.setViewportSize({ width: 1200, height: 900 });
   await page.goto(previewUrl);
   await page.evaluate(() => {
@@ -134,8 +148,8 @@ test('Command Center sends only one mission while a run is active', async ({ pag
   expect(runPayloads).toHaveLength(1);
   expect(runPayloads[0].action).toBe('reviewWorkspace');
   expect(runPayloads[0].settings).toEqual({
-    policy: 'preferred',
-    provider: 'auto',
+    policy: 'disabled',
+    provider: 'disabled',
     baseUrl: '',
     model: '',
     protocol: 'auto',
@@ -153,8 +167,8 @@ test('Command Center sends only one mission while a run is active', async ({ pag
         workspace: 'sergeant',
         history: [],
         settings: {
-          policy: 'preferred',
-          provider: 'auto',
+          policy: 'disabled',
+          provider: 'disabled',
           baseUrl: '',
           model: '',
           protocol: 'auto',
