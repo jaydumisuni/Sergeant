@@ -1,0 +1,46 @@
+{
+  "schema_version": "sergeant.cross-repository-learning-signal.v1",
+  "case_id": "learn-tgcheckm8-checksum-path-namespace-20260723",
+  "repository": "jaydumisuni/TechGuyCheckm8",
+  "event_kind": "repair",
+  "source_url": "https://github.com/jaydumisuni/TechGuyCheckm8",
+  "source_event_url": "https://github.com/jaydumisuni/TechGuyCheckm8/pull/18",
+  "source_pr": 18,
+  "defective_ref": "3b9b5d2469fed602cd6b5c728109cf193b9ccba1",
+  "fixing_ref": "40291a738e866e53b7d1cdcd0cf31f6e860357f5",
+  "language": "python",
+  "scored_paths": [
+    "tools/apple-build/make_receipt.py",
+    ".github/workflows/reviewed-apple-tools-build.yml"
+  ],
+  "evidence_refs": [
+    "https://github.com/jaydumisuni/TechGuyCheckm8/pull/18",
+    "https://github.com/jaydumisuni/TechGuyCheckm8/commit/3b9b5d2469fed602cd6b5c728109cf193b9ccba1",
+    "https://github.com/jaydumisuni/TechGuyCheckm8/commit/40291a738e866e53b7d1cdcd0cf31f6e860357f5",
+    "https://github.com/jaydumisuni/TechGuyCheckm8/actions/runs/30009742566"
+  ],
+  "summary": "The defective receipt generator wrote bare binary basenames into SHA256SUMS while the workflow verified from the output root and stored the binaries under bin/. The repaired head records explicit relative paths such as bin/gaster and bin/irecovery, uses those paths when generating SHA256SUMS, and passed the exact-head reviewed tools workflow.",
+  "defect_confirmed": true,
+  "fix_verified": true,
+  "blind_review_possible": true,
+  "behavior_change": true,
+  "security_or_integrity": true,
+  "cross_component": true,
+  "changed_files": 2,
+  "changed_lines": 12,
+  "package_count": 2,
+  "dependency_depth": 3,
+  "defect_novelty": 0.97,
+  "learning_objectives": [
+    "Generate integrity manifests in the same path namespace and working-directory model used by the downstream verifier.",
+    "Preserve relative directories in checksum records when artifacts are stored below the verification root.",
+    "Test producer and verifier together with the exact runtime working directory instead of validating each component in isolation."
+  ],
+  "learning_state": "collected",
+  "accepted_lesson": false,
+  "authority": {
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "final_verdict": "Sergeant"
+  }
+}
