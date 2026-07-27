@@ -54,6 +54,15 @@ async function assertCommandCenter(page, screenshotName) {
   await expect(page.locator('#semanticRoute')).toContainText('Disabled · model-free permanent officers');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
+  const quickActionsOverlapModelState = await page.evaluate(() => {
+    const actions = document.querySelector('.quick-actions');
+    const awareness = document.querySelector('#semanticRoute')?.closest('.panel');
+    if (!actions || !awareness || getComputedStyle(actions).display === 'none') return false;
+    const a = actions.getBoundingClientRect();
+    const b = awareness.getBoundingClientRect();
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  });
+  expect(quickActionsOverlapModelState).toBe(false);
   expect(pageErrors).toEqual([]);
   await page.screenshot({ path: path.join('artifacts', screenshotName), fullPage: true });
 }
@@ -82,6 +91,7 @@ test('optional model reasoning requires an explicit owner choice', async ({ page
   await page.getByRole('button', { name: 'Mission Planner', exact: true }).first().click();
   await expect(page.locator('#llmPolicySelect')).toHaveValue('disabled');
   await expect(page.locator('#providerSelect')).toHaveValue('disabled');
+  await page.screenshot({ path: path.join('artifacts', 'command-center-optional-model-disabled-1200.png'), fullPage: true });
   await page.locator('#optionalModelReasoning').check();
   await expect(page.locator('#llmPolicySelect')).toHaveValue('preferred');
   await expect(page.locator('#providerSelect')).toHaveValue('auto');
@@ -122,6 +132,7 @@ test('optional model reasoning requires an explicit owner choice', async ({ page
   await expect(page.locator('#missionSummary')).toContainText('Optional · maximum · cpl · provider/qwen3-coder-next · 4r/9m');
   await expect(page.locator('#missionSummary')).toContainText('4 rounds · 9 models');
   await expect(page.locator('#missionSummary')).toContainText('Final authority');
+  await page.screenshot({ path: path.join('artifacts', 'command-center-optional-model-enabled-1200.png'), fullPage: true });
 });
 
 test('Command Center sends one model-free mission while a run is active', async ({ page }) => {
