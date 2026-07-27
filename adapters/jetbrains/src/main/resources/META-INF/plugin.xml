@@ -4,7 +4,7 @@
   <vendor email="support@thetechguyds.com" url="https://thetechguyds.com">THETECHGUY DIGITAL SOLUTIONS</vendor>
 
   <description><![CDATA[
-    Sergeant is an evidence-based engineering reviewer with a complete Command Center for missions, officers, armoury, evidence, reports, doctrine, provider selection, permissions, roadmap, and guidance. The JetBrains preview runs the shared Sergeant CLI against the current project and keeps writer actions human-approved.
+    Sergeant is a model-free evidence-based engineering reviewer with a complete Command Center for missions, permanent officers, armoury, evidence, reports, doctrine, permissions, roadmap, and guidance. The JetBrains preview runs the shared Sergeant CLI against the current project. One model or a bounded multi-model council is available only as explicit owner-enabled extra reasoning, while Sergeant remains final authority and writer actions remain human-approved.
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>
@@ -20,7 +20,7 @@
     <action id="Sergeant.ReviewProject"
             class="com.thetechguyds.sergeant.ReviewProjectAction"
             text="Sergeant: Review Project"
-            description="Run Sergeant against the current project">
+            description="Run Sergeant's model-free review against the current project">
       <add-to-group group-id="ToolsMenu" anchor="last"/>
     </action>
   </actions>
