@@ -30,7 +30,7 @@ async function assertCommandCenter(page, screenshotName) {
   }
 
   await page.getByRole('button', { name: 'Mission Planner', exact: true }).first().click();
-  await expect(page.getByRole('heading', { name: 'Cpl — Corporal Specialist' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Cpl — Model-Free Core / Optional Model Support' })).toBeVisible();
   await expect(page.locator('#llmPolicySelect')).toBeVisible();
   await expect(page.locator('#providerSelect')).toBeVisible();
   await expect(page.locator('#llmModelInput')).toBeVisible();
@@ -41,14 +41,13 @@ async function assertCommandCenter(page, screenshotName) {
   await expect(page.locator('#cplMaxMembersInput')).toBeVisible();
   await expect(page.locator('#deployBtn')).toBeVisible();
   await expect(page.locator('#providerSelect')).toHaveValue('auto');
-  await expect(page.locator('#llmPolicySelect')).toHaveValue('preferred');
+  await expect(page.locator('#llmPolicySelect')).toHaveValue('disabled');
   await expect(page.locator('#llmCouncilSelect')).toHaveValue('adaptive');
   await expect(page.locator('#cplMaxRoundsInput')).toHaveValue('2');
   await expect(page.locator('#cplMaxMembersInput')).toHaveValue('5');
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).first().click();
-  await expect(page.locator('#semanticRoute')).toContainText('Cpl · adaptive council · auto');
-  await expect(page.locator('#semanticRoute')).toContainText('2r/5m');
+  await expect(page.locator('#semanticRoute')).toContainText('Model-free Sergeant core');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
   expect(pageErrors).toEqual([]);
@@ -106,7 +105,8 @@ test('Cpl router persists an explicit maximum-reasoning configuration', async ({
     },
   });
 
-  await expect(page.locator('#missionSummary')).toContainText('Cpl · maximum council · cpl · provider/qwen3-coder-next · 4r/9m');
+  await expect(page.locator('#missionSummary')).toContainText('Model-free core + optional maximum model support · cpl · provider/qwen3-coder-next · 4r/9m');
+  await expect(page.locator('#missionSummary')).toContainText('Optional Model Limits');
   await expect(page.locator('#missionSummary')).toContainText('4 rounds · 9 members');
 });
 
@@ -134,7 +134,7 @@ test('Command Center sends only one mission while a run is active', async ({ pag
   expect(runPayloads).toHaveLength(1);
   expect(runPayloads[0].action).toBe('reviewWorkspace');
   expect(runPayloads[0].settings).toEqual({
-    policy: 'preferred',
+    policy: 'disabled',
     provider: 'auto',
     baseUrl: '',
     model: '',
