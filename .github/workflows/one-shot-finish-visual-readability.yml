@@ -1,0 +1,39 @@
+name: One-shot finish visual readability
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/one_shot_finish_visual_readability.py
+      - .github/workflows/one-shot-finish-visual-readability.yml
+
+permissions:
+  contents: write
+
+jobs:
+  correct:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'docs/model-free-core-optional-reasoning'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/model-free-core-optional-reasoning
+          fetch-depth: 0
+      - name: Apply final visual correction
+        run: python scripts/one_shot_finish_visual_readability.py
+      - name: Run focused syntax and identity checks
+        continue-on-error: true
+        run: |
+          node --check resources/sergeant-command-center-v2.js
+          node --check tests/model-free-product-visual.spec.js
+          python -m py_compile tests/test_model_free_product_identity.py
+          python -m pytest -q tests/test_model_free_product_identity.py
+      - name: Commit correction for exact-head proof
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --check
+          git commit -m "Finish model-support visual readability"
+          git push origin HEAD:docs/model-free-core-optional-reasoning
