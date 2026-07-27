@@ -35,15 +35,6 @@ jobs:
       - name: Apply exact model-free product corrections
         run: python scripts/apply_model_free_product_boundary.py
 
-      - name: Verify focused product contract
-        run: |
-          python -m pip install -e .
-          python -m pytest -q \
-            tests/test_llm_provider.py \
-            tests/test_vscode_extension_package.py \
-            tests/test_model_free_product_contract.py
-          git diff --check
-
       - name: Commit corrected product truth
         run: |
           if git diff --quiet; then
@@ -70,3 +61,12 @@ jobs:
             tests/test_model_free_product_contract.py
           git commit -m "Make Sergeant model-free by default"
           git push origin HEAD:fix/model-free-default-and-docs
+
+      - name: Verify focused product contract
+        run: |
+          python -m pip install -e .
+          python -m pytest -q \
+            tests/test_llm_provider.py \
+            tests/test_vscode_extension_package.py \
+            tests/test_model_free_product_contract.py
+          git diff --check
