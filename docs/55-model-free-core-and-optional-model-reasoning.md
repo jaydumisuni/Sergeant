@@ -77,6 +77,8 @@ Current repository evidence, deterministic proof, verified lessons, tests and ex
 
 ## Configuration meaning
 
+The shipped default is `SERGEANT_CPL_POLICY=disabled`: model calls are opt-in, while Cpl, permanent officers, privates, deterministic review, proof and learning remain active.
+
 - `SERGEANT_CPL_POLICY=disabled` guarantees model-free review.
 - `SERGEANT_CPL_POLICY=preferred` permits optional model assistance when a valid route is available and otherwise continues model-free.
 - `SERGEANT_CPL_POLICY=required` is an owner-selected strict gate for a mission that explicitly requires model reasoning.
