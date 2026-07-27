@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +54,77 @@ def test_submission_documents_use_honest_model_wording() -> None:
         assert "optional" in text.lower()
         assert "multi-model" in text.lower()
         assert "does not require" in text.lower() or "without requiring" in text.lower()
+
+
+def test_python_entrypoints_default_to_model_free_review() -> None:
+    clean_environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("SERGEANT_CPL_") and not key.startswith("SERGEANT_LLM_")
+    }
+    code = (
+        "import json; "
+        "import main_review; "
+        "from main_review.llm_provider import LLMSettings, discover_route; "
+        "settings=LLMSettings.from_environment(); "
+        "print(json.dumps({'enabled': settings.enabled, 'policy': settings.policy, "
+        "'provider': settings.provider, 'route': discover_route(settings)}))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=ROOT,
+        env=clean_environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout)
+
+    assert payload == {
+        "enabled": False,
+        "policy": "disabled",
+        "provider": "disabled",
+        "route": None,
+    }
+
+
+def test_explicit_enable_switch_preserves_optional_model_configuration() -> None:
+    environment = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith("SERGEANT_CPL_") and not key.startswith("SERGEANT_LLM_")
+    }
+    environment.update(
+        {
+            "SERGEANT_CPL_ENABLED": "true",
+            "SERGEANT_CPL_POLICY": "preferred",
+            "SERGEANT_CPL_PROVIDER": "ollama",
+            "SERGEANT_CPL_MODEL": "owner-selected-model",
+        }
+    )
+    code = (
+        "import json; "
+        "from main_review.llm_provider import LLMSettings; "
+        "settings=LLMSettings.from_environment(); "
+        "print(json.dumps({'enabled': settings.enabled, 'policy': settings.policy, "
+        "'provider': settings.provider, 'model': settings.model}))"
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=ROOT,
+        env=environment,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    payload = json.loads(completed.stdout)
+
+    assert payload == {
+        "enabled": True,
+        "policy": "preferred",
+        "provider": "ollama",
+        "model": "owner-selected-model",
+    }
 
 
 def test_vscode_defaults_to_model_free_review() -> None:
