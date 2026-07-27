@@ -1,0 +1,38 @@
+name: Apply Model-Free Followups
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - scripts/apply_model_free_followups.py
+      - .github/workflows/apply-model-free-followups.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/model-free-default-and-docs
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Apply exact follow-up corrections
+        run: python scripts/apply_model_free_followups.py
+
+      - name: Commit follow-up corrections
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add resources/sergeant-command-center-v2.js tests/test_vscode_extension_package.py
+          git commit -m "Own Command Center clock lifecycle"
+          git push origin HEAD:fix/model-free-default-and-docs
