@@ -42,9 +42,9 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     }:
         assert command in commands
     assert (ROOT / package["icon"]).is_file()
-    assert properties["sergeant.provider"]["default"] == "Cpl Automatic Reasoning"
-    assert properties["sergeant.llmPolicy"]["default"] == "preferred"
-    assert properties["sergeant.llmProvider"]["default"] == "auto"
+    assert properties["sergeant.provider"]["default"] == "Disabled"
+    assert properties["sergeant.llmPolicy"]["default"] == "disabled"
+    assert properties["sergeant.llmProvider"]["default"] == "disabled"
     assert properties["sergeant.llmCouncil"]["default"] == "adaptive"
     assert properties["sergeant.cplMaxRounds"]["default"] == 2
     assert properties["sergeant.cplMaxRounds"]["maximum"] == 6
@@ -54,6 +54,7 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     assert "fcc" not in properties["sergeant.llmProvider"]["enum"]
     assert "maximum" in properties["sergeant.llmCouncil"]["enum"]
     assert "openai-compatible" in properties["sergeant.llmProvider"]["enum"]
+    assert "Models are optional extra reasoning" in package["contributes"]["viewsWelcome"][0]["contents"]
 
 
 def test_vscode_runtime_uses_bundled_full_command_center() -> None:
@@ -71,6 +72,9 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
     assert "cplEnvironment" in extension
     assert "cplSettings" in extension
     assert "semanticEnvironment" in extension
+    assert 'policy: configuration.get("llmPolicy") || "disabled"' in extension
+    assert 'provider: configuration.get("llmProvider") || "disabled"' in extension
+    assert "model-free permanent officers" in extension
     for environment_name in [
         "SERGEANT_CPL_ENABLED",
         "SERGEANT_CPL_POLICY",

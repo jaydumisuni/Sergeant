@@ -14,29 +14,73 @@ NEEDS WORK
 BLOCK
 ```
 
-## Review architecture
+## What Sergeant actually uses
+
+Sergeant's normal review system is **model-free**.
 
 ```text
 Repository / changed files
         ↓
-Deterministic Sergeant evidence
+Deterministic evidence and bounded field investigations
         ↓
-Cpl briefs permanent officers
+Cpl coordinates the permanent officers
         ↓
-Officer field investigations
+Analyst reconciliation
         ↓
-Optional model support amplifies officer packets
+Challenger falsification
         ↓
-Analyst reconciliation + Challenger + Judge ledger
+Judge admission ledger
         ↓
-Commander verdict
+Hermes evidence delivery
+        ↓
+Sergeant verdict
 ```
 
-**Sergeant Main Review is the reviewer core. Cpl — Corporal Specialist — is Sergeant's native reasoning officer.** Models and gateways are replaceable engines beneath Cpl, not the product identity and not the architectural ceiling.
+The permanent officers, Cpl coordination, learned deterministic rules, assurance gates, evidence admission, and final verdict do not require:
 
-Every accepted Cpl blocker or major finding must identify a supplied repository path, a valid line range, and supporting source text. Unsupported high-severity claims are discarded before consensus. Deterministic tests, runtime proof, explicit contracts, and verified repository facts outrank model speculation.
+- an AI-provider login;
+- a hosted inference API;
+- a local language model;
+- a large GPU;
+- a multi-model council.
 
-This creates a stronger, auditable gate. It does not claim that any model or static rule can guarantee zero defects.
+Models are an **optional extra-reasoning capability**. When an owner explicitly enables one model or a bounded multi-model council, that output supports the existing officers and enters the same evidence and Judge-admission boundary. It does not create Sergeant's officers, vote directly on the verdict, promote learning automatically, or become final authority.
+
+See [`docs/55-model-free-core-and-optional-model-reasoning.md`](docs/55-model-free-core-and-optional-model-reasoning.md).
+
+## Command relationship
+
+```text
+Owner
+→ Sergeant
+→ Cpl
+→ permanent officers
+→ deterministic tools, scanners, tests, and workspace evidence
+→ optional model support when explicitly enabled
+```
+
+**Sergeant Main Review is the reviewer core. Cpl — Corporal Specialist — coordinates the permanent-officer formation.** Models and gateways are replaceable support engines beneath that formation, not the product identity and not a hidden dependency.
+
+Deterministic tests, runtime proof, explicit contracts, and verified repository facts outrank unsupported model opinion. Every accepted blocker or major finding must remain grounded in supplied repository evidence.
+
+## Permanent officers
+
+Every independent review returns the permanent formation:
+
+| Officer | Responsibility |
+| --- | --- |
+| Quartermaster | Capacity, model-support state, and execution boundary |
+| Scout | Scope, language, manifests, tests, CI, and coverage |
+| Engineer | Correctness, architecture, contracts, cross-file behavior, and proof impact |
+| Medic | Security boundaries, tainted data, unsafe file access, secrets, and recovery |
+| Mechanic | Runtime state, concurrency, lifecycle, and performance |
+| Analyst | Root-cause reconciliation |
+| Challenger | Falsifiers and adversarial challenge |
+| Archivist | Evidence disposition for governed learning |
+| Judge | Admission, advisory, rejection, and assurance disposition |
+| Hermes | Canonical evidence and transaction delivery |
+
+Models may attach optional evidence to the responsible officer packet. They never replace an officer.
 
 ## Who Sergeant is for
 
@@ -44,7 +88,7 @@ This creates a stronger, auditable gate. It does not claim that any model or sta
 - Open-source maintainers reviewing pull requests and project changes.
 - Teams that care about standards, evidence, and repeatable review flow.
 - AI-assisted development workflows where generated code still needs independent review.
-- Self-hosted or model-agnostic environments that should not depend on one provider.
+- Self-hosted and offline environments that should not depend on one provider.
 
 ## Core principles
 
@@ -56,170 +100,61 @@ This creates a stronger, auditable gate. It does not claim that any model or sta
 - **Finish, then prove.**
 - **Claims must match implementation.**
 
-## Cpl — Corporal Specialist
-
-Cpl is not a model name or a renamed proxy. It is Sergeant's reasoning layer.
-
-A gateway only forwards requests. Cpl:
-
-1. receives changed-file scope and deterministic Sergeant evidence;
-2. coordinates the permanent-officer formation even when no model route is available;
-3. assigns deterministic repository investigations to the responsible officers;
-4. recruits and rotates available models only when they can strengthen a named officer question;
-5. preserves confirmations, advisories, rejected claims, and unresolved assurance separately;
-6. sends the canonical Judge ledger—not raw scanner or model votes—to Sergeant;
-7. returns an auditable ground report with evidence, falsifiers, transactions, and required actions.
-
-Current specialists:
-
-- Correctness
-- Security
-- Architecture
-- Tests and Contracts
-- Performance and Concurrency
-
-### Reasoning depth
-
-- **Adaptive** — deploy only specialists justified by the change and evidence.
-- **Deep** — always add correctness, architecture, and tests/contracts specialists.
-- **Maximum** — deploy all current specialists up to the pass budget.
-- **Single** — one Cpl generalist pass.
-
-### Engine routes
-
-| Engine route | Default endpoint | Protocol |
-| --- | --- | --- |
-| Cpl local gateway | `http://127.0.0.1:8082/v1` | OpenAI Responses |
-| Ollama | `http://127.0.0.1:11434/v1` | Chat Completions |
-| LM Studio | `http://127.0.0.1:1234/v1` | Chat Completions |
-| Explicit hosted/self-hosted endpoint | owner configured | Responses or Chat Completions |
-
-Automatic discovery probes loopback endpoints only. Sergeant never guesses a remote service. Code can leave the machine only when an owner explicitly configures a remote base URL.
-
-When multiple models are exposed and no model is pinned, Cpl currently prefers:
-
-1. GLM-5.2
-2. Qwen3-Coder-Next
-3. Kimi K2.5
-4. GLM-5.1
-5. Qwen3-Coder
-6. Kimi K2
-7. provider fallback
-
-This is a configurable routing policy, not a permanent claim that one model is universally best.
-
-### Cpl policies
-
-**Preferred** is the product default:
-
-- deploy Cpl when a route is available;
-- keep Cpl's deterministic permanent-officer formation active when a model route is not available;
-- state clearly in the report whether Cpl ran.
-
-**Required** is the strict release gate:
-
-- no approval when the Cpl route is unavailable or fails;
-- all required deterministic and Cpl evidence must complete.
-
-**Disabled** runs deterministic review only.
-
-Full architecture, privacy, grounding, specialist, and configuration details are in [`docs/22-semantic-open-model-review.md`](docs/22-semantic-open-model-review.md).
-
 ## Engineering workflow
 
 ```text
 Understand
     ↓
+Build
+    ↓
 Review
-    ↓
-Challenge
-    ↓
-Verify
     ↓
 Freeze
     ↓
 Prove
     ↓
-Ship
+Submit / Ship
 ```
-
-## Sergeant V2 Command Center
-
-```text
-Commander
-    ↓
-Mission
-    ↓
-Officers
-    ↓
-Weapon Manifest
-    ↓
-Deterministic Evidence
-    ↓
-Cpl Reasoning Evidence
-    ↓
-Verification
-    ↓
-Commander Verdict
-    ↓
-Audit Trail
-```
-
-The VS Code extension provides a compact activity-bar launcher and a full editor Command Center. The JetBrains preview uses the same interface through JCEF and falls back to a native Swing panel when JCEF is unavailable.
-
-The interface includes:
-
-- Commander dashboard and live workspace state.
-- Mission Planner for repository, changed-file, release, battle, final-proof, IDE, and custom missions.
-- Cpl controls for policy, engine route, model, base URL, protocol, and reasoning depth.
-- Live mission progress and evidence.
-- Evidence views for static, runtime, Cpl, UI, documentation, battle, and optional external review.
-- Evidence Locker with report history, open, copy, export, and refresh actions.
-- Officer deployment and armoury views.
-- Settings, Review Doctrine, Post-V2 Roadmap, and Guide pages.
-- One-active-mission gates in both VS Code and JetBrains.
-
-### Writer safety boundary
-
-- Disabled by default.
-- Draft patches only.
-- Human approval required.
-- Never auto-merge.
 
 ## Current capability set
 
-### Repository and engineering review
+### Model-free review core
 
 - Repository inspection and understanding.
 - Pull-request, current-file, and changed-file review.
 - Architecture and regression-risk checks.
 - Static analysis and security signals.
-- Documentation drift checks.
+- Documentation-drift checks.
+- Deterministic permanent-officer formation.
 - Evidence consensus and standards verification.
-- Evidence-grounded Cpl reasoning.
-- Adaptive multi-specialist and multi-model review.
-- Verified learning and squad-style review intelligence.
+- Verified learning and reusable model-free lessons.
+- Multi-language blind assurance with clean controls.
+
+### Optional extra reasoning
+
+- One explicitly configured model can deepen a named investigation.
+- A bounded multi-model council can provide independent reasoning when the owner enables it.
+- Local Cpl gateway, Ollama, LM Studio, Cloudflare Workers AI, or an explicit OpenAI-compatible endpoint.
+- Model findings are reconciled against deterministic evidence before they can affect the action gate.
+- Provider failures reduce optional amplification without removing Sergeant's core formation.
 
 ### Developer workflow
 
 - CLI review flow.
-- App bridge contract.
+- App Bridge contract.
 - IDE Bench contract for VS Code, PyCharm, JetBrains, and AI handoff.
-- Full VS Code Command Center.
+- VS Code Command Center.
 - JetBrains Command Center preview.
-- Read-only GitHub PR comment ingestion.
+- Read-only GitHub PR-comment ingestion.
 - Live GitHub review bridge.
-- Cpl local, Ollama, LM Studio, and explicit OpenAI-compatible routes.
 
 ### Proof and battle validation
 
 - Battle-test fixtures and validator.
 - Static review-signal comparison.
-- Live PR patch fetch for battle comparison.
+- Live PR-patch fetch for battle comparison.
 - CI and clean-clone proof.
 - Browser-rendered Command Center proof at desktop and compact IDE widths.
-- Cpl router and duplicate-launch browser proof.
-- Mock OpenAI Responses transport proof.
 - PyPI wheel/source validation, VSIX packaging, and JetBrains plugin packaging.
 
 ## Installation
@@ -231,8 +166,6 @@ Published stable package:
 ```bash
 python -m pip install sergeant-reviewer==0.4.1
 ```
-
-0.4.1 publishes the useful model-free, standalone, GitHub-ingestion, comparison, and IDE work already merged after the original 0.4.0 tag. See [`docs/releases/v0.4.1.md`](docs/releases/v0.4.1.md).
 
 Current source development:
 
@@ -253,11 +186,11 @@ npx @vscode/vsce package --no-dependencies
 code --install-extension sergeant-reviewer-0.4.1.vsix --force
 ```
 
-Open **Sergeant** from the activity bar, then use **Open Full Command Center**.
+Open **Sergeant** from the activity bar, then choose **Open Full Command Center**.
 
 ### JetBrains IDEs
 
-The current marketplace preview targets the 2025.2 / build 252 line. Install the Sergeant CLI first:
+Install the Sergeant CLI first:
 
 ```bash
 python -m pip install sergeant-reviewer==0.4.1
@@ -267,15 +200,10 @@ Set `SERGEANT_CLI` when the executable is not on the IDE process path.
 
 ## Quick start
 
-### Deterministic-only review
+### Normal independent review — no model required
 
 ```bash
 sergeant review . --pretty
-```
-
-### Complete independent review
-
-```bash
 sergeant pr-review . --pretty
 ```
 
@@ -285,135 +213,111 @@ Review explicit files:
 sergeant pr-review . --files "src/app.py,tests/test_app.py" --pretty
 ```
 
-Check Cpl:
+### Optional one-model reasoning
+
+The user must deliberately enable model support:
 
 ```bash
-sergeant cpl-status --pretty
-```
-
-Require a working Cpl route:
-
-```bash
-sergeant cpl-status --require --pretty
-```
-
-### Cpl local gateway
-
-```bash
-export SERGEANT_CPL_PROVIDER=cpl
+export SERGEANT_CPL_ENABLED=true
 export SERGEANT_CPL_POLICY=preferred
-export SERGEANT_CPL_PROTOCOL=responses
-export SERGEANT_CPL_BASE_URL=http://127.0.0.1:8082/v1
-sergeant cpl-status --require --pretty
-sergeant pr-review . --pretty
-```
-
-### Ollama
-
-```bash
 export SERGEANT_CPL_PROVIDER=ollama
 export SERGEANT_CPL_MODEL=qwen3-coder-next
 sergeant pr-review . --pretty
 ```
 
-### LM Studio
+### Optional multi-model reasoning
+
+A multi-model council is an extra capability for owners who want more independent reasoning. Configure an explicit provider roster, then enable Cpl support. It is not required for normal Sergeant review.
+
+Cloudflare setup and proof are documented in [`docs/25-cloudflare-workers-ai.md`](docs/25-cloudflare-workers-ai.md).
+
+### Strict owner-selected model gate
+
+For a release where the owner explicitly requires model reasoning:
 
 ```bash
-export SERGEANT_CPL_PROVIDER=lm-studio
+export SERGEANT_CPL_ENABLED=true
+export SERGEANT_CPL_POLICY=required
+export SERGEANT_CPL_DEPTH=maximum
 sergeant pr-review . --pretty
 ```
 
-### Explicit OpenAI-compatible endpoint
+That is a chosen mission policy—not Sergeant's default architecture and not a promise of perfect defect detection.
 
-```bash
-export SERGEANT_CPL_PROVIDER=configured
-export SERGEANT_CPL_BASE_URL=https://your-endpoint.example/v1
-export SERGEANT_CPL_MODEL=your-model-slug
-export SERGEANT_CPL_PROTOCOL=chat_completions
-export SERGEANT_CPL_API_KEY=your-runtime-secret
-sergeant pr-review . --pretty
-```
-
-The API key is read from the process environment. It is not returned by `cpl-status`, stored by the Command Center, written into reports, or committed to the repository.
-
-### Additional commands
-
-```bash
-sergeant app-review . --mode pull_request --files "src/app.py,tests/test_app.py" --pretty
-sergeant v2-mission . --mission-type pull_request_review --mode pull_request --files "src/app.py,tests/test_app.py" --pretty
-sergeant proof-suite . --pretty
-sergeant final-proof . --pretty
-sergeant verify-standard . --pretty
-sergeant battle-tests . --pretty
-sergeant ide-bench-contract --pretty
-```
-
-## Configuration reference
+## Model configuration
 
 ```text
-SERGEANT_CPL_ENABLED=auto|true|false
-SERGEANT_CPL_POLICY=preferred|required|disabled
-SERGEANT_CPL_PROVIDER=auto|cpl|ollama|lm-studio|configured
+SERGEANT_CPL_ENABLED=false|true
+SERGEANT_CPL_POLICY=disabled|preferred|required
+SERGEANT_CPL_PROVIDER=disabled|auto|cpl|ollama|lm-studio|configured|cloudflare
 SERGEANT_CPL_BASE_URL=<explicit /v1 endpoint>
 SERGEANT_CPL_MODEL=<provider model slug>
 SERGEANT_CPL_PROTOCOL=auto|responses|chat_completions
 SERGEANT_CPL_DEPTH=adaptive|deep|maximum|single
 SERGEANT_CPL_MAX_PASSES=3
 SERGEANT_CPL_API_KEY=<runtime secret>
-SERGEANT_CPL_TIMEOUT_SECONDS=90
-SERGEANT_CPL_MAX_OUTPUT_TOKENS=5000
-SERGEANT_CPL_MAX_INPUT_CHARS=120000
-SERGEANT_CPL_MAX_FILE_CHARS=18000
 ```
 
-The earlier `SERGEANT_LLM_*` variables and `llm-status` command remain accepted as compatibility aliases for 0.4.0 integrations. New configuration should use Cpl naming.
+The earlier `SERGEANT_LLM_*` variables and `llm-status` command remain compatibility aliases for 0.4.0 integrations. New configuration should use Cpl naming.
 
-## Battle testing
+## Sergeant Command Center
 
-Current fixtures include:
+The VS Code extension provides a compact activity-bar launcher and a full editor Command Center. The JetBrains preview uses the same interface through JCEF and falls back to a native Swing panel when JCEF is unavailable.
 
-- `psf/requests#7502` — focused regression and test-clarity case.
-- `pallets/flask#5812` — architecture and lifecycle case.
-- `django/django#19610` — URL query-string merge case.
+The interface includes:
 
-Battle comparison reviews patch text in a temporary workspace. It does not execute target code. Its agreement score remains transparent rather than being treated as a model-judged truth score.
+- Commander dashboard and live workspace state.
+- Mission Planner.
+- Permanent-officer deployment and evidence views.
+- Evidence Locker and report history.
+- Settings for optional model reasoning.
+- One-active-mission gates in both VS Code and JetBrains.
+
+### Writer safety boundary
+
+- Disabled by default.
+- Draft patches only.
+- Human approval required.
+- Never auto-merge.
 
 ## Safety boundary
 
 Sergeant refuses to:
 
-- Execute untrusted pull-request-controlled code.
-- Run shell commands supplied by PR content.
-- Automatically modify project code.
-- Write or merge patches as part of review.
-- Use privileged write tokens during analysis.
-- Silently fake success after a failed live fetch.
-- Treat Cpl, any model, or an external reviewer as final authority.
-- Auto-discover remote model endpoints.
-- Emit the Cpl API key in status or reports.
+- execute untrusted pull-request-controlled code;
+- run shell commands supplied by PR content;
+- automatically modify project code;
+- write or merge patches as part of review;
+- use privileged write tokens during analysis;
+- silently fake success after a failed live fetch;
+- treat Cpl, any model, or an external reviewer as final authority;
+- auto-discover remote model endpoints;
+- emit model API keys in status or reports;
+- automatically promote a learned rule.
 
-## Strictest defensible review gate
+## Proof and learning
 
-For high-risk releases:
+Sergeant's learning path is governed:
 
-```bash
-export SERGEANT_CPL_POLICY=required
-export SERGEANT_CPL_DEPTH=maximum
-sergeant pr-review . --pretty
+```text
+verified defective/fixing lineage
+→ frozen blind review
+→ generalized rule
+→ positive and clean controls
+→ unrelated transfer
+→ hidden holdout
+→ owner-controlled admission
 ```
 
-Then require:
+Automatic promotion and automatic merge remain forbidden.
 
-- repository review;
-- diff review;
-- standards verification;
-- capability review;
-- Cpl route available;
-- grounded general and specialist passes;
-- tests and runtime proof;
-- consensus with no unanswered major or blocker.
+## Documentation
 
-That is a complete configured gate—not a promise of literal 100% defect detection.
+- [`docs/44-deterministic-permanent-officer-formation.md`](docs/44-deterministic-permanent-officer-formation.md) — canonical model-free officer formation.
+- [`docs/45-model-free-multilanguage-assurance.md`](docs/45-model-free-multilanguage-assurance.md) — model-free language proof.
+- [`docs/55-model-free-core-and-optional-model-reasoning.md`](docs/55-model-free-core-and-optional-model-reasoning.md) — current product boundary.
+- [`docs/22-semantic-open-model-review.md`](docs/22-semantic-open-model-review.md) — optional model-support configuration.
+- [`docs/39-review-intelligence-proof.md`](docs/39-review-intelligence-proof.md) — blind reviewer-intelligence proof.
 
 ## Public boundary
 

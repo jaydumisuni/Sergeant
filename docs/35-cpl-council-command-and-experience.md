@@ -1,21 +1,19 @@
-# Cpl Council Command and Verified Experience
+# Optional Cpl model council and verified experience
 
-## Status
+> **Status:** Implemented optional capability. It is not Sergeant's normal review architecture. Sergeant's permanent-officer formation remains model-free.
 
-Implemented on top of the permanent-officer amplification baseline.
-
-Cpl is Sergeant's senior field-reasoning officer. It is not one model, a gateway name, or a replacement for the permanent squad.
+The current product boundary is defined in [`55-model-free-core-and-optional-model-reasoning.md`](55-model-free-core-and-optional-model-reasoning.md).
 
 ## Command relationship
 
 ```text
 Sergeant / Commander
         ↓
-Cpl — council-led field command
+Cpl coordinates the permanent officers
         ↓
-Permanent officers
+Deterministic tools, tests, scanners, and workspace evidence
         ↓
-Armoury weapons, model support members, tests, and scanners
+Optional model support when explicitly enabled
         ↓
 Judge-qualified outcomes
         ↓
@@ -23,54 +21,46 @@ Archivist-governed experience
 ```
 
 - Sergeant owns the final engineering verdict and deterministic gates.
-- Cpl forms and chairs the model council, tables issues, deploys support, improves instructions, and reports mission state.
-- Permanent officers retain universal training, specialist doctrine, evidence duties, experience, and their own reports.
-- Models are replaceable council members and officer-support engines.
-- The Armoury supplies proof capabilities.
+- Cpl exists and coordinates the field operation without a model route.
+- Permanent officers retain doctrine, evidence duties, experience, and their own reports.
+- Models are optional, replaceable support engines.
 - Human or Judge-confirmed outcomes are required before durable learning.
 
-## Elastic council
+## When an optional council may be used
 
-Cpl starts with the models already justified by the mission and existing specialist plan. It recruits another model only when it can name a gap such as:
+An owner may explicitly enable one model or a bounded multi-model council when extra reasoning is wanted. Cpl may recruit another configured model only for a named gap such as:
 
-- a planned officer report failed;
-- council verdicts disagree;
-- an unanswered evidence question remains;
-- a blocker or major finding has only one model source;
+- a planned optional support pass failed;
+- independent reasoning disagrees;
+- an unanswered semantic question remains;
+- a novel blocker or major claim needs independent confirmation;
 - verified memory indicates a possible recurrence.
 
-Council growth is bounded from the first/core pass onward:
-
 ```text
+SERGEANT_CPL_ENABLED=true
+SERGEANT_CPL_POLICY=preferred|required
 SERGEANT_CPL_MAX_ROUNDS=1..6
 SERGEANT_CPL_MAX_COUNCIL_MEMBERS=1..12
 ```
 
-Depth defaults remain:
+`preferred` adds optional reasoning while preserving model-free fallback. `required` is an owner-selected strict mission gate. Neither is the normal model-free default.
 
-- `single` — one general member and no follow-up council round;
-- `adaptive` — smallest sufficient council;
-- `deep` — deeper specialist coverage and additional rebrief capacity;
-- `maximum` — every current specialist with the largest bounded council.
-
-More models are not treated as votes. Repository evidence, deterministic proof, officer relevance, model independence, unanswered objections, and recurrence history remain visible.
-
-## Council loop
+## Optional council loop
 
 ```text
 1. Cpl retrieves relevant verified and rejected experience.
-2. Core council members and permanent-officer support bots inspect current evidence.
-3. Cpl tables their reports.
-4. Cpl detects a named gap.
-5. Cpl recruits or reuses the smallest suitable model member.
-6. Cpl sends a focused rebrief to the responsible permanent officer.
-7. The officer-supported model returns grounded evidence or preserves uncertainty.
-8. Cpl requires an explicit council resolution.
-9. The loop repeats within strict round and member limits.
-10. Cpl returns effective findings, remaining gaps, recurrence state, council history, and confidence to Sergeant.
+2. The permanent officers complete their normal evidence duties.
+3. An explicitly enabled model examines a named officer question.
+4. Cpl tables the optional report beside deterministic evidence.
+5. Cpl detects a named unresolved gap.
+6. A bounded follow-up model may confirm, reject, narrow, or preserve uncertainty.
+7. Judge applies the normal evidence-admission boundary.
+8. Cpl returns effective findings, remaining gaps, and council history to Sergeant.
 ```
 
-A later council report can close a tracked gap only by answering the exact tabled issue. A PASS verdict by itself does not resolve anything. The follow-up must return:
+More models are not votes. Repository evidence, deterministic proof, officer relevance, independence, objections, and recurrence history remain visible.
+
+A PASS response from a model does not resolve a tracked issue by itself. A follow-up must answer the exact tabled question with an explicit disposition:
 
 ```json
 {
@@ -82,10 +72,6 @@ A later council report can close a tracked gap only by answering the exact table
   }
 }
 ```
-
-The target is controlled by Cpl rather than chosen by the model. A confirmed finding remains and records its independent confirmer. A rejected finding is removed from the effective final finding set. A narrowed finding replaces the earlier broad claim with the later grounded finding. An unresolved answer stays open and can be assigned to another council member in a later bounded round.
-
-Old disagreement or failed-attempt records remain in the audit trail but do not stay falsely open after a grounded follow-up resolves them. Conversely, Cpl cannot return PASS while a named council gap remains unresolved.
 
 ## Experience system
 
@@ -101,50 +87,28 @@ Operational experience is append-only:
 .main-review/cpl-experience.jsonl
 ```
 
-The ledger records verified, rejected, or superseded outcomes for:
+The ledger may record verified, rejected, or superseded outcomes for Cpl decisions, permanent officers, optional model support, and Armoury weapons. Profiles are derived from evidence events rather than silently mutated.
 
-- Cpl command decisions;
-- permanent officers;
-- model council members;
-- Armoury weapons.
-
-Profiles are derived from ledger events rather than silently mutated. A model can be replaced while Engineer, Medic, Mechanic, or another officer retains verified specialist experience.
-
-Raw model findings are never written directly to durable experience. The learning path is:
+Raw model findings are never written directly to durable experience.
 
 ```text
 Review finding
 → explicit human/Judge outcome
 → canonical lesson candidate
-→ verified/rejected memory record
-→ Cpl/officer/model/weapon experience event
+→ controls and transfer proof
+→ owner-controlled admission
 → future retrieval
 ```
 
 ## Anti-repeat behavior
 
-The system does not promise that code can never reintroduce the same defect. It enforces the stronger realistic rule:
+The system does not promise that code can never reintroduce the same defect. It enforces the realistic rule:
 
-> Applicable verified experience must influence the next mission, or Cpl must preserve why it could not be reused.
-
-When a current grounded finding resembles a verified prior incident, Cpl tables recurrence as a council gap. The responsible officer must investigate why the earlier prevention failed and require stronger regression proof.
-
-## Officer behavior
-
-Officers are not brainless order carriers. Each officer receives:
-
-- shared Cpl field intelligence;
-- current council state;
-- targeted model support reports;
-- relevant verified and rejected officer experience;
-- Cpl rebrief instructions;
-- recurrence obligations where applicable.
-
-An officer can complete the assignment, preserve uncertainty, or return evidence that the instruction needs correction. Cpl then rebriefs the council and the next responsible officer.
+> Applicable verified experience must influence the next mission, or Sergeant must preserve why it could not be reused.
 
 ## Output contract
 
-`cpl_review` now includes:
+When optional model support runs, `cpl_review` may include:
 
 ```text
 memory_checked
@@ -162,35 +126,25 @@ council.officer_instructions
 council.effective_findings
 ```
 
-Each recruited pass also records its `council_resolution`, `resolution_status`, supported officer, council round, admission type, and exact instruction received.
-
-The existing `semantic_review` alias remains for Sergeant 0.4.0 integrations.
+When model support is disabled or unavailable, the permanent `officer_council` remains the canonical review formation and records the actual model-support status.
 
 ## Safety
 
 - Read-only review remains the default.
-- No council member receives repository write or merge authority.
+- No model receives repository write or merge authority.
 - Remote endpoints are never auto-discovered.
 - Credentials remain environment-only.
-- Unsupported blocker or major findings are rejected by the existing grounding boundary.
+- Unsupported blocker or major findings are rejected.
 - Current repository and runtime evidence outrank stale memory.
-- Unresolved gaps prevent a Cpl PASS verdict.
-- Sergeant remains the final authority.
+- Sergeant remains final authority.
+- Automatic lesson promotion and automatic merge remain forbidden.
 
-## Definition of done
+## Correct interpretation
 
-Cpl is complete for this phase when:
+```text
+No model                 → normal Sergeant review
+One configured model     → optional extra reasoning
+Several configured models → optional bounded council reasoning
+```
 
-- the three-stripe interface identity is restored and package-locked;
-- multiple models can serve as distinct council members;
-- one model degrades honestly into role-separated passes;
-- the member cap applies to the core council and later recruitment;
-- named gaps trigger repeated bounded follow-up rounds;
-- a later council member can confirm, narrow, or reject an earlier finding explicitly;
-- disproved findings do not remain in the final verdict;
-- permanent officers receive support, instructions, and experience;
-- recurrence creates an actionable prevention review;
-- only verified outcomes update durable experience;
-- reports expose council history, effective findings, and unresolved gaps;
-- unresolved gaps cannot be reported as PASS;
-- existing reviewer, CLI, App Bridge, IDE, packaging, clean-clone, battle, and Command Center proof remain green.
+Multi-model support is a capability, not a dependency and not the definition of Sergeant.

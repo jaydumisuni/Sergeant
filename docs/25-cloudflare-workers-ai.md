@@ -1,39 +1,36 @@
-# Cloudflare Workers AI connector
+# Optional Cloudflare Workers AI connector
 
-Sergeant can use a user's own Cloudflare Workers AI account without storing the
-credential in the public repository. The connector exposes a loopback-only
-OpenAI-compatible gateway, so the existing Cpl reasoning council, VS Code,
-JetBrains and other Sergeant clients can use the same local route.
+> **Status:** Optional extra-reasoning connector. Sergeant's normal reviewer, Cpl coordination, permanent officers, learned rules, and verdict do not require Cloudflare or any model provider.
+
+The canonical product boundary is documented in [`55-model-free-core-and-optional-model-reasoning.md`](55-model-free-core-and-optional-model-reasoning.md).
+
+Sergeant can use a user's own Cloudflare Workers AI account when the owner explicitly enables model support. The connector exposes a loopback-only OpenAI-compatible gateway so the CLI, VS Code, JetBrains, or another approved client can attach optional model reasoning to Cpl.
 
 ## What remains public
 
 The repository contains:
 
-- the provider-neutral Cpl council;
+- provider-neutral optional Cpl support;
 - the loopback Cloudflare gateway;
 - model-roster and structured-output proof commands;
-- deterministic and multi-model benchmark contracts;
-- no THETECHGUY account IDs, tokens or private model-routing policy.
+- deterministic, one-model, and optional multi-model benchmark contracts;
+- no THETECHGUY account IDs, tokens, or private routing policy.
 
-Every user supplies their own Cloudflare Account ID and scoped API token. Model
-selection is optional: `SERGEANT_CLOUDFLARE_MODELS` overrides the built-in public
-starter roster when a user wants different models.
+Every user supplies their own Cloudflare Account ID and scoped API token. Nothing is called merely because Sergeant is installed.
 
-## Create a scoped Workers AI token
+## Explicit activation
 
-In Cloudflare, open **Workers AI → Use REST API**, create a Workers AI API token,
-and copy the Account ID. Cloudflare documents `Workers AI - Read` and
-`Workers AI - Edit` permissions for a custom token.
-
-Store the values in environment variables. Do not commit them to `.env`, Git,
-issue comments or workflow logs.
+Store credentials in environment variables. Do not commit them to `.env`, Git, issue comments, or workflow logs.
 
 PowerShell:
 
 ```powershell
 $env:SERGEANT_CLOUDFLARE_ACCOUNT_ID="your-account-id"
 $env:SERGEANT_CLOUDFLARE_API_TOKEN="your-scoped-token"
-$env:SERGEANT_CLOUDFLARE_MODELS="@cf/zai-org/glm-4.7-flash,@cf/openai/gpt-oss-120b,@cf/moonshotai/kimi-k2.7-code"
+$env:SERGEANT_CLOUDFLARE_MODELS="@cf/zai-org/glm-4.7-flash,@cf/openai/gpt-oss-120b"
+$env:SERGEANT_CPL_ENABLED="true"
+$env:SERGEANT_CPL_POLICY="preferred"
+$env:SERGEANT_CPL_PROVIDER="cloudflare"
 ```
 
 Bash:
@@ -41,16 +38,13 @@ Bash:
 ```bash
 export SERGEANT_CLOUDFLARE_ACCOUNT_ID="your-account-id"
 export SERGEANT_CLOUDFLARE_API_TOKEN="your-scoped-token"
-export SERGEANT_CLOUDFLARE_MODELS="@cf/zai-org/glm-4.7-flash,@cf/openai/gpt-oss-120b,@cf/moonshotai/kimi-k2.7-code"
+export SERGEANT_CLOUDFLARE_MODELS="@cf/zai-org/glm-4.7-flash,@cf/openai/gpt-oss-120b"
+export SERGEANT_CPL_ENABLED=true
+export SERGEANT_CPL_POLICY=preferred
+export SERGEANT_CPL_PROVIDER=cloudflare
 ```
 
-Roster order matters. Sergeant starts with the first model and recruits later
-members only when the council has work for them. The public starter roster puts
-GLM Flash first as the efficient reasoning route, while GPT-OSS and Kimi remain
-available for independent confirmation and harder coding investigations.
-
-The model roster is explicit. Sergeant does not silently add a newly released
-model to the council or spend against it.
+A one-model roster is valid. Several models create an optional bounded council. Roster order is explicit and Sergeant does not silently add newly released or more expensive models.
 
 ## Check configuration
 
@@ -58,18 +52,15 @@ model to the council or spend against it.
 sergeant-cloudflare --pretty status --require
 ```
 
-The status packet reports whether the Account ID and token are present but never
-prints either value.
+The status packet reports whether the Account ID and token are present but never prints either value.
 
-## Prove every configured model
+## Prove configured models
 
 ```bash
 sergeant-cloudflare --pretty test-models --require
 ```
 
-This makes one small structured-output call to each configured model. A model is
-not considered ready merely because an HTTP endpoint responded: it must return
-the complete structured proof contract.
+This makes one small structured-output call to each configured model. A model is not considered ready merely because an HTTP endpoint responded; it must return the complete proof contract.
 
 ## Run the local gateway
 
@@ -77,19 +68,15 @@ the complete structured proof contract.
 sergeant-cloudflare --pretty gateway
 ```
 
-The gateway binds to a loopback address only and defaults to `127.0.0.1:8082`.
-It exposes:
+The gateway binds to loopback and defaults to `127.0.0.1:8082`. It exposes:
 
 - `GET /health`
 - `GET /v1/models`
 - `POST /v1/chat/completions`
 
-It refuses models outside the configured roster, requires a non-empty messages
-array and does not support streaming in the first release. Network binding is
-not available in this release because an unauthenticated remote gateway could
-expose the operator's Cloudflare quota and billing account.
+It refuses models outside the configured roster, requires a non-empty messages array, and does not expose an unauthenticated remote binding.
 
-In another terminal, print the environment for Sergeant:
+In another terminal:
 
 ```bash
 sergeant-cloudflare env --shell powershell
@@ -97,10 +84,9 @@ sergeant-cloudflare env --shell powershell
 sergeant-cloudflare env --shell bash
 ```
 
-Then run normal Sergeant commands. The existing Cpl router discovers the model
-roster from the local `/v1/models` endpoint.
+Then run Sergeant with model support explicitly enabled.
 
-## Prove a real multi-model council
+## Optional multi-model proof
 
 ```bash
 sergeant-cloudflare --pretty council-proof . \
@@ -108,9 +94,9 @@ sergeant-cloudflare --pretty council-proof . \
   --output build/cloudflare-council-proof.json
 ```
 
-A valid proof requires:
+A valid optional council proof requires:
 
-- at least two configured models;
+- at least two explicitly configured models;
 - completed real model passes;
 - more than one distinct model in the result;
 - `true_model_independence: true`;
@@ -118,36 +104,21 @@ A valid proof requires:
 - no provider errors;
 - no unresolved final gaps.
 
-A complete council may correctly return `PASS`, `NEEDS WORK` or `BLOCK`. The
-proof certifies that the council operated correctly; it does not force the code
-under review to receive a passing verdict.
+This certifies only that optional council reasoning operated correctly. It does not define Sergeant's core, force a passing code verdict, or grant model authority.
 
 ## Cost and privacy boundary
 
-Cloudflare usage is charged to the user's Cloudflare account and subject to the
-current Workers AI allocation and pricing. Sergeant does not hide model calls or
-silently fall back to another paid provider.
+Cloudflare usage is charged to the user's account and remains subject to the provider's allocation, pricing, and data-handling policy. Sergeant does not hide model calls or silently fall back to another paid provider.
 
-The first model is the default worker. Later roster members are not called merely
-because they are configured: Cpl recruits them when disagreement, missing proof,
-independent confirmation or another unresolved gap requires them.
+The first configured model may handle the initial optional support pass. Later roster members are called only for a named gap, disagreement, confirmation need, or explicitly selected deeper mode.
 
-The gateway forwards OpenAI-compatible JSON submitted by local Sergeant, IDE or
-other compatible clients after applying its documented path, size, model,
-streaming and messages validation. It does not guarantee that every request was
-created by Cpl or contains only repository excerpts. Users and client
-integrations are responsible for ensuring the submitted content complies with
-the repository's privacy policy and the provider's data-handling policy.
+Credentials remain outside reports and the public repository. Remote code transmission occurs only after the owner configures and enables the route.
 
-## Future website and IDE connection
+## Correct interpretation
 
-The website and IDE account screens will manage the same connector contract:
-
-1. sign in to Sergeant;
-2. connect a Cloudflare account or paste a scoped token locally;
-3. choose an approved model roster;
-4. run connection and benchmark proof;
-5. activate that route for website, CLI, VS Code or JetBrains use.
-
-Provider credentials remain separate from the public Sergeant source and from
-THETECHGUY's private Hunter routing configuration.
+```text
+Sergeant installed                         → model-free review
+Cloudflare credentials present             → still model-free unless enabled
+Cloudflare explicitly enabled, one model    → optional extra reasoning
+Cloudflare explicitly enabled, several models → optional bounded council
+```
