@@ -6,7 +6,7 @@ Sergeant's operational tests prove that the product runs safely. The blind revie
 Does Sergeant independently find the right defects without reading the answer key or existing reviewer comments?
 ```
 
-Sergeant's primary benchmark mode is model-free. One-model and multi-model modes are optional comparisons that measure the extra reasoning an owner may enable.
+Sergeant's primary benchmark mode is model-free. One-model and multi-model modes are optional comparisons that measure the extra reasoning an owner may enable. The canonical product boundary is documented in [`55-model-free-core-and-optional-model-reasoning.md`](55-model-free-core-and-optional-model-reasoning.md).
 
 ## Blindness boundary
 
