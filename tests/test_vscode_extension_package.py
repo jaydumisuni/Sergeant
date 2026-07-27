@@ -42,9 +42,9 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     }:
         assert command in commands
     assert (ROOT / package["icon"]).is_file()
-    assert properties["sergeant.provider"]["default"] == "Cpl Automatic Reasoning"
-    assert properties["sergeant.llmPolicy"]["default"] == "preferred"
-    assert properties["sergeant.llmProvider"]["default"] == "auto"
+    assert properties["sergeant.provider"]["default"] == "Disabled"
+    assert properties["sergeant.llmPolicy"]["default"] == "disabled"
+    assert properties["sergeant.llmProvider"]["default"] == "disabled"
     assert properties["sergeant.llmCouncil"]["default"] == "adaptive"
     assert properties["sergeant.cplMaxRounds"]["default"] == 2
     assert properties["sergeant.cplMaxRounds"]["maximum"] == 6

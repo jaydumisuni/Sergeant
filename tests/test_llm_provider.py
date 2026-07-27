@@ -20,9 +20,26 @@ def test_select_model_prefers_open_source_deep_coding_route() -> None:
     assert select_model(models, "provider/qwen3-coder-next") == "provider/qwen3-coder-next"
 
 
-def test_cpl_settings_are_enabled_by_default_but_do_not_expose_api_key(monkeypatch) -> None:
+def test_cpl_settings_are_model_free_by_default(monkeypatch) -> None:
+    for name in [
+        "SERGEANT_CPL_POLICY",
+        "SERGEANT_LLM_POLICY",
+        "SERGEANT_CPL_ENABLED",
+        "SERGEANT_LLM_ENABLED",
+        "SERGEANT_CPL_PROVIDER",
+        "SERGEANT_LLM_PROVIDER",
+    ]:
+        monkeypatch.delenv(name, raising=False)
+
+    settings = LLMSettings.from_environment()
+
+    assert settings.enabled is False
+    assert settings.policy == "disabled"
+
+
+def test_user_can_explicitly_enable_optional_cpl_reasoning_without_exposing_api_key(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_CPL_API_KEY", "secret-value")
-    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "auto")
+    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "true")
     monkeypatch.setenv("SERGEANT_CPL_POLICY", "preferred")
 
     settings = LLMSettings.from_environment()

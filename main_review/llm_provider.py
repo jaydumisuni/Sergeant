@@ -86,9 +86,9 @@ class LLMSettings:
 
     @classmethod
     def from_environment(cls) -> "LLMSettings":
-        policy_raw = _env("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY", "preferred").strip().lower()
+        policy_raw = _env("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY", "disabled").strip().lower()
         policy: LLMPolicy = (
-            policy_raw if policy_raw in {"preferred", "required", "disabled"} else "preferred"
+            policy_raw if policy_raw in {"preferred", "required", "disabled"} else "disabled"
         )  # type: ignore[assignment]
         enabled_raw = _env("SERGEANT_CPL_ENABLED", "SERGEANT_LLM_ENABLED", "auto").strip().lower()
         enabled = policy != "disabled" and enabled_raw not in {"0", "false", "no", "off", "disabled"}
@@ -100,7 +100,7 @@ class LLMSettings:
         cloudflare_base, cloudflare_token = cloudflare_environment()
         # Make Cloudflare the easiest hosted route: valid Cloudflare credentials
         # are sufficient when no explicit generic provider/base URL was chosen.
-        if provider == "auto" and not base_url and cloudflare_base and cloudflare_token:
+        if enabled and provider == "auto" and not base_url and cloudflare_base and cloudflare_token:
             provider = CLOUDFLARE_PROVIDER
 
         if provider == CLOUDFLARE_PROVIDER:

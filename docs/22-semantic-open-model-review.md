@@ -1,6 +1,6 @@
-# Cpl — Sergeant's Corporal Specialist
+# Cpl — Model-Free Core and Optional Model Support
 
-Cpl is Sergeant's native reasoning officer. It is not the name of a model, provider, proxy, or borrowed repository. Cpl sits under Sergeant Main Review and uses replaceable model engines to perform evidence-grounded specialist reasoning.
+Cpl is Sergeant's native model-free coordination and reasoning officer. It is not the name of a model, provider, proxy, or borrowed repository. Cpl sits under Sergeant Main Review and coordinates permanent officers, privates, deterministic evidence, tools, scanners, and verified memory without requiring a model. One or multiple replaceable model engines may be enabled by the user as optional extra reasoning for named specialist questions.
 
 ```text
 Repository / changed files
@@ -9,9 +9,11 @@ Deterministic Sergeant evidence
         ↓
 Cpl mission planning
         ↓
-General reasoning pass
+Model-free officer/private formation
         ↓
-Risk-selected specialist passes
+Risk-selected specialist investigations
+        ↓
+Optional model support when user enabled
         ↓
 Evidence grounding and rejection
         ↓
@@ -24,7 +26,7 @@ Commander verdict
 
 - **Sergeant Main Review** is the reviewer core and final engineering authority.
 - **Cpl — Corporal Specialist** is Sergeant's reasoning officer.
-- Models are engines beneath Cpl.
+- Models are optional extra-reasoning engines beneath Cpl and are disabled by default.
 - Gateways are transports beneath Cpl.
 - Deterministic proof remains stronger than unsupported model opinion.
 
@@ -35,9 +37,9 @@ The initial transport boundary was informed by useful open-source gateway patter
 A gateway forwards requests. Cpl performs review orchestration:
 
 1. receives changed-file scope and deterministic Sergeant evidence;
-2. performs a general reasoning pass;
+2. coordinates the model-free permanent-officer and private-force formation;
 3. deterministically selects specialist missions based on risk and repository context;
-4. assigns models to specialists, rotating available engines where useful;
+4. assigns optional model support to specialists only after the user enables it, rotating available engines where useful;
 5. rejects unsupported or out-of-scope findings;
 6. merges supported findings by path, line range, model, and specialist;
 7. returns auditable evidence to Sergeant consensus.
@@ -52,7 +54,11 @@ Current specialists:
 
 This makes model selection only one part of Cpl. Better reasoning can come from stronger models, better decomposition, better context, specialist disagreement, stronger grounding, improved repository intelligence, and better verification loops.
 
-## Engine routes
+## Default model-free boundary
+
+Normal Sergeant review does not discover or call model endpoints. Cpl, permanent officers, privates, deterministic detectors, scanners, tools, memory, and proof remain active. Optional model support requires an explicit user-selected `preferred` or `required` policy.
+
+## Optional engine routes
 
 | Engine route | Default endpoint | Protocol |
 | --- | --- | --- |
@@ -63,9 +69,9 @@ This makes model selection only one part of Cpl. Better reasoning can come from 
 
 Automatic discovery probes loopback endpoints only. Sergeant never guesses a remote endpoint. Code can leave the machine only when the owner explicitly configures a remote base URL.
 
-## Model policy
+## Optional model policy
 
-When an endpoint exposes multiple models and no model is pinned, Cpl currently prefers:
+This section applies only after a user enables model support. When an endpoint exposes multiple models and no model is pinned, Cpl currently prefers:
 
 1. GLM-5.2
 2. Qwen3-Coder-Next
@@ -87,27 +93,29 @@ SERGEANT_CPL_TESTS_CONTRACTS_MODEL=<contract-focused-model>
 
 ## Cpl policies
 
+### Disabled
+
+Product default.
+
+- Do not discover or call model endpoints.
+- Run the complete model-free Sergeant formation: Cpl coordination, permanent officers, privates, deterministic evidence, scanners, tools, memory, and proof.
+
 ### Preferred
 
-Default mode.
+User opt-in extra-reasoning mode.
 
-- Deploy Cpl when a route is available.
-- Keep deterministic Sergeant evidence authoritative.
-- Fall back to deterministic review when the route is unavailable.
-- State clearly in the report that Cpl did not run.
+- Call the configured optional route when available.
+- Keep model-free Sergeant evidence authoritative.
+- Fall back to the model-free formation when the route is unavailable.
+- State clearly whether optional model support ran.
 
 ### Required
 
-Strict release-gate mode.
+Explicit user-selected strict model-assisted release gate.
 
-- Cpl must complete before Sergeant can approve.
+- The configured optional route must complete before Sergeant can approve.
 - An unavailable or failed route becomes a required action.
-- Useful when both deterministic and reasoning proof are mandatory.
-
-### Disabled
-
-- Do not discover or call model endpoints.
-- Run deterministic Sergeant review only.
+- Useful when the user intentionally requires both model-free and model-assisted proof.
 
 ## Reasoning depth
 
@@ -191,9 +199,11 @@ Review explicit files:
 sergeant pr-review . --files "src/app.py,tests/test_app.py" --pretty
 ```
 
-### Cpl local gateway
+### Optional Cpl local gateway
 
 ```bash
+export SERGEANT_CPL_ENABLED=true
+export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=cpl
 export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROTOCOL=responses
@@ -201,24 +211,30 @@ export SERGEANT_CPL_BASE_URL=http://127.0.0.1:8082/v1
 sergeant cpl-status --require --pretty
 ```
 
-### Ollama
+### Optional Ollama support
 
 ```bash
+export SERGEANT_CPL_ENABLED=true
+export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=ollama
 export SERGEANT_CPL_MODEL=qwen3-coder-next
 sergeant pr-review . --pretty
 ```
 
-### LM Studio
+### Optional LM Studio support
 
 ```bash
+export SERGEANT_CPL_ENABLED=true
+export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=lm-studio
 sergeant pr-review . --pretty
 ```
 
-### Explicit OpenAI-compatible endpoint
+### Optional explicit OpenAI-compatible support
 
 ```bash
+export SERGEANT_CPL_ENABLED=true
+export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=configured
 export SERGEANT_CPL_BASE_URL=https://your-endpoint.example/v1
 export SERGEANT_CPL_MODEL=your-model-slug
@@ -281,4 +297,4 @@ Then require:
 - tests and runtime proof;
 - consensus with no unanswered major or blocker.
 
-The direction is not to imitate a gateway forever. The direction is to make Cpl the strongest reasoning officer Sergeant can support while preserving evidence, auditability, privacy, and Sergeant's final authority.
+The direction is to keep Cpl and Sergeant strong model-free reviewers while allowing users to attach optional extra reasoning without weakening evidence, auditability, privacy, or Sergeant's final authority.

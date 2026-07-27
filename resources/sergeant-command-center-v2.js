@@ -12,8 +12,8 @@
     'Custom Mission': 'v2Mission',
   };
   const officers = [
-    ['Cpl', 'Council-led field reasoning'],
-    ['Quartermaster', 'Models + weapons + loadout'],
+    ['Cpl', 'Model-free field coordination; optional extra reasoning'],
+    ['Quartermaster', 'Tools + optional models + loadout'],
     ['Scout', 'Repository discovery'],
     ['Engineer', 'Construction + contracts'],
     ['Medic', 'Diagnosis + safe repair'],
@@ -29,7 +29,7 @@
     'Static Analysis',
     'Regression Tests',
     'Security Scanner',
-    'Cpl Council Reasoning',
+    'Optional Cpl Model Reasoning',
     'Verified Experience Retrieval',
     'Recurrence Detection',
     'Battle Compare',
@@ -44,8 +44,8 @@
     last: null,
     platform: 'IDE',
     settings: {
-      policy: 'preferred',
-      provider: 'auto',
+      policy: 'disabled',
+      provider: 'disabled',
       baseUrl: '',
       model: '',
       protocol: 'auto',
@@ -84,7 +84,7 @@
     $('#progressBar').style.width = `${percentage}%`;
     $('#dashboardPhase').style.width = `${percentage}%`;
     $('#progressPct').textContent = `${percentage}%`;
-    const labels = ['Mission Started', 'Evidence Collected', 'Cpl Council', 'Officer Rebrief', 'Commander Report'];
+    const labels = ['Mission Started', 'Evidence Collected', 'Officer Review', 'Officer Rebrief', 'Commander Report'];
     $('#timeline').innerHTML = labels.map((label, index) => {
       const cutoff = (index + 1) * 20;
       const className = percentage >= cutoff ? 'done' : percentage > index * 20 ? 'running' : '';
@@ -182,7 +182,7 @@
       ['Deterministic Evidence', 98],
       ['Officer Experience', 92],
       ['Council Grounding', 94],
-      ['Model Independence', 88],
+      ['Optional Model Boundary', 100],
       ['Commander', 95],
     ];
     $('#confidence').innerHTML = rows.map((row) => `<div class="confidence-line"><span>${row[0]}</span><span class="bar"><i style="width:${row[1]}%"></i></span><b>${row[1]}%</b></div>`).join('');
@@ -191,12 +191,12 @@
   function renderDoctrine() {
     const cards = [
       ['Evidence First', 'Static findings, runtime proof, officer findings, UI behavior, docs proof, API results and conflicts are gathered before claims.'],
-      ['Council Command', 'Cpl tables officer reports before multiple model members, recruits only for named gaps and repeats within strict round and member limits.'],
+      ['Cpl Coordination', 'Cpl coordinates the model-free officer/private formation. Optional model members are recruited only after user opt-in and only for named gaps.'],
       ['Permanent Officers', 'Every officer receives universal training, owns a specialty, retrieves verified experience and can request a safer rebrief.'],
       ['Verified Experience', 'Only human/Judge-confirmed outcomes update Cpl, officer, model and weapon experience. Raw model opinions never become doctrine.'],
       ['Anti-Repeat', 'Applicable previous experience must influence the next mission or Cpl records why it could not be reused. Recurrence triggers stronger prevention proof.'],
       ['Cross Verification', 'Evidence sources are compared and disagreements are investigated rather than averaged away.'],
-      ['Bounded Growth', 'Cpl forms the smallest sufficient council and adds another model only when a missing capability is named.'],
+      ['Optional Bounded Growth', 'When model support is enabled, Cpl forms the smallest sufficient council and adds another model only when a missing capability is named.'],
       ['Finish, Then Prove', 'Complete the intended implementation, review it, freeze it, then perform clean-clone and runtime proof.'],
       ['Claims Match Implementation', 'Documentation and marketing claims are checked against actual behavior before release.'],
     ];
@@ -216,8 +216,8 @@
   function settings(tab = 'general') {
     const providerDetails = [
       'Officer: Cpl — Council-led Corporal Specialist',
-      `Policy: ${state.settings.policy || 'preferred'}`,
-      `Engine route: ${state.settings.provider || 'auto'}`,
+      `Policy: ${state.settings.policy || 'disabled'}`,
+      `Engine route: ${state.settings.provider || 'disabled'}`,
       `Primary model: ${state.settings.model || 'Cpl automatic council formation'}`,
       `Protocol: ${state.settings.protocol || 'auto'}`,
       `Council mode: ${state.settings.council || 'adaptive'}`,

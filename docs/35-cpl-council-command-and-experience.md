@@ -1,5 +1,7 @@
 # Cpl Council Command and Verified Experience
 
+> **Product boundary:** the model council is an optional extra-reasoning capability, not Sergeant's default operating mode. The normal Cpl/officer/private formation is model-free and remains complete without a provider, AI login, or major GPU.
+
 ## Status
 
 Implemented on top of the permanent-officer amplification baseline.
@@ -23,15 +25,15 @@ Archivist-governed experience
 ```
 
 - Sergeant owns the final engineering verdict and deterministic gates.
-- Cpl forms and chairs the model council, tables issues, deploys support, improves instructions, and reports mission state.
+- Cpl coordinates the model-free field operation and, only when the user enables optional model support, forms and chairs a bounded model council, tables issues, deploys support, improves instructions, and reports mission state.
 - Permanent officers retain universal training, specialist doctrine, evidence duties, experience, and their own reports.
 - Models are replaceable council members and officer-support engines.
 - The Armoury supplies proof capabilities.
 - Human or Judge-confirmed outcomes are required before durable learning.
 
-## Elastic council
+## Optional elastic model council
 
-Cpl starts with the models already justified by the mission and existing specialist plan. It recruits another model only when it can name a gap such as:
+After explicit user opt-in, Cpl starts with the models already justified by the mission and existing specialist plan. It recruits another model only when it can name a gap such as:
 
 - a planned officer report failed;
 - council verdicts disagree;

@@ -1,5 +1,7 @@
 # Cloudflare Workers AI connector
 
+> **Optional capability:** this connector is not required for Sergeant review. Normal Sergeant operation is model-free; a user enables this connector only when they want additional model reasoning.
+
 Sergeant can use a user's own Cloudflare Workers AI account without storing the
 credential in the public repository. The connector exposes a loopback-only
 OpenAI-compatible gateway, so the existing Cpl reasoning council, VS Code,
