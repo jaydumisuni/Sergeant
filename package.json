@@ -13,7 +13,9 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
+  "categories": [
+    "Other"
+  ],
   "main": "./src/vscode/extension.js",
   "contributes": {
     "viewsContainers": {
@@ -40,20 +42,62 @@
       }
     ],
     "commands": [
-      {"command": "sergeant.openCommandCenter", "title": "Sergeant: Open Full Command Center"},
-      {"command": "sergeant.reviewWorkspace", "title": "Sergeant: Review Workspace"},
-      {"command": "sergeant.appReviewWorkspace", "title": "Sergeant: App Bridge Review"},
-      {"command": "sergeant.reviewCurrentFile", "title": "Sergeant: Review Current File"},
-      {"command": "sergeant.reviewChangedFiles", "title": "Sergeant: Review Changed Files"},
-      {"command": "sergeant.v2Mission", "title": "Sergeant: Build V2 Mission"},
-      {"command": "sergeant.proofSuite", "title": "Sergeant: Run Proof Suite"},
-      {"command": "sergeant.finalProof", "title": "Sergeant: Run Final Proof"},
-      {"command": "sergeant.verifyStandard", "title": "Sergeant: Verify Standard"},
-      {"command": "sergeant.battleTests", "title": "Sergeant: Validate Battle Tests"},
-      {"command": "sergeant.ideBenchContract", "title": "Sergeant: IDE Bench Contract"},
-      {"command": "sergeant.openLastReport", "title": "Sergeant: Open Last Report"},
-      {"command": "sergeant.copyLastReport", "title": "Sergeant: Copy Last Report"},
-      {"command": "sergeant.exportLastReport", "title": "Sergeant: Export Last Report"}
+      {
+        "command": "sergeant.openCommandCenter",
+        "title": "Sergeant: Open Full Command Center"
+      },
+      {
+        "command": "sergeant.reviewWorkspace",
+        "title": "Sergeant: Review Workspace"
+      },
+      {
+        "command": "sergeant.appReviewWorkspace",
+        "title": "Sergeant: App Bridge Review"
+      },
+      {
+        "command": "sergeant.reviewCurrentFile",
+        "title": "Sergeant: Review Current File"
+      },
+      {
+        "command": "sergeant.reviewChangedFiles",
+        "title": "Sergeant: Review Changed Files"
+      },
+      {
+        "command": "sergeant.v2Mission",
+        "title": "Sergeant: Build V2 Mission"
+      },
+      {
+        "command": "sergeant.proofSuite",
+        "title": "Sergeant: Run Proof Suite"
+      },
+      {
+        "command": "sergeant.finalProof",
+        "title": "Sergeant: Run Final Proof"
+      },
+      {
+        "command": "sergeant.verifyStandard",
+        "title": "Sergeant: Verify Standard"
+      },
+      {
+        "command": "sergeant.battleTests",
+        "title": "Sergeant: Validate Battle Tests"
+      },
+      {
+        "command": "sergeant.ideBenchContract",
+        "title": "Sergeant: IDE Bench Contract"
+      },
+      {
+        "command": "sergeant.openLastReport",
+        "title": "Sergeant: Open Last Report"
+      },
+      {
+        "command": "sergeant.copyLastReport",
+        "title": "Sergeant: Copy Last Report"
+      },
+      {
+        "command": "sergeant.exportLastReport",
+        "title": "Sergeant: Export Last Report"
+      }
     ],
     "configuration": {
       "title": "Sergeant",
@@ -65,7 +109,7 @@
         },
         "sergeant.provider": {
           "type": "string",
-          "default": "Cpl Automatic Reasoning",
+          "default": "Disabled",
           "enum": [
             "Cpl Automatic Reasoning",
             "Cpl Local Gateway",
@@ -74,32 +118,43 @@
             "OpenAI-compatible Endpoint",
             "Disabled"
           ],
-          "description": "Legacy display preference. Cpl is Sergeant's council-led Corporal Specialist; models and gateways are replaceable engines beneath it."
+          "description": "Legacy display preference. Sergeant is model-free by default; Cpl model support is an optional extra-reasoning capability."
         },
         "sergeant.llmPolicy": {
           "type": "string",
-          "default": "preferred",
-          "enum": ["preferred", "required", "disabled"],
-          "enumDescriptions": [
-            "Deploy Cpl by default and fall back to deterministic Sergeant evidence when no route is available.",
-            "Require Cpl reasoning before Sergeant can approve.",
-            "Disable Cpl reasoning and use deterministic review only."
+          "default": "disabled",
+          "enum": [
+            "preferred",
+            "required",
+            "disabled"
           ],
-          "description": "Cpl reasoning gate policy."
+          "enumDescriptions": [
+            "User-enabled optional Cpl model reasoning with model-free fallback.",
+            "User-enabled strict gate that requires the configured optional Cpl model route.",
+            "Default model-free Sergeant review with Cpl, officers, privates, tools, scanners, memory, and proof."
+          ],
+          "description": "Optional Cpl model-support gate policy. Disabled is the model-free product default."
         },
         "sergeant.llmProvider": {
           "type": "string",
-          "default": "auto",
-          "enum": ["auto", "cpl", "ollama", "lm-studio", "openai-compatible", "disabled"],
-          "enumDescriptions": [
-            "Let Cpl discover its local gateway, Ollama, or LM Studio and select the strongest available models.",
-            "Use the Sergeant-native Cpl local gateway.",
-            "Use Ollama as one engine beneath Cpl.",
-            "Use LM Studio as one engine beneath Cpl.",
-            "Use the explicitly configured endpoint as one engine beneath Cpl.",
-            "Disable Cpl reasoning."
+          "default": "disabled",
+          "enum": [
+            "auto",
+            "cpl",
+            "ollama",
+            "lm-studio",
+            "openai-compatible",
+            "disabled"
           ],
-          "description": "Engine route beneath Cpl."
+          "enumDescriptions": [
+            "After model support is enabled, let Cpl discover a local gateway, Ollama, or LM Studio.",
+            "Use the Sergeant-native Cpl local gateway as an optional engine.",
+            "Use Ollama as an optional engine beneath Cpl.",
+            "Use LM Studio as an optional engine beneath Cpl.",
+            "Use the explicitly configured endpoint as an optional engine beneath Cpl.",
+            "Default model-free Sergeant review; do not discover or call models."
+          ],
+          "description": "Optional extra-reasoning engine route beneath Cpl."
         },
         "sergeant.llmBaseUrl": {
           "type": "string",
@@ -109,18 +164,28 @@
         "sergeant.llmModel": {
           "type": "string",
           "default": "",
-          "description": "Optional primary model slug. Blank lets Cpl form its council from the strongest available models and specialist assignments."
+          "description": "Optional primary model slug used only after model support is enabled. Blank lets Cpl choose among explicitly available optional engines."
         },
         "sergeant.llmProtocol": {
           "type": "string",
           "default": "auto",
-          "enum": ["auto", "responses", "chat_completions"],
+          "enum": [
+            "auto",
+            "responses",
+            "chat_completions"
+          ],
           "description": "Transport protocol beneath Cpl. The local Cpl gateway uses OpenAI Responses; generic engines commonly use Chat Completions."
         },
         "sergeant.llmCouncil": {
           "type": "string",
           "default": "adaptive",
-          "enum": ["adaptive", "deep", "maximum", "single", "always"],
+          "enum": [
+            "adaptive",
+            "deep",
+            "maximum",
+            "single",
+            "always"
+          ],
           "enumDescriptions": [
             "Cpl deploys the smallest sufficient council and adds members only for named evidence gaps.",
             "Cpl starts with deeper specialist coverage and allows more council rounds.",
@@ -135,7 +200,7 @@
           "default": 2,
           "minimum": 1,
           "maximum": 6,
-          "description": "Maximum evidence → officer report → council rebrief rounds before unresolved gaps are returned to Sergeant."
+          "description": "Maximum evidence \u2192 officer report \u2192 council rebrief rounds before unresolved gaps are returned to Sergeant."
         },
         "sergeant.cplMaxCouncilMembers": {
           "type": "integer",

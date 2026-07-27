@@ -42,9 +42,9 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     }:
         assert command in commands
     assert (ROOT / package["icon"]).is_file()
-    assert properties["sergeant.provider"]["default"] == "Cpl Automatic Reasoning"
-    assert properties["sergeant.llmPolicy"]["default"] == "preferred"
-    assert properties["sergeant.llmProvider"]["default"] == "auto"
+    assert properties["sergeant.provider"]["default"] == "Disabled"
+    assert properties["sergeant.llmPolicy"]["default"] == "disabled"
+    assert properties["sergeant.llmProvider"]["default"] == "disabled"
     assert properties["sergeant.llmCouncil"]["default"] == "adaptive"
     assert properties["sergeant.cplMaxRounds"]["default"] == 2
     assert properties["sergeant.cplMaxRounds"]["maximum"] == 6
@@ -131,7 +131,7 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
     assert "sergeantHostSend" in command_center_js
     assert "saveCplSettings" in command_center_js
     assert "window.addEventListener('message'" in command_center_js
-    assert "Cpl Council Reasoning" in command_center_js
+    assert "Optional Cpl Model Reasoning" in command_center_js
     assert "Verified Experience Retrieval" in command_center_js
     assert "Recurrence Detection" in command_center_js
     assert "Council Command" in command_center_js
@@ -142,6 +142,8 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
     assert "grid-template-columns:270px" in command_center_css
     assert "Math.random" not in command_center_js
     assert "sgtTimer" not in command_center_js
+    assert "const clockInterval = setInterval" in command_center_js
+    assert "clearInterval(clockInterval)" in command_center_js
 
 
 def test_command_center_visible_controls_are_wired() -> None:

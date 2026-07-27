@@ -24,6 +24,12 @@ Owner
 
 Hermes carries orders, evidence, status, and provenance across every level. Hermes does not command, promote lessons, or issue Sergeant's final verdict.
 
+## Model-free core and optional reasoning boundary
+
+Sergeant's normal review is **model-free by default**. Cpl, permanent officers, privates, deterministic detectors, scanners, tools, verified memory, and proof gates must remain useful without an AI login, hosted provider, or major GPU.
+
+Models are optional extra-reasoning engines beneath the command chain. They may be enabled only by an explicit owner or user choice. One model or several models may assist a named officer investigation, but they are evidence inputs rather than votes, never replace officers or privates, never become a dependency for normal review, and never issue the final verdict. Model discovery, credentials, and provider usage must remain visibly disabled until that opt-in occurs.
+
 ## Sergeant private-force law
 
 Sergeant estimates the normally justified human-equivalent worker requirement and deploys ten times that number as privates:

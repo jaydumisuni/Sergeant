@@ -1,5 +1,7 @@
 # Cpl Officer Amplification
 
+> **Product boundary:** this document describes optional model amplification. Sergeant's default Cpl, officer, private, deterministic, tool, scanner, memory, and proof formation is model-free. Models run only after explicit user opt-in.
+
 Cpl is Sergeant's senior field-reasoning officer. Cpl does not replace the permanent squad.
 
 Every permanent officer retains:
@@ -11,12 +13,10 @@ Every permanent officer retains:
 - its own officer report;
 - verified specialist experience that remains when model engines change.
 
-Cpl adds a higher field-command reasoning layer:
+Cpl's model-free field-command layer provides shared grounded mission intelligence and deterministic specialist decomposition for every deployed officer. When a user enables optional extra reasoning, Cpl can additionally provide:
 
-- shared grounded mission intelligence for every deployed officer;
-- deterministic decomposition of specialist support assignments;
-- replaceable model-powered bots attached to matching permanent officers;
-- elastic multi-model council formation;
+- replaceable model-powered support bots attached to matching permanent officers;
+- bounded single- or multi-model council formation;
 - repeated issue table, officer-report, council-rebrief loops;
 - model rotation and role-specific model selection;
 - context, retry, fallback, and completion control;

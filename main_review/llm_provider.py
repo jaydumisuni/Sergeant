@@ -86,21 +86,30 @@ class LLMSettings:
 
     @classmethod
     def from_environment(cls) -> "LLMSettings":
-        policy_raw = _env("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY", "preferred").strip().lower()
-        policy: LLMPolicy = (
-            policy_raw if policy_raw in {"preferred", "required", "disabled"} else "preferred"
-        )  # type: ignore[assignment]
+        policy_value = os.getenv("SERGEANT_CPL_POLICY")
+        if policy_value is None:
+            policy_value = os.getenv("SERGEANT_LLM_POLICY")
         enabled_raw = _env("SERGEANT_CPL_ENABLED", "SERGEANT_LLM_ENABLED", "auto").strip().lower()
-        enabled = policy != "disabled" and enabled_raw not in {"0", "false", "no", "off", "disabled"}
         provider = _normalize_provider(_env("SERGEANT_CPL_PROVIDER", "SERGEANT_LLM_PROVIDER", "auto"))
         base_url = _env("SERGEANT_CPL_BASE_URL", "SERGEANT_LLM_BASE_URL", "").strip()
         api_key = _env("SERGEANT_CPL_API_KEY", "SERGEANT_LLM_API_KEY", "").strip()
         model = _env("SERGEANT_CPL_MODEL", "SERGEANT_LLM_MODEL", "").strip()
+        explicit_enable = enabled_raw in {"1", "true", "yes", "on", "enabled"}
+        explicit_route = provider not in {"auto", "disabled"} or bool(base_url)
+        policy_raw = (
+            policy_value if policy_value is not None else ("preferred" if explicit_enable or explicit_route else "disabled")
+        ).strip().lower()
+        policy: LLMPolicy = (
+            policy_raw if policy_raw in {"preferred", "required", "disabled"} else "disabled"
+        )  # type: ignore[assignment]
+        enabled = policy != "disabled" and enabled_raw not in {"0", "false", "no", "off", "disabled"}
+        if not enabled and not explicit_route:
+            provider = "disabled"
 
         cloudflare_base, cloudflare_token = cloudflare_environment()
         # Make Cloudflare the easiest hosted route: valid Cloudflare credentials
         # are sufficient when no explicit generic provider/base URL was chosen.
-        if provider == "auto" and not base_url and cloudflare_base and cloudflare_token:
+        if enabled and provider == "auto" and not base_url and cloudflare_base and cloudflare_token:
             provider = CLOUDFLARE_PROVIDER
 
         if provider == CLOUDFLARE_PROVIDER:

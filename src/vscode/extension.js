@@ -19,8 +19,8 @@ function pythonPath() {
 function cplSettings() {
   const configuration = vscode.workspace.getConfiguration("sergeant");
   return {
-    policy: configuration.get("llmPolicy") || "preferred",
-    provider: configuration.get("llmProvider") || "auto",
+    policy: configuration.get("llmPolicy") || "disabled",
+    provider: configuration.get("llmProvider") || "disabled",
     baseUrl: configuration.get("llmBaseUrl") || "",
     model: configuration.get("llmModel") || "",
     protocol: configuration.get("llmProtocol") || "auto",
@@ -138,7 +138,9 @@ function runSergeant(args, title, actionId = "") {
   output.appendLine(`$ ${pythonPath()} sergeant.py ${args.join(" ")}`);
   output.appendLine("");
   const settings = cplSettings();
-  output.appendLine(`Cpl council: ${settings.policy} · ${settings.council} · ${settings.provider} · ${settings.model || "automatic model selection"} · ${settings.maxRounds} rounds · ${settings.maxMembers} members`);
+  output.appendLine(settings.policy === "disabled" || settings.provider === "disabled"
+    ? "Sergeant mode: model-free Cpl + permanent officers + privates"
+    : `Optional Cpl model support: ${settings.policy} · ${settings.council} · ${settings.provider} · ${settings.model || "automatic optional model selection"} · ${settings.maxRounds} rounds · ${settings.maxMembers} members`);
   output.appendLine("");
   commandCenterProvider?.setRunning(actionId, title);
 

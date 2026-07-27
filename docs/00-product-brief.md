@@ -75,7 +75,7 @@ This reviewer is designed to combine:
 
 - repo-level understanding
 - static analysis evidence
-- AI reasoning
+- optional model reasoning
 - project memory
 - Code Ops standards
 - security boundaries

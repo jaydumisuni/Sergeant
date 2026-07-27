@@ -113,8 +113,8 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
     private fun semanticSettings(): Map<String, String> {
         val properties = PropertiesComponent.getInstance(project)
         val defaults = mapOf(
-            "policy" to "preferred",
-            "provider" to "auto",
+            "policy" to "disabled",
+            "provider" to "disabled",
             "baseUrl" to "",
             "model" to "",
             "protocol" to "auto",
