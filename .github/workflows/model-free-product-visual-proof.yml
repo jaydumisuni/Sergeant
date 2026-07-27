@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - README.md
+      - SUBMISSION_READY.md
       - AGENTS.md
       - CLAUDE.md
       - package.json
@@ -14,6 +15,9 @@ on:
       - docs/38-cpl-noise-governor-and-route-failover.md
       - docs/39-review-intelligence-proof.md
       - docs/55-model-free-core-and-optional-model-reasoning.md
+      - docs/hackathon-submission.md
+      - docs/submission-proof.md
+      - docs/releases/v0.4.1.md
       - resources/sergeant-command-center-v2.*
       - src/vscode/**
       - adapters/jetbrains/**
@@ -57,6 +61,10 @@ jobs:
           sections = [
               ('README', render_markdown('README.md')),
               ('Canonical product boundary', render_markdown('docs/55-model-free-core-and-optional-model-reasoning.md')),
+              ('Submission readiness wording', render_markdown('SUBMISSION_READY.md')),
+              ('Submission proof wording', render_markdown('docs/submission-proof.md')),
+              ('Hackathon wording', render_markdown('docs/hackathon-submission.md')),
+              ('0.4.1 release wording', render_markdown('docs/releases/v0.4.1.md')),
           ]
           body = ''.join(f'<section><h1>{html.escape(title)}</h1>{content}</section>' for title, content in sections)
           page = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sergeant model-free product documentation</title><style>
