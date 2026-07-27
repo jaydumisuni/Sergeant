@@ -83,6 +83,8 @@ The shipped default is `SERGEANT_CPL_POLICY=disabled`: model calls are opt-in, w
 - `SERGEANT_CPL_POLICY=preferred` permits optional model assistance when a valid route is available and otherwise continues model-free.
 - `SERGEANT_CPL_POLICY=required` is an owner-selected strict gate for a mission that explicitly requires model reasoning.
 
+For backward-compatible explicit opt-in, `SERGEANT_CPL_ENABLED=true` selects the optional `preferred` policy when the owner has not supplied a policy. An explicitly supplied `disabled` policy still wins.
+
 Remote endpoints are never guessed. Remote code transmission requires an explicit owner-configured route. Credentials remain environment-only.
 
 ## Visual verification requirement
