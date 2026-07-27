@@ -269,7 +269,7 @@ Set `SERGEANT_CLI` when the executable is not on the IDE process path.
 
 ## Quick start
 
-### Deterministic-only review
+### Model-free review
 
 ```bash
 sergeant review . --pretty
@@ -287,19 +287,19 @@ sergeant pr-review . --pretty
 sergeant pr-review . --files "src/app.py,tests/test_app.py" --pretty
 ```
 
-### Check Cpl
+### Check optional model-support status
 
 ```bash
 sergeant cpl-status --pretty
 ```
 
-### Require a working Cpl route
+### Require an optional model route for this mission
 
 ```bash
 sergeant cpl-status --require --pretty
 ```
 
-### Cpl local gateway
+### Optional Cpl local model gateway
 
 ```bash
 export SERGEANT_CPL_PROVIDER=cpl
@@ -310,24 +310,27 @@ sergeant cpl-status --require --pretty
 sergeant pr-review . --pretty
 ```
 
-### Ollama
+### Optional Ollama reasoning
 
 ```bash
+export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=ollama
 export SERGEANT_CPL_MODEL=qwen3-coder-next
 sergeant pr-review . --pretty
 ```
 
-### LM Studio
+### Optional LM Studio reasoning
 
 ```bash
+export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=lm-studio
 sergeant pr-review . --pretty
 ```
 
-### Explicit OpenAI-compatible endpoint
+### Optional explicit OpenAI-compatible endpoint
 
 ```bash
+export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=configured
 export SERGEANT_CPL_BASE_URL=https://your-runtime.example/v1
 export SERGEANT_CPL_MODEL=your-model-slug
