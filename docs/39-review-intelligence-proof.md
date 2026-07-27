@@ -1,10 +1,12 @@
-# Blind Reviewer-Intelligence Proof
+# Blind reviewer-intelligence proof
 
 Sergeant's operational tests prove that the product runs safely. The blind reviewer-intelligence proof measures a different question:
 
 ```text
 Does Sergeant independently find the right defects without reading the answer key or existing reviewer comments?
 ```
+
+Sergeant's primary benchmark mode is model-free. One-model and multi-model modes are optional comparisons that measure the extra reasoning an owner may enable.
 
 ## Blindness boundary
 
@@ -13,9 +15,9 @@ Each benchmark case contains two separate sections:
 - repository files and changed-file scope;
 - expected findings used only for scoring.
 
-The benchmark engine materializes only the repository files into a temporary workspace. Expected findings remain outside the workspace and are loaded only after `run_independent_pr_review()` returns.
+The benchmark engine materializes only repository files into a temporary workspace. Expected findings remain outside the workspace and are loaded only after `run_independent_pr_review()` returns.
 
-Existing pull-request review comments are also excluded from live battle comparison by default. They may be included only through an explicit assisted comparison.
+Existing pull-request review comments are excluded from live battle comparison by default. They may be included only through an explicit assisted comparison.
 
 ## Metrics
 
@@ -33,10 +35,10 @@ The benchmark reports:
 - duplicate rate;
 - finding completeness;
 - review duration;
-- Cpl pass count and distinct models;
-- route readiness.
+- permanent-officer and route state;
+- optional model pass count and distinct models when enabled.
 
-Review-output completeness is not a score for the quality of the code. When Sergeant produces no ranked findings, the completeness score is reported as not evaluated rather than a misleading `100`.
+Review-output completeness is not a score for code quality. When Sergeant produces no ranked findings, completeness is reported as not evaluated rather than a misleading `100`.
 
 ## Modes
 
@@ -46,11 +48,13 @@ sergeant-bench --mode one-model --require-route
 sergeant-bench --mode council --require-route
 ```
 
-- `deterministic` proves the scanners, policy, intelligence and final gate without a model route.
-- `one-model` measures one configured model serving bounded Cpl passes.
-- `council` measures the configured multi-model Cpl council.
+- `deterministic` — canonical Sergeant benchmark. Proves the model-free scanners, learned rules, permanent officers, policy, intelligence, Judge ledger, and final gate.
+- `one-model` — optional comparison. Measures one explicitly configured model serving bounded Cpl support passes.
+- `council` — optional comparison. Measures an explicitly configured bounded multi-model council.
 
-Model/provider configuration remains external. The public benchmark records only generic route status, model identifiers returned by the configured route, and aggregate metrics. Private provider choice and internal deployment remain outside this repository.
+The latter two do not define the product architecture. They measure whether optional reasoning improves, harms, or leaves unchanged the model-free baseline.
+
+Model/provider configuration remains external. Public artifacts record only credential-safe route status, configured model identifiers, and aggregate metrics.
 
 ## Noise boundary
 
@@ -61,23 +65,23 @@ Repository-wide scanners remain broad, but pull-request review separates:
 - unrelated historical background findings;
 - self-referential rule/control-plane matches that are explicitly suppressed.
 
-Background findings remain available to Cpl, officers and humans as context but do not dominate the current change gate.
+Background findings remain available to officers and humans as context but do not dominate the current change gate.
 
-Committed battle fixtures, expected-answer prose and project documentation are not scanned as live battle evidence. Learned rules operate on code or patch evidence, not on their own answer descriptions. When the rule implementation or its proof tests contain the same marker text, those self-referential matches are classified as suppressed review noise rather than product defects.
+Committed battle fixtures, expected-answer prose, and project documentation are not scanned as live battle evidence. Learned rules operate on code or patch evidence, not their own answer descriptions. Self-referential matches are suppressed review noise rather than product defects.
 
 ## Finding contract
 
-A blocker or major finding reaches the Tier 2 gate only when it survives evidence challenge. Promoted findings should identify:
+A blocker or major finding reaches the gate only when it survives evidence challenge. Promoted findings should identify:
 
 - what is wrong;
 - the affected path and line when available;
 - direct evidence;
-- the triggering execution condition;
+- the triggering condition;
 - the consequence;
 - a safer alternative;
-- the focused verification test.
+- a focused verification test.
 
-Generic or lexical signals remain visible but are suppressed from the gate until stronger evidence exists. Known safe evidence, such as explicit SQL parameter binding, can also downgrade a lexical signal without hiding the original trace.
+Generic or lexical signals remain visible but are non-gating until stronger evidence exists. Known safe evidence can downgrade a lexical signal without hiding the trace.
 
 ## Workflow assurance
 
@@ -87,10 +91,9 @@ Workflow:
 .github/workflows/review-intelligence-proof.yml
 ```
 
-- **Purpose:** run focused adversarial tests, the deterministic blind suite, installed-wheel benchmark discovery and optionally a configured one-model or council benchmark.
+- **Purpose:** run focused adversarial tests and the model-free blind suites. Optional manual runs may also compare one-model or council modes.
 - **Permissions:** `contents: read` only.
-- **Secrets:** optional Cpl route values are read from generic environment-backed GitHub secrets during manual runs. They are not command-line arguments or uploaded artifacts.
-- **Rollback:** remove the isolated workflow and benchmark package data without changing the normal reviewer, CI, standalone service or multiplatform surfaces.
+- **Secrets:** optional route values are read from environment-backed GitHub secrets only during explicitly configured runs. They are not command-line arguments or uploaded artifacts.
 - **Proof:** benchmark JSON artifacts expose metrics and missed/extra findings while excluding credentials and expected-answer material from review input.
 
 Container packaging:
@@ -99,8 +102,12 @@ Container packaging:
 Dockerfile
 ```
 
-- **Purpose:** package the public reviewer, Command Center resources and the same blind benchmark data used by the installed wheel.
-- **Permissions:** the image runs as the unprivileged `sergeant` user and does not grant repository-write authority.
-- **Secrets:** no provider key or route credential is copied into the image; optional runtime values remain environment supplied.
-- **Rollback:** remove the benchmark data copy and data-file declarations without altering the standalone service entry point.
-- **Proof:** the standalone workflow builds the image, runs it as non-root with hardened filesystem/capability settings, checks health and API behavior, and proves installed benchmark discovery outside the source tree.
+The standalone workflow builds the image, runs it as non-root with hardened filesystem/capability settings, checks health and API behavior, and proves installed model-free benchmark discovery outside the source tree. Optional provider credentials are never copied into the image.
+
+## Correct interpretation
+
+```text
+Model-free benchmark → proves Sergeant
+One-model benchmark → measures optional reasoning delta
+Council benchmark   → measures optional multi-model reasoning delta
+```
