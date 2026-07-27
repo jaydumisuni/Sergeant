@@ -29,13 +29,13 @@ The permanent officers, Cpl coordination, learned deterministic rules, evidence 
 - A missing provider, expired credential, exhausted quota, or offline machine does not remove Sergeant's officers.
 - Models never become officers, votes, final authority, or a requirement hidden behind the normal review command.
 
-The default environment is equivalent to:
+The authoritative default switch is:
 
 ```text
 SERGEANT_CPL_ENABLED=false
-SERGEANT_CPL_POLICY=disabled
-SERGEANT_CPL_PROVIDER=disabled
 ```
+
+The Python compatibility layer may still report dormant `preferred` / `auto` route preferences inherited from Sergeant 0.4.0. Those values cannot discover or call a provider while the enable switch is false. VS Code and JetBrains present the clearer user-facing defaults `disabled` / `disabled`. In every host, a model call requires an explicit owner opt-in.
 
 ## Optional extra reasoning
 
