@@ -1,9 +1,9 @@
 name: Diagnose PR 155 Source Integrity
 
 on:
-  push:
+  pull_request:
     branches:
-      - cleanup/harvest-model-free-tail
+      - main
     paths:
       - .github/workflows/diagnose-pr155-source-integrity.yml
 
