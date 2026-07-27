@@ -73,7 +73,10 @@ def test_command_center_visibly_separates_core_from_optional_models() -> None:
 def test_runtime_configuration_contract_remains_honest() -> None:
     provider = text("main_review/llm_provider.py")
     assert 'LLMPolicy = Literal["preferred", "required", "disabled"]' in provider
-    assert '"SERGEANT_LLM_POLICY", "disabled"' in provider
+    assert 'policy_names = ("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY")' in provider
+    assert 'policy_raw = _env(*policy_names, "disabled")' in provider
+    assert "not policy_explicit" in provider
+    assert 'policy_raw = "preferred"' in provider
     assert "Automatic discovery probes loopback endpoints only" in provider
     package = __import__("json").loads(text("package.json"))
     properties = package["contributes"]["configuration"]["properties"]
@@ -83,3 +86,4 @@ def test_runtime_configuration_contract_remains_honest() -> None:
     assert "SERGEANT_CPL_POLICY=disabled" in canonical
     assert "SERGEANT_CPL_POLICY=preferred" in canonical
     assert "SERGEANT_CPL_POLICY=required" in canonical
+    assert "SERGEANT_CPL_ENABLED=true" in canonical
