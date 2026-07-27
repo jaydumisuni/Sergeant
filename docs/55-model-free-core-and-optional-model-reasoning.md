@@ -85,6 +85,10 @@ The shipped default is `SERGEANT_CPL_POLICY=disabled`: model calls are opt-in, w
 
 Remote endpoints are never guessed. Remote code transmission requires an explicit owner-configured route. Credentials remain environment-only.
 
+## Visual verification requirement
+
+The public documentation and Command Center wording must be rendered at desktop and 390 × 844 mobile viewports. The proof must confirm the model-free default, optional-model labels, readable controls, non-overlapping fields, and no document-wide horizontal overflow. The executable contract lives in `tests/model-free-product-visual.spec.js` and `.github/workflows/model-free-product-visual-proof.yml`.
+
 ## Documentation rule
 
 Public documentation must say **model-free core with optional model reasoning**. It must not describe Sergeant itself as a multi-model reviewer, claim that models power its officers, or imply that a model route is required for Cpl, review, learning, proof, installation, or normal operation.
