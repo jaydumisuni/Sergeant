@@ -181,3 +181,19 @@ test('Command Center sends one model-free mission while a run is active', async 
   });
   await expect(launchButton).toBeEnabled();
 });
+
+test('Command Center owns and tears down its recurring clock timer', async ({ page }) => {
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await page.goto(previewUrl);
+  await expect.poll(() => page.locator('#clock').textContent()).not.toBe('');
+
+  const beforeStop = await page.locator('#clock').textContent();
+  const stopped = await page.evaluate(() => {
+    window.sergeantClock.stop();
+    return window.sergeantClock.isStopped();
+  });
+  expect(stopped).toBe(true);
+
+  await page.waitForTimeout(1200);
+  await expect(page.locator('#clock')).toHaveText(beforeStop);
+});
