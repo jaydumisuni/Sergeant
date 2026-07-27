@@ -47,8 +47,7 @@ async function assertCommandCenter(page, screenshotName) {
   await expect(page.locator('#cplMaxMembersInput')).toHaveValue('5');
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).first().click();
-  await expect(page.locator('#semanticRoute')).toContainText('Deterministic only');
-  await expect(page.locator('#semanticRoute')).toContainText('2r/5m');
+  await expect(page.locator('#semanticRoute')).toContainText('Model-free · Cpl + officers + privates');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
   expect(pageErrors).toEqual([]);
