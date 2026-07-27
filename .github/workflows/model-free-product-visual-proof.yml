@@ -19,6 +19,7 @@ on:
       - docs/submission-proof.md
       - docs/releases/v0.4.1.md
       - resources/sergeant-command-center-v2.*
+      - resources/readme-top-image.png
       - src/vscode/**
       - adapters/jetbrains/**
       - tests/model-free-product-visual.spec.js
@@ -48,7 +49,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Build documentation and Command Center previews
         run: |
-          mkdir -p build artifacts/model-free-product
+          mkdir -p build/resources artifacts/model-free-product
+          cp resources/readme-top-image.png build/resources/readme-top-image.png
           python - <<'PY'
           from pathlib import Path
           import html
@@ -69,7 +71,7 @@ jobs:
           body = ''.join(f'<section><h1>{html.escape(title)}</h1>{content}</section>' for title, content in sections)
           page = f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sergeant model-free product documentation</title><style>
           :root{{--bg:#070912;--panel:#111827;--text:#f8fafc;--muted:#cbd5e1;--line:#334155;--accent:#a855f7}}
-          *{{box-sizing:border-box}}html,body{{margin:0;max-width:100%;overflow-x:hidden}}body{{background:var(--bg);color:var(--text);font:16px/1.65 Inter,Segoe UI,Arial,sans-serif;padding:32px}}section{{max-width:1040px;margin:0 auto 28px;padding:28px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}}h1,h2,h3{{line-height:1.2;overflow-wrap:anywhere}}p,li,td,th,code{{overflow-wrap:anywhere}}a{{color:#7dd3fc}}pre{{overflow:auto;max-width:100%;padding:16px;border:1px solid var(--line);border-radius:10px;background:#020617}}code{{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}}table{{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse}}th,td{{padding:8px 10px;border:1px solid var(--line);text-align:left}}blockquote{{margin-left:0;padding:8px 16px;border-left:4px solid var(--accent);color:var(--muted)}}@media(max-width:600px){{body{{padding:10px;font-size:15px}}section{{padding:16px;border-radius:12px}}}}
+          *{{box-sizing:border-box}}html,body{{margin:0;max-width:100%;overflow-x:hidden}}body{{background:var(--bg);color:var(--text);font:16px/1.65 Inter,Segoe UI,Arial,sans-serif;padding:32px}}section{{max-width:1040px;margin:0 auto 28px;padding:28px;border:1px solid var(--line);border-radius:18px;background:var(--panel)}}h1,h2,h3{{line-height:1.2;overflow-wrap:anywhere}}p,li,td,th,code{{overflow-wrap:anywhere}}img{{display:block;max-width:100%;height:auto;margin-inline:auto}}a{{color:#7dd3fc}}pre{{overflow:auto;max-width:100%;padding:16px;border:1px solid var(--line);border-radius:10px;background:#020617}}code{{font-family:ui-monospace,SFMono-Regular,Consolas,monospace}}table{{display:block;max-width:100%;overflow-x:auto;border-collapse:collapse}}th,td{{padding:8px 10px;border:1px solid var(--line);text-align:left}}blockquote{{margin-left:0;padding:8px 16px;border-left:4px solid var(--accent);color:var(--muted)}}@media(max-width:600px){{body{{padding:10px;font-size:15px}}section{{padding:16px;border-radius:12px}}}}
           </style></head><body>{body}</body></html>'''
           Path('build/model-free-docs-preview.html').write_text(page, encoding='utf-8')
 
