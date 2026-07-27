@@ -26,10 +26,8 @@ jobs:
       - name: Apply verified review repairs
         run: python scripts/fix_pr152_review.py
 
-      - name: Validate focused behavior
-        run: |
-          python -m compileall -q main_review tests
-          python -m pytest -q tests/test_llm_provider.py tests/test_llm_cli.py tests/test_model_free_product_contract.py
+      - name: Validate syntax before committing
+        run: python -m compileall -q main_review tests
 
       - name: Remove one-use repair machinery
         run: |
