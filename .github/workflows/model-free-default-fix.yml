@@ -1,23 +1,22 @@
 name: Model-Free Default Correction
 
 on:
-  push:
+  pull_request:
     branches:
-      - fix/model-free-default-and-docs
-    paths:
-      - scripts/apply_model_free_default_fix.py
-      - .github/workflows/model-free-default-fix.yml
+      - main
+    types: [opened, synchronize, reopened]
 
 permissions:
   contents: write
 
 jobs:
   apply:
-    if: github.actor != 'github-actions[bot]'
+    if: github.event.pull_request.head.ref == 'fix/model-free-default-and-docs' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: fix/model-free-default-and-docs
           fetch-depth: 0
 
       - uses: actions/setup-python@v5
