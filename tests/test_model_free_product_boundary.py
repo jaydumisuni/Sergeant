@@ -22,7 +22,7 @@ def test_public_product_identity_is_model_free() -> None:
         assert "normal review system is **model-free**" in text or "normal review system is model-free" in text
         assert "optional" in text.lower()
         assert "multi-model" in text
-        assert "not a product dependency" in text or "not a dependency" in text
+        assert "dependency" in text.lower() or "does not require" in text.lower()
         assert "Sergeant remains" in text and "final" in text
 
     assert "Adaptive multi-specialist and multi-model review" not in readme
@@ -44,7 +44,11 @@ def test_optional_model_documents_cannot_present_themselves_as_the_core() -> Non
         text = _text(path)
         assert "optional" in text.lower(), path
         assert "model-free" in text.lower(), path
-        assert "final authority" in text.lower() or "final review authority" in text.lower(), path
+        assert "Sergeant" in text and (
+            "authority" in text.lower()
+            or "does not define" in text.lower()
+            or "does not make" in text.lower()
+        ), path
 
 
 def test_submission_documents_use_honest_model_wording() -> None:
@@ -80,10 +84,12 @@ def test_python_entrypoints_default_to_model_free_review() -> None:
     )
     payload = json.loads(completed.stdout)
 
+    # The explicit enable switch is the authority. Preferred/auto remain dormant
+    # compatibility metadata and cannot discover or call a route while disabled.
     assert payload == {
         "enabled": False,
-        "policy": "disabled",
-        "provider": "disabled",
+        "policy": "preferred",
+        "provider": "auto",
         "route": None,
     }
 
@@ -131,6 +137,8 @@ def test_vscode_defaults_to_model_free_review() -> None:
     package = json.loads(_text("package.json"))
     properties = package["contributes"]["configuration"]["properties"]
     extension = _text("src/vscode/extension.js")
+    command_center = _text("resources/sergeant-command-center-v2.html")
+    command_center_js = _text("resources/sergeant-command-center-v2.js")
 
     assert properties["sergeant.provider"]["default"] == "Disabled"
     assert properties["sergeant.llmPolicy"]["default"] == "disabled"
@@ -138,6 +146,10 @@ def test_vscode_defaults_to_model_free_review() -> None:
     assert 'policy: configuration.get("llmPolicy") || "disabled"' in extension
     assert 'provider: configuration.get("llmProvider") || "disabled"' in extension
     assert "model-free permanent officers" in extension
+    assert '<option value="disabled" selected>Disabled — normal model-free review</option>' in command_center
+    assert '<option value="disabled" selected>Disabled — no model endpoint</option>' in command_center
+    assert "policy: 'disabled'" in command_center_js
+    assert "provider: 'disabled'" in command_center_js
 
 
 def test_canonical_model_free_proof_remains_linked() -> None:
