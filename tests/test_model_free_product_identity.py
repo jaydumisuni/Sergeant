@@ -61,7 +61,10 @@ def test_command_center_visibly_separates_core_from_optional_models() -> None:
     assert "ENGINEERING REVIEW SYSTEM" in html
     assert "Model-Free Core / Optional Model Support" in html
     assert "Model-free only — no model calls" in html
+    assert "Cpl / Officer Reasoning" in html
+    assert "Optional Model Route" in html
     assert "Model-free Sergeant core" in script
+    assert "Optional Model Rounds" in script
     assert "Optional Model Assistance" in script
     assert "Cross-check Independence" in script
 

@@ -78,6 +78,8 @@
   function page(id) {
     $$('.page').forEach((element) => element.classList.toggle('active', element.id === id));
     $$('[data-page]').forEach((button) => button.classList.toggle('active', button.dataset.page === id));
+    const quickActions = $('.quick-actions');
+    if (quickActions) quickActions.hidden = ['orders', 'settings'].includes(id);
   }
 
   function phase(progress) {
@@ -99,7 +101,7 @@
     if (!council) return;
     const row = document.createElement('div');
     row.className = 'form-grid';
-    row.innerHTML = '<label>Maximum Council Rounds<input id="cplMaxRoundsInput" type="number" min="1" max="6" value="2"></label><label>Maximum Council Members<input id="cplMaxMembersInput" type="number" min="1" max="12" value="5"></label>';
+    row.innerHTML = '<label>Optional Model Rounds<input id="cplMaxRoundsInput" type="number" min="1" max="6" value="2"></label><label>Optional Model Members<input id="cplMaxMembersInput" type="number" min="1" max="12" value="5"></label>';
     council.closest('.form-grid')?.after(row);
   }
 

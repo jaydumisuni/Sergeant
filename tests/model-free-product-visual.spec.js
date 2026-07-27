@@ -45,6 +45,21 @@ for (const view of [
     await expect(page.locator('#llmPolicySelect')).toHaveValue('disabled');
     await expect(page.locator('body')).toContainText('Model-free only — no model calls');
     await expect(page.locator('body')).toContainText('optional extra-reasoning support only');
+    await expect(page.locator('.quick-actions')).toBeHidden();
+    const controls = await page.locator('#orders article.panel').nth(1).locator('input, select').evaluateAll((elements) =>
+      elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { id: element.id, left: box.left, right: box.right, top: box.top, bottom: box.bottom };
+      }),
+    );
+    for (let index = 0; index < controls.length; index += 1) {
+      for (let other = index + 1; other < controls.length; other += 1) {
+        const first = controls[index];
+        const second = controls[other];
+        const overlaps = first.left < second.right && first.right > second.left && first.top < second.bottom && first.bottom > second.top;
+        expect(overlaps, `${first.id} overlaps ${second.id}`).toBeFalsy();
+      }
+    }
     await expectNoDocumentOverflow(page);
     await page.screenshot({
       path: path.join(artifacts, `model-free-command-center-${view.name}.png`),
