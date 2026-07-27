@@ -36,8 +36,9 @@ def test_runtime_and_ide_defaults_do_not_enable_models() -> None:
     package = json.loads(text("package.json"))
     props = package["contributes"]["configuration"]["properties"]
 
-    assert '"SERGEANT_LLM_POLICY", "disabled"' in provider
-    assert 'else "disabled"' in provider
+    assert 'policy_value = os.getenv("SERGEANT_CPL_POLICY")' in provider
+    assert '"preferred" if explicit_enable or explicit_route else "disabled"' in provider
+    assert 'enabled = policy != "disabled"' in provider
     assert 'policy: configuration.get("llmPolicy") || "disabled"' in extension
     assert 'provider: configuration.get("llmProvider") || "disabled"' in extension
     assert '?: "disabled"' in runner
