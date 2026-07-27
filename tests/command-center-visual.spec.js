@@ -40,14 +40,14 @@ async function assertCommandCenter(page, screenshotName) {
   await expect(page.locator('#cplMaxRoundsInput')).toBeVisible();
   await expect(page.locator('#cplMaxMembersInput')).toBeVisible();
   await expect(page.locator('#deployBtn')).toBeVisible();
-  await expect(page.locator('#providerSelect')).toHaveValue('auto');
-  await expect(page.locator('#llmPolicySelect')).toHaveValue('preferred');
+  await expect(page.locator('#providerSelect')).toHaveValue('disabled');
+  await expect(page.locator('#llmPolicySelect')).toHaveValue('disabled');
   await expect(page.locator('#llmCouncilSelect')).toHaveValue('adaptive');
   await expect(page.locator('#cplMaxRoundsInput')).toHaveValue('2');
   await expect(page.locator('#cplMaxMembersInput')).toHaveValue('5');
 
   await page.getByRole('button', { name: 'Dashboard', exact: true }).first().click();
-  await expect(page.locator('#semanticRoute')).toContainText('Cpl · adaptive council · auto');
+  await expect(page.locator('#semanticRoute')).toContainText('Deterministic only');
   await expect(page.locator('#semanticRoute')).toContainText('2r/5m');
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   expect(overflow).toBeLessThanOrEqual(2);
@@ -134,8 +134,8 @@ test('Command Center sends only one mission while a run is active', async ({ pag
   expect(runPayloads).toHaveLength(1);
   expect(runPayloads[0].action).toBe('reviewWorkspace');
   expect(runPayloads[0].settings).toEqual({
-    policy: 'preferred',
-    provider: 'auto',
+    policy: 'disabled',
+    provider: 'disabled',
     baseUrl: '',
     model: '',
     protocol: 'auto',
@@ -153,8 +153,8 @@ test('Command Center sends only one mission while a run is active', async ({ pag
         workspace: 'sergeant',
         history: [],
         settings: {
-          policy: 'preferred',
-          provider: 'auto',
+          policy: 'disabled',
+          provider: 'disabled',
           baseUrl: '',
           model: '',
           protocol: 'auto',

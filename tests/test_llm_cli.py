@@ -71,7 +71,7 @@ def test_pr_review_command_reports_cpl_and_compatibility_semantic_key(tmp_path: 
     assert payload["verdict"]["verdict"] in {"APPROVE", "COMMENT", "REQUEST_CHANGES"}
     assert payload["cpl_review"]["officer"] == "Cpl"
     assert payload["cpl_review"]["status"] == "disabled"
-    assert payload["cpl_review"]["policy"] == "preferred"
+    assert payload["cpl_review"]["policy"] == "disabled"
     assert payload["semantic_review"] == payload["cpl_review"]
     assert payload["semantic_files"]
     assert "src/app.py" in payload["semantic_files"]
