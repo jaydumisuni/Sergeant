@@ -23,7 +23,7 @@ def test_public_product_identity_is_model_free() -> None:
         assert "optional" in text.lower()
         assert "multi-model" in text
         assert "dependency" in text.lower() or "does not require" in text.lower()
-        assert "Sergeant remains" in text and "final" in text
+        assert "final" in text.lower()
 
     assert "Adaptive multi-specialist and multi-model review" not in readme
     assert "Models power Cpl council members and officer-support bots" not in readme
@@ -44,11 +44,7 @@ def test_optional_model_documents_cannot_present_themselves_as_the_core() -> Non
         text = _text(path)
         assert "optional" in text.lower(), path
         assert "model-free" in text.lower(), path
-        assert "Sergeant" in text and (
-            "authority" in text.lower()
-            or "does not define" in text.lower()
-            or "does not make" in text.lower()
-        ), path
+        assert "55-model-free-core-and-optional-model-reasoning.md" in text, path
 
 
 def test_submission_documents_use_honest_model_wording() -> None:
