@@ -396,7 +396,23 @@
   window.addEventListener('message', (event) => {
     if (['sergeantState', 'state'].includes(event.data?.type)) apply(event.data.state);
   });
-  setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+
+  function updateClock() {
+    const clock = $('#clock');
+    if (clock) clock.textContent = new Date().toLocaleTimeString();
+  }
+
+  updateClock();
+  const clockTimer = window.setInterval(updateClock, 1000);
+  let clockStopped = false;
+  function stopClock() {
+    if (clockStopped) return;
+    clockStopped = true;
+    window.clearInterval(clockTimer);
+  }
+  window.addEventListener('pagehide', stopClock, { once: true });
+  window.addEventListener('beforeunload', stopClock, { once: true });
+  window.sergeantClock = { stop: stopClock, isStopped: () => clockStopped };
 
   renderOfficers();
   renderConfidence();
