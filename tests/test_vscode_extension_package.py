@@ -142,6 +142,8 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
     assert "grid-template-columns:270px" in command_center_css
     assert "Math.random" not in command_center_js
     assert "sgtTimer" not in command_center_js
+    assert "const clockInterval = setInterval" in command_center_js
+    assert "clearInterval(clockInterval)" in command_center_js
 
 
 def test_command_center_visible_controls_are_wired() -> None:
