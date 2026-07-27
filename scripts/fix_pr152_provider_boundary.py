@@ -15,3 +15,5 @@ if text.count(old) != 1:
     raise RuntimeError("Provider boundary is ambiguous")
 TARGET.write_text(text.replace(old, new, 1), encoding="utf-8")
 print("Preserved explicit providers while keeping a clean environment model-free.")
+
+# Trigger after the safe one-use workflow is installed.
