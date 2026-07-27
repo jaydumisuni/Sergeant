@@ -110,20 +110,20 @@ When optional model support is enabled, an endpoint exposes multiple models, and
 
 This is a configurable routing policy, not a permanent claim that one model is universally best.
 
-### Cpl policies
+### Optional model-support policies
 
-**Preferred** is the compatibility policy for optional model assistance—not Sergeant's product identity or a requirement:
+**Preferred** permits optional model assistance without changing Sergeant's model-free identity:
 
-- keep Cpl's model-free permanent-officer formation active at all times;
+- keep Cpl's permanent-officer and private formation active at all times;
 - add model reasoning only when a valid route is available;
-- state clearly in the report whether Cpl ran.
+- state clearly whether optional model support ran, failed, or was unavailable.
 
-**Required** is the strict release gate:
+**Required** is an owner-selected strict model-assisted gate:
 
-- no approval when the Cpl route is unavailable or fails;
-- all required deterministic and Cpl evidence must complete.
+- no approval when the explicitly required optional model route is unavailable or fails;
+- all deterministic, officer, and requested model-support evidence must complete.
 
-**Disabled** runs deterministic review only.
+**Disabled** disables model calls while keeping Cpl, permanent officers, privates, deterministic review, proof, and verified learning active.
 
 Full architecture, privacy, grounding, specialist, and configuration details are in [`docs/22-semantic-open-model-review.md`](docs/22-semantic-open-model-review.md).
 
@@ -236,7 +236,7 @@ python -m pip install sergeant-reviewer==0.4.1
 
 0.4.1 publishes the useful model-free, standalone, GitHub-ingestion, comparison, and IDE work already merged after the original 0.4.0 tag. See [`docs/releases/v0.4.1.md`](docs/releases/v0.4.1.md).
 
-Current source development:
+From source development:
 
 ```bash
 git clone https://github.com/jaydumisuni/Sergeant.git
@@ -255,11 +255,11 @@ npx @vscode/vsce package --no-dependencies
 code --install-extension sergeant-reviewer-0.4.1.vsix --force
 ```
 
-Open **Sergeant** from the activity bar, then use **Open Full Command Center**.
+Open Sergeant from the activity bar, then use **Open Full Command Center**.
 
 ### JetBrains IDEs
 
-The current marketplace preview targets the 2025.2 / build 252 line. Install the Sergeant CLI first:
+The current marketplace preview targets the 2025.2 build 252 line. Install Sergeant CLI first:
 
 ```bash
 python -m pip install sergeant-reviewer==0.4.1
@@ -281,19 +281,19 @@ sergeant review . --pretty
 sergeant pr-review . --pretty
 ```
 
-Review explicit files:
+### Review explicit files
 
 ```bash
 sergeant pr-review . --files "src/app.py,tests/test_app.py" --pretty
 ```
 
-Check Cpl:
+### Check Cpl
 
 ```bash
 sergeant cpl-status --pretty
 ```
 
-Require a working Cpl route:
+### Require a working Cpl route
 
 ```bash
 sergeant cpl-status --require --pretty
@@ -329,7 +329,7 @@ sergeant pr-review . --pretty
 
 ```bash
 export SERGEANT_CPL_PROVIDER=configured
-export SERGEANT_CPL_BASE_URL=https://your-endpoint.example/v1
+export SERGEANT_CPL_BASE_URL=https://your-runtime.example/v1
 export SERGEANT_CPL_MODEL=your-model-slug
 export SERGEANT_CPL_PROTOCOL=chat_completions
 export SERGEANT_CPL_API_KEY=your-runtime-secret
@@ -338,7 +338,7 @@ sergeant pr-review . --pretty
 
 The API key is read from the process environment. It is not returned by `cpl-status`, stored by the Command Center, written into reports, or committed to the repository.
 
-### Additional commands
+## Additional commands
 
 ```bash
 sergeant app-review . --mode pull_request --files "src/app.py,tests/test_app.py" --pretty
@@ -346,7 +346,7 @@ sergeant v2-mission . --mission-type pull_request_review --mode pull_request --f
 sergeant proof-suite . --pretty
 sergeant final-proof . --pretty
 sergeant verify-standard . --pretty
-sergeant battle-tests . --pretty
+sergeant battle-test . --pretty
 sergeant ide-bench-contract --pretty
 ```
 
@@ -361,72 +361,34 @@ SERGEANT_CPL_MODEL=<provider model slug>
 SERGEANT_CPL_PROTOCOL=auto|responses|chat_completions
 SERGEANT_CPL_DEPTH=adaptive|deep|maximum|single
 SERGEANT_CPL_MAX_PASSES=3
-SERGEANT_CPL_API_KEY=<runtime secret>
+SERGEANT_CPL_MAX_COUNCIL_MEMBERS=12
 SERGEANT_CPL_TIMEOUT_SECONDS=90
-SERGEANT_CPL_MAX_OUTPUT_TOKENS=5000
+SERGEANT_CPL_MAX_OUTPUT_TOKENS=5399
 SERGEANT_CPL_MAX_INPUT_CHARS=120000
-SERGEANT_CPL_MAX_FILE_CHARS=18000
+SERGEANT_CPL_MAX_FILE_CHARS=10000
 ```
 
-The earlier `SERGEANT_LLM_*` variables and `llm-status` command remain accepted as compatibility aliases for 0.4.0 integrations. New configuration should use Cpl naming.
+The earlier `SERGEANT_LLM_*` variables and `llm-status` command remain accepted as compatibility aliases for 0.4.0 migrations. New configuration should use Cpl naming.
 
 ## Battle testing
 
 Current fixtures include:
 
-- `psf/requests#7502` — focused regression and test-clarity case.
-- `pallets/flask#5812` — architecture and lifecycle case.
-- `django/django#19610` — URL query-string merge case.
+- `pst/requests#7562` — focused regression and test clarity case.
+- `pallets/flask#5352` — architecture and lifecycle case.
+- `django/django#13816` — URL grouping regression case.
 
 Battle comparison reviews patch text in a temporary workspace. It does not execute target code. Its agreement score remains transparent rather than being treated as a model-judged truth score.
 
-## Safety boundary
+## Documentation
 
-Sergeant refuses to:
+- [`docs/22-semantic-open-model-review.md`](docs/22-semantic-open-model-review.md) — Cpl architecture, providers, privacy, grounding, and configuration.
+- [`docs/25-cloudflare-workers-ai.md`](docs/25-cloudflare-workers-ai.md) — optional Cloudflare Workers AI connector.
+- [`docs/38-cpl-noise-governor-and-route-failover.md`](docs/38-cpl-noise-governor-and-route-failover.md) — model-noise reduction and route failover.
+- [`docs/39-review-intelligence-proof.md`](docs/39-review-intelligence-proof.md) — reviewer intelligence proof and benchmark contract.
+- [`docs/40-reviewer-head-to-head.md`](docs/40-reviewer-head-to-head.md) — reviewer comparison.
+- [`docs/55-model-free-core-and-optional-model-reasoning.md`](docs/55-model-free-core-and-optional-model-reasoning.md) — canonical model-free product boundary.
 
-- Execute untrusted pull-request-controlled code.
-- Run shell commands supplied by PR content.
-- Automatically modify project code.
-- Write or merge patches as part of review.
-- Use privileged write tokens during analysis.
-- Silently fake success after a failed live fetch.
-- Treat Cpl, any model, or an external reviewer as final authority.
-- Auto-discover remote model endpoints.
-- Emit the Cpl API key in status or reports.
+## License
 
-## Optional strict model-assisted review gate
-
-For a high-risk release where the owner explicitly wants model reasoning in addition to the model-free gate:
-
-```bash
-export SERGEANT_CPL_POLICY=required
-export SERGEANT_CPL_DEPTH=maximum
-sergeant pr-review . --pretty
-```
-
-Then require:
-
-- repository review;
-- diff review;
-- standards verification;
-- capability review;
-- Cpl route available;
-- grounded general and specialist passes;
-- tests and runtime proof;
-- consensus with no unanswered major or blocker.
-
-That is a complete configured gate—not a promise of literal 100% defect detection.
-
-## Public boundary
-
-This repository contains reusable review infrastructure. Private project rules, customer evidence, deployment secrets, and write-token operations do not belong in the public repository.
-
-## Contributing
-
-Contributions, issue reports, feature requests, and engineering discussions are welcome. Sergeant values evidence-based changes, reproducible results, clear reasoning, respect for existing architecture, standards compliance, and useful signals over noisy output.
-
-## Identity
-
-Sergeant / SRG is created by **THETECHGUY DIGITAL SOLUTIONS**.
-
-> Observe. Analyze. Verify.
+Apache-2.0. See [`LICENSE`](LICENSE).
