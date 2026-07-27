@@ -45,6 +45,17 @@ def test_owner_can_explicitly_enable_optional_model_reasoning(monkeypatch) -> No
     assert settings.policy == "preferred"
 
 
+def test_explicit_enable_flag_is_a_compatible_opt_in_without_policy(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "true")
+    monkeypatch.delenv("SERGEANT_CPL_POLICY", raising=False)
+    monkeypatch.delenv("SERGEANT_LLM_POLICY", raising=False)
+
+    settings = LLMSettings.from_environment()
+
+    assert settings.enabled is True
+    assert settings.policy == "preferred"
+
+
 def test_cpl_environment_takes_precedence_over_legacy_llm_environment(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_LLM_PROVIDER", "ollama")
     monkeypatch.setenv("SERGEANT_CPL_PROVIDER", "cpl")

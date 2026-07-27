@@ -86,11 +86,26 @@ class LLMSettings:
 
     @classmethod
     def from_environment(cls) -> "LLMSettings":
-        policy_raw = _env("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY", "disabled").strip().lower()
+        policy_names = ("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY")
+        enabled_names = ("SERGEANT_CPL_ENABLED", "SERGEANT_LLM_ENABLED")
+        policy_explicit = any(os.environ.get(name, "").strip() for name in policy_names)
+        enabled_explicit = any(os.environ.get(name, "").strip() for name in enabled_names)
+        policy_raw = _env(*policy_names, "disabled").strip().lower()
+        enabled_raw = _env(*enabled_names, "auto").strip().lower()
+
+        # The shipped state is model-free. An explicit legacy/CLI enable flag is
+        # still a deliberate opt-in and therefore selects the compatibility
+        # `preferred` policy unless the owner explicitly supplied a policy.
+        if (
+            not policy_explicit
+            and enabled_explicit
+            and enabled_raw in {"1", "true", "yes", "on", "enabled"}
+        ):
+            policy_raw = "preferred"
+
         policy: LLMPolicy = (
             policy_raw if policy_raw in {"preferred", "required", "disabled"} else "disabled"
         )  # type: ignore[assignment]
-        enabled_raw = _env("SERGEANT_CPL_ENABLED", "SERGEANT_LLM_ENABLED", "auto").strip().lower()
         enabled = policy != "disabled" and enabled_raw not in {"0", "false", "no", "off", "disabled"}
         provider = _normalize_provider(_env("SERGEANT_CPL_PROVIDER", "SERGEANT_LLM_PROVIDER", "auto"))
         base_url = _env("SERGEANT_CPL_BASE_URL", "SERGEANT_LLM_BASE_URL", "").strip()

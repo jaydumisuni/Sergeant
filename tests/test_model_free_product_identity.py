@@ -14,7 +14,7 @@ def test_canonical_model_boundary_is_explicit() -> None:
     canonical = text("docs/55-model-free-core-and-optional-model-reasoning.md")
     for phrase in (
         "Sergeant is a model-free engineering review system",
-        "does not require",
+        "does **not** require",
         "optional owner-enabled model support",
         "A multi-model council is only one optional configuration",
         "Sergeant still issues the verdict",
