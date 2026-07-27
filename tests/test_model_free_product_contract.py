@@ -60,3 +60,54 @@ def test_command_center_presents_models_as_optional() -> None:
     assert "Optional Model Reasoning" in html
     assert "AI CODE REVIEWER" not in html
     assert "Optional Cpl Model Reasoning" in js
+
+
+def test_persistent_worker_and_distribution_surfaces_match_product_truth() -> None:
+    claude = text("CLAUDE.md")
+    copilot = text(".github/copilot-instructions.md")
+    pyproject = text("pyproject.toml")
+    plugin = text("adapters/jetbrains/src/main/resources/META-INF/plugin.xml")
+
+    for document in [claude, copilot, pyproject, plugin]:
+        assert "model-free" in document.lower()
+        assert "optional" in document.lower()
+
+    assert 'description = "Sergeant model-free engineering reviewer with optional owner-enabled model reasoning."' in pyproject
+    assert '"model-free-review"' in pyproject
+    assert '"optional-model-reasoning"' in pyproject
+    assert "Run Sergeant's model-free review against the current project" in plugin
+
+
+def test_submission_and_optional_provider_docs_do_not_recast_models_as_core() -> None:
+    submission = text("SUBMISSION_READY.md")
+    hackathon = text("docs/hackathon-submission.md")
+    noise = text("docs/38-cpl-noise-governor-and-route-failover.md")
+    benchmark = text("docs/39-review-intelligence-proof.md")
+    cloudflare = text("docs/CLOUDFLARE_COUNCIL.md")
+
+    for document in [submission, hackathon, noise, benchmark, cloudflare]:
+        assert "model-free" in document.lower()
+        assert "optional" in document.lower()
+
+    assert "Cpl council reasoning" not in submission
+    assert "Cpl multi-model council and verified experience" not in hackathon
+    assert "Sergeant's normal model-free permanent-officer formation does not depend on this layer" in noise
+    assert "`deterministic` — canonical Sergeant benchmark" in benchmark
+    assert "Cloudflare credentials present               → still model-free until enabled" in cloudflare
+
+
+def test_retired_draft_harvest_preserves_only_verified_product_truth() -> None:
+    harvest = text("docs/55-model-free-tail-harvest.md")
+    lesson = json.loads(
+        text(".github/self-learning/lessons/product-identity-runtime-consistency-20260727.json")
+    )
+
+    assert "PR #151" in harvest
+    assert "PR #154" in harvest
+    assert "Import-time environment mutation" in harvest
+    assert "Duplicate visual workflow" in harvest
+    assert lesson["status"] == "accepted"
+    assert lesson["source"]["fixing_pr"] == 152
+    assert lesson["authority"]["may_auto_promote"] is False
+    assert lesson["authority"]["may_auto_merge"] is False
+    assert lesson["authority"]["final_verdict"] == "Sergeant"
