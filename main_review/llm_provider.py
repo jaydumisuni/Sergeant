@@ -239,20 +239,65 @@ def _normalize_base_url(value: str) -> str:
     return base
 
 
-def _request_headers(api_key: str) -> dict[str, str]:
+def _effective_origin(value: str) -> tuple[str, str, int] | None:
+    try:
+        parsed = urllib.parse.urlsplit(value)
+        port = parsed.port
+    except ValueError:
+        return None
+    scheme = parsed.scheme.lower()
+    hostname = (parsed.hostname or "").lower()
+    if scheme not in {"http", "https"} or not hostname or parsed.username or parsed.password:
+        return None
+    if port is None:
+        port = 443 if scheme == "https" else 80
+    return scheme, hostname, port
+
+
+def _same_origin(request_url: str, trusted_url: str) -> bool:
+    try:
+        request_parsed = urllib.parse.urlsplit(request_url)
+        trusted_parsed = urllib.parse.urlsplit(trusted_url)
+    except ValueError:
+        return False
+    # Keep the direct scheme/netloc comparison visible for audit and static proof,
+    # then normalize default ports so https://host and https://host:443 agree.
+    if (request_parsed.scheme, request_parsed.netloc) == (
+        trusted_parsed.scheme,
+        trusted_parsed.netloc,
+    ):
+        return _effective_origin(request_url) is not None
+    return _effective_origin(request_url) == _effective_origin(trusted_url) is not None
+
+
+def _request_headers(api_key: str, *, endpoint: str, trusted_base_url: str) -> dict[str, str]:
     headers = {
         "Accept": "application/json",
         "Content-Type": "application/json",
         "User-Agent": "sergeant-reviewer/cpl-router",
     }
     if api_key:
+        if not _same_origin(endpoint, trusted_base_url):
+            raise LLMProviderError(
+                "Cpl refused to attach credentials because the request destination does not match the configured origin."
+            )
         headers["Authorization"] = f"Bearer {api_key}"
     return headers
 
 
+class _CredentialSafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Allow credentialed redirects only when the exact origin is unchanged."""
+
+    def redirect_request(self, request, fp, code, message, headers, new_url):  # type: ignore[override]
+        if request.get_header("Authorization") and not _same_origin(request.full_url, new_url):
+            raise LLMProviderError("Cpl refused a cross-origin redirect for a credentialed request.")
+        return super().redirect_request(request, fp, code, message, headers, new_url)
+
+
 def _load_json_response(request: urllib.request.Request, timeout: float) -> dict[str, Any]:
+    opener = urllib.request.build_opener(_CredentialSafeRedirectHandler())
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with opener.open(request, timeout=timeout) as response:
             body = response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as error:
         detail = error.read().decode("utf-8", errors="replace")[:1000]
@@ -320,9 +365,11 @@ def _load_model_response(
 
 
 def list_models(base_url: str, *, api_key: str = "", timeout_seconds: float = 3.0) -> tuple[str, ...]:
+    trusted_base_url = _normalize_base_url(base_url)
+    endpoint = f"{trusted_base_url}/models"
     request = urllib.request.Request(
-        f"{_normalize_base_url(base_url)}/models",
-        headers=_request_headers(api_key),
+        endpoint,
+        headers=_request_headers(api_key, endpoint=endpoint, trusted_base_url=trusted_base_url),
         method="GET",
     )
     payload = _load_json_response(request, timeout_seconds)
@@ -606,10 +653,15 @@ def _invoke_cloudflare_native_text(
         "temperature": 0,
         "max_tokens": route.max_output_tokens,
     }
+    endpoint = _cloudflare_native_endpoint(route)
     request = urllib.request.Request(
-        _cloudflare_native_endpoint(route),
+        endpoint,
         data=json.dumps(body).encode("utf-8"),
-        headers=_request_headers(route.api_key),
+        headers=_request_headers(
+            route.api_key,
+            endpoint=endpoint,
+            trusted_base_url=route.base_url,
+        ),
         method="POST",
     )
     response = _load_model_response(
@@ -623,7 +675,6 @@ def _invoke_cloudflare_native_text(
 
 
 def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dict[str, Any]:
-    headers = _request_headers(route.api_key)
     if route.protocol == "responses":
         body: dict[str, Any] = {
             "model": route.model,
@@ -648,6 +699,11 @@ def invoke_json(route: LLMRoute, *, system_prompt: str, user_prompt: str) -> dic
         }
         endpoint = f"{route.base_url}/chat/completions"
 
+    headers = _request_headers(
+        route.api_key,
+        endpoint=endpoint,
+        trusted_base_url=route.base_url,
+    )
     request = urllib.request.Request(
         endpoint,
         data=json.dumps(body).encode("utf-8"),

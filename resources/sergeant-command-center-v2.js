@@ -366,7 +366,8 @@
   window.addEventListener('message', (event) => {
     if (['sergeantState', 'state'].includes(event.data?.type)) apply(event.data.state);
   });
-  setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+  const clockTimer = setInterval(() => { $('#clock').textContent = new Date().toLocaleTimeString(); }, 1000);
+  window.addEventListener('beforeunload', () => clearInterval(clockTimer), { once: true });
 
   renderOfficers();
   renderConfidence();

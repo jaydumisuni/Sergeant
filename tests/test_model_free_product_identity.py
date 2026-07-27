@@ -68,6 +68,8 @@ def test_command_center_visibly_separates_core_from_optional_models() -> None:
     assert "Optional Model Limits" in script
     assert "Optional Model Assistance" in script
     assert "Cross-check Independence" in script
+    assert "const clockTimer = setInterval" in script
+    assert "clearInterval(clockTimer)" in script
 
 
 def test_runtime_configuration_contract_remains_honest() -> None:

@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import urllib.request
+
+import pytest
+
 from main_review.llm_provider import (
     LLMRoute,
     LLMSettings,
+    LLMProviderError,
+    _CredentialSafeRedirectHandler,
+    _request_headers,
     discover_route,
     select_model,
 )
@@ -133,3 +140,36 @@ def test_legacy_gateway_provider_name_is_normalized_to_cpl(monkeypatch) -> None:
     settings = LLMSettings.from_environment()
 
     assert settings.provider == "cpl"
+
+def test_credentials_require_exact_configured_origin() -> None:
+    headers = _request_headers(
+        "token",
+        endpoint="https://models.example/v1/chat/completions",
+        trusted_base_url="https://models.example:443/v1",
+    )
+    assert headers["Authorization"] == "Bearer token"
+
+    with pytest.raises(LLMProviderError, match="configured origin"):
+        _request_headers(
+            "token",
+            endpoint="https://evil.example/v1/chat/completions",
+            trusted_base_url="https://models.example/v1",
+        )
+
+
+def test_credentialed_cross_origin_redirect_is_rejected() -> None:
+    request = urllib.request.Request(
+        "https://models.example/v1/chat/completions",
+        headers={"Authorization": "Bearer token"},
+    )
+    handler = _CredentialSafeRedirectHandler()
+
+    with pytest.raises(LLMProviderError, match="cross-origin redirect"):
+        handler.redirect_request(
+            request,
+            None,
+            302,
+            "Found",
+            {},
+            "https://evil.example/v1/chat/completions",
+        )
