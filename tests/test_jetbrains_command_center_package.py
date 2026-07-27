@@ -80,6 +80,13 @@ def test_jetbrains_plugin_bundles_shared_command_center() -> None:
     ]:
         assert property_name in panel
 
+    assert 'properties.getValue("sergeant.llm.policy") ?: "disabled"' in runner
+    assert 'properties.getValue("sergeant.llm.provider") ?: "disabled"' in runner
+    assert '"policy" to "disabled"' in panel
+    assert '"provider" to "disabled"' in panel
+    assert "model-free permanent-officer review" in panel
+    assert "Optional model reasoning remains disabled unless the owner enables it" in panel
+
     assert "SergeantMissionGate.tryAcquire(project)" in runner
     assert "SergeantMissionGate.release(project)" in runner
     assert "finally" in runner

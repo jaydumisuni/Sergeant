@@ -91,7 +91,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
                 "exportLast" -> exportLastReport()
                 "saveSettings" -> {
                     saveSemanticSettings(message.getAsJsonObject("settings"))
-                    sendState("Cpl reasoning settings saved.")
+                    sendState("Optional model reasoning settings saved.")
                 }
                 "selectWorkspace" -> sendState()
             }
@@ -113,8 +113,8 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
     private fun semanticSettings(): Map<String, String> {
         val properties = PropertiesComponent.getInstance(project)
         val defaults = mapOf(
-            "policy" to "preferred",
-            "provider" to "auto",
+            "policy" to "disabled",
+            "provider" to "disabled",
             "baseUrl" to "",
             "model" to "",
             "protocol" to "auto",
@@ -288,7 +288,7 @@ private class SergeantFallbackPanel(private val project: Project) : JPanel(Borde
         isEditable = false
         lineWrap = false
         font = Font(Font.MONOSPACED, Font.PLAIN, 12)
-        text = "Sergeant 0.4.0-preview\n\nJCEF is unavailable. Native fallback is ready to run deterministic review and Cpl specialist reasoning for ${project.name}."
+        text = "Sergeant 0.4.0-preview\n\nJCEF is unavailable. Native fallback is ready to run the model-free permanent-officer review for ${project.name}. Optional model reasoning remains disabled unless the owner enables it."
     }
     private val runButton = JButton("Review Project")
 
@@ -307,7 +307,7 @@ private class SergeantFallbackPanel(private val project: Project) : JPanel(Borde
 
     private fun runReview() {
         runButton.isEnabled = false
-        output.text = "Running Sergeant deterministic review and Cpl specialist reasoning…"
+        output.text = "Running Sergeant model-free permanent-officer review…"
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = SergeantRunner.review(project)
             ApplicationManager.getApplication().invokeLater {

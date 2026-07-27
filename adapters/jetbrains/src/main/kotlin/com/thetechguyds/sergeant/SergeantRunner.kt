@@ -80,8 +80,8 @@ internal object SergeantRunner {
 
     private fun applyCplEnvironment(project: Project, environment: MutableMap<String, String>) {
         val properties = PropertiesComponent.getInstance(project)
-        val policy = properties.getValue("sergeant.llm.policy") ?: "preferred"
-        val provider = properties.getValue("sergeant.llm.provider") ?: "auto"
+        val policy = properties.getValue("sergeant.llm.policy") ?: "disabled"
+        val provider = properties.getValue("sergeant.llm.provider") ?: "disabled"
         val baseUrl = properties.getValue("sergeant.llm.baseUrl").orEmpty()
         val model = properties.getValue("sergeant.llm.model").orEmpty()
         val protocol = properties.getValue("sergeant.llm.protocol") ?: "auto"
