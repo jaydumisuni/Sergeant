@@ -23,9 +23,8 @@ def test_public_product_truth_is_model_free_with_optional_model_support() -> Non
 
     assert "Preferred is the product default" not in readme
     assert "Adaptive multi-specialist and multi-model review" not in readme
-    assert "Default mode.
-
-- Deploy Cpl when a route is available." not in semantic
+    assert "Default mode." not in semantic
+    assert "- Deploy Cpl when a route is available." not in semantic
 
 
 def test_runtime_and_ide_defaults_do_not_enable_models() -> None:
