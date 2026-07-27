@@ -1,0 +1,74 @@
+{
+  "schema_version": "sergeant.accepted-lesson.v1",
+  "lesson_id": "product-identity-runtime-consistency-20260727",
+  "status": "accepted",
+  "source": {
+    "repository": "jaydumisuni/Sergeant",
+    "evidence_pr": 151,
+    "supporting_prs": [154],
+    "fixing_pr": 152,
+    "defective_ref": "ab99cc6c4f75d16463708288c9da612c5a205fd5",
+    "fixing_ref": "e94c198300d7221e5a19c61f94642a5a8865d2ec",
+    "merge_ref": "6c99974c3687da0f6a2edcc2283b91b6aa0fdec0"
+  },
+  "generalized_rule": "A product's public identity, runtime defaults, IDE defaults, package metadata, persistent agent instructions, submission claims, and proof language must describe the same operational boundary. An optional capability must not be presented or configured as a default dependency. Clean configuration must remain fail-closed, while explicit user opt-in and explicitly selected dormant routes remain preserved without gaining authority.",
+  "implementation": {
+    "officer": "Archivist and Quartermaster under Sergeant authority",
+    "root_cause": "documentation-and-distribution-surfaces-drifted-from-the-model-free-runtime-boundary",
+    "files": [
+      "README.md",
+      "AGENTS.md",
+      "CLAUDE.md",
+      ".github/copilot-instructions.md",
+      "SUBMISSION_READY.md",
+      "pyproject.toml",
+      "package.json",
+      "main_review/llm_provider.py",
+      "adapters/jetbrains/src/main/resources/META-INF/plugin.xml",
+      "docs/22-semantic-open-model-review.md",
+      "docs/38-cpl-noise-governor-and-route-failover.md",
+      "docs/39-review-intelligence-proof.md",
+      "docs/CLOUDFLARE_COUNCIL.md",
+      "docs/hackathon-submission.md",
+      "resources/sergeant-command-center-v2.html",
+      "resources/sergeant-command-center-v2.js"
+    ],
+    "tests": [
+      "tests/test_llm_provider.py",
+      "tests/test_llm_cli.py",
+      "tests/test_model_free_product_contract.py",
+      "tests/test_vscode_extension_package.py",
+      "tests/command-center-visual.spec.js"
+    ]
+  },
+  "proof": {
+    "positive_controls": [
+      "clean environment resolves model support policy and provider to disabled",
+      "Cloudflare credentials alone do not activate model calls",
+      "public and submission surfaces identify Sergeant as model-free by default"
+    ],
+    "clean_controls": [
+      "explicit user enablement preserves optional one-model or bounded council support",
+      "an explicitly selected provider remains visible as dormant configuration without becoming final authority",
+      "preferred mode falls back to the complete model-free formation while required mode remains an explicit strict gate"
+    ],
+    "exact_fix_head": "e94c198300d7221e5a19c61f94642a5a8865d2ec",
+    "merged_fix": "6c99974c3687da0f6a2edcc2283b91b6aa0fdec0",
+    "proof_matrix": "CI and clean-clone proof, Main Review, Multiplatform Proof with desktop and compact visual evidence, Standalone Service Proof, Live GitHub Ingestion Proof, Reviewer Comparison Proof, Review Intelligence Proof, Cloudflare Connector Proof, and Final Static Transfer Holdout passed on the fixing head.",
+    "external_review_disposition": "CodeRabbit supplied valid findings during PR #152 and those threads were repaired and resolved. Its final incremental rereview was rate-limited, so no completed final-head external rereview is claimed."
+  },
+  "authority": {
+    "promotion_mode": "owner_controlled_retrospective",
+    "accepted_by": "explicit owner instruction to inspect retired PRs and add useful lessons before branch deletion",
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "final_verdict": "Sergeant"
+  },
+  "promotion_gate": {
+    "existing_model_free_implementation_verified": true,
+    "focused_regressions_present": true,
+    "clean_controls_present": true,
+    "historical_exact_head_proof_present": true,
+    "retrospective_harvest_exact_head_pending": true
+  }
+}
