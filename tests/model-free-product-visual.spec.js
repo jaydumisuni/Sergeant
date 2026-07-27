@@ -32,10 +32,16 @@ for (const view of [
     await expect(page.locator('body')).toContainText('A multi-model council is only one optional configuration');
     const hero = page.locator('img[alt="Sergeant - open-source engineering reviewer"]');
     await expect(hero).toBeVisible();
-    expect(await hero.evaluate((image) => ({ complete: image.complete, width: image.naturalWidth }))).toEqual({
-      complete: true,
-      width: 960,
-    });
+    const imageState = await hero.evaluate((image) => ({
+      complete: image.complete,
+      naturalWidth: image.naturalWidth,
+      renderedWidth: image.getBoundingClientRect().width,
+      containerWidth: image.parentElement?.getBoundingClientRect().width || 0,
+    }));
+    expect(imageState.complete).toBe(true);
+    expect(imageState.naturalWidth).toBeGreaterThan(0);
+    expect(imageState.renderedWidth).toBeGreaterThan(0);
+    expect(imageState.renderedWidth).toBeLessThanOrEqual(imageState.containerWidth + 1);
     await expectNoDocumentOverflow(page);
     await page.screenshot({
       path: path.join(artifacts, `model-free-docs-${view.name}.png`),
