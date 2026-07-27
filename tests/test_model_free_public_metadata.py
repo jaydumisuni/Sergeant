@@ -39,8 +39,8 @@ def test_command_center_recurring_timer_has_owned_teardown() -> None:
     script = (ROOT / "resources" / "sergeant-command-center-v2.js").read_text(encoding="utf-8")
     visual = (ROOT / "tests" / "command-center-visual.spec.js").read_text(encoding="utf-8")
 
-    assert "const clockTimer = window.setInterval" in script
-    assert "window.clearInterval(clockTimer)" in script
+    assert "const clockTimer = setInterval(updateClock, 1000)" in script
+    assert "clearInterval(clockTimer)" in script
     assert "window.addEventListener('pagehide', stopClock" in script
     assert "window.addEventListener('beforeunload', stopClock" in script
     assert "window.sergeantClock = { stop: stopClock" in script
