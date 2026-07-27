@@ -28,6 +28,8 @@ def test_cpl_settings_are_model_free_by_default(monkeypatch) -> None:
         "SERGEANT_LLM_ENABLED",
         "SERGEANT_CPL_PROVIDER",
         "SERGEANT_LLM_PROVIDER",
+        "SERGEANT_CPL_BASE_URL",
+        "SERGEANT_LLM_BASE_URL",
     ]:
         monkeypatch.delenv(name, raising=False)
 
@@ -35,6 +37,7 @@ def test_cpl_settings_are_model_free_by_default(monkeypatch) -> None:
 
     assert settings.enabled is False
     assert settings.policy == "disabled"
+    assert settings.provider == "disabled"
 
 
 def test_user_can_explicitly_enable_optional_cpl_reasoning_without_exposing_api_key(monkeypatch) -> None:

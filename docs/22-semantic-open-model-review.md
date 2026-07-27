@@ -205,7 +205,6 @@ sergeant pr-review . --files "src/app.py,tests/test_app.py" --pretty
 export SERGEANT_CPL_ENABLED=true
 export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROVIDER=cpl
-export SERGEANT_CPL_POLICY=preferred
 export SERGEANT_CPL_PROTOCOL=responses
 export SERGEANT_CPL_BASE_URL=http://127.0.0.1:8082/v1
 sergeant cpl-status --require --pretty

@@ -103,6 +103,8 @@ class LLMSettings:
             policy_raw if policy_raw in {"preferred", "required", "disabled"} else "disabled"
         )  # type: ignore[assignment]
         enabled = policy != "disabled" and enabled_raw not in {"0", "false", "no", "off", "disabled"}
+        if not enabled:
+            provider = "disabled"
 
         cloudflare_base, cloudflare_token = cloudflare_environment()
         # Make Cloudflare the easiest hosted route: valid Cloudflare credentials
