@@ -86,9 +86,9 @@ class LLMSettings:
 
     @classmethod
     def from_environment(cls) -> "LLMSettings":
-        policy_raw = _env("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY", "preferred").strip().lower()
+        policy_raw = _env("SERGEANT_CPL_POLICY", "SERGEANT_LLM_POLICY", "disabled").strip().lower()
         policy: LLMPolicy = (
-            policy_raw if policy_raw in {"preferred", "required", "disabled"} else "preferred"
+            policy_raw if policy_raw in {"preferred", "required", "disabled"} else "disabled"
         )  # type: ignore[assignment]
         enabled_raw = _env("SERGEANT_CPL_ENABLED", "SERGEANT_LLM_ENABLED", "auto").strip().lower()
         enabled = policy != "disabled" and enabled_raw not in {"0", "false", "no", "off", "disabled"}

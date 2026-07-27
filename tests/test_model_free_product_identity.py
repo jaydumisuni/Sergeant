@@ -69,7 +69,12 @@ def test_command_center_visibly_separates_core_from_optional_models() -> None:
 def test_runtime_configuration_contract_remains_honest() -> None:
     provider = text("main_review/llm_provider.py")
     assert 'LLMPolicy = Literal["preferred", "required", "disabled"]' in provider
+    assert '"SERGEANT_LLM_POLICY", "disabled"' in provider
     assert "Automatic discovery probes loopback endpoints only" in provider
+    package = __import__("json").loads(text("package.json"))
+    properties = package["contributes"]["configuration"]["properties"]
+    assert properties["sergeant.llmPolicy"]["default"] == "disabled"
+    assert properties["sergeant.provider"]["default"] == "Model-Free Sergeant Core"
     canonical = text("docs/55-model-free-core-and-optional-model-reasoning.md")
     assert "SERGEANT_CPL_POLICY=disabled" in canonical
     assert "SERGEANT_CPL_POLICY=preferred" in canonical

@@ -25,7 +25,7 @@ Live GitHub API ingestion evidence: captured and artifact-backed
 - [x] First benchmark: Requests
 - [x] Second benchmark: Flask architecture
 - [x] Battle-test validator
-- [x] Cpl council and verified experience
+- [x] Model-free Cpl/officer review and verified experience; optional model support available
 - [x] Production boundary and sandbox
 - [x] Full live GitHub API ingestion proof
 - [x] Release proof via pull request where CI and Main Review are green
@@ -132,7 +132,7 @@ Pass criteria:
 Use this wording:
 
 ```text
-Sergeant supports production-hardened live GitHub read-only fetch, CLI review, App Bridge review handoff, IDE Bench contracts, battle-test benchmarks, Cpl council reasoning, CI proof, clean-clone proof, and release proof. Secret detection is proven with a planted temporary-file positive case. PR comment ingestion is proven against GitHub-shaped fixtures and through a real read-only GitHub API workflow with sanitized request evidence.
+Sergeant is a model-free reviewer supporting production-hardened live GitHub read-only fetch, CLI review, App Bridge review handoff, IDE Bench contracts, battle-test benchmarks, Cpl/officer reasoning, CI proof, clean-clone proof, and release proof; optional configured models may add extra reasoning. Secret detection is proven with a planted temporary-file positive case. PR comment ingestion is proven against GitHub-shaped fixtures and through a real read-only GitHub API workflow with sanitized request evidence.
 ```
 
 Do not claim:

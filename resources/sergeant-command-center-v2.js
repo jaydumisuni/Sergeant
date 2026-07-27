@@ -45,7 +45,7 @@
     last: null,
     platform: 'IDE',
     settings: {
-      policy: 'preferred',
+      policy: 'disabled',
       provider: 'auto',
       baseUrl: '',
       model: '',

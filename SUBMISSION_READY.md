@@ -26,7 +26,7 @@ Final live GitHub API proof: captured and enforced
 - [x] Requests benchmark
 - [x] Flask architecture benchmark
 - [x] Battle-test validator
-- [x] Cpl council and verified experience
+- [x] Model-free Cpl/officer review and verified experience; optional model support available
 - [x] Production safety boundary
 - [x] Real read-only GitHub API ingestion proof
 - [x] Sanitized body-free proof artifact
@@ -63,7 +63,7 @@ Final live GitHub API proof: captured and enforced
 ## Final safe submission wording
 
 ```text
-Sergeant is an evidence-based engineering reviewer with CLI review, App Bridge handoff, IDE Bench contracts, battle-test benchmarks, Cpl council reasoning, CI proof, clean-clone proof, production hardening, and release proof. It verifies claims against implementation and produces PASS / NEEDS WORK / BLOCK verdicts. Secret detection is proven with a planted temporary-file test case. GitHub PR ingestion is proven through both GitHub-shaped fixtures and a real read-only API workflow that captures sanitized request evidence without exposing comment bodies or credentials.
+Sergeant is a model-free evidence-based engineering reviewer with CLI review, App Bridge handoff, IDE Bench contracts, battle-test benchmarks, Cpl/officer reasoning, CI proof, clean-clone proof, production hardening, and release proof; users may optionally enable model reasoning for extra analysis. It verifies claims against implementation and produces PASS / NEEDS WORK / BLOCK verdicts. Secret detection is proven with a planted temporary-file test case. GitHub PR ingestion is proven through both GitHub-shaped fixtures and a real read-only API workflow that captures sanitized request evidence without exposing comment bodies or credentials.
 ```
 
 ## Freeze rule

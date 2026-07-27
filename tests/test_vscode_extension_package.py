@@ -42,8 +42,9 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     }:
         assert command in commands
     assert (ROOT / package["icon"]).is_file()
-    assert properties["sergeant.provider"]["default"] == "Cpl Automatic Reasoning"
-    assert properties["sergeant.llmPolicy"]["default"] == "preferred"
+    assert properties["sergeant.provider"]["default"] == "Model-Free Sergeant Core"
+    assert "Cpl Automatic Reasoning" in properties["sergeant.provider"]["enum"]
+    assert properties["sergeant.llmPolicy"]["default"] == "disabled"
     assert properties["sergeant.llmProvider"]["default"] == "auto"
     assert properties["sergeant.llmCouncil"]["default"] == "adaptive"
     assert properties["sergeant.cplMaxRounds"]["default"] == 2
@@ -113,7 +114,7 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
         "Mission Planner",
         "Evidence Locker",
         "Officer System / Armoury",
-        "Cpl — Corporal Specialist",
+        "Cpl — Model-Free Core / Optional Model Support",
         "Cpl Local Gateway",
         "GLM-5.2",
         "Qwen3-Coder-Next",
@@ -124,17 +125,18 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
         "Post‑V2 Roadmap",
         "◇ What is Sergeant?",
         "Commander → Mission → Officers → Weapon Manifest → Evidence → Verdict → Audit Trail",
-        "Cpl Reasoning Evidence",
+        "Cpl / Officer Evidence",
     ]:
         assert expected in command_center
     assert "Free Claude Code" not in command_center
     assert "sergeantHostSend" in command_center_js
     assert "saveCplSettings" in command_center_js
     assert "window.addEventListener('message'" in command_center_js
-    assert "Cpl Council Reasoning" in command_center_js
+    assert "Cpl Officer Reasoning" in command_center_js
+    assert "Optional Model Assistance" in command_center_js
     assert "Verified Experience Retrieval" in command_center_js
     assert "Recurrence Detection" in command_center_js
-    assert "Council Command" in command_center_js
+    assert "Model-Free Command" in command_center_js
     assert "Permanent Officers" in command_center_js
     assert "Anti-Repeat" in command_center_js
     assert "cplMaxRoundsInput" in command_center_js

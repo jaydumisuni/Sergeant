@@ -20,19 +20,29 @@ def test_select_model_prefers_open_source_deep_coding_route() -> None:
     assert select_model(models, "provider/qwen3-coder-next") == "provider/qwen3-coder-next"
 
 
-def test_cpl_settings_are_enabled_by_default_but_do_not_expose_api_key(monkeypatch) -> None:
+def test_cpl_settings_are_model_free_by_default_and_do_not_expose_api_key(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_CPL_API_KEY", "secret-value")
-    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "auto")
+    for name in ("SERGEANT_CPL_ENABLED", "SERGEANT_CPL_POLICY", "SERGEANT_LLM_ENABLED", "SERGEANT_LLM_POLICY"):
+        monkeypatch.delenv(name, raising=False)
+
+    settings = LLMSettings.from_environment()
+
+    assert settings.enabled is False
+    assert settings.policy == "disabled"
+    assert settings.public_dict()["officer"] == "Cpl"
+    assert settings.public_dict()["role"] == "Corporal Specialist"
+    assert "api_key" not in settings.public_dict()
+    assert "secret-value" not in str(settings.public_dict())
+
+
+def test_owner_can_explicitly_enable_optional_model_reasoning(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_CPL_ENABLED", "true")
     monkeypatch.setenv("SERGEANT_CPL_POLICY", "preferred")
 
     settings = LLMSettings.from_environment()
 
     assert settings.enabled is True
     assert settings.policy == "preferred"
-    assert settings.public_dict()["officer"] == "Cpl"
-    assert settings.public_dict()["role"] == "Corporal Specialist"
-    assert "api_key" not in settings.public_dict()
-    assert "secret-value" not in str(settings.public_dict())
 
 
 def test_cpl_environment_takes_precedence_over_legacy_llm_environment(monkeypatch) -> None:

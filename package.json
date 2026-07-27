@@ -65,8 +65,10 @@
         },
         "sergeant.provider": {
           "type": "string",
-          "default": "Cpl Automatic Reasoning",
+          "default": "Model-Free Sergeant Core",
           "enum": [
+            "Model-Free Sergeant Core",
+            "Cpl Optional Model Reasoning",
             "Cpl Automatic Reasoning",
             "Cpl Local Gateway",
             "Ollama",
@@ -74,75 +76,75 @@
             "OpenAI-compatible Endpoint",
             "Disabled"
           ],
-          "description": "Legacy display preference. Cpl is Sergeant's council-led Corporal Specialist; models and gateways are replaceable engines beneath it."
+          "description": "Legacy display preference. Sergeant defaults to its model-free Cpl/officer core; model routes are optional extra reasoning only. The previous Cpl Automatic Reasoning value remains accepted for compatibility."
         },
         "sergeant.llmPolicy": {
           "type": "string",
-          "default": "preferred",
+          "default": "disabled",
           "enum": ["preferred", "required", "disabled"],
           "enumDescriptions": [
-            "Deploy Cpl by default and fall back to deterministic Sergeant evidence when no route is available.",
-            "Require Cpl reasoning before Sergeant can approve.",
-            "Disable Cpl reasoning and use deterministic review only."
+            "Keep model-free Cpl/officer review active and add optional model reasoning when a valid route is available.",
+            "For an owner-selected strict mission, require the configured optional model-reasoning route before approval.",
+            "Disable model calls while keeping Cpl, permanent officers, privates, and deterministic Sergeant review active."
           ],
-          "description": "Cpl reasoning gate policy."
+          "description": "Optional model-reasoning gate policy; Cpl and the officer/private system remain model-free."
         },
         "sergeant.llmProvider": {
           "type": "string",
           "default": "auto",
           "enum": ["auto", "cpl", "ollama", "lm-studio", "openai-compatible", "disabled"],
           "enumDescriptions": [
-            "Let Cpl discover its local gateway, Ollama, or LM Studio and select the strongest available models.",
-            "Use the Sergeant-native Cpl local gateway.",
-            "Use Ollama as one engine beneath Cpl.",
-            "Use LM Studio as one engine beneath Cpl.",
-            "Use the explicitly configured endpoint as one engine beneath Cpl.",
-            "Disable Cpl reasoning."
+            "Optionally use a valid loopback Cpl, Ollama, or LM Studio route; otherwise continue with the model-free core.",
+            "Use the Cpl local gateway as an optional model-reasoning route.",
+            "Use Ollama as an optional reasoning engine beneath Cpl.",
+            "Use LM Studio as an optional reasoning engine beneath Cpl.",
+            "Use the explicitly configured endpoint as an optional reasoning engine beneath Cpl.",
+            "Disable optional model reasoning and keep model-free Cpl/officer review."
           ],
-          "description": "Engine route beneath Cpl."
+          "description": "Optional model engine route beneath the model-free Cpl/officer core."
         },
         "sergeant.llmBaseUrl": {
           "type": "string",
           "default": "",
-          "description": "Explicit OpenAI-compatible endpoint beneath Cpl. Remote endpoints are never auto-discovered; credentials remain in SERGEANT_CPL_API_KEY or the legacy SERGEANT_LLM_API_KEY."
+          "description": "Optional explicit OpenAI-compatible endpoint beneath Cpl. Remote endpoints are never auto-discovered; credentials remain in SERGEANT_CPL_API_KEY or the legacy SERGEANT_LLM_API_KEY."
         },
         "sergeant.llmModel": {
           "type": "string",
           "default": "",
-          "description": "Optional primary model slug. Blank lets Cpl form its council from the strongest available models and specialist assignments."
+          "description": "Optional model slug for extra reasoning. Blank leaves route selection to the configured provider; model-free review does not require a model."
         },
         "sergeant.llmProtocol": {
           "type": "string",
           "default": "auto",
           "enum": ["auto", "responses", "chat_completions"],
-          "description": "Transport protocol beneath Cpl. The local Cpl gateway uses OpenAI Responses; generic engines commonly use Chat Completions."
+          "description": "Transport protocol for optional model reasoning. The local Cpl gateway uses OpenAI Responses; generic engines commonly use Chat Completions."
         },
         "sergeant.llmCouncil": {
           "type": "string",
           "default": "adaptive",
           "enum": ["adaptive", "deep", "maximum", "single", "always"],
           "enumDescriptions": [
-            "Cpl deploys the smallest sufficient council and adds members only for named evidence gaps.",
-            "Cpl starts with deeper specialist coverage and allows more council rounds.",
-            "Cpl deploys every specialist and the largest bounded council.",
-            "Run one Cpl generalist council member only.",
-            "Legacy alias for maximum council deployment."
+            "When optional model support is enabled, use the smallest sufficient roster and add members only for named evidence gaps.",
+            "Use deeper optional model coverage and allow more bounded follow-up rounds.",
+            "Use the largest bounded optional model-support roster.",
+            "Use one optional general model pass only.",
+            "Legacy alias for maximum optional model-support deployment."
           ],
-          "description": "Cpl council formation mode."
+          "description": "Optional model-support formation mode; it does not define Sergeant's permanent officer/private formation."
         },
         "sergeant.cplMaxRounds": {
           "type": "integer",
           "default": 2,
           "minimum": 1,
           "maximum": 6,
-          "description": "Maximum evidence → officer report → council rebrief rounds before unresolved gaps are returned to Sergeant."
+          "description": "Maximum optional model-support rebrief rounds before unresolved gaps are returned to Sergeant."
         },
         "sergeant.cplMaxCouncilMembers": {
           "type": "integer",
           "default": 5,
           "minimum": 1,
           "maximum": 12,
-          "description": "Maximum distinct model council members Cpl may recruit for one mission."
+          "description": "Maximum distinct optional model-support members Cpl may recruit for one mission."
         }
       }
     }

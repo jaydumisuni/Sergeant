@@ -91,7 +91,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
                 "exportLast" -> exportLastReport()
                 "saveSettings" -> {
                     saveSemanticSettings(message.getAsJsonObject("settings"))
-                    sendState("Cpl reasoning settings saved.")
+                    sendState("Optional model-reasoning settings saved; model-free Cpl/officer review remains active.")
                 }
                 "selectWorkspace" -> sendState()
             }
@@ -113,7 +113,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
     private fun semanticSettings(): Map<String, String> {
         val properties = PropertiesComponent.getInstance(project)
         val defaults = mapOf(
-            "policy" to "preferred",
+            "policy" to "disabled",
             "provider" to "auto",
             "baseUrl" to "",
             "model" to "",
@@ -288,7 +288,7 @@ private class SergeantFallbackPanel(private val project: Project) : JPanel(Borde
         isEditable = false
         lineWrap = false
         font = Font(Font.MONOSPACED, Font.PLAIN, 12)
-        text = "Sergeant 0.4.0-preview\n\nJCEF is unavailable. Native fallback is ready to run deterministic review and Cpl specialist reasoning for ${project.name}."
+        text = "Sergeant 0.4.0-preview\n\nJCEF is unavailable. Native fallback is ready to run model-free Sergeant review and Cpl/officer reasoning for ${project.name}; model support is optional."
     }
     private val runButton = JButton("Review Project")
 
@@ -307,7 +307,7 @@ private class SergeantFallbackPanel(private val project: Project) : JPanel(Borde
 
     private fun runReview() {
         runButton.isEnabled = false
-        output.text = "Running Sergeant deterministic review and Cpl specialist reasoning…"
+        output.text = "Running Sergeant model-free review and Cpl/officer reasoning…"
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = SergeantRunner.review(project)
             ApplicationManager.getApplication().invokeLater {
