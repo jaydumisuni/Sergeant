@@ -16,7 +16,8 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
 
     assert "activationEvents" not in package
     assert package["displayName"] == "Sergeant"
-    assert package["version"] == "0.4.1"
+    assert package["version"] == "0.4.2"
+    assert package["description"].startswith("Model-free engineering review")
     assert package["icon"] == "resources/srg-logo-and-icon.png"
     assert package["main"] == "./src/vscode/extension.js"
     assert (ROOT / package["main"]).is_file()
@@ -42,7 +43,7 @@ def test_vscode_extension_manifest_installs_sergeant_commands() -> None:
     }:
         assert command in commands
     assert (ROOT / package["icon"]).is_file()
-    assert properties["sergeant.provider"]["default"] == "Disabled"
+    assert "sergeant.provider" not in properties
     assert properties["sergeant.llmPolicy"]["default"] == "disabled"
     assert properties["sergeant.llmProvider"]["default"] == "disabled"
     assert properties["sergeant.llmCouncil"]["default"] == "adaptive"
@@ -128,6 +129,9 @@ def test_vscode_runtime_uses_bundled_full_command_center() -> None:
     ]:
         assert expected in command_center
     assert "Free Claude Code" not in command_center
+    assert "Open Review Center" in provider
+    assert "Model-free engineering review" in provider
+    assert "Elastic model council" not in provider
     assert "sergeantHostSend" in command_center_js
     assert "saveCplSettings" in command_center_js
     assert "window.addEventListener('message'" in command_center_js
@@ -217,6 +221,7 @@ def test_command_center_has_single_mission_execution_boundary() -> None:
     assert "is already running" in extension
     assert "activeRun.child.kill()" in extension
     assert "let missionLocked = false" in command_center
+    assert "clearActiveRun" in extension
     assert "event.stopImmediatePropagation()" in command_center
     assert "queueMicrotask" in command_center
     assert "window.sergeantMissionLock" in command_center
