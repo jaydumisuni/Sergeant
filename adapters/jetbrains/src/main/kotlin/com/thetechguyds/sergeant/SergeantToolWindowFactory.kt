@@ -45,7 +45,7 @@ private val semanticSettingKeys = mapOf(
 class SergeantToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val panel = if (JBCefApp.isSupported()) SergeantCommandCenterPanel(project) else SergeantFallbackPanel(project)
-        val content = ContentFactory.getInstance().createContent(panel, "Command Center", false)
+        val content = ContentFactory.getInstance().createContent(panel, "Review", false)
         toolWindow.contentManager.addContent(content)
     }
 }
@@ -91,7 +91,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
                 "exportLast" -> exportLastReport()
                 "saveSettings" -> {
                     saveSemanticSettings(message.getAsJsonObject("settings"))
-                    sendState("Cpl reasoning settings saved.")
+                    sendState("Optional reasoning settings saved.")
                 }
                 "selectWorkspace" -> sendState()
             }
@@ -169,7 +169,7 @@ private class SergeantCommandCenterPanel(private val project: Project) : JPanel(
                 status = if (result.exitCode == 0) "Complete" else "Needs Attention"
                 running = ""
                 runningTitle = ""
-                sendState(if (result.exitCode == 0) "" else "Mission completed with exit code ${result.exitCode}.")
+                sendState(if (result.exitCode == 0) "" else "Review completed with exit code ${result.exitCode}.")
             }
         }
     }
@@ -288,7 +288,7 @@ private class SergeantFallbackPanel(private val project: Project) : JPanel(Borde
         isEditable = false
         lineWrap = false
         font = Font(Font.MONOSPACED, Font.PLAIN, 12)
-        text = "Sergeant 0.4.0-preview\n\nJCEF is unavailable. Native fallback is ready to run deterministic review and Cpl specialist reasoning for ${project.name}."
+        text = "Sergeant 0.4.2-preview\n\nJCEF is unavailable. Native fallback can run Sergeant's model-free review for ${project.name}."
     }
     private val runButton = JButton("Review Project")
 
@@ -296,7 +296,7 @@ private class SergeantFallbackPanel(private val project: Project) : JPanel(Borde
         border = JBUI.Borders.empty(12)
         val header = JPanel(BorderLayout()).apply {
             border = JBUI.Borders.emptyBottom(10)
-            add(JBLabel("Sergeant Command Center").apply { font = font.deriveFont(Font.BOLD, 16f) }, BorderLayout.NORTH)
+            add(JBLabel("Sergeant Review" ).apply { font = font.deriveFont(Font.BOLD, 16f) }, BorderLayout.NORTH)
             add(JBLabel("Evidence before opinion. Verification before release."), BorderLayout.CENTER)
             add(runButton, BorderLayout.SOUTH)
         }
@@ -307,7 +307,7 @@ private class SergeantFallbackPanel(private val project: Project) : JPanel(Borde
 
     private fun runReview() {
         runButton.isEnabled = false
-        output.text = "Running Sergeant deterministic review and Cpl specialist reasoning…"
+        output.text = "Running Sergeant model-free review…"
         ApplicationManager.getApplication().executeOnPooledThread {
             val result = SergeantRunner.review(project)
             ApplicationManager.getApplication().invokeLater {
