@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sergeant-reviewer"
-version = "0.4.1"
+version = "0.4.2"
 description = "Sergeant model-free engineering reviewer with optional owner-enabled model reasoning."
 readme = "README.md"
 requires-python = ">=3.10"
