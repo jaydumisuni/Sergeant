@@ -4,7 +4,7 @@
   <vendor email="support@thetechguyds.com" url="https://thetechguyds.com">THETECHGUY DIGITAL SOLUTIONS</vendor>
 
   <description><![CDATA[
-    Sergeant is a model-free evidence-based engineering reviewer with a complete Command Center for missions, permanent officers, armoury, evidence, reports, doctrine, permissions, roadmap, and guidance. The JetBrains preview runs the shared Sergeant CLI against the current project. One model or a bounded multi-model council is available only as optional owner-enabled extra reasoning, while Sergeant remains final authority and writer actions remain human-approved.
+    Sergeant is a model-free engineering reviewer for JetBrains IDEs. Review the current project, inspect evidence, and run final proof through the shared Sergeant CLI. Optional model reasoning is disabled by default and never becomes final authority.
   ]]></description>
 
   <depends>com.intellij.modules.platform</depends>
