@@ -120,6 +120,33 @@ Research focus:
 - Multi-language analyzer orchestration.
 - PR-first developer workflow.
 
+## KiloCode — future review/self-check donor
+
+Canonical upstream: https://github.com/Kilo-Org/kilocode
+
+Owner mirror available for inspection/workflow convenience: https://github.com/jaydumisuni/kilocode
+
+The upstream repository is the canonical donor source for future comparative review. If the owner mirror is used for a reproducible study, pin the exact mirror commit in that study's evidence rather than treating the mirror's moving `main` branch as canonical.
+
+KiloCode is a broad engineering donor, not a replacement for Sergeant.
+
+When Sergeant next studies external review mechanisms, inspect KiloCode's Review mode, self-check behavior, task decomposition, context gathering, terminal/browser/tool interaction, agent-mode boundaries, and any evidence or feedback loop that is stronger than Sergeant's current implementation.
+
+Rule:
+
+```text
+Kilo mechanism is better
+→ recover exact evidence
+→ compare against current Sergeant behavior
+→ route any proposed permanent learning through the existing governed cross-repository learning intake
+→ adapt the useful mechanism into Sergeant only after that intake earns promotion
+→ preserve Sergeant as the independent engineering reviewer
+```
+
+Any proposal to make a Kilo-derived mechanism permanent must follow the current cross-repository learning authority in `docs/51-cross-repository-learning-intake.md`, including its provenance, blind-review, negative-control, transfer/holdout, and owner-controlled promotion gates. This donor note does not redefine that pipeline.
+
+Do not turn CodeOps into the reviewer and do not replace Sergeant with KiloCode. This is a donor-learning path under the existing external-review learning doctrine in `docs/12-external-review-learning-loop.md`.
+
 ## Academic / architecture references
 
 Useful themes from code-review research:
