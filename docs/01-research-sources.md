@@ -120,6 +120,26 @@ Research focus:
 - Multi-language analyzer orchestration.
 - PR-first developer workflow.
 
+## KiloCode — future review/self-check donor
+
+Repository: https://github.com/jaydumisuni/kilocode
+
+KiloCode is a broad engineering donor, not a replacement for Sergeant.
+
+When Sergeant next studies external review mechanisms, inspect KiloCode's Review mode, self-check behavior, task decomposition, context gathering, terminal/browser/tool interaction, agent-mode boundaries, and any evidence or feedback loop that is stronger than Sergeant's current implementation.
+
+Rule:
+
+```text
+Kilo mechanism is better
+→ recover exact evidence
+→ compare against current Sergeant behavior
+→ adapt the useful mechanism into Sergeant when it fits
+→ preserve Sergeant as the independent engineering reviewer
+```
+
+Do not turn CodeOps into the reviewer and do not replace Sergeant with KiloCode. This is a donor-learning path under the existing external-review learning doctrine in `docs/12-external-review-learning-loop.md`.
+
 ## Academic / architecture references
 
 Useful themes from code-review research:
