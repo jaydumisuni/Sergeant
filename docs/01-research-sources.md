@@ -122,7 +122,11 @@ Research focus:
 
 ## KiloCode — future review/self-check donor
 
-Repository: https://github.com/jaydumisuni/kilocode
+Canonical upstream: https://github.com/Kilo-Org/kilocode
+
+Owner mirror available for inspection/workflow convenience: https://github.com/jaydumisuni/kilocode
+
+The upstream repository is the canonical donor source for future comparative review. If the owner mirror is used for a reproducible study, pin the exact mirror commit in that study's evidence rather than treating the mirror's moving `main` branch as canonical.
 
 KiloCode is a broad engineering donor, not a replacement for Sergeant.
 
