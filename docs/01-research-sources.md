@@ -138,9 +138,12 @@ Rule:
 Kilo mechanism is better
 → recover exact evidence
 → compare against current Sergeant behavior
-→ adapt the useful mechanism into Sergeant when it fits
+→ route any proposed permanent learning through the existing governed cross-repository learning intake
+→ adapt the useful mechanism into Sergeant only after that intake earns promotion
 → preserve Sergeant as the independent engineering reviewer
 ```
+
+Any proposal to make a Kilo-derived mechanism permanent must follow the current cross-repository learning authority in `docs/51-cross-repository-learning-intake.md`, including its provenance, blind-review, negative-control, transfer/holdout, and owner-controlled promotion gates. This donor note does not redefine that pipeline.
 
 Do not turn CodeOps into the reviewer and do not replace Sergeant with KiloCode. This is a donor-learning path under the existing external-review learning doctrine in `docs/12-external-review-learning-loop.md`.
 
