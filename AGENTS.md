@@ -2,6 +2,12 @@
 
 This file is persistent operating context for every AI, coding agent, reviewer, or future chat working in this repository. Read it before planning or changing the project.
 
+## Mandatory zero-context pickup
+
+After reading this file, read [`PICKUP.md`](PICKUP.md) before planning or changing Sergeant. `PICKUP.md` is the canonical current-state handoff; it records accepted-versus-candidate learning state and the next valid work.
+
+Do not answer from repository memory alone when the question depends on current activity. Query live GitHub for the current `main` head, open pull requests, exact-head workflow state, and review threads before claiming what is active, mergeable, blocked, releasable, or complete. If live GitHub state is newer than `PICKUP.md`, recover the newer evidence and update the pickup record through normal review and proof.
+
 ## Hunter tenfold / 10-for-2 doctrine
 
 The **10-for-2 / tenfold method has two linked applications**:
