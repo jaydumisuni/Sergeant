@@ -1,0 +1,21 @@
+{
+  "schema_version": "sergeant.project-learning-round.v1",
+  "round_id": "project-techguycheckm8-20260815",
+  "purpose": "Advance the two provenance-complete TechGuyCheckm8 harvest candidates through frozen blind review and isolated Teacher/Prosecutor/Defender council without promotion or merge authority.",
+  "signal_paths": [
+    ".github/self-learning/signals/tgcheckm8-checksum-path-namespace-2026-07-23.json",
+    ".github/self-learning/signals/tgcheckm8-checkout-credential-boundary-2026-07-23.json"
+  ],
+  "expected_case_ids": [
+    "learn-tgcheckm8-checksum-path-namespace-20260723",
+    "learn-tgcheckm8-checkout-credential-boundary-20260723"
+  ],
+  "candidate_count": 2,
+  "authority": {
+    "required_label": "self-learning-authorized",
+    "required_commit_prefix": "START_PROJECT_LEARNING",
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "final_verdict": "Sergeant"
+  }
+}
