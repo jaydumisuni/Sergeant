@@ -5,6 +5,7 @@ import json
 import pytest
 
 from main_review.hermes_learning import (
+    GITHUB_MODELS_API_VERSION,
     LearningWorkerError,
     WorkerConfig,
     validate_worker_output,
@@ -99,3 +100,49 @@ def test_worker_request_accepts_openai_compatible_hermes_response(monkeypatch) -
     )
     assert result["root_cause"] == "state publication precedes validation"
     assert result["transport"]["endpoint_class"] == "isolated-hermes-profile"
+
+
+def test_worker_request_sends_current_github_models_headers(monkeypatch) -> None:
+    output = {
+        "role": "teacher",
+        "case_id": "case-github-models",
+        "generalized_mechanism": "producer and verifier must share one path namespace",
+        "proposed_detector": "compare manifest entries with verifier working directory",
+        "positive_tests": ["nested artifact verified from output root"],
+        "negative_controls": ["manifest preserves the nested relative path"],
+        "transfer_languages": ["python", "yaml"],
+        "confidence": 0.9,
+    }
+    captured: dict[str, str] = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps({"choices": [{"message": {"content": json.dumps(output)}}]}).encode()
+
+    def fake_urlopen(request, *args, **kwargs):
+        captured.update({key.lower(): value for key, value in request.header_items()})
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    result = worker_request(
+        "teacher",
+        {"case_id": "case-github-models", "fixing_diff": "diff"},
+        config=WorkerConfig(
+            role="teacher",
+            backend="github_models",
+            endpoint="https://models.github.ai/inference/chat/completions",
+            token="secret",
+            model="openai/gpt-4.1",
+        ),
+    )
+
+    assert captured["accept"] == "application/vnd.github+json"
+    assert captured["x-github-api-version"] == GITHUB_MODELS_API_VERSION == "2026-03-10"
+    assert captured["content-type"] == "application/json"
+    assert result["transport"]["endpoint_class"] == "github-models"

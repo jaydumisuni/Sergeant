@@ -2,8 +2,8 @@
 
 Workers accept only a bounded case packet and must return one JSON object. They
 have no merge authority and cannot directly alter Sergeant rules. The transport
-supports three isolated Hermes API profiles or GitHub Models as a temporary
-first-week inference backend.
+supports three isolated Hermes API profiles or GitHub Models as a bounded
+learning inference backend.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from typing import Any, Mapping
 
 ROLES = ("teacher", "prosecutor", "defender")
+GITHUB_MODELS_API_VERSION = "2026-03-10"
 ROLE_PROMPTS = {
     "teacher": (
         "You are Sergeant's Teacher. Convert a confirmed miss and later fix into a "
@@ -186,20 +187,36 @@ def worker_request(role: str, case_packet: Mapping[str, Any], config: WorkerConf
             ],
         }
     ).encode("utf-8")
+    headers = {
+        "Authorization": f"Bearer {selected.token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": f"sergeant-learning-{role}",
+    }
+    if selected.backend == "github_models":
+        headers["Accept"] = "application/vnd.github+json"
+        headers["X-GitHub-Api-Version"] = os.environ.get(
+            "SERGEANT_GITHUB_MODELS_API_VERSION",
+            GITHUB_MODELS_API_VERSION,
+        )
     request = urllib.request.Request(
         selected.endpoint,
         data=body,
         method="POST",
-        headers={
-            "Authorization": f"Bearer {selected.token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": f"sergeant-learning-{role}",
-        },
+        headers=headers,
     )
     try:
         with urllib.request.urlopen(request, timeout=selected.timeout_seconds) as response:
             response_payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        try:
+            detail = exc.read().decode("utf-8", errors="replace").strip()
+        except Exception:
+            detail = ""
+        suffix = f": {detail[:500]}" if detail else ""
+        raise LearningWorkerError(
+            f"{role} transport failed: HTTP {exc.code} {exc.reason}{suffix}"
+        ) from exc
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as exc:
         raise LearningWorkerError(f"{role} transport failed: {exc}") from exc
     try:
@@ -207,5 +224,9 @@ def worker_request(role: str, case_packet: Mapping[str, Any], config: WorkerConf
     except (KeyError, IndexError, TypeError) as exc:
         raise LearningWorkerError(f"{role} response lacks chat completion content") from exc
     result = validate_worker_output(role, case_id, _extract_json(str(content)))
-    result["transport"] = {"backend": selected.backend, "model": selected.model, "endpoint_class": "isolated-hermes-profile" if selected.backend == "hermes" else "github-models"}
+    result["transport"] = {
+        "backend": selected.backend,
+        "model": selected.model,
+        "endpoint_class": "isolated-hermes-profile" if selected.backend == "hermes" else "github-models",
+    }
     return result

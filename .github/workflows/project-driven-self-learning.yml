@@ -21,6 +21,7 @@ on:
       - "scripts/run_controlled_self_learning.py"
       - "scripts/export_learning_proposals.py"
       - "tests/test_project_driven_learning_workflow.py"
+      - "tests/test_hermes_learning.py"
 
 permissions: {}
 
@@ -246,7 +247,9 @@ jobs:
           set -euo pipefail
           echo "SERGEANT_PROJECT_LEARNING_PROPOSALS_BEGIN"
           cat "learning/proposals/${ROUND_ID}/index.json"
-          for proposal in "learning/proposals/${ROUND_ID}"/learn-*.json; do
+          shopt -s nullglob
+          proposals=("learning/proposals/${ROUND_ID}"/learn-*.json)
+          for proposal in "${proposals[@]}"; do
             test -s "${proposal}"
             echo "--- ${proposal} ---"
             cat "${proposal}"
@@ -263,6 +266,20 @@ jobs:
             learning/proposals/${{ env.ROUND_ID }}/
           if-no-files-found: error
           retention-days: 90
+
+      - name: Enforce isolated council completion
+        shell: bash
+        run: |
+          set -euo pipefail
+          summary="build/${ROUND_ID}/round/summary.json"
+          test -s "${summary}"
+          worker_errors="$(jq -er '.worker_error_cases' "${summary}")"
+          unresolved="$(jq -r '.state_counts.truth_revealed // 0' "${summary}")"
+          completed="$(jq -r '(.state_counts.council_complete // 0) + (.state_counts.rejected // 0)' "${summary}")"
+          test "${worker_errors}" = "0"
+          test "${unresolved}" = "0"
+          test "${completed}" = "${CANDIDATE_COUNT}"
+          echo "All ${CANDIDATE_COUNT} harvested cases completed isolated council review."
 
   handoff:
     name: Validate owner-controlled proposal handoff
@@ -294,4 +311,5 @@ jobs:
           test "$(jq -r '.automatic_promotions' "${index}")" = "0"
           test "$(jq -r '.automatic_merges' "${index}")" = "0"
           test "$(jq -r '.authority_head' "${index}")" = "${AUTHORITY_HEAD}"
-          echo "Bounded project-learning council evidence is ready for the next governed controls/transfer stage."
+          proposal_count="$(jq -er '.proposal_count' "${index}")"
+          echo "Validated ${proposal_count} surviving bounded proposal(s); rejected council cases remain rejected."
