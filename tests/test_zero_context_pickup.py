@@ -4,7 +4,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PICKUP = ROOT / "PICKUP.md"
 AGENTS = ROOT / "AGENTS.md"
-README = ROOT / "README.md"
+AI_START = ROOT / "AI_START_HERE.md"
 
 
 def test_zero_context_pickup_preserves_current_authority() -> None:
@@ -31,10 +31,13 @@ def test_zero_context_pickup_tracks_candidate_ready_work_without_promoting_it() 
     assert "owner-controlled promotion proposal" in text
 
 
-def test_agent_and_readme_entrypoints_require_pickup_recovery() -> None:
+def test_agent_and_ai_entrypoints_require_pickup_recovery() -> None:
     agents = AGENTS.read_text(encoding="utf-8")
-    readme = README.read_text(encoding="utf-8")
+    start = AI_START.read_text(encoding="utf-8")
 
     assert "PICKUP.md" in agents
-    assert "PICKUP.md" in readme
     assert "live GitHub" in agents
+    assert "PICKUP.md" in start
+    assert "Live GitHub state" in start
+    assert "current `main` head" in start
+    assert "open pull requests" in start
