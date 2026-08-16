@@ -20,6 +20,7 @@ on:
       - "scripts/run_controlled_self_learning.py"
       - "scripts/run_project_driven_learning.py"
       - "scripts/project_learning_workers.py"
+      - "scripts/export_learning_proposals.py"
       - "tests/test_project_driven_learning_workflow.py"
       - "tests/test_project_learning_workers.py"
       - "tests/test_hermes_learning.py"
