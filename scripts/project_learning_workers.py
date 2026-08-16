@@ -30,6 +30,7 @@ CLOUDFLARE_ROLE_MODELS = {
     "defender": "@cf/openai/gpt-oss-20b",
 }
 _ACCOUNT_ID_RE = re.compile(r"^[A-Fa-f0-9]{32}$")
+_RETRYABLE_HTTP_STATUS = {408, 425, 429, 500, 502, 503, 504}
 
 
 def _wrangler_json(*args: str) -> dict[str, Any]:
@@ -121,6 +122,8 @@ def _cloudflare_credentials() -> tuple[str, str]:
 
 
 def _cloudflare_config(role: str) -> WorkerConfig:
+    """Build a role-bound Cloudflare worker configuration from runtime credentials."""
+
     normalized = role.lower().strip()
     if normalized not in ROLES:
         raise LearningWorkerError(f"unknown learning role: {role}")
@@ -145,6 +148,8 @@ def _cloudflare_config(role: str) -> WorkerConfig:
 
 
 def _max_attempts() -> int:
+    """Return the bounded owner-configured attempt ceiling for one worker call."""
+
     try:
         value = int(os.environ.get("SERGEANT_LEARNING_MAX_ATTEMPTS", "3"))
     except ValueError as exc:
@@ -154,12 +159,46 @@ def _max_attempts() -> int:
     return value
 
 
+def _retryable_worker_error(error: LearningWorkerError) -> bool:
+    """Classify only transport or model-shape failures as safe to retry."""
+
+    message = str(error).strip().lower()
+    invariant_markers = (
+        "worker role mismatch",
+        "worker case binding mismatch",
+        "worker configuration role mismatch",
+        "unknown role:",
+        "unknown learning role:",
+        "worker output requires non-empty case_id",
+    )
+    if any(marker in message for marker in invariant_markers):
+        return False
+
+    if "transport failed:" in message:
+        status = re.search(r"http error\s+(\d{3})", message)
+        if status:
+            return int(status.group(1)) in _RETRYABLE_HTTP_STATUS
+        return True
+
+    model_shape_markers = (
+        "response lacks chat completion content",
+        "worker did not return a json object",
+        "worker returned malformed json",
+        "worker output must be a json object",
+        "worker confidence must be between 0 and 1",
+        "worker output requires non-empty",
+        "worker output requires list",
+        "invalid defender verdict",
+    )
+    return any(marker in message for marker in model_shape_markers)
+
+
 def worker_request(
     role: str,
     case_packet: Mapping[str, Any],
     config: WorkerConfig | None = None,
 ) -> dict[str, Any]:
-    """Run one bounded learning worker with bounded retries for transient/model failures."""
+    """Run one learning worker and retry only bounded recoverable failures."""
 
     backend = os.environ.get("SERGEANT_LEARNING_BACKEND", "hermes").strip().lower()
     selected = config
@@ -181,7 +220,7 @@ def worker_request(
             return result
         except LearningWorkerError as exc:
             last_error = exc
-            if attempt >= attempts:
+            if attempt >= attempts or not _retryable_worker_error(exc):
                 raise
             time.sleep(min(4.0, 0.5 * (2 ** (attempt - 1))))
 
