@@ -91,7 +91,7 @@ jobs:
             exit 1
           fi
           manifest="${manifests[0]}"
-          round_id="$(jq -er '.round_id | select(type == "string" and length > 0)' "${manifest}")"
+          round_id="$(jq -er '.round_id | select(type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"))' "${manifest}")"
           expected_count="$(jq -er '.candidate_count | select(type == "number" and . > 0 and . <= 3)' "${manifest}")"
           test "$(jq -r '.authority.execution_lane' "${manifest}")" = "oracle-direct-terminal"
           test "$(jq -r '.authority.direct_terminal_authorization_flag' "${manifest}")" = "--owner-authorized"
