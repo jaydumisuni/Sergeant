@@ -123,11 +123,13 @@ def main() -> int:
 
     terminal_path = args.evidence_dir / "terminal-result.json"
     terminal = json.loads(terminal_path.read_text(encoding="utf-8")) if terminal_path.exists() else {}
+    queue_case_count = len(queue.get("cases", []))
     terminal.update({
         "schema_version": "sergeant.project-learning-terminal-result.v1",
         "authority_head": authority_head,
         "round_id": queue["week_id"],
-        "candidate_count": len(queue.get("cases", [])),
+        "candidate_count": terminal.get("candidate_count", queue_case_count),
+        "queue_case_count": queue_case_count,
         "summary": summary,
         "proposal_index": proposal_index,
         "evidence_manifest_path": "evidence-manifest.json",
