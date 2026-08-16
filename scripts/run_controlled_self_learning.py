@@ -11,10 +11,10 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Mapping
 
 from main_review.adaptive_curriculum import plan_curriculum_round
-from main_review.hermes_learning import LearningWorkerError, worker_request
+from main_review.hermes_learning import LearningWorkerError, worker_request as _default_worker_request
 from main_review.self_learning_queue import (
     add_case,
     attach_worker,
@@ -28,6 +28,8 @@ try:
     from scripts.run_static_training_set import run_manifest
 except ImportError:  # Direct execution as python scripts/<name>.py.
     from run_static_training_set import run_manifest
+
+WorkerRequest = Callable[[str, Mapping[str, Any]], dict[str, Any]]
 
 
 def _run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
@@ -140,9 +142,17 @@ def _truth_packet(case: dict[str, Any], checkout: Path, blind_result: dict[str, 
 
 
 def run_round(
-    *, candidates_packet: dict[str, Any], history: dict[str, Any], output_dir: Path,
-    authority_head: str, target_branch: str, count: int,
+    *,
+    candidates_packet: dict[str, Any],
+    history: dict[str, Any],
+    output_dir: Path,
+    authority_head: str,
+    target_branch: str,
+    count: int,
+    worker_request_fn: WorkerRequest = _default_worker_request,
 ) -> dict[str, Any]:
+    """Run one round with an explicitly selected isolated worker transport."""
+
     plan = plan_curriculum_round(
         candidates=candidates_packet.get("candidates", []),
         current_tier=int(history.get("current_tier", 0) or 0),
@@ -178,7 +188,7 @@ def run_round(
         worker_errors: dict[str, str] = {}
         for role in ("teacher", "prosecutor", "defender"):
             try:
-                packet = worker_request(role, truth)
+                packet = worker_request_fn(role, truth)
                 attach_worker(queue, case["case_id"], role, packet)
                 (case_dir / f"{role}.json").write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             except LearningWorkerError as exc:
