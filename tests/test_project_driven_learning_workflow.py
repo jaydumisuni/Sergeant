@@ -101,6 +101,33 @@ def test_candidate_packet_rejects_missing_round_id(tmp_path: Path) -> None:
         _candidate_packet(manifest, "a" * 40)
 
 
+def test_candidate_packet_rejects_path_traversing_case_id(tmp_path: Path) -> None:
+    manifest = tmp_path / "round.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": "sergeant.project-learning-round.v1",
+                "round_id": "unsafe-case-id-proof",
+                "candidate_count": 1,
+                "expected_case_ids": ["../outside"],
+                "signal_paths": ["does-not-need-to-exist.json"],
+                "authority": {
+                    "execution_lane": "oracle-direct-terminal",
+                    "direct_terminal_authorization_flag": "--owner-authorized",
+                    "may_auto_promote": False,
+                    "may_auto_merge": False,
+                    "final_verdict": "Sergeant",
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="filesystem-safe path segment"):
+        _candidate_packet(manifest, "a" * 40)
+
+
 def test_direct_terminal_evidence_manifest_hashes_durable_files_and_excludes_checkout(tmp_path: Path) -> None:
     (tmp_path / "authority.json").write_text('{"owner":true}\n', encoding="utf-8")
     (tmp_path / "terminal-result.json").write_text('{"result":"bounded"}\n', encoding="utf-8")
