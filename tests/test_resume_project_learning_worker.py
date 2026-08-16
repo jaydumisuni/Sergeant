@@ -18,7 +18,13 @@ AUTHORITY = "a" * 40
 CASE_ID = "case-resume"
 
 
-def _evidence_root(tmp_path: Path, *, workers: tuple[str, ...] = (), errors: dict[str, str] | None = None) -> Path:
+def _evidence_root(
+    tmp_path: Path,
+    *,
+    workers: tuple[str, ...] = (),
+    errors: dict[str, str] | None = None,
+    terminal_candidate_count: int | None = None,
+) -> Path:
     root = tmp_path / "evidence"
     case_dir = root / "round" / "cases" / CASE_ID
     case_dir.mkdir(parents=True)
@@ -66,6 +72,18 @@ def _evidence_root(tmp_path: Path, *, workers: tuple[str, ...] = (), errors: dic
         json.dumps({"week_id": "round-resume", "worker_error_cases": int(bool(errors))}) + "\n",
         encoding="utf-8",
     )
+    if terminal_candidate_count is not None:
+        (root / "terminal-result.json").write_text(
+            json.dumps({
+                "schema_version": "sergeant.project-learning-terminal-result.v1",
+                "authority_head": AUTHORITY,
+                "round_id": "round-resume",
+                "candidate_count": terminal_candidate_count,
+                "automatic_promotions": 0,
+                "automatic_merges": 0,
+            }) + "\n",
+            encoding="utf-8",
+        )
     return root
 
 
@@ -108,6 +126,21 @@ def test_resume_worker_preserves_completed_workers_and_clears_role_error(tmp_pat
     assert set(case["workers"]) == {"teacher", "prosecutor"}
     assert case["worker_errors"] == {"defender": "temporary failure"}
     assert (root / "evidence-manifest.json").is_file()
+
+
+def test_resume_preserves_authorized_candidate_count_and_records_queue_count(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(
+        tmp_path,
+        workers=("prosecutor",),
+        terminal_candidate_count=2,
+    )
+    packet = {"role": "teacher", "case_id": CASE_ID, "generalized_mechanism": "bounded"}
+
+    assert _invoke(monkeypatch, root, "teacher", packet) == 0
+
+    terminal = json.loads((root / "terminal-result.json").read_text(encoding="utf-8"))
+    assert terminal["candidate_count"] == 2
+    assert terminal["queue_case_count"] == 1
 
 
 def test_resume_final_worker_completes_council_and_exports_bounded_proposal(tmp_path: Path, monkeypatch) -> None:
