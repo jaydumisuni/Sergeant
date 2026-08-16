@@ -20,6 +20,17 @@ def _review_intelligence_exists(root_path: Path) -> bool:
     )
 
 
+def _is_sergeant_repository(root_path: Path) -> bool:
+    pyproject = root_path / "pyproject.toml"
+    if not pyproject.exists() or not (root_path / "main_review").exists():
+        return False
+    text = pyproject.read_text(encoding="utf-8", errors="ignore")
+    return any(
+        line.strip().replace("'", '"') == 'name = "sergeant-reviewer"'
+        for line in text.splitlines()
+    )
+
+
 def check_claims_match_implementation(root: str | Path = ".") -> dict[str, Any]:
     root_path = Path(root)
     docs_text = "\n".join(
@@ -28,7 +39,7 @@ def check_claims_match_implementation(root: str | Path = ".") -> dict[str, Any]:
     )
     findings: list[dict[str, object]] = []
     future_only = "comes later" in docs_text or "future direction" in docs_text.lower()
-    if "reasoning" in docs_text.lower() and not future_only and not _review_intelligence_exists(root_path):
+    if _is_sergeant_repository(root_path) and "reasoning" in docs_text.lower() and not future_only and not _review_intelligence_exists(root_path):
         findings.append(
             {
                 "severity": "major",
