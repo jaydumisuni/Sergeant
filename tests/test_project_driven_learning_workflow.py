@@ -5,21 +5,27 @@ import json
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "project-driven-self-learning.yml"
 MANIFEST = ROOT / ".github" / "self-learning" / "project-driven" / "techguycheckm8-round-1.json"
+RUNNER = ROOT / "scripts" / "run_project_driven_learning.py"
+CONTROLLED_RUNNER = ROOT / "scripts" / "run_controlled_self_learning.py"
 
 
-def test_project_driven_learning_workflow_is_owner_gated_and_read_only() -> None:
+def test_project_driven_learning_workflow_is_validation_only_and_read_only() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
 
     assert "permissions: {}" in text
-    assert "self-learning-authorized" in text
-    assert "START_PROJECT_LEARNING" in text
-    assert text.count("persist-credentials: false") >= 2
+    assert "persist-credentials: false" in text
     assert "contents: write" not in text
     assert "pull-requests: write" not in text
-    assert "models: read" in text
-    assert "may_auto_promote" in text
-    assert "may_auto_merge" in text
-    assert "SERGEANT_PROJECT_LEARNING_PROPOSALS_BEGIN" in text
+    assert "models: read" not in text
+    assert "GITHUB_TOKEN" not in text
+    assert "github_models" not in text
+    assert "\n  learn:\n" not in text
+    assert "\n  handoff:\n" not in text
+    assert "scripts/run_project_driven_learning.py" in text
+    assert "scripts/project_learning_workers.py" in text
+    assert "tests/test_project_learning_workers.py" in text
+    assert '"execution_lane": "oracle-direct-terminal"' in text
+    assert '"github_inference_enabled": false' in text
 
 
 def test_techguycheckm8_project_round_binds_exact_harvest_candidates() -> None:
@@ -36,9 +42,24 @@ def test_techguycheckm8_project_round_binds_exact_harvest_candidates() -> None:
         ".github/self-learning/signals/tgcheckm8-checkout-credential-boundary-2026-07-23.json",
     ]
     assert payload["authority"] == {
-        "required_label": "self-learning-authorized",
-        "required_commit_prefix": "START_PROJECT_LEARNING",
+        "execution_lane": "oracle-direct-terminal",
+        "direct_terminal_authorization_flag": "--owner-authorized",
         "may_auto_promote": False,
         "may_auto_merge": False,
         "final_verdict": "Sergeant",
     }
+
+
+def test_direct_terminal_runner_preserves_governed_worker_boundary() -> None:
+    text = RUNNER.read_text(encoding="utf-8")
+    controlled = CONTROLLED_RUNNER.read_text(encoding="utf-8")
+
+    assert 'parser.add_argument("--owner-authorized", action="store_true")' in text
+    assert 'os.environ["SERGEANT_LLM_ENABLED"] = "false"' in text
+    assert 'os.environ["SERGEANT_CPL_ENABLED"] = "false"' in text
+    assert 'os.environ["SERGEANT_LEARNING_BACKEND"] = "cloudflare"' in text
+    assert "worker_request_fn=project_worker_request" in text
+    assert '"automatic_promotions": 0' in text
+    assert '"automatic_merges": 0' in text
+    assert "worker_request_fn: WorkerRequest = _default_worker_request" in controlled
+    assert "packet = worker_request_fn(role, truth)" in controlled
