@@ -54,6 +54,21 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _validate_case_id(case_id: str) -> str:
+    """Require one filesystem-safe path segment for all project-learning cases."""
+
+    normalized = str(case_id or "").strip()
+    if (
+        not normalized
+        or normalized in {".", ".."}
+        or "/" in normalized
+        or "\\" in normalized
+        or Path(normalized).name != normalized
+    ):
+        raise SystemExit("project-learning case ID must be one filesystem-safe path segment")
+    return normalized
+
+
 def _write_evidence_manifest(root: Path) -> dict[str, Any]:
     """Hash durable learning evidence without copying transient Git checkouts."""
 
@@ -114,7 +129,7 @@ def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any
     if not round_id:
         raise SystemExit("project-learning manifest requires round_id")
 
-    expected_ids = [str(value) for value in manifest.get("expected_case_ids", [])]
+    expected_ids = [_validate_case_id(str(value)) for value in manifest.get("expected_case_ids", [])]
     signal_paths = [Path(str(value)) for value in manifest.get("signal_paths", [])]
     expected_count = int(manifest.get("candidate_count", 0) or 0)
     if not 1 <= expected_count <= 3:
@@ -130,7 +145,7 @@ def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any
     actual_ids: list[str] = []
     for path in signal_paths:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        actual_ids.append(str(payload.get("case_id") or ""))
+        actual_ids.append(_validate_case_id(str(payload.get("case_id") or "")))
     if actual_ids != expected_ids:
         raise SystemExit(f"manifest signal/case binding mismatch: {actual_ids!r} != {expected_ids!r}")
 
