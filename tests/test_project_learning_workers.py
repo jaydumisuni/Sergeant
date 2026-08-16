@@ -5,6 +5,7 @@ import json
 import pytest
 
 from main_review.hermes_learning import LearningWorkerError
+from scripts import project_learning_workers as project_workers
 from scripts.project_learning_workers import (
     CLOUDFLARE_ROLE_MODELS,
     _cloudflare_config,
@@ -12,12 +13,38 @@ from scripts.project_learning_workers import (
 )
 
 
-def test_cloudflare_project_learning_requires_runtime_credentials(monkeypatch) -> None:
+def test_cloudflare_project_learning_reuses_wrangle_oauth_without_persisting_it(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
     monkeypatch.delenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("SERGEANT_CLOUDFLARE_API_TOKEN", raising=False)
 
-    with pytest.raises(LearningWorkerError, match="Cloudflare project-learning"):
+    calls: list[tuple[str, ...]] = []
+
+    def fake_wrangler_json(*args: str):
+        calls.append(args)
+        if args[:2] == ("auth", "token"):
+            return {"type": "oauth", "token": "oauth-runtime-secret"}
+        return {"accounts": [{"id": "a" * 32, "name": "THETECHGUY"}]}
+
+    monkeypatch.setattr(project_workers, "_wrangler_json", fake_wrangler_json)
+    config = _cloudflare_config("teacher")
+
+    assert config.endpoint == f"https://api.cloudflare.com/client/v4/accounts/{'a' * 32}/ai/v1/chat/completions"
+    assert config.token == "oauth-runtime-secret"
+    assert calls == [("auth", "token", "--json"), ("whoami", "--json")]
+
+
+def test_cloudflare_project_learning_rejects_ambiguous_wrangle_accounts(monkeypatch) -> None:
+    monkeypatch.delenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", raising=False)
+    monkeypatch.delenv("SERGEANT_CLOUDFLARE_API_TOKEN", raising=False)
+
+    def fake_wrangler_json(*args: str):
+        if args[:2] == ("auth", "token"):
+            return {"type": "api_token", "token": "runtime-secret"}
+        return {"accounts": [{"id": "a" * 32}, {"id": "b" * 32}]}
+
+    monkeypatch.setattr(project_workers, "_wrangler_json", fake_wrangler_json)
+    with pytest.raises(LearningWorkerError, match="exactly one Account ID"):
         _cloudflare_config("teacher")
 
 
@@ -77,7 +104,8 @@ def test_cloudflare_worker_reuses_bounded_contract_without_exposing_credentials(
     assert result["transport"] == {
         "backend": "cloudflare",
         "model": CLOUDFLARE_ROLE_MODELS["teacher"],
-        "endpoint_class": "cloudflare-workers-ai",
+        "endpoint_class": "cloudflare-workers-ai-direct-terminal",
     }
-    assert "runtime-secret" not in json.dumps(result)
-    assert "b" * 32 not in json.dumps(result)
+    serialized = json.dumps(result)
+    assert "runtime-secret" not in serialized
+    assert "b" * 32 not in serialized
