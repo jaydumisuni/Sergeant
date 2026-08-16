@@ -13,7 +13,7 @@ from scripts.project_learning_workers import (
 )
 
 
-def test_cloudflare_project_learning_reuses_wrangle_oauth_without_persisting_it(monkeypatch) -> None:
+def test_cloudflare_project_learning_reuses_wrangler_oauth_without_persisting_it(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
     monkeypatch.delenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("SERGEANT_CLOUDFLARE_API_TOKEN", raising=False)
@@ -34,7 +34,7 @@ def test_cloudflare_project_learning_reuses_wrangle_oauth_without_persisting_it(
     assert calls == [("auth", "token", "--json"), ("whoami", "--json")]
 
 
-def test_cloudflare_project_learning_rejects_ambiguous_wrangle_accounts(monkeypatch) -> None:
+def test_cloudflare_project_learning_rejects_ambiguous_wrangler_accounts(monkeypatch) -> None:
     monkeypatch.delenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", raising=False)
     monkeypatch.delenv("SERGEANT_CLOUDFLARE_API_TOKEN", raising=False)
 
@@ -105,7 +105,51 @@ def test_cloudflare_worker_reuses_bounded_contract_without_exposing_credentials(
         "backend": "cloudflare",
         "model": CLOUDFLARE_ROLE_MODELS["teacher"],
         "endpoint_class": "cloudflare-workers-ai-direct-terminal",
+        "attempts": 1,
     }
     serialized = json.dumps(result)
     assert "runtime-secret" not in serialized
     assert "b" * 32 not in serialized
+
+
+def test_cloudflare_worker_retries_bounded_model_failure(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "c" * 32)
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "runtime-secret")
+    monkeypatch.setenv("SERGEANT_LEARNING_MAX_ATTEMPTS", "3")
+    monkeypatch.setattr(project_workers.time, "sleep", lambda _: None)
+
+    calls = 0
+    output = {
+        "role": "defender",
+        "case_id": "case-retry",
+        "verdict": "supports",
+        "counterexamples": [],
+        "false_positive_risks": ["clean producer/verifier path agreement"],
+        "missing_evidence": [],
+        "confidence": 0.8,
+    }
+
+    def fake_base(role, case_packet, config=None):
+        nonlocal calls
+        calls += 1
+        if calls < 3:
+            raise LearningWorkerError("defender transport failed: HTTP Error 429: Too Many Requests")
+        return dict(output)
+
+    monkeypatch.setattr(project_workers, "_base_worker_request", fake_base)
+    result = worker_request("defender", {"case_id": "case-retry", "fixing_diff": "diff"})
+
+    assert calls == 3
+    assert result["transport"]["attempts"] == 3
+    assert result["transport"]["model"] == CLOUDFLARE_ROLE_MODELS["defender"]
+
+
+def test_cloudflare_worker_rejects_unbounded_retry_configuration(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "d" * 32)
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "runtime-secret")
+    monkeypatch.setenv("SERGEANT_LEARNING_MAX_ATTEMPTS", "9")
+
+    with pytest.raises(LearningWorkerError, match="between 1 and 5"):
+        worker_request("teacher", {"case_id": "case-limit", "fixing_diff": "diff"})
