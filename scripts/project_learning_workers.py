@@ -133,7 +133,7 @@ def _cloudflare_config(role: str) -> WorkerConfig:
         raise LearningWorkerError("Cloudflare project-learning Account ID is invalid")
     suffix = normalized.upper()
     model = os.environ.get(
-        f"SERGEANT_{suffix}_MODEL",
+        f"SERGEANT_CLOUDFLARE_{suffix}_MODEL",
         CLOUDFLARE_ROLE_MODELS[normalized],
     ).strip()
     if not model.startswith("@cf/"):
@@ -160,37 +160,15 @@ def _max_attempts() -> int:
 
 
 def _retryable_worker_error(error: LearningWorkerError) -> bool:
-    """Classify only transport or model-shape failures as safe to retry."""
+    """Retry only transport failures that can plausibly recover on another attempt."""
 
     message = str(error).strip().lower()
-    invariant_markers = (
-        "worker role mismatch",
-        "worker case binding mismatch",
-        "worker configuration role mismatch",
-        "unknown role:",
-        "unknown learning role:",
-        "worker output requires non-empty case_id",
-    )
-    if any(marker in message for marker in invariant_markers):
+    if "transport failed:" not in message:
         return False
-
-    if "transport failed:" in message:
-        status = re.search(r"http error\s+(\d{3})", message)
-        if status:
-            return int(status.group(1)) in _RETRYABLE_HTTP_STATUS
-        return True
-
-    model_shape_markers = (
-        "response lacks chat completion content",
-        "worker did not return a json object",
-        "worker returned malformed json",
-        "worker output must be a json object",
-        "worker confidence must be between 0 and 1",
-        "worker output requires non-empty",
-        "worker output requires list",
-        "invalid defender verdict",
-    )
-    return any(marker in message for marker in model_shape_markers)
+    status = re.search(r"http error\s+(\d{3})", message)
+    if status:
+        return int(status.group(1)) in _RETRYABLE_HTTP_STATUS
+    return True
 
 
 def worker_request(
@@ -200,7 +178,7 @@ def worker_request(
 ) -> dict[str, Any]:
     """Run one learning worker and retry only bounded recoverable failures."""
 
-    backend = os.environ.get("SERGEANT_LEARNING_BACKEND", "hermes").strip().lower()
+    backend = os.environ.get("SERGEANT_LEARNING_BACKEND", "github_models").strip().lower()
     selected = config
     if selected is None and backend == "cloudflare":
         selected = _cloudflare_config(role)
@@ -224,5 +202,4 @@ def worker_request(
                 raise
             time.sleep(min(4.0, 0.5 * (2 ** (attempt - 1))))
 
-    assert last_error is not None
-    raise last_error
+    raise last_error or LearningWorkerError(f"{role} worker exhausted bounded attempts")
