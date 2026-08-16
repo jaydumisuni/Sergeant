@@ -17,8 +17,12 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from scripts.collect_github_learning_candidates import _signal_candidates
 from scripts.export_learning_proposals import export as export_proposals
