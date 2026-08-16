@@ -110,6 +110,10 @@ def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any
     if authority.get("direct_terminal_authorization_flag") != "--owner-authorized":
         raise SystemExit("project-learning manifest has an unexpected owner-authorization contract")
 
+    round_id = str(manifest.get("round_id") or "").strip()
+    if not round_id:
+        raise SystemExit("project-learning manifest requires round_id")
+
     expected_ids = [str(value) for value in manifest.get("expected_case_ids", [])]
     signal_paths = [Path(str(value)) for value in manifest.get("signal_paths", [])]
     expected_count = int(manifest.get("candidate_count", 0) or 0)
@@ -146,7 +150,7 @@ def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any
 
     return {
         "schema_version": "sergeant.github-learning-candidates.v1",
-        "week_id": str(manifest["round_id"]),
+        "week_id": round_id,
         "reviewer_frozen_before_collection": authority_head,
         "truth_persisted_before_blind_review": False,
         "project_driven": True,
