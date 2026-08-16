@@ -13,6 +13,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from typing import Any, Mapping
 
 from main_review.cloudflare_models import cloudflare_base_url
@@ -143,22 +144,46 @@ def _cloudflare_config(role: str) -> WorkerConfig:
     )
 
 
+def _max_attempts() -> int:
+    try:
+        value = int(os.environ.get("SERGEANT_LEARNING_MAX_ATTEMPTS", "3"))
+    except ValueError as exc:
+        raise LearningWorkerError("SERGEANT_LEARNING_MAX_ATTEMPTS must be an integer") from exc
+    if not 1 <= value <= 5:
+        raise LearningWorkerError("SERGEANT_LEARNING_MAX_ATTEMPTS must be between 1 and 5")
+    return value
+
+
 def worker_request(
     role: str,
     case_packet: Mapping[str, Any],
     config: WorkerConfig | None = None,
 ) -> dict[str, Any]:
-    """Run one bounded learning worker through Cloudflare or stable Hermes."""
+    """Run one bounded learning worker with bounded retries for transient/model failures."""
 
     backend = os.environ.get("SERGEANT_LEARNING_BACKEND", "hermes").strip().lower()
     selected = config
     if selected is None and backend == "cloudflare":
         selected = _cloudflare_config(role)
-    result = _base_worker_request(role, case_packet, config=selected)
-    if selected is not None and selected.backend == "cloudflare":
-        result["transport"] = {
-            "backend": "cloudflare",
-            "model": selected.model,
-            "endpoint_class": "cloudflare-workers-ai-direct-terminal",
-        }
-    return result
+
+    attempts = _max_attempts() if selected is not None and selected.backend == "cloudflare" else 1
+    last_error: LearningWorkerError | None = None
+    for attempt in range(1, attempts + 1):
+        try:
+            result = _base_worker_request(role, case_packet, config=selected)
+            if selected is not None and selected.backend == "cloudflare":
+                result["transport"] = {
+                    "backend": "cloudflare",
+                    "model": selected.model,
+                    "endpoint_class": "cloudflare-workers-ai-direct-terminal",
+                    "attempts": attempt,
+                }
+            return result
+        except LearningWorkerError as exc:
+            last_error = exc
+            if attempt >= attempts:
+                raise
+            time.sleep(min(4.0, 0.5 * (2 ** (attempt - 1))))
+
+    assert last_error is not None
+    raise last_error
