@@ -17,7 +17,17 @@ class ProvenanceError(ValueError):
 
 
 def _run_git(root: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    command = ["git", "-C", str(root), *args]
+    """Run read-only Git proof commands with trust scoped to this exact checkout."""
+
+    safe_root = root.resolve()
+    command = [
+        "git",
+        "-c",
+        f"safe.directory={safe_root.as_posix()}",
+        "-C",
+        str(safe_root),
+        *args,
+    ]
     try:
         return subprocess.run(
             command,
@@ -192,6 +202,8 @@ def validate_case_provenance(case: dict[str, Any]) -> dict[str, Any]:
     diff = _run_git(
         checkout,
         "diff",
+        "--no-ext-diff",
+        "--no-textconv",
         "--name-only",
         defective,
         fixing,
