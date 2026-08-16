@@ -44,8 +44,9 @@ def test_generated_checkout_git_commands_use_exact_invocation_scoped_safe_direct
     expected_safe = f"safe.directory={destination.resolve().as_posix()}"
     for call in calls[1:]:
         assert call[:5] == ("git", "-c", expected_safe, "-C", str(destination))
-        assert "safe.directory=*" not in call
-        assert "--global" not in call
+        serialized = " ".join(call)
+        assert "safe.directory=*" not in serialized
+        assert "--global" not in serialized
 
 
 def test_truth_diff_uses_same_exact_safe_directory_override(tmp_path: Path, monkeypatch) -> None:
