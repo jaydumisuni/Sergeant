@@ -4,6 +4,8 @@ import json
 import sys
 from pathlib import Path
 
+import pytest
+
 from main_review.self_learning_queue import (
     add_case,
     attach_worker,
@@ -87,27 +89,95 @@ def _evidence_root(
     return root
 
 
+def _argv(root: Path, role: str, *, owner_authorized: bool = True) -> list[str]:
+    argv = [
+        "resume_project_learning_worker.py",
+        "--evidence-dir",
+        str(root),
+        "--case-id",
+        CASE_ID,
+        "--role",
+        role,
+        "--authority-head",
+        AUTHORITY,
+    ]
+    if owner_authorized:
+        argv.append("--owner-authorized")
+    return argv
+
+
 def _invoke(monkeypatch, root: Path, role: str, packet: dict) -> int:
     monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
     monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
     monkeypatch.setattr(resume, "project_worker_request", lambda worker_role, truth: dict(packet))
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        [
-            "resume_project_learning_worker.py",
-            "--evidence-dir",
-            str(root),
-            "--case-id",
-            CASE_ID,
-            "--role",
-            role,
-            "--authority-head",
-            AUTHORITY,
-            "--owner-authorized",
-        ],
-    )
+    monkeypatch.setattr(sys, "argv", _argv(root, role))
     return resume.main()
+
+
+def test_resume_requires_explicit_owner_authorization(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher", owner_authorized=False))
+
+    with pytest.raises(SystemExit, match="explicit --owner-authorized"):
+        resume.main()
+
+
+def test_resume_rejects_authority_head_mismatch(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    monkeypatch.setattr(resume, "_git_head", lambda: "d" * 40)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="head mismatch"):
+        resume.main()
+
+
+def test_resume_rejects_dirty_worktree(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: " M scripts/file.py")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="clean frozen Sergeant worktree"):
+        resume.main()
+
+
+def test_resume_rejects_already_preserved_role(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path, workers=("teacher",))
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="worker already preserved"):
+        resume.main()
+
+
+def test_resume_rejects_truth_packet_case_mismatch(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    truth_path = root / "round" / "cases" / CASE_ID / "truth-packet.json"
+    truth_path.write_text(json.dumps({"case_id": "different-case", "fixing_diff": "diff"}) + "\n", encoding="utf-8")
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="truth packet case binding mismatch"):
+        resume.main()
+
+
+def test_resume_reports_worker_failure_as_governed_error(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+
+    def fail_worker(role, truth):
+        raise resume.LearningWorkerError("bounded worker failure")
+
+    monkeypatch.setattr(resume, "project_worker_request", fail_worker)
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="project-learning teacher worker failed: bounded worker failure"):
+        resume.main()
+    assert not (root / "round" / "cases" / CASE_ID / "teacher.json").exists()
 
 
 def test_resume_worker_preserves_completed_workers_and_clears_role_error(tmp_path: Path, monkeypatch) -> None:
