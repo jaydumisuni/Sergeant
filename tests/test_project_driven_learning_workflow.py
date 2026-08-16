@@ -25,9 +25,11 @@ def test_project_driven_learning_workflow_is_validation_only_and_read_only() -> 
     assert "\n  learn:\n" not in text
     assert "\n  handoff:\n" not in text
     assert "scripts/run_project_driven_learning.py" in text
+    assert "scripts/resume_project_learning_worker.py" in text
     assert "scripts/project_learning_workers.py" in text
     assert "scripts/export_learning_proposals.py" in text
     assert "tests/test_project_learning_workers.py" in text
+    assert "tests/test_resume_project_learning_worker.py" in text
     assert "from scripts.run_project_driven_learning import _candidate_packet" in text
     assert '"execution_lane": "oracle-direct-terminal"' in text
     assert '"github_inference_enabled": false' in text
