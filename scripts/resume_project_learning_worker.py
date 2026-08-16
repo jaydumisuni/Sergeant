@@ -21,7 +21,10 @@ from main_review.self_learning_queue import (
     write_queue,
 )
 from scripts.export_learning_proposals import export as export_proposals
-from scripts.project_learning_workers import worker_request as project_worker_request
+from scripts.project_learning_workers import (
+    LearningWorkerError,
+    worker_request as project_worker_request,
+)
 from scripts.run_project_driven_learning import (
     _git_head,
     _git_status_porcelain,
@@ -97,8 +100,14 @@ def main() -> int:
     if truth.get("case_id") != args.case_id:
         raise SystemExit("truth packet case binding mismatch")
 
-    packet = project_worker_request(args.role, truth)
-    attach_worker(queue, args.case_id, args.role, packet)
+    try:
+        packet = project_worker_request(args.role, truth)
+    except LearningWorkerError as exc:
+        raise SystemExit(f"project-learning {args.role} worker failed: {exc}") from exc
+    try:
+        attach_worker(queue, args.case_id, args.role, packet)
+    except QueueContractError as exc:
+        raise SystemExit(f"project-learning {args.role} worker packet was rejected: {exc}") from exc
     (case_dir / f"{args.role}.json").write_text(
         json.dumps(packet, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
