@@ -232,6 +232,7 @@ def main() -> int:
         "candidate_count": int(candidates["candidate_count"]),
         "summary": summary,
         "proposal_index": proposal_index,
+        "evidence_manifest_path": "evidence-manifest.json",
         "automatic_promotions": 0,
         "automatic_merges": 0,
     }
@@ -239,18 +240,6 @@ def main() -> int:
         json.dumps(completion, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-    evidence_manifest = _write_evidence_manifest(args.output_dir)
-    completion["evidence_manifest"] = {
-        "path": "evidence-manifest.json",
-        "file_count": evidence_manifest["file_count"],
-        "total_bytes": evidence_manifest["total_bytes"],
-    }
-    (args.output_dir / "terminal-result.json").write_text(
-        json.dumps(completion, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
-    # terminal-result changed after the first manifest pass; regenerate once so
-    # its final digest is the one preserved for handoff.
     evidence_manifest = _write_evidence_manifest(args.output_dir)
 
     unresolved = int(summary.get("state_counts", {}).get("truth_revealed", 0) or 0)
