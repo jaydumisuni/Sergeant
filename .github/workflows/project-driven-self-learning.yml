@@ -100,41 +100,11 @@ jobs:
           import sys
           from pathlib import Path
 
-          from scripts.collect_github_learning_candidates import _signal_candidates
+          from scripts.run_project_driven_learning import _candidate_packet
 
           manifest_path = Path(sys.argv[1])
           output_path = Path(sys.argv[2])
-          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-          expected_ids = list(manifest["expected_case_ids"])
-          signal_paths = [Path(value) for value in manifest["signal_paths"]]
-          if len(expected_ids) != int(manifest["candidate_count"]) or len(signal_paths) != len(expected_ids):
-              raise SystemExit("manifest candidate count does not match expected IDs and signal paths")
-          actual_ids = []
-          for path in signal_paths:
-              payload = json.loads(path.read_text(encoding="utf-8"))
-              actual_ids.append(str(payload.get("case_id") or ""))
-          if actual_ids != expected_ids:
-              raise SystemExit(f"manifest signal/case binding mismatch: {actual_ids!r} != {expected_ids!r}")
-          candidates = _signal_candidates(Path(".github/self-learning/signals"))
-          by_id = {str(row["case_id"]): row for row in candidates}
-          selected = []
-          for case_id in expected_ids:
-              row = by_id.get(case_id)
-              if row is None:
-                  raise SystemExit(f"manifest case is not currently candidate-ready and unprocessed: {case_id}")
-              selected.append(row)
-          packet = {
-              "schema_version": "sergeant.github-learning-candidates.v1",
-              "week_id": manifest["round_id"],
-              "reviewer_frozen_before_collection": os.environ["AUTHORITY_HEAD"].lower(),
-              "truth_persisted_before_blind_review": False,
-              "project_driven": True,
-              "execution_lane": "oracle-direct-terminal",
-              "manifest": manifest_path.as_posix(),
-              "candidate_count": len(selected),
-              "direct_signal_candidate_count": len(selected),
-              "candidates": selected,
-          }
+          packet = _candidate_packet(manifest_path, os.environ["AUTHORITY_HEAD"].lower())
           output_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n", encoding="utf-8")
           PY
           actual_count="$(jq -er '.candidate_count' "build/${round_id}/candidates.json")"
