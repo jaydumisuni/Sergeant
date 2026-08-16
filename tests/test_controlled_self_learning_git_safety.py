@@ -69,6 +69,7 @@ def test_truth_diff_uses_same_exact_safe_directory_override(tmp_path: Path, monk
             (
                 "diff",
                 "--no-ext-diff",
+                "--no-textconv",
                 "--unified=25",
                 case["defective_ref"],
                 case["fixing_ref"],
