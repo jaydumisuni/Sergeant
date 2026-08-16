@@ -33,6 +33,7 @@ def test_project_driven_learning_workflow_is_validation_only_and_read_only() -> 
     assert "tests/test_project_learning_workers.py" in text
     assert "tests/test_resume_project_learning_worker.py" in text
     assert "from scripts.run_project_driven_learning import _candidate_packet" in text
+    assert 'test("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")' in text
     assert '"execution_lane": "oracle-direct-terminal"' in text
     assert '"github_inference_enabled": false' in text
 
