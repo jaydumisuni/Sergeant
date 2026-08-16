@@ -5,13 +5,15 @@ This is the execution lane for project-driven learning. GitHub Actions validates
 contracts and exact heads only; it does not perform model inference. The runner
 freezes a clean current Sergeant commit, binds the exact manifest signal files,
 then injects the isolated project-learning worker transport after blind review
-truth reveal. It preserves bounded proposals and fails closed on incomplete
-council work. It never promotes a lesson or merges code.
+truth reveal. It preserves bounded proposals, hashes the durable evidence, and
+fails closed on incomplete council work. It never promotes a lesson or merges
+code.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -42,6 +44,54 @@ def _git_status_porcelain() -> str:
         errors="replace",
         timeout=30,
     ).strip()
+
+
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_evidence_manifest(root: Path) -> dict[str, Any]:
+    """Hash durable learning evidence without copying transient Git checkouts."""
+
+    included: list[Path] = []
+    for relative in ("authority.json", "candidates.json", "terminal-result.json"):
+        path = root / relative
+        if path.is_file():
+            included.append(path)
+    round_dir = root / "round"
+    for relative in ("curriculum-plan.json", "learning-queue.json", "summary.json"):
+        path = round_dir / relative
+        if path.is_file():
+            included.append(path)
+    for base in (round_dir / "cases", root / "learning" / "proposals"):
+        if base.is_dir():
+            included.extend(path for path in base.rglob("*.json") if path.is_file())
+
+    unique = sorted({path.resolve() for path in included}, key=lambda value: value.as_posix())
+    files = []
+    for path in unique:
+        relative = path.relative_to(root.resolve()).as_posix()
+        files.append({
+            "path": relative,
+            "size_bytes": path.stat().st_size,
+            "sha256": _sha256(path),
+        })
+    manifest = {
+        "schema_version": "sergeant.project-learning-evidence-manifest.v1",
+        "file_count": len(files),
+        "total_bytes": sum(int(row["size_bytes"]) for row in files),
+        "files": files,
+        "excluded_transient_paths": ["round/checkouts/**"],
+    }
+    (root / "evidence-manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return manifest
 
 
 def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any]:
@@ -189,6 +239,19 @@ def main() -> int:
         json.dumps(completion, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
+    evidence_manifest = _write_evidence_manifest(args.output_dir)
+    completion["evidence_manifest"] = {
+        "path": "evidence-manifest.json",
+        "file_count": evidence_manifest["file_count"],
+        "total_bytes": evidence_manifest["total_bytes"],
+    }
+    (args.output_dir / "terminal-result.json").write_text(
+        json.dumps(completion, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    # terminal-result changed after the first manifest pass; regenerate once so
+    # its final digest is the one preserved for handoff.
+    evidence_manifest = _write_evidence_manifest(args.output_dir)
 
     unresolved = int(summary.get("state_counts", {}).get("truth_revealed", 0) or 0)
     completed = int(summary.get("state_counts", {}).get("council_complete", 0) or 0) + int(
@@ -196,7 +259,7 @@ def main() -> int:
     )
     worker_errors = int(summary.get("worker_error_cases", 0) or 0)
     expected = int(candidates["candidate_count"])
-    print(json.dumps(completion, sort_keys=True))
+    print(json.dumps({**completion, "evidence_manifest": evidence_manifest}, sort_keys=True))
     if worker_errors != 0 or unresolved != 0 or completed != expected:
         return 2
     return 0
