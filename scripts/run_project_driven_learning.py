@@ -3,10 +3,10 @@
 
 This is the execution lane for project-driven learning. GitHub Actions validates
 contracts and exact heads only; it does not perform model inference. The runner
-freezes the current Sergeant commit, binds the exact manifest candidates, then
-injects the isolated project-learning worker transport after blind review truth
-reveal. It preserves bounded proposals and fails closed on incomplete council
-work. It never promotes a lesson or merges code.
+freezes a clean current Sergeant commit, binds the exact manifest signal files,
+then injects the isolated project-learning worker transport after blind review
+truth reveal. It preserves bounded proposals and fails closed on incomplete
+council work. It never promotes a lesson or merges code.
 """
 
 from __future__ import annotations
@@ -34,6 +34,16 @@ def _git_head() -> str:
     ).strip().lower()
 
 
+def _git_status_porcelain() -> str:
+    return subprocess.check_output(
+        ["git", "status", "--porcelain", "--untracked-files=normal"],
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=30,
+    ).strip()
+
+
 def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema_version") != "sergeant.project-learning-round.v1":
@@ -57,6 +67,11 @@ def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any
         raise SystemExit("project-learning candidate_count must be between 1 and 3")
     if len(expected_ids) != expected_count or len(signal_paths) != expected_count:
         raise SystemExit("manifest candidate count does not match IDs and signal paths")
+    if len(set(expected_ids)) != len(expected_ids):
+        raise SystemExit("project-learning manifest contains duplicate case IDs")
+    signal_names = [path.as_posix() for path in signal_paths]
+    if len(set(signal_names)) != len(signal_names):
+        raise SystemExit("project-learning manifest contains duplicate signal paths")
 
     actual_ids: list[str] = []
     for path in signal_paths:
@@ -68,10 +83,15 @@ def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any
     candidates = _signal_candidates(Path(".github/self-learning/signals"))
     by_id = {str(row["case_id"]): row for row in candidates}
     selected: list[dict[str, Any]] = []
-    for case_id in expected_ids:
+    for case_id, signal_path in zip(expected_ids, signal_paths, strict=True):
         row = by_id.get(case_id)
         if row is None:
             raise SystemExit(f"manifest case is not currently candidate-ready and unprocessed: {case_id}")
+        actual_signal_path = Path(str(row.get("signal_path") or "")).as_posix()
+        if actual_signal_path != signal_path.as_posix():
+            raise SystemExit(
+                f"manifest case resolved from unexpected signal path: {actual_signal_path} != {signal_path.as_posix()}"
+            )
         selected.append(row)
 
     return {
@@ -105,6 +125,8 @@ def main() -> int:
     actual_head = _git_head()
     if actual_head != authority_head:
         raise SystemExit(f"frozen Sergeant head mismatch: {actual_head} != {authority_head}")
+    if _git_status_porcelain():
+        raise SystemExit("direct project learning requires a clean frozen Sergeant worktree")
 
     candidates = _candidate_packet(args.manifest, authority_head)
     history = (
@@ -125,6 +147,7 @@ def main() -> int:
         "target_branch": args.target_branch,
         "round_id": candidates["week_id"],
         "execution_lane": "oracle-direct-terminal",
+        "clean_worktree_verified": True,
         "owner_authorized": True,
         "automatic_promotions": 0,
         "automatic_merges": 0,
