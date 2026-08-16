@@ -46,6 +46,21 @@ def _run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
     return completed.stdout if capture else ""
 
 
+def _git_in_checkout(checkout: Path, *args: str, capture: bool = False) -> str:
+    """Run Git in one generated checkout with an invocation-scoped trust grant."""
+
+    safe_path = checkout.resolve().as_posix()
+    return _run(
+        "git",
+        "-c",
+        f"safe.directory={safe_path}",
+        "-C",
+        str(checkout),
+        *args,
+        capture=capture,
+    )
+
+
 def _source_fields(case: dict[str, Any]) -> dict[str, Any]:
     """Bind either PR lineage or an exact direct-event URL without inventing one."""
 
@@ -66,17 +81,17 @@ def _checkout(case: dict[str, Any], root: Path) -> Path:
     destination = root / case["case_id"]
     destination.mkdir(parents=True, exist_ok=False)
     _run("git", "init", str(destination))
-    _run("git", "-C", str(destination), "remote", "add", "origin", f"https://github.com/{case['repository']}.git")
-    _run("git", "-C", str(destination), "config", "core.sparseCheckout", "true")
-    _run("git", "-C", str(destination), "config", "core.sparseCheckoutCone", "false")
+    _git_in_checkout(destination, "remote", "add", "origin", f"https://github.com/{case['repository']}.git")
+    _git_in_checkout(destination, "config", "core.sparseCheckout", "true")
+    _git_in_checkout(destination, "config", "core.sparseCheckoutCone", "false")
     sparse = destination / ".git" / "info" / "sparse-checkout"
     sparse.parent.mkdir(parents=True, exist_ok=True)
     sparse.write_text("".join(f"/{path}\n" for path in case["scored_paths"]), encoding="utf-8")
     for ref in (case["fixing_ref"], case["defective_ref"]):
-        _run("git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", ref)
-    _run("git", "-C", str(destination), "merge-base", "--is-ancestor", case["defective_ref"], case["fixing_ref"])
-    _run("git", "-C", str(destination), "checkout", "--detach", case["defective_ref"])
-    actual = _run("git", "-C", str(destination), "rev-parse", "HEAD", capture=True).strip()
+        _git_in_checkout(destination, "fetch", "--no-tags", "--filter=blob:none", "origin", ref)
+    _git_in_checkout(destination, "merge-base", "--is-ancestor", case["defective_ref"], case["fixing_ref"])
+    _git_in_checkout(destination, "checkout", "--detach", case["defective_ref"])
+    actual = _git_in_checkout(destination, "rev-parse", "HEAD", capture=True).strip()
     if actual != case["defective_ref"]:
         raise RuntimeError(f"defective checkout mismatch for {case['case_id']}")
     for path in case["scored_paths"]:
@@ -114,11 +129,17 @@ def _blind_manifest(case: dict[str, Any], checkout: Path, reviewer: str) -> dict
 
 
 def _truth_packet(case: dict[str, Any], checkout: Path, blind_result: dict[str, Any]) -> dict[str, Any]:
-    command = [
-        "git", "-C", str(checkout), "diff", "--no-ext-diff", "--unified=25",
-        case["defective_ref"], case["fixing_ref"], "--", *case["scored_paths"],
-    ]
-    diff = subprocess.check_output(command, text=True, encoding="utf-8", errors="replace", timeout=300)
+    diff = _git_in_checkout(
+        checkout,
+        "diff",
+        "--no-ext-diff",
+        "--unified=25",
+        case["defective_ref"],
+        case["fixing_ref"],
+        "--",
+        *case["scored_paths"],
+        capture=True,
+    )
     if len(diff) > 24_000:
         diff = diff[:24_000] + "\n[TRUNCATED AFTER 24000 CHARACTERS]\n"
     summary = blind_result.get("summaries", [{}])[0]
