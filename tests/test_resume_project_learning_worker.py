@@ -177,7 +177,7 @@ def test_resume_rejects_tampered_preserved_truth_before_worker(tmp_path: Path, m
     monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
     monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
 
-    with pytest.raises(SystemExit, match="preserved evidence integrity mismatch"):
+    with pytest.raises(SystemExit, match="integrity mismatch.*_write_evidence_manifest"):
         resume.main()
 
 
@@ -285,6 +285,30 @@ def test_resume_worker_preserves_completed_workers_and_clears_role_error(tmp_pat
     assert set(case["workers"]) == {"teacher", "prosecutor"}
     assert case["worker_errors"] == {"defender": "temporary failure"}
     assert (root / "evidence-manifest.json").is_file()
+
+
+def test_resume_two_workers_sequentially_reverify_regenerated_manifest(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(
+        tmp_path,
+        workers=("defender",),
+        errors={"teacher": "temporary failure", "prosecutor": "temporary failure"},
+    )
+    teacher = {"role": "teacher", "case_id": CASE_ID, "generalized_mechanism": "bounded"}
+    prosecutor = {"role": "prosecutor", "case_id": CASE_ID, "claims": []}
+
+    assert _invoke(monkeypatch, root, "teacher", teacher) == 0
+    verified_after_teacher = resume._verify_preserved_evidence(root)
+    assert "round/learning-queue.json" in verified_after_teacher
+
+    assert _invoke(monkeypatch, root, "prosecutor", prosecutor) == 0
+
+    queue = json.loads((root / "round" / "learning-queue.json").read_text(encoding="utf-8"))
+    case = queue["cases"][0]
+    assert case["state"] == "council_complete"
+    assert set(case["workers"]) == {"teacher", "prosecutor", "defender"}
+    assert "worker_errors" not in case
+    verified_after_prosecutor = resume._verify_preserved_evidence(root)
+    assert "terminal-result.json" in verified_after_prosecutor
 
 
 def test_resume_preserves_authorized_candidate_count_and_records_queue_count(tmp_path: Path, monkeypatch) -> None:
