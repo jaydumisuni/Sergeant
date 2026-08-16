@@ -2,6 +2,8 @@ from pathlib import Path
 import hashlib
 import json
 
+import pytest
+
 from scripts.run_project_driven_learning import _candidate_packet, _write_evidence_manifest
 
 
@@ -57,7 +59,8 @@ def test_techguycheckm8_project_round_binds_exact_harvest_candidates() -> None:
     }
 
 
-def test_candidate_packet_resolves_only_the_manifest_signal_files() -> None:
+def test_candidate_packet_resolves_only_the_manifest_signal_files(monkeypatch) -> None:
+    monkeypatch.chdir(ROOT)
     packet = _candidate_packet(MANIFEST.relative_to(ROOT), "a" * 40)
 
     assert packet["candidate_count"] == 2
@@ -70,6 +73,32 @@ def test_candidate_packet_resolves_only_the_manifest_signal_files() -> None:
         ".github/self-learning/signals/tgcheckm8-checksum-path-namespace-2026-07-23.json",
         ".github/self-learning/signals/tgcheckm8-checkout-credential-boundary-2026-07-23.json",
     ]
+
+
+def test_candidate_packet_rejects_missing_round_id(tmp_path: Path) -> None:
+    manifest = tmp_path / "round.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "schema_version": "sergeant.project-learning-round.v1",
+                "candidate_count": 1,
+                "expected_case_ids": ["case-a"],
+                "signal_paths": ["signal-a.json"],
+                "authority": {
+                    "execution_lane": "oracle-direct-terminal",
+                    "direct_terminal_authorization_flag": "--owner-authorized",
+                    "may_auto_promote": False,
+                    "may_auto_merge": False,
+                    "final_verdict": "Sergeant",
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(SystemExit, match="requires round_id"):
+        _candidate_packet(manifest, "a" * 40)
 
 
 def test_direct_terminal_evidence_manifest_hashes_durable_files_and_excludes_checkout(tmp_path: Path) -> None:
