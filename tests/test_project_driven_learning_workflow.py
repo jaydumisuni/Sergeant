@@ -1,7 +1,8 @@
 from pathlib import Path
+import hashlib
 import json
 
-from scripts.run_project_driven_learning import _candidate_packet
+from scripts.run_project_driven_learning import _candidate_packet, _write_evidence_manifest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -69,6 +70,30 @@ def test_candidate_packet_resolves_only_the_manifest_signal_files() -> None:
     ]
 
 
+def test_direct_terminal_evidence_manifest_hashes_durable_files_and_excludes_checkout(tmp_path: Path) -> None:
+    (tmp_path / "authority.json").write_text('{"owner":true}\n', encoding="utf-8")
+    (tmp_path / "terminal-result.json").write_text('{"result":"bounded"}\n', encoding="utf-8")
+    case_dir = tmp_path / "round" / "cases" / "case-a"
+    case_dir.mkdir(parents=True)
+    (case_dir / "teacher.json").write_text('{"role":"teacher"}\n', encoding="utf-8")
+    checkout = tmp_path / "round" / "checkouts" / "case-a" / ".git" / "objects"
+    checkout.mkdir(parents=True)
+    (checkout / "secret-transient-object").write_bytes(b"do-not-hash-checkout")
+
+    manifest = _write_evidence_manifest(tmp_path)
+    rows = {row["path"]: row for row in manifest["files"]}
+
+    assert set(rows) == {
+        "authority.json",
+        "terminal-result.json",
+        "round/cases/case-a/teacher.json",
+    }
+    assert rows["authority.json"]["sha256"] == hashlib.sha256(b'{"owner":true}\n').hexdigest()
+    assert manifest["excluded_transient_paths"] == ["round/checkouts/**"]
+    written = json.loads((tmp_path / "evidence-manifest.json").read_text(encoding="utf-8"))
+    assert written == manifest
+
+
 def test_direct_terminal_runner_preserves_governed_worker_boundary() -> None:
     text = RUNNER.read_text(encoding="utf-8")
     controlled = CONTROLLED_RUNNER.read_text(encoding="utf-8")
@@ -81,6 +106,8 @@ def test_direct_terminal_runner_preserves_governed_worker_boundary() -> None:
     assert 'os.environ["SERGEANT_LEARNING_BACKEND"] = "cloudflare"' in text
     assert "worker_request_fn=project_worker_request" in text
     assert "export_proposals(queue" in text
+    assert '"evidence_manifest_path": "evidence-manifest.json"' in text
+    assert "_write_evidence_manifest(args.output_dir)" in text
     assert '"automatic_promotions": 0' in text
     assert '"automatic_merges": 0' in text
     assert "worker_request_fn: WorkerRequest = _default_worker_request" in controlled
