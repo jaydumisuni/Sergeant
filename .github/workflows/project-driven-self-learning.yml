@@ -25,6 +25,7 @@ on:
       - "tests/test_project_driven_learning_workflow.py"
       - "tests/test_project_learning_workers.py"
       - "tests/test_resume_project_learning_worker.py"
+      - "tests/test_controlled_self_learning_git_safety.py"
       - "tests/test_hermes_learning.py"
 
 permissions: {}
@@ -70,6 +71,7 @@ jobs:
             tests/test_project_driven_learning_workflow.py \
             tests/test_project_learning_workers.py \
             tests/test_resume_project_learning_worker.py \
+            tests/test_controlled_self_learning_git_safety.py \
             tests/test_cross_repo_learning.py \
             tests/test_hermes_learning.py \
             tests/test_self_learning_queue.py \
