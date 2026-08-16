@@ -16,6 +16,7 @@ from main_review.self_learning_queue import (
     QUEUE_SCHEMA,
     QueueContractError,
     attach_worker,
+    canonical_digest,
     council_complete,
     get_case,
     write_queue,
@@ -135,13 +136,17 @@ def main() -> int:
         raise SystemExit("resuming project learning requires a clean frozen Sergeant worktree")
 
     authority_path = args.evidence_dir / "authority.json"
+    terminal_path = args.evidence_dir / "terminal-result.json"
     queue_path = args.evidence_dir / "round" / "learning-queue.json"
+    summary_path = args.evidence_dir / "round" / "summary.json"
     case_dir = args.evidence_dir / "round" / "cases" / args.case_id
     truth_path = case_dir / "truth-packet.json"
     verified_paths = _verify_preserved_evidence(args.evidence_dir)
     required_paths = {
         "authority.json",
+        "terminal-result.json",
         "round/learning-queue.json",
+        "round/summary.json",
         f"round/cases/{args.case_id}/truth-packet.json",
     }
     missing_bindings = sorted(required_paths - verified_paths)
@@ -150,7 +155,7 @@ def main() -> int:
             "required preserved evidence is not bound by the evidence manifest: "
             + ", ".join(missing_bindings)
         )
-    for path in (authority_path, queue_path, truth_path):
+    for path in (authority_path, terminal_path, queue_path, summary_path, truth_path):
         if not path.is_file():
             raise SystemExit(f"required preserved evidence is missing: {path}")
 
@@ -175,6 +180,9 @@ def main() -> int:
         raise SystemExit(f"worker already preserved for {args.case_id}: {args.role}")
 
     truth = json.loads(truth_path.read_text(encoding="utf-8"))
+    truth_artifact = case.get("artifacts", {}).get("truth_packet", {})
+    if truth_artifact.get("digest") != canonical_digest(truth):
+        raise SystemExit("preserved truth packet digest mismatch")
     if truth.get("case_id") != args.case_id:
         raise SystemExit("truth packet case binding mismatch")
 
@@ -205,11 +213,10 @@ def main() -> int:
         )
 
     write_queue(queue, queue_path)
-    summary = _refresh_summary(queue, args.evidence_dir / "round" / "summary.json")
+    summary = _refresh_summary(queue, summary_path)
     proposal_index = export_proposals(queue, args.evidence_dir / "learning" / "proposals")
 
-    terminal_path = args.evidence_dir / "terminal-result.json"
-    terminal = json.loads(terminal_path.read_text(encoding="utf-8")) if terminal_path.exists() else {}
+    terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
     queue_case_count = len(queue.get("cases", []))
     terminal.update({
         "schema_version": "sergeant.project-learning-terminal-result.v1",

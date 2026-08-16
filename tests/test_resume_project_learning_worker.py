@@ -9,6 +9,7 @@ import pytest
 from main_review.self_learning_queue import (
     add_case,
     attach_worker,
+    canonical_digest,
     new_queue,
     transition,
     write_queue,
@@ -74,18 +75,18 @@ def _evidence_root(
         json.dumps({"week_id": "round-resume", "worker_error_cases": int(bool(errors))}) + "\n",
         encoding="utf-8",
     )
-    if terminal_candidate_count is not None:
-        (root / "terminal-result.json").write_text(
-            json.dumps({
-                "schema_version": "sergeant.project-learning-terminal-result.v1",
-                "authority_head": AUTHORITY,
-                "round_id": "round-resume",
-                "candidate_count": terminal_candidate_count,
-                "automatic_promotions": 0,
-                "automatic_merges": 0,
-            }) + "\n",
-            encoding="utf-8",
-        )
+    candidate_count = terminal_candidate_count if terminal_candidate_count is not None else 1
+    (root / "terminal-result.json").write_text(
+        json.dumps({
+            "schema_version": "sergeant.project-learning-terminal-result.v1",
+            "authority_head": AUTHORITY,
+            "round_id": "round-resume",
+            "candidate_count": candidate_count,
+            "automatic_promotions": 0,
+            "automatic_merges": 0,
+        }) + "\n",
+        encoding="utf-8",
+    )
     resume._write_evidence_manifest(root)
     return root
 
@@ -129,9 +130,9 @@ def test_resume_requires_explicit_owner_authorization(tmp_path: Path, monkeypatc
         resume.main()
 
 
-def test_resume_rejects_case_id_path_traversal(tmp_path: Path, monkeypatch) -> None:
+def test_resume_rejects_non_segment_case_id_before_path_resolution(tmp_path: Path, monkeypatch) -> None:
     root = _evidence_root(tmp_path)
-    monkeypatch.setattr(sys, "argv", _argv(root, "teacher", case_id="../authority"))
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher", case_id="../case-resume"))
 
     with pytest.raises(SystemExit, match="filesystem-safe path segment"):
         resume.main()
@@ -157,7 +158,18 @@ def test_resume_rejects_dirty_worktree(tmp_path: Path, monkeypatch) -> None:
         resume.main()
 
 
-def test_resume_rejects_tampered_preserved_truth_packet(tmp_path: Path, monkeypatch) -> None:
+def test_resume_requires_preserved_evidence_manifest(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    (root / "evidence-manifest.json").unlink()
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="preserved evidence manifest is missing"):
+        resume.main()
+
+
+def test_resume_rejects_tampered_preserved_truth_before_worker(tmp_path: Path, monkeypatch) -> None:
     root = _evidence_root(tmp_path)
     truth_path = root / "round" / "cases" / CASE_ID / "truth-packet.json"
     truth_path.write_text(json.dumps({"case_id": CASE_ID, "fixing_diff": "tampered"}) + "\n", encoding="utf-8")
@@ -166,6 +178,50 @@ def test_resume_rejects_tampered_preserved_truth_packet(tmp_path: Path, monkeypa
     monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
 
     with pytest.raises(SystemExit, match="preserved evidence integrity mismatch"):
+        resume.main()
+
+
+def test_resume_rejects_truth_digest_mismatch_even_if_file_manifest_was_refreshed(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    truth_path = root / "round" / "cases" / CASE_ID / "truth-packet.json"
+    truth_path.write_text(json.dumps({"case_id": CASE_ID, "fixing_diff": "tampered"}) + "\n", encoding="utf-8")
+    resume._write_evidence_manifest(root)
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="truth packet digest mismatch"):
+        resume.main()
+
+
+def test_resume_rejects_unsafe_path_in_preserved_manifest(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    manifest_path = root / "evidence-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["files"][0]["path"] = "../authority.json"
+    manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="unsafe or duplicate path"):
+        resume.main()
+
+
+def test_resume_requires_terminal_result_to_remain_manifest_bound(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    manifest_path = root / "evidence-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    terminal_row = next(row for row in manifest["files"] if row["path"] == "terminal-result.json")
+    manifest["files"].remove(terminal_row)
+    manifest["file_count"] -= 1
+    manifest["total_bytes"] -= terminal_row["size_bytes"]
+    manifest_path.write_text(json.dumps(manifest) + "\n", encoding="utf-8")
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="required preserved evidence is not bound"):
         resume.main()
 
 
@@ -182,7 +238,12 @@ def test_resume_rejects_already_preserved_role(tmp_path: Path, monkeypatch) -> N
 def test_resume_rejects_truth_packet_case_mismatch(tmp_path: Path, monkeypatch) -> None:
     root = _evidence_root(tmp_path)
     truth_path = root / "round" / "cases" / CASE_ID / "truth-packet.json"
-    truth_path.write_text(json.dumps({"case_id": "different-case", "fixing_diff": "diff"}) + "\n", encoding="utf-8")
+    truth = {"case_id": "different-case", "fixing_diff": "diff"}
+    truth_path.write_text(json.dumps(truth) + "\n", encoding="utf-8")
+    queue_path = root / "round" / "learning-queue.json"
+    queue = json.loads(queue_path.read_text(encoding="utf-8"))
+    queue["cases"][0]["artifacts"]["truth_packet"]["digest"] = canonical_digest(truth)
+    write_queue(queue, queue_path)
     resume._write_evidence_manifest(root)
     monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
     monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
