@@ -100,7 +100,7 @@ def _placeholder_secret(match: re.Match[str]) -> bool:
         return False
     value = match.group(2).strip().lower()
     normalized = re.sub(r"[^a-z0-9_-]+", "", value)
-    return normalized in SECRET_PLACEHOLDERS or normalized.startswith(("example-", "fake-", "test-", "your-"))
+    return normalized in SECRET_PLACEHOLDERS or normalized.startswith(("example-", "fake-", "test-", "your-", "must-not-", "must_not_"))
 
 
 def _public_browser_client_api_key(
