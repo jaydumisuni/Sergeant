@@ -52,13 +52,25 @@ def test_cloudflare_project_learning_uses_distinct_role_models(monkeypatch) -> N
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "a" * 32)
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "secret")
     for role in CLOUDFLARE_ROLE_MODELS:
-        monkeypatch.delenv(f"SERGEANT_{role.upper()}_MODEL", raising=False)
+        monkeypatch.delenv(f"SERGEANT_CLOUDFLARE_{role.upper()}_MODEL", raising=False)
+        monkeypatch.setenv(f"SERGEANT_{role.upper()}_MODEL", "provider-specific-generic-model")
 
     configs = [_cloudflare_config(role) for role in ("teacher", "prosecutor", "defender")]
 
     assert {config.model for config in configs} == set(CLOUDFLARE_ROLE_MODELS.values())
     assert all(config.backend == "cloudflare" for config in configs)
     assert all(config.endpoint.endswith("/ai/v1/chat/completions") for config in configs)
+
+
+def test_cloudflare_project_learning_uses_backend_specific_model_override(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "a" * 32)
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "secret")
+    monkeypatch.setenv("SERGEANT_TEACHER_MODEL", "github-model-name")
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_TEACHER_MODEL", "@cf/meta/llama-3.3-70b-instruct-fp8-fast")
+
+    config = _cloudflare_config("teacher")
+
+    assert config.model == "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
 
 
 def test_cloudflare_worker_reuses_bounded_contract_without_exposing_credentials(monkeypatch) -> None:
@@ -93,7 +105,7 @@ def test_cloudflare_worker_reuses_bounded_contract_without_exposing_credentials(
     monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "b" * 32)
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "runtime-secret")
-    monkeypatch.delenv("SERGEANT_TEACHER_MODEL", raising=False)
+    monkeypatch.delenv("SERGEANT_CLOUDFLARE_TEACHER_MODEL", raising=False)
     monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
 
     result = worker_request("teacher", {"case_id": "case-cloudflare", "fixing_diff": "diff"})
@@ -112,7 +124,7 @@ def test_cloudflare_worker_reuses_bounded_contract_without_exposing_credentials(
     assert "b" * 32 not in serialized
 
 
-def test_cloudflare_worker_retries_bounded_model_failure(monkeypatch) -> None:
+def test_cloudflare_worker_retries_bounded_transient_failure(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "c" * 32)
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "runtime-secret")
@@ -162,6 +174,27 @@ def test_cloudflare_worker_does_not_retry_non_transient_http_failure(monkeypatch
     monkeypatch.setattr(project_workers, "_base_worker_request", fake_base)
     with pytest.raises(LearningWorkerError, match="HTTP Error 400"):
         worker_request("teacher", {"case_id": "case-permanent-http", "fixing_diff": "diff"})
+
+    assert calls == 1
+
+
+def test_cloudflare_worker_does_not_retry_output_contract_failure(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "e" * 32)
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "runtime-secret")
+    monkeypatch.setenv("SERGEANT_LEARNING_MAX_ATTEMPTS", "3")
+    monkeypatch.setattr(project_workers.time, "sleep", lambda _: None)
+
+    calls = 0
+
+    def fake_base(role, case_packet, config=None):
+        nonlocal calls
+        calls += 1
+        raise LearningWorkerError("worker confidence must be between 0 and 1")
+
+    monkeypatch.setattr(project_workers, "_base_worker_request", fake_base)
+    with pytest.raises(LearningWorkerError, match="confidence"):
+        worker_request("teacher", {"case_id": "case-contract", "fixing_diff": "diff"})
 
     assert calls == 1
 
