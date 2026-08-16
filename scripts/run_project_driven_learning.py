@@ -5,7 +5,8 @@ This is the execution lane for project-driven learning. GitHub Actions validates
 contracts and exact heads only; it does not perform model inference. The runner
 freezes the current Sergeant commit, binds the exact manifest candidates, then
 injects the isolated project-learning worker transport after blind review truth
-reveal. It never promotes a lesson or merges code.
+reveal. It preserves bounded proposals and fails closed on incomplete council
+work. It never promotes a lesson or merges code.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from scripts.collect_github_learning_candidates import _signal_candidates
+from scripts.export_learning_proposals import export as export_proposals
 from scripts.project_learning_workers import worker_request as project_worker_request
 from scripts.run_controlled_self_learning import run_round
 
@@ -45,6 +47,8 @@ def _candidate_packet(manifest_path: Path, authority_head: str) -> dict[str, Any
         raise SystemExit("project-learning manifest must preserve Sergeant final authority")
     if authority.get("execution_lane") != "oracle-direct-terminal":
         raise SystemExit("project-learning manifest is not authorized for the direct-terminal lane")
+    if authority.get("direct_terminal_authorization_flag") != "--owner-authorized":
+        raise SystemExit("project-learning manifest has an unexpected owner-authorization contract")
 
     expected_ids = [str(value) for value in manifest.get("expected_case_ids", [])]
     signal_paths = [Path(str(value)) for value in manifest.get("signal_paths", [])]
@@ -135,16 +139,43 @@ def main() -> int:
         encoding="utf-8",
     )
 
+    round_dir = args.output_dir / "round"
     summary = run_round(
         candidates_packet=candidates,
         history=history,
-        output_dir=args.output_dir / "round",
+        output_dir=round_dir,
         authority_head=authority_head,
         target_branch=args.target_branch,
         count=int(candidates["candidate_count"]),
         worker_request_fn=project_worker_request,
     )
-    print(json.dumps(summary, sort_keys=True))
+
+    queue = json.loads((round_dir / "learning-queue.json").read_text(encoding="utf-8"))
+    proposal_index = export_proposals(queue, args.output_dir / "learning" / "proposals")
+    completion = {
+        "schema_version": "sergeant.project-learning-terminal-result.v1",
+        "authority_head": authority_head,
+        "round_id": candidates["week_id"],
+        "candidate_count": int(candidates["candidate_count"]),
+        "summary": summary,
+        "proposal_index": proposal_index,
+        "automatic_promotions": 0,
+        "automatic_merges": 0,
+    }
+    (args.output_dir / "terminal-result.json").write_text(
+        json.dumps(completion, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    unresolved = int(summary.get("state_counts", {}).get("truth_revealed", 0) or 0)
+    completed = int(summary.get("state_counts", {}).get("council_complete", 0) or 0) + int(
+        summary.get("state_counts", {}).get("rejected", 0) or 0
+    )
+    worker_errors = int(summary.get("worker_error_cases", 0) or 0)
+    expected = int(candidates["candidate_count"])
+    print(json.dumps(completion, sort_keys=True))
+    if worker_errors != 0 or unresolved != 0 or completed != expected:
+        return 2
     return 0
 
 
