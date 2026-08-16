@@ -1,14 +1,18 @@
 """Project-driven learning worker transport.
 
 This wrapper keeps Sergeant's stable Hermes worker contract unchanged while
-allowing trusted post-merge project-learning runs to use Cloudflare Workers AI.
-Cloudflare credentials are read only at runtime and are never included in the
-returned worker evidence.
+allowing an owner-authorized direct-terminal learning run to use Cloudflare
+Workers AI. Cloudflare credentials are recovered at runtime from explicit
+environment variables or the workstation's existing Wrangler authentication;
+secrets are never written into returned learning evidence.
 """
 
 from __future__ import annotations
 
+import json
 import os
+import re
+import subprocess
 from typing import Any, Mapping
 
 from main_review.cloudflare_models import cloudflare_base_url
@@ -24,17 +28,105 @@ CLOUDFLARE_ROLE_MODELS = {
     "prosecutor": "@cf/qwen/qwen3-30b-a3b-fp8",
     "defender": "@cf/openai/gpt-oss-20b",
 }
+_ACCOUNT_ID_RE = re.compile(r"^[A-Fa-f0-9]{32}$")
+
+
+def _wrangler_json(*args: str) -> dict[str, Any]:
+    """Run one read-only Wrangler identity command without echoing its output."""
+
+    executable = os.environ.get("SERGEANT_WRANGLER_EXECUTABLE", "npx").strip() or "npx"
+    command = [executable, "wrangler", *args]
+    try:
+        completed = subprocess.run(
+            command,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+        )
+        payload = json.loads(completed.stdout)
+    except (OSError, subprocess.SubprocessError, json.JSONDecodeError) as exc:
+        # Do not include stdout/stderr: auth-token output can contain a secret.
+        raise LearningWorkerError("Wrangler authentication lookup failed") from exc
+    if not isinstance(payload, dict):
+        raise LearningWorkerError("Wrangler authentication lookup returned invalid JSON")
+    return payload
+
+
+def _account_ids(payload: Mapping[str, Any]) -> tuple[str, ...]:
+    """Extract account IDs only from account-shaped Wrangler JSON fields."""
+
+    found: list[str] = []
+
+    def add(value: Any) -> None:
+        text = str(value or "").strip()
+        if _ACCOUNT_ID_RE.fullmatch(text) and text not in found:
+            found.append(text)
+
+    def account_object(value: Any) -> None:
+        if not isinstance(value, Mapping):
+            return
+        for key in ("id", "account_id", "accountId"):
+            add(value.get(key))
+        nested = value.get("account")
+        if isinstance(nested, Mapping):
+            account_object(nested)
+
+    for key in ("account", "default_account", "defaultAccount"):
+        account_object(payload.get(key))
+    for key in ("account_id", "accountId"):
+        add(payload.get(key))
+    for key in ("accounts", "memberships"):
+        values = payload.get(key)
+        if isinstance(values, list):
+            for value in values:
+                account_object(value)
+    return tuple(found)
+
+
+def _cloudflare_credentials() -> tuple[str, str]:
+    """Resolve one Account ID and bearer token without persisting either value."""
+
+    account_id = os.environ.get("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "").strip()
+    token = os.environ.get("SERGEANT_CLOUDFLARE_API_TOKEN", "").strip()
+
+    if account_id and not _ACCOUNT_ID_RE.fullmatch(account_id):
+        raise LearningWorkerError("Cloudflare project-learning Account ID is invalid")
+
+    if not token:
+        auth = _wrangler_json("auth", "token", "--json")
+        auth_type = str(auth.get("type") or "").strip().lower()
+        if auth_type not in {"api_token", "oauth"}:
+            raise LearningWorkerError(
+                "Wrangler project-learning auth must resolve to an API token or OAuth token"
+            )
+        token = str(auth.get("token") or "").strip()
+        if not token:
+            raise LearningWorkerError("Wrangler project-learning token is empty")
+
+    if not account_id:
+        whoami = _wrangler_json("whoami", "--json")
+        ids = _account_ids(whoami)
+        if len(ids) != 1:
+            raise LearningWorkerError(
+                "Wrangler project-learning requires exactly one Account ID; set "
+                "SERGEANT_CLOUDFLARE_ACCOUNT_ID when multiple accounts are available"
+            )
+        account_id = ids[0]
+
+    return account_id, token
 
 
 def _cloudflare_config(role: str) -> WorkerConfig:
     normalized = role.lower().strip()
     if normalized not in ROLES:
         raise LearningWorkerError(f"unknown learning role: {role}")
-    account_id = os.environ.get("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "").strip()
-    token = os.environ.get("SERGEANT_CLOUDFLARE_API_TOKEN", "").strip()
+    account_id, token = _cloudflare_credentials()
     base_url = cloudflare_base_url(account_id)
-    if not base_url or not token:
-        raise LearningWorkerError("Cloudflare project-learning account/token not configured")
+    if not base_url:
+        raise LearningWorkerError("Cloudflare project-learning Account ID is invalid")
     suffix = normalized.upper()
     model = os.environ.get(
         f"SERGEANT_{suffix}_MODEL",
@@ -67,6 +159,6 @@ def worker_request(
         result["transport"] = {
             "backend": "cloudflare",
             "model": selected.model,
-            "endpoint_class": "cloudflare-workers-ai",
+            "endpoint_class": "cloudflare-workers-ai-direct-terminal",
         }
     return result
