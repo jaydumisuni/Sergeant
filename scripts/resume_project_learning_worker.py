@@ -35,6 +35,12 @@ from scripts.run_project_driven_learning import (
 
 _ROLES = ("teacher", "prosecutor", "defender")
 _EVIDENCE_SCHEMA = "sergeant.project-learning-evidence-manifest.v1"
+_RECOVERY_HINT = (
+    " If this follows an interrupted owner-authorized resume, first verify that the changed "
+    "files are exactly the expected partial resume transaction; only then regenerate "
+    "evidence-manifest.json with _write_evidence_manifest(evidence_dir) before retrying. "
+    "Never re-hash unexplained changes."
+)
 
 
 def _verify_preserved_evidence(root: Path) -> set[str]:
@@ -84,13 +90,13 @@ def _verify_preserved_evidence(root: Path) -> set[str]:
         if not isinstance(size_bytes, int) or size_bytes < 0 or len(sha256) != 64:
             raise SystemExit(f"preserved evidence manifest metadata is invalid: {relative}")
         if path.stat().st_size != size_bytes or _sha256(path) != sha256:
-            raise SystemExit(f"preserved evidence integrity mismatch: {relative}")
+            raise SystemExit(f"preserved evidence integrity mismatch: {relative}." + _RECOVERY_HINT)
 
         verified.add(relative_path.as_posix())
         total_bytes += size_bytes
 
     if manifest.get("total_bytes") != total_bytes:
-        raise SystemExit("preserved evidence manifest total byte count is invalid")
+        raise SystemExit("preserved evidence manifest total byte count is invalid." + _RECOVERY_HINT)
     return verified
 
 
