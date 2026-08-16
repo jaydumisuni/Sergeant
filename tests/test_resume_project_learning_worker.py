@@ -86,16 +86,23 @@ def _evidence_root(
             }) + "\n",
             encoding="utf-8",
         )
+    resume._write_evidence_manifest(root)
     return root
 
 
-def _argv(root: Path, role: str, *, owner_authorized: bool = True) -> list[str]:
+def _argv(
+    root: Path,
+    role: str,
+    *,
+    owner_authorized: bool = True,
+    case_id: str = CASE_ID,
+) -> list[str]:
     argv = [
         "resume_project_learning_worker.py",
         "--evidence-dir",
         str(root),
         "--case-id",
-        CASE_ID,
+        case_id,
         "--role",
         role,
         "--authority-head",
@@ -122,6 +129,14 @@ def test_resume_requires_explicit_owner_authorization(tmp_path: Path, monkeypatc
         resume.main()
 
 
+def test_resume_rejects_case_id_path_traversal(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher", case_id="../authority"))
+
+    with pytest.raises(SystemExit, match="filesystem-safe path segment"):
+        resume.main()
+
+
 def test_resume_rejects_authority_head_mismatch(tmp_path: Path, monkeypatch) -> None:
     root = _evidence_root(tmp_path)
     monkeypatch.setattr(resume, "_git_head", lambda: "d" * 40)
@@ -142,6 +157,18 @@ def test_resume_rejects_dirty_worktree(tmp_path: Path, monkeypatch) -> None:
         resume.main()
 
 
+def test_resume_rejects_tampered_preserved_truth_packet(tmp_path: Path, monkeypatch) -> None:
+    root = _evidence_root(tmp_path)
+    truth_path = root / "round" / "cases" / CASE_ID / "truth-packet.json"
+    truth_path.write_text(json.dumps({"case_id": CASE_ID, "fixing_diff": "tampered"}) + "\n", encoding="utf-8")
+    monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
+    monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
+    monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
+
+    with pytest.raises(SystemExit, match="preserved evidence integrity mismatch"):
+        resume.main()
+
+
 def test_resume_rejects_already_preserved_role(tmp_path: Path, monkeypatch) -> None:
     root = _evidence_root(tmp_path, workers=("teacher",))
     monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
@@ -156,6 +183,7 @@ def test_resume_rejects_truth_packet_case_mismatch(tmp_path: Path, monkeypatch) 
     root = _evidence_root(tmp_path)
     truth_path = root / "round" / "cases" / CASE_ID / "truth-packet.json"
     truth_path.write_text(json.dumps({"case_id": "different-case", "fixing_diff": "diff"}) + "\n", encoding="utf-8")
+    resume._write_evidence_manifest(root)
     monkeypatch.setattr(resume, "_git_head", lambda: AUTHORITY)
     monkeypatch.setattr(resume, "_git_status_porcelain", lambda: "")
     monkeypatch.setattr(sys, "argv", _argv(root, "teacher"))
