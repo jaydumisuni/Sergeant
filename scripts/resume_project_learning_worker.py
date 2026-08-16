@@ -28,10 +28,69 @@ from scripts.project_learning_workers import (
 from scripts.run_project_driven_learning import (
     _git_head,
     _git_status_porcelain,
+    _sha256,
     _write_evidence_manifest,
 )
 
 _ROLES = ("teacher", "prosecutor", "defender")
+_EVIDENCE_SCHEMA = "sergeant.project-learning-evidence-manifest.v1"
+
+
+def _verify_preserved_evidence(root: Path) -> set[str]:
+    """Verify every file bound by the preserved SHA-256 evidence manifest."""
+
+    manifest_path = root / "evidence-manifest.json"
+    if not manifest_path.is_file():
+        raise SystemExit("preserved evidence manifest is missing")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit("preserved evidence manifest is unreadable") from exc
+    if manifest.get("schema_version") != _EVIDENCE_SCHEMA:
+        raise SystemExit("preserved evidence manifest schema is invalid")
+
+    rows = manifest.get("files")
+    if not isinstance(rows, list):
+        raise SystemExit("preserved evidence manifest files are invalid")
+    if manifest.get("file_count") != len(rows):
+        raise SystemExit("preserved evidence manifest file count is invalid")
+
+    resolved_root = root.resolve()
+    verified: set[str] = set()
+    total_bytes = 0
+    for row in rows:
+        if not isinstance(row, dict):
+            raise SystemExit("preserved evidence manifest row is invalid")
+        relative = str(row.get("path") or "").strip()
+        relative_path = Path(relative)
+        if (
+            not relative
+            or relative_path.is_absolute()
+            or ".." in relative_path.parts
+            or relative_path.as_posix() in verified
+        ):
+            raise SystemExit("preserved evidence manifest contains an unsafe or duplicate path")
+        path = (root / relative_path).resolve()
+        try:
+            path.relative_to(resolved_root)
+        except ValueError as exc:
+            raise SystemExit("preserved evidence manifest path escapes the evidence root") from exc
+        if not path.is_file():
+            raise SystemExit(f"preserved evidence file is missing: {relative}")
+
+        size_bytes = row.get("size_bytes")
+        sha256 = str(row.get("sha256") or "").strip().lower()
+        if not isinstance(size_bytes, int) or size_bytes < 0 or len(sha256) != 64:
+            raise SystemExit(f"preserved evidence manifest metadata is invalid: {relative}")
+        if path.stat().st_size != size_bytes or _sha256(path) != sha256:
+            raise SystemExit(f"preserved evidence integrity mismatch: {relative}")
+
+        verified.add(relative_path.as_posix())
+        total_bytes += size_bytes
+
+    if manifest.get("total_bytes") != total_bytes:
+        raise SystemExit("preserved evidence manifest total byte count is invalid")
+    return verified
 
 
 def _refresh_summary(queue: dict, summary_path: Path) -> dict:
@@ -61,6 +120,13 @@ def main() -> int:
 
     if not args.owner_authorized:
         raise SystemExit("resuming project learning requires explicit --owner-authorized")
+    if (
+        not args.case_id.strip()
+        or args.case_id in {".", ".."}
+        or "/" in args.case_id
+        or "\\" in args.case_id
+    ):
+        raise SystemExit("project-learning case ID must be one filesystem-safe path segment")
 
     authority_head = args.authority_head.lower().strip()
     if _git_head() != authority_head:
@@ -72,6 +138,18 @@ def main() -> int:
     queue_path = args.evidence_dir / "round" / "learning-queue.json"
     case_dir = args.evidence_dir / "round" / "cases" / args.case_id
     truth_path = case_dir / "truth-packet.json"
+    verified_paths = _verify_preserved_evidence(args.evidence_dir)
+    required_paths = {
+        "authority.json",
+        "round/learning-queue.json",
+        f"round/cases/{args.case_id}/truth-packet.json",
+    }
+    missing_bindings = sorted(required_paths - verified_paths)
+    if missing_bindings:
+        raise SystemExit(
+            "required preserved evidence is not bound by the evidence manifest: "
+            + ", ".join(missing_bindings)
+        )
     for path in (authority_path, queue_path, truth_path):
         if not path.is_file():
             raise SystemExit(f"required preserved evidence is missing: {path}")
