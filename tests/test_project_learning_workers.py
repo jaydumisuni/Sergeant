@@ -228,3 +228,22 @@ def test_cloudflare_worker_rejects_unbounded_retry_configuration(monkeypatch) ->
 
     with pytest.raises(LearningWorkerError, match="between 1 and 5"):
         worker_request("teacher", {"case_id": "case-limit", "fixing_diff": "diff"})
+
+@pytest.mark.parametrize(
+    ("executable", "expected"),
+    [
+        ("npx", ["npx", "wrangler", "whoami", "--json"]),
+        ("npx.cmd", ["npx.cmd", "wrangler", "whoami", "--json"]),
+        (
+            r"C:\Users\ATHENA 2.0\AppData\Local\npm-cache\_npx\x\node_modules\.bin\wrangler.cmd",
+            [
+                r"C:\Users\ATHENA 2.0\AppData\Local\npm-cache\_npx\x\node_modules\.bin\wrangler.cmd",
+                "whoami",
+                "--json",
+            ],
+        ),
+        ("/usr/local/bin/wrangler", ["/usr/local/bin/wrangler", "whoami", "--json"]),
+    ],
+)
+def test_wrangler_command_supports_npx_and_direct_executables(executable, expected) -> None:
+    assert project_workers._wrangler_command(executable, "whoami", "--json") == expected

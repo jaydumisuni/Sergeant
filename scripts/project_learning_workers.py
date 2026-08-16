@@ -33,11 +33,19 @@ _ACCOUNT_ID_RE = re.compile(r"^[A-Fa-f0-9]{32}$")
 _RETRYABLE_HTTP_STATUS = {408, 425, 429, 500, 502, 503, 504}
 
 
+def _wrangler_command(executable: str, *args: str) -> list[str]:
+    # Build a Wrangler identity command for npx-style or direct executables.
+    executable_name = executable.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    if executable_name in {"wrangler", "wrangler.cmd", "wrangler.exe"}:
+        return [executable, *args]
+    return [executable, "wrangler", *args]
+
+
 def _wrangler_json(*args: str) -> dict[str, Any]:
     """Run one read-only Wrangler identity command without echoing its output."""
 
     executable = os.environ.get("SERGEANT_WRANGLER_EXECUTABLE", "npx").strip() or "npx"
-    command = [executable, "wrangler", *args]
+    command = _wrangler_command(executable, *args)
     try:
         completed = subprocess.run(
             command,
