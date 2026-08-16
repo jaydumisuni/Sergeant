@@ -5,6 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
+    import tomli as tomllib
+
 from .diff_review import review_changed_files
 from .verification import verify_repository_standard
 
@@ -24,11 +29,12 @@ def _is_sergeant_repository(root_path: Path) -> bool:
     pyproject = root_path / "pyproject.toml"
     if not pyproject.exists() or not (root_path / "main_review").exists():
         return False
-    text = pyproject.read_text(encoding="utf-8", errors="ignore")
-    return any(
-        line.strip().replace("'", '"') == 'name = "sergeant-reviewer"'
-        for line in text.splitlines()
-    )
+    try:
+        document = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return False
+    project = document.get("project")
+    return isinstance(project, dict) and project.get("name") == "sergeant-reviewer"
 
 
 def check_claims_match_implementation(root: str | Path = ".") -> dict[str, Any]:
