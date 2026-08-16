@@ -145,6 +145,48 @@ def test_cloudflare_worker_retries_bounded_model_failure(monkeypatch) -> None:
     assert result["transport"]["model"] == CLOUDFLARE_ROLE_MODELS["defender"]
 
 
+def test_cloudflare_worker_does_not_retry_non_transient_http_failure(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "e" * 32)
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "runtime-secret")
+    monkeypatch.setenv("SERGEANT_LEARNING_MAX_ATTEMPTS", "3")
+    monkeypatch.setattr(project_workers.time, "sleep", lambda _: None)
+
+    calls = 0
+
+    def fake_base(role, case_packet, config=None):
+        nonlocal calls
+        calls += 1
+        raise LearningWorkerError("teacher transport failed: HTTP Error 400: Bad Request")
+
+    monkeypatch.setattr(project_workers, "_base_worker_request", fake_base)
+    with pytest.raises(LearningWorkerError, match="HTTP Error 400"):
+        worker_request("teacher", {"case_id": "case-permanent-http", "fixing_diff": "diff"})
+
+    assert calls == 1
+
+
+def test_cloudflare_worker_does_not_retry_invariant_binding_failure(monkeypatch) -> None:
+    monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "f" * 32)
+    monkeypatch.setenv("SERGEANT_CLOUDFLARE_API_TOKEN", "runtime-secret")
+    monkeypatch.setenv("SERGEANT_LEARNING_MAX_ATTEMPTS", "3")
+    monkeypatch.setattr(project_workers.time, "sleep", lambda _: None)
+
+    calls = 0
+
+    def fake_base(role, case_packet, config=None):
+        nonlocal calls
+        calls += 1
+        raise LearningWorkerError("worker case binding mismatch")
+
+    monkeypatch.setattr(project_workers, "_base_worker_request", fake_base)
+    with pytest.raises(LearningWorkerError, match="case binding mismatch"):
+        worker_request("teacher", {"case_id": "case-invariant", "fixing_diff": "diff"})
+
+    assert calls == 1
+
+
 def test_cloudflare_worker_rejects_unbounded_retry_configuration(monkeypatch) -> None:
     monkeypatch.setenv("SERGEANT_LEARNING_BACKEND", "cloudflare")
     monkeypatch.setenv("SERGEANT_CLOUDFLARE_ACCOUNT_ID", "d" * 32)
