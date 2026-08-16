@@ -12,8 +12,8 @@
   ],
   "candidate_count": 2,
   "authority": {
-    "required_label": "self-learning-authorized",
-    "required_commit_prefix": "START_PROJECT_LEARNING",
+    "execution_lane": "oracle-direct-terminal",
+    "direct_terminal_authorization_flag": "--owner-authorized",
     "may_auto_promote": false,
     "may_auto_merge": false,
     "final_verdict": "Sergeant"
