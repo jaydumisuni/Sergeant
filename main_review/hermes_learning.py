@@ -263,7 +263,13 @@ def worker_request(role: str, case_packet: Mapping[str, Any], config: WorkerConf
         content = response_payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
         raise LearningWorkerError(f"{role} response lacks chat completion content") from exc
-    result = validate_worker_output(role, case_id, _extract_json(str(content)))
+    if isinstance(content, Mapping):
+        worker_payload = dict(content)
+    elif isinstance(content, str):
+        worker_payload = _extract_json(content)
+    else:
+        raise LearningWorkerError("worker output must be a JSON object")
+    result = validate_worker_output(role, case_id, worker_payload)
     result["transport"] = {
         "backend": selected.backend,
         "model": selected.model,
