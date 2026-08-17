@@ -130,6 +130,83 @@ def test_javascript_bare_basename_transfer_is_reported(tmp_path: Path) -> None:
     assert DROP_ROOT in _roots(result)
 
 
+
+def test_display_filename_metadata_far_from_relative_manifest_is_clean(tmp_path: Path) -> None:
+    producer = tmp_path / "tools" / "make_receipt.py"
+    producer.parent.mkdir(parents=True)
+    producer.write_text(
+        """from pathlib import Path
+
+def binary_record(path: Path, relative_path: str):
+    return {
+        "role": "tool",
+        "filename": path.name,
+        "relative_path": relative_path,
+        "byte_len": path.stat().st_size,
+        "sha256": sha256_file(path),
+        "description": "display metadata only",
+    }
+
+def unrelated_receipt_metadata():
+    return {
+        "builder": "fixture",
+        "host": "fixture",
+        "source_pins": ["one", "two", "three"],
+        "review_checks": {
+            "source_commits_exact": True,
+            "binaries_nonempty": True,
+            "sha256_recorded": True,
+        },
+    }
+
+def write_manifest(output_dir: Path, records):
+    sums = "\\n".join(
+        f"{item['sha256']}  {item['relative_path']}" for item in records
+    ) + "\\n"
+    (output_dir / "SHA256SUMS").write_text(sums)
+""",
+        encoding="utf-8",
+    )
+    workflow = _write_workflow(tmp_path, artifact="$OUT/bin/tool")
+
+    result = run_static_checksum_namespace_review(
+        tmp_path,
+        ["tools/make_receipt.py", workflow],
+    )
+
+    assert DROP_ROOT not in _roots(result)
+
+
+def test_relative_path_metadata_does_not_mask_filename_manifest_entry(tmp_path: Path) -> None:
+    producer = tmp_path / "tools" / "make_receipt.py"
+    producer.parent.mkdir(parents=True)
+    producer.write_text(
+        """from pathlib import Path
+
+def binary_record(path: Path, relative_path: str):
+    return {
+        "filename": path.name,
+        "relative_path": relative_path,
+        "sha256": sha256_file(path),
+    }
+
+def write_manifest(output_dir: Path, records):
+    sums = "\\n".join(
+        f"{item['sha256']}  {item['filename']}" for item in records
+    ) + "\\n"
+    (output_dir / "SHA256SUMS").write_text(sums)
+""",
+        encoding="utf-8",
+    )
+    workflow = _write_workflow(tmp_path, artifact="$OUT/bin/tool")
+
+    result = run_static_checksum_namespace_review(
+        tmp_path,
+        ["tools/make_receipt.py", workflow],
+    )
+
+    assert DROP_ROOT in _roots(result)
+
 def test_checksum_consumer_resolving_from_process_cwd_is_reported(tmp_path: Path) -> None:
     consumer = tmp_path / "verify.js"
     consumer.write_text(

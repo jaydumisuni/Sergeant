@@ -27,7 +27,7 @@ _BARE_NAME_RE = re.compile(
     re.I,
 )
 _EXPLICIT_RELATIVE_RE = re.compile(
-    r"(?:\[['\"]relative_path['\"]\]|\.relative_path\b|\.relativePath\b|relative_to\s*\(|filepath\.Rel\s*\(|path\.relative\s*\()",
+    r"(?:\[['\"]relative_path['\"]\]|\.relative_path\b|\.relativePath\b|\brelative_path\b|\brelativePath\b|relative_to\s*\(|filepath\.Rel\s*\(|path\.relative\s*\()",
     re.I,
 )
 _CWD_RE = re.compile(r"(?:Path\.cwd\s*\(\s*\)|os\.getcwd\s*\(\s*\)|process\.cwd\s*\(\s*\)|Deno\.cwd\s*\(\s*\))")
@@ -136,13 +136,26 @@ def _bare_checksum_producer_findings(
         return []
     workflow_path, workflow_line = layout
 
-    for bare in _BARE_NAME_RE.finditer(text):
-        window = text[max(0, bare.start() - 240) : min(len(text), bare.end() + 240)]
-        if _CHECKSUM_CONTEXT_RE.search(window) is None:
+    for sink in re.finditer(r"SHA256SUMS", text):
+        window_start = max(0, sink.start() - 1000)
+        window_end = min(len(text), sink.end() + 300)
+        window = text[window_start:window_end]
+        sink_local = sink.start() - window_start
+        candidates = [
+            (abs(match.start() - sink_local), "bare", match)
+            for match in _BARE_NAME_RE.finditer(window)
+        ]
+        candidates.extend(
+            (abs(match.start() - sink_local), "relative", match)
+            for match in _EXPLICIT_RELATIVE_RE.finditer(window)
+        )
+        if not candidates:
             continue
-        if _EXPLICIT_RELATIVE_RE.search(window) is not None:
+        _, namespace_kind, namespace_match = min(candidates, key=lambda item: item[0])
+        if namespace_kind != "bare":
             continue
-        line = _line(text, bare.start())
+        bare_offset = window_start + namespace_match.start()
+        line = _line(text, bare_offset)
         return [
             _finding(
                 root_cause="checksum-manifest-drops-relative-directory",
