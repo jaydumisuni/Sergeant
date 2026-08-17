@@ -38,16 +38,30 @@ The isolated review checkpoint is separately resolvable at `jaydumisuni/hunter@d
 
 Disposition: **evidence only / needs behavioral lineage before learning**. These immutable references establish what the Hunter material actually says, but they do not establish a transferable Sergeant product defect/fix lineage. Do not invent a fixing commit from product requirements, screenshots or deployment success. A future Hunter candidate may enter the governed queue only after an exact defective ref, exact fixing ref, scored implementation paths, verified behavior change and blind-review boundary are recovered.
 
-## 5. Current admitted project-learning work
+## 5. PR #159 project-learning disposition
 
-The only candidates admitted by PR #159 remain the two provenance-complete TechGuyCheckm8 repairs. Their source records are pinned on the Sergeant base at `jaydumisuni/Sergeant@ee4a152e25ae5965edbae32c9a50d6f2cc6c48d2`:
+PR #159 admitted exactly two provenance-complete TechGuyCheckm8 candidates from source records pinned on the Sergeant base at `jaydumisuni/Sergeant@ee4a152e25ae5965edbae32c9a50d6f2cc6c48d2`:
 
 - `learn-tgcheckm8-checksum-path-namespace-20260723` — `.github/self-learning/signals/tgcheckm8-checksum-path-namespace-2026-07-23.json`, Git blob `98e435dcd498fdc16538c667047cca599d495d61`;
 - `learn-tgcheckm8-checkout-credential-boundary-20260723` — `.github/self-learning/signals/tgcheckm8-checkout-credential-boundary-2026-07-23.json`, Git blob `f7cb4d7e9baa63afee06dc7617238fb8bf694df9`.
 
 Both source records bind the same immutable TechGuyCheckm8 defect/fix pair, `3b9b5d2469fed602cd6b5c728109cf193b9ccba1` → `40291a738e866e53b7d1cdcd0cf31f6e860357f5`, while preserving separate learning objectives and scored paths.
 
-Their direct-terminal round may produce bounded proposals, but neither becomes permanent until council, positive controls, clean negative controls, unrelated transfer, hidden holdout, exact-head proof, durable evidence and explicit owner-controlled promotion complete.
+### Checksum path-namespace candidate — accepted
+
+The checksum candidate completed council, executable positive and clean controls, unrelated-language JavaScript transfer, a post-freeze hidden holdout, exact TechGuyCheckm8 defective/fixing replay, canonical integration, exact-head GitHub proof, durable evidence verification and explicit owner-controlled promotion.
+
+Its permanent governed record is `.github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json`, first frozen at `jaydumisuni/Sergeant@874e83cd9363a8545e0bd87c4dbcd9a08dee9d12`. The implementation proof and promotion-authority head recorded by that lesson is `84faf9644b323792e1afd565fd4e65b653f668ee`.
+
+Disposition: **accepted lesson**. This acceptance does not grant automatic promotion to future candidates and does not grant merge authority to PR #159.
+
+### Checkout credential-boundary candidate — rejected
+
+The credential-boundary candidate reached the governed council and was rejected because the Defender disproved the proposed lesson. It has no accepted-lesson record and must not be treated as learned truth or revived from the same evidence.
+
+Disposition: **rejected / no promotion**. A future credential-boundary candidate would require new provenance-complete evidence and a new governed evaluation rather than reusing this rejected proposal.
+
+The admitted PR #159 learning round is therefore dispositioned: one candidate accepted and one rejected. PR #159 remains a separate draft implementation/review vehicle; lesson acceptance does not authorize or imply merging that PR.
 
 ## Authority
 
@@ -56,5 +70,6 @@ Their direct-terminal round may produce bounded proposals, but neither becomes p
 - No green deployment or workflow can substitute for the evidence gates of the lesson being claimed.
 - Existing accepted knowledge is reused instead of duplicated.
 - Evidence that lacks verified defect/fix lineage stays evidence.
+- Rejected proposals do not become learned truth without new provenance-complete evidence and a new governed evaluation.
 - Research belonging to another THETECHGUY project stays in that project's authority lane.
 - Sergeant remains final review authority and automatic merges remain forbidden.
