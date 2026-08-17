@@ -45,6 +45,36 @@ def test_working_agents_mirror_the_tenfold_method_without_weakening_proof() -> N
     assert "Do not create duplicate noise" in memory
 
 
+def test_tenfold_uses_machine_native_dependency_frontier_execution() -> None:
+    memory = AGENT_MEMORY.read_text(encoding="utf-8")
+    doctrine = TENFOLD_DOCTRINE.read_text(encoding="utf-8")
+
+    for text in (memory, doctrine):
+        assert "dependency-frontier" in text.lower()
+        assert "dependency DAG" in text
+        assert "unblocked" in text
+        assert "critical path" in text
+        assert "phase-by-phase" in text
+        assert "exact frozen upstream" in text or "exact accepted dependency" in text
+
+    assert "every currently unblocked dependency node" in memory
+    assert "Roadmap phase labels define scope and authority" in memory
+    assert "Human-equivalent workers are an input to the tenfold multiplier, not a calendar model" in memory
+    assert "Do not send the whole private force to one phase while other independent nodes are idle" in memory
+
+
+def test_tenfold_frontier_rule_propagates_to_agent_entry_points() -> None:
+    claude = CLAUDE_MEMORY.read_text(encoding="utf-8")
+    copilot = COPILOT_MEMORY.read_text(encoding="utf-8")
+
+    for text in (claude, copilot):
+        assert "dependency" in text.lower()
+        assert "unblocked" in text
+        assert "phase-by-phase" in text
+        assert "critical" in text.lower()
+        assert "frozen" in text
+
+
 def test_memory_preserves_existing_sergeant_mechanism_without_duplicate_subsystem() -> None:
     memory = AGENT_MEMORY.read_text(encoding="utf-8")
 
