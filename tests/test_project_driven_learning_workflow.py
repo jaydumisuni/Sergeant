@@ -130,7 +130,8 @@ def test_candidate_packet_rejects_path_traversing_case_id(tmp_path: Path) -> Non
 
 
 def test_direct_terminal_evidence_manifest_hashes_durable_files_and_excludes_checkout(tmp_path: Path) -> None:
-    (tmp_path / "authority.json").write_text('{"owner":true}\n', encoding="utf-8")
+    authority = tmp_path / "authority.json"
+    authority.write_text('{"owner":true}\n', encoding="utf-8")
     (tmp_path / "terminal-result.json").write_text('{"result":"bounded"}\n', encoding="utf-8")
     case_dir = tmp_path / "round" / "cases" / "case-a"
     case_dir.mkdir(parents=True)
@@ -147,7 +148,7 @@ def test_direct_terminal_evidence_manifest_hashes_durable_files_and_excludes_che
         "terminal-result.json",
         "round/cases/case-a/teacher.json",
     }
-    assert rows["authority.json"]["sha256"] == hashlib.sha256(b'{"owner":true}\n').hexdigest()
+    assert rows["authority.json"]["sha256"] == hashlib.sha256(authority.read_bytes()).hexdigest()
     assert manifest["excluded_transient_paths"] == ["round/checkouts/**"]
     written = json.loads((tmp_path / "evidence-manifest.json").read_text(encoding="utf-8"))
     assert written == manifest
