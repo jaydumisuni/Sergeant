@@ -18,6 +18,7 @@ from .static_contract_surface_review import run_static_contract_surface_review
 from .static_core_contract_review import run_static_core_contract_review
 from .static_dart_provider_lifetime_review import run_static_dart_provider_lifetime_review
 from .static_external_integrity_review import run_static_external_integrity_review
+from .static_checksum_namespace_review import run_static_checksum_namespace_review
 from .static_js_auth_chrome_review import run_static_js_auth_chrome_review
 from .static_js_auth_transition_review import run_static_js_auth_transition_review
 from .static_js_controller_epoch_review import run_static_js_controller_epoch_review
@@ -189,6 +190,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
     python_cancellation = run_static_python_cancellation_review(root_path, changed)
     terminal_state = run_static_terminal_state_review(root_path, changed)
     external_integrity = run_static_external_integrity_review(root_path, changed)
+    checksum_namespace = run_static_checksum_namespace_review(root_path, changed)
     transfer_9 = run_static_transfer_9_review(root_path, changed)
     transfer_10_replacement = run_static_transfer_10_replacement_review(root_path, changed)
     transfer_11 = run_static_transfer_11_review(root_path, changed)
@@ -227,6 +229,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         python_cancellation,
         terminal_state,
         external_integrity,
+        checksum_namespace,
         transfer_9,
         transfer_10_replacement,
         transfer_11,
@@ -250,7 +253,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         unique[(str(finding.get("root_cause")), str(finding.get("path")))] = finding
 
     return {
-        "schema_version": "sergeant.static-status-review.v34",
+        "schema_version": "sergeant.static-status-review.v35",
         "mode": "model_free_static",
         "finding_count": len(unique),
         "findings": list(unique.values()),
@@ -282,6 +285,7 @@ def run_static_status_review(root: str | Path, changed_files: Iterable[str]) -> 
         "static_python_cancellation_review": python_cancellation,
         "static_terminal_state_review": terminal_state,
         "static_external_integrity_review": external_integrity,
+        "static_checksum_namespace_review": checksum_namespace,
         "static_transfer_9_review": transfer_9,
         "static_transfer_10_replacement_review": transfer_10_replacement,
         "static_transfer_11_review": transfer_11,
