@@ -8,6 +8,7 @@ from main_review.hermes_learning import LearningWorkerError
 from scripts import project_learning_workers as project_workers
 from scripts.project_learning_workers import (
     CLOUDFLARE_ROLE_MODELS,
+    CLOUDFLARE_STRUCTURED_JSON_MODELS,
     _cloudflare_config,
     worker_request,
 )
@@ -56,10 +57,15 @@ def test_cloudflare_project_learning_uses_distinct_role_models(monkeypatch) -> N
         monkeypatch.setenv(f"SERGEANT_{role.upper()}_MODEL", "provider-specific-generic-model")
 
     configs = [_cloudflare_config(role) for role in ("teacher", "prosecutor", "defender")]
+    by_role = {config.role: config for config in configs}
 
     assert {config.model for config in configs} == set(CLOUDFLARE_ROLE_MODELS.values())
     assert all(config.backend == "cloudflare" for config in configs)
     assert all(config.endpoint.endswith("/ai/v1/chat/completions") for config in configs)
+    assert by_role["defender"].model == "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    assert by_role["defender"].structured_json is True
+    assert by_role["teacher"].structured_json is False
+    assert by_role["prosecutor"].structured_json is False
 
 
 def test_cloudflare_project_learning_uses_backend_specific_model_override(monkeypatch) -> None:
@@ -71,6 +77,8 @@ def test_cloudflare_project_learning_uses_backend_specific_model_override(monkey
     config = _cloudflare_config("teacher")
 
     assert config.model == "@cf/meta/llama-3.3-70b-instruct-fp8-fast"
+    assert config.model in CLOUDFLARE_STRUCTURED_JSON_MODELS
+    assert config.structured_json is True
 
 
 def test_cloudflare_worker_reuses_bounded_contract_without_exposing_credentials(monkeypatch) -> None:
@@ -112,12 +120,14 @@ def test_cloudflare_worker_reuses_bounded_contract_without_exposing_credentials(
 
     assert captured["url"] == f"https://api.cloudflare.com/client/v4/accounts/{'b' * 32}/ai/v1/chat/completions"
     assert captured["body"]["model"] == CLOUDFLARE_ROLE_MODELS["teacher"]
+    assert "response_format" not in captured["body"]
     assert captured["headers"]["authorization"] == "Bearer runtime-secret"
     assert result["transport"] == {
         "backend": "cloudflare",
         "model": CLOUDFLARE_ROLE_MODELS["teacher"],
         "endpoint_class": "cloudflare-workers-ai-direct-terminal",
         "attempts": 1,
+        "structured_json": False,
     }
     serialized = json.dumps(result)
     assert "runtime-secret" not in serialized
@@ -155,6 +165,7 @@ def test_cloudflare_worker_retries_bounded_transient_failure(monkeypatch) -> Non
     assert calls == 3
     assert result["transport"]["attempts"] == 3
     assert result["transport"]["model"] == CLOUDFLARE_ROLE_MODELS["defender"]
+    assert result["transport"]["structured_json"] is True
 
 
 def test_cloudflare_worker_does_not_retry_non_transient_http_failure(monkeypatch) -> None:
@@ -228,6 +239,7 @@ def test_cloudflare_worker_rejects_unbounded_retry_configuration(monkeypatch) ->
 
     with pytest.raises(LearningWorkerError, match="between 1 and 5"):
         worker_request("teacher", {"case_id": "case-limit", "fixing_diff": "diff"})
+
 
 @pytest.mark.parametrize(
     ("executable", "expected"),
