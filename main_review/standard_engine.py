@@ -5,6 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
+    import tomli as tomllib
+
 from .diff_review import review_changed_files
 from .verification import verify_repository_standard
 
@@ -20,6 +25,18 @@ def _review_intelligence_exists(root_path: Path) -> bool:
     )
 
 
+def _is_sergeant_repository(root_path: Path) -> bool:
+    pyproject = root_path / "pyproject.toml"
+    if not pyproject.exists() or not (root_path / "main_review").exists():
+        return False
+    try:
+        document = tomllib.loads(pyproject.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, tomllib.TOMLDecodeError):
+        return False
+    project = document.get("project")
+    return isinstance(project, dict) and project.get("name") == "sergeant-reviewer"
+
+
 def check_claims_match_implementation(root: str | Path = ".") -> dict[str, Any]:
     root_path = Path(root)
     docs_text = "\n".join(
@@ -28,7 +45,7 @@ def check_claims_match_implementation(root: str | Path = ".") -> dict[str, Any]:
     )
     findings: list[dict[str, object]] = []
     future_only = "comes later" in docs_text or "future direction" in docs_text.lower()
-    if "reasoning" in docs_text.lower() and not future_only and not _review_intelligence_exists(root_path):
+    if _is_sergeant_repository(root_path) and "reasoning" in docs_text.lower() and not future_only and not _review_intelligence_exists(root_path):
         findings.append(
             {
                 "severity": "major",
