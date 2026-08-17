@@ -99,3 +99,60 @@ def test_worker_request_accepts_openai_compatible_hermes_response(monkeypatch) -
     )
     assert result["root_cause"] == "state publication precedes validation"
     assert result["transport"]["endpoint_class"] == "isolated-hermes-profile"
+    assert result["transport"]["structured_json"] is False
+
+
+def test_structured_json_request_binds_defender_role_and_exact_case(monkeypatch) -> None:
+    output = {
+        "role": "defender",
+        "case_id": "case-structured",
+        "verdict": "needs_more_evidence",
+        "counterexamples": ["clean credential boundary with explicit token handoff"],
+        "false_positive_risks": ["treating every checkout auth failure as credential leakage"],
+        "missing_evidence": ["negative control with a valid isolated credential scope"],
+        "confidence": 0.72,
+    }
+    captured: dict[str, object] = {}
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self):
+            return json.dumps({"choices": [{"message": {"content": json.dumps(output)}}]}).encode()
+
+    def fake_urlopen(request, *args, **kwargs):
+        captured["body"] = json.loads(request.data.decode("utf-8"))
+        return Response()
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    result = worker_request(
+        "defender",
+        {"case_id": "case-structured", "fixing_diff": "diff"},
+        config=WorkerConfig(
+            role="defender",
+            backend="cloudflare",
+            endpoint="https://example.invalid/ai/v1/chat/completions",
+            token="secret",
+            model="@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+            structured_json=True,
+        ),
+    )
+
+    body = captured["body"]
+    response_format = body["response_format"]
+    assert response_format["type"] == "json_schema"
+    schema = response_format["json_schema"]
+    assert schema["properties"]["role"]["enum"] == ["defender"]
+    assert schema["properties"]["case_id"]["enum"] == ["case-structured"]
+    assert schema["properties"]["verdict"]["enum"] == [
+        "supports",
+        "rejects",
+        "needs_more_evidence",
+    ]
+    assert set(schema["required"]) == set(schema["properties"])
+    assert result["case_id"] == "case-structured"
+    assert result["transport"]["structured_json"] is True
