@@ -44,7 +44,7 @@ Two additional TechGuyCheckm8 repaired defect lineages are now preserved on `mai
    - fixing ref: `40291a738e866e53b7d1cdcd0cf31f6e860357f5`
    - boundary: integrity-manifest producers and downstream verifiers must share the same path namespace and runtime working-directory model.
 
-These two records are not accepted lessons. Their next valid path is:
+These two records are not accepted lessons. Their governed path is:
 
 ```text
 frozen blind Sergeant review
@@ -65,6 +65,28 @@ Authoritative candidate records:
 - `docs/56-techguycheckm8-10-for-2-harvest.md`
 
 Unresolved TechGuyCheckm8 findings without verified fixing lineage remain evidence only and must not be promoted as truth.
+
+## Active project-driven learning campaign
+
+PR #159, `learning/use-techguycheckm8-harvest`, is the active governed campaign for the two TechGuyCheckm8 candidates above. Do not open a duplicate campaign or restart the candidates from intake.
+
+The campaign has already established these boundaries:
+
+- GitHub Actions validates the exact head, manifest, provenance, safety contracts, and frozen candidate packet only. GitHub does not execute Teacher / Prosecutor / Defender inference and has no lesson-promotion or merge authority.
+- Real project-learning execution belongs to the owner-authorized Oracle/workstation direct-terminal lane through `scripts/run_project_driven_learning.py --owner-authorized` from a clean checkout detached at the frozen PR head.
+- The direct runner, Wrangler credential recovery, resumable workers, evidence hashing/manifests, bounded worker retries, structured worker JSON handling, and terminal evidence preservation are implementation work owned by PR #159.
+- Defects exposed while preparing the real terminal round must be corrected on PR #159, re-reviewed, and re-proved before the next frozen execution attempt; an older frozen SHA must never be reused after the branch moves.
+- Candidate lessons remain unpromoted until the real council run and every remaining control in the governed path completes.
+
+Before executing the terminal round, recover live GitHub state and require all of the following on the same exact PR head:
+
+1. the branch contains current `main` with no unresolved divergence;
+2. the relevant exact-head CI, Main Review, project-driven validation, review-intelligence, standalone/multiplatform, comparison, holdout, and ingestion proofs required by the campaign are green or an explicitly non-applicable legacy lane is dispositioned with evidence;
+3. review findings and threads against the current implementation are resolved or explicitly accepted by owner authority;
+4. the exact SHA is frozen in the PR handoff;
+5. Oracle/workstation uses a clean detached checkout of that exact SHA and writes durable evidence outside the transient target checkout.
+
+If any implementation or evidence changes after freezing, invalidate the old freeze and repeat exact-head proof before execution.
 
 ## External donor state
 
@@ -91,7 +113,9 @@ If live GitHub state conflicts with this file, recover the newer evidence, updat
 
 ## Next valid work
 
-Unless the owner gives a different explicit instruction, the next substantive Sergeant learning work is to process the two TechGuyCheckm8 candidate-ready lineages through the governed learning path above. Real THETECHGUY project fixes from other repositories may also enter as candidates when exact defective/fixing provenance is verified.
+Unless the owner gives a different explicit instruction, continue PR #159 from its current live exact head. Synchronize current `main` when needed, complete exact-head review/proof, freeze that exact SHA, and execute the two TechGuyCheckm8 candidates through the owner-authorized Oracle/workstation project-learning lane. Do not create a second campaign for the same candidates.
+
+After the real council run, preserve its terminal evidence and advance only surviving proposals through executable positive controls, clean negative controls, unrelated transfer, hidden holdout, and explicit owner-controlled promotion. No green CI run or model agreement alone makes a lesson permanent.
 
 Do not start a calendar-based Week 2 merely because Week 1 is complete.
 
@@ -106,4 +130,5 @@ A future chat has successfully recovered Sergeant only when it can state, withou
 - the governed cross-repository learning sequence;
 - which lessons are accepted versus candidate-ready;
 - the current live GitHub PR/check state;
+- the active PR #159 project-learning campaign and its exact-head freeze rule;
 - the next valid owner-authorized action.
