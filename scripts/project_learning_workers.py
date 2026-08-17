@@ -27,7 +27,11 @@ from main_review.hermes_learning import (
 CLOUDFLARE_ROLE_MODELS = {
     "teacher": "@cf/zai-org/glm-4.7-flash",
     "prosecutor": "@cf/qwen/qwen3-30b-a3b-fp8",
-    "defender": "@cf/openai/gpt-oss-20b",
+    "defender": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+}
+CLOUDFLARE_STRUCTURED_JSON_MODELS = {
+    "@cf/meta/llama-3.1-8b-instruct-fast",
+    "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
 }
 _ACCOUNT_ID_RE = re.compile(r"^[A-Fa-f0-9]{32}$")
 _RETRYABLE_HTTP_STATUS = {408, 425, 429, 500, 502, 503, 504}
@@ -152,6 +156,7 @@ def _cloudflare_config(role: str) -> WorkerConfig:
         endpoint=f"{base_url}/chat/completions",
         token=token,
         model=model,
+        structured_json=model in CLOUDFLARE_STRUCTURED_JSON_MODELS,
     )
 
 
@@ -202,6 +207,7 @@ def worker_request(
                     "model": selected.model,
                     "endpoint_class": "cloudflare-workers-ai-direct-terminal",
                     "attempts": attempt,
+                    "structured_json": selected.structured_json,
                 }
             return result
         except LearningWorkerError as exc:
