@@ -49,6 +49,7 @@ class WorkerConfig:
     token: str
     model: str
     timeout_seconds: int = 180
+    structured_json: bool = False
 
     @classmethod
     def from_env(cls, role: str) -> "WorkerConfig":
@@ -147,6 +148,58 @@ def validate_worker_output(role: str, case_id: str, payload: Mapping[str, Any]) 
     return dict(payload)
 
 
+def _worker_json_schema(role: str, case_id: str) -> dict[str, Any]:
+    """Build the machine-enforced form of the existing worker output contract."""
+
+    normalized = role.lower().strip()
+    if normalized not in ROLES:
+        raise LearningWorkerError(f"unknown role: {role}")
+
+    properties: dict[str, Any] = {
+        "role": {"type": "string", "enum": [normalized]},
+        "case_id": {"type": "string", "enum": [case_id]},
+        "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+    }
+    if normalized == "teacher":
+        properties.update(
+            {
+                "generalized_mechanism": {"type": "string", "minLength": 1},
+                "proposed_detector": {"type": "string", "minLength": 1},
+                "positive_tests": {"type": "array"},
+                "negative_controls": {"type": "array"},
+                "transfer_languages": {"type": "array"},
+            }
+        )
+    elif normalized == "prosecutor":
+        properties.update(
+            {
+                "claim": {"type": "string", "minLength": 1},
+                "root_cause": {"type": "string", "minLength": 1},
+                "evidence": {"type": "array"},
+                "competing_explanations_rejected": {"type": "array"},
+            }
+        )
+    else:
+        properties.update(
+            {
+                "verdict": {
+                    "type": "string",
+                    "enum": ["supports", "rejects", "needs_more_evidence"],
+                },
+                "counterexamples": {"type": "array"},
+                "false_positive_risks": {"type": "array"},
+                "missing_evidence": {"type": "array"},
+            }
+        )
+
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": list(properties),
+        "additionalProperties": True,
+    }
+
+
 def worker_request(role: str, case_packet: Mapping[str, Any], config: WorkerConfig | None = None) -> dict[str, Any]:
     case_id = _require_text(case_packet, "case_id")
     selected = config or WorkerConfig.from_env(role)
@@ -176,16 +229,20 @@ def worker_request(role: str, case_packet: Mapping[str, Any], config: WorkerConf
         },
         sort_keys=True,
     )
-    body = json.dumps(
-        {
-            "model": selected.model,
-            "temperature": 0.1,
-            "messages": [
-                {"role": "system", "content": ROLE_PROMPTS[role]},
-                {"role": "user", "content": user_content},
-            ],
+    request_payload: dict[str, Any] = {
+        "model": selected.model,
+        "temperature": 0.1,
+        "messages": [
+            {"role": "system", "content": ROLE_PROMPTS[role]},
+            {"role": "user", "content": user_content},
+        ],
+    }
+    if selected.structured_json:
+        request_payload["response_format"] = {
+            "type": "json_schema",
+            "json_schema": _worker_json_schema(role, case_id),
         }
-    ).encode("utf-8")
+    body = json.dumps(request_payload).encode("utf-8")
     request = urllib.request.Request(
         selected.endpoint,
         data=body,
@@ -207,5 +264,10 @@ def worker_request(role: str, case_packet: Mapping[str, Any], config: WorkerConf
     except (KeyError, IndexError, TypeError) as exc:
         raise LearningWorkerError(f"{role} response lacks chat completion content") from exc
     result = validate_worker_output(role, case_id, _extract_json(str(content)))
-    result["transport"] = {"backend": selected.backend, "model": selected.model, "endpoint_class": "isolated-hermes-profile" if selected.backend == "hermes" else "github-models"}
+    result["transport"] = {
+        "backend": selected.backend,
+        "model": selected.model,
+        "endpoint_class": "isolated-hermes-profile" if selected.backend == "hermes" else "github-models",
+        "structured_json": selected.structured_json,
+    }
     return result
