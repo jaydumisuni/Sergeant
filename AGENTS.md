@@ -85,7 +85,7 @@ one coordinating lead
 → recover authority and the dependency DAG
 → estimate independently useful work lanes
 → expand the normally justified worker estimate through Hunter's tenfold method
-→ distribute distinct specialist roles across the complete unblocked frontier
+→ assign distinct parallel specialist roles across the complete unblocked frontier
 → cross-check evidence while downstream-safe work continues
 → reconcile at genuine dependency barriers
 → bind dependent work to exact frozen upstream truth
