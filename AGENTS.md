@@ -82,26 +82,50 @@ Any AI or chat working on Sergeant should mirror the same discipline:
 
 ```text
 one coordinating lead
-→ estimate the independently useful work lanes
+→ recover authority and the dependency DAG
+→ estimate independently useful work lanes
 → expand the normally justified worker estimate through Hunter's tenfold method
-→ assign distinct parallel specialist roles
-→ cross-check results through independent evidence or review lanes
-→ reconcile disagreements into one clean result
+→ assign distinct parallel specialist roles across the complete unblocked frontier
+→ cross-check results through independent evidence or review lanes while downstream-safe work continues
+→ reconcile at genuine dependency barriers
+→ bind dependent work to exact frozen upstream truth
 → finish faster without sacrificing quality
 ```
 
 ### Required behaviour
 
-1. Keep one coordinating lead responsible for scope, dependencies, final reconciliation, and the delivered answer.
-2. Split substantial work into independent fronts such as implementation, tests, security, architecture, release integrity, evidence, documentation, and regression review.
+1. Keep one coordinating lead responsible for scope, the dependency graph, final reconciliation, and the delivered answer.
+2. Split substantial work into independent fronts such as implementation, tests, security, architecture, release integrity, evidence, documentation, regression review, and downstream preparation.
 3. Apply the tenfold multiplier when parallel work genuinely reduces elapsed time: two normally justified workers map to twenty roles, five to fifty, and twelve to one hundred twenty. Do not treat twenty as a ceiling.
 4. Run independent fronts in parallel when their inputs and write targets do not conflict.
-5. Serialize destructive operations, dependent steps, and multiple writes to the same file, branch, release, or external record.
+5. Serialize destructive operations, true dependency barriers, and multiple writes to the same file, branch, release, or external record.
 6. Give each role a distinct question or deliverable. Do not create duplicate noise.
 7. Cross-check important conclusions with independent evidence. High-risk merge, release, deletion, security, integrity, preservation, lesson-promotion, or final-verdict decisions require proof appropriate to the risk.
 8. Reconcile disagreements explicitly. The coordinating lead must remove duplication, verify claims against source evidence, and produce one consistent verdict.
 9. Preserve existing quality, safety, provenance, test, learning, and review gates. Speed comes from parallel decomposition and clean coordination, never from skipping proof.
 10. Report the consolidated result rather than flooding the user with internal worker chatter.
+
+### Machine-native dependency-frontier law
+
+Tenfold must not imitate human phase-by-phase project scheduling.
+
+For a substantial multi-stage campaign, recover the dependency DAG once and continuously occupy **every currently unblocked dependency node** with useful machine lanes. Roadmap phase labels define scope and authority; they are not automatic waiting points.
+
+Required consequences:
+
+1. Do not send the whole private force to one phase while other independent nodes are idle. Distribute workers across the unblocked frontier according to critical-path value, risk and evidence needs.
+2. A hard dependency blocks freeze/merge/completion claims, but does not block safe downstream work that does not require unresolved upstream truth. Contract recovery, donor analysis, fixtures, isolated implementation, adversarial-test design, documentation and proof preparation may proceed early when safe.
+3. When an upstream result freezes, every dependent candidate must rebind and reconcile against that exact SHA/evidence before it may freeze or ship.
+4. Build, Review and Prove lanes should overlap when they are independent and do not conflict on mutable targets. Same-target mutations and destructive actions remain serialized.
+5. Reallocate privates immediately as blockers appear or lanes complete. Do not leave machine capacity idle because the original allocation was modeled after human teams.
+6. Optimize the **proven critical path / elapsed makespan**, not engineer-days. Human-equivalent workers are an input to the tenfold multiplier, not a calendar model. Do not invent meetings, shifts, sleep, handoff delay, or phase waiting unless a real physical or dependency constraint creates elapsed time.
+7. Shared authority and rapid reconciliation are a machine advantage. Use them to eliminate handoff overhead without weakening exact-head evidence, Review, Freeze, Prove, or final authority.
+
+The scheduling question for substantial work is:
+
+> **What is the complete unblocked dependency frontier now, and how should the Tenfold force be distributed across it to minimize the proven critical path?**
+
+The full operating doctrine is recorded in [`docs/50-tenfold-operating-doctrine.md`](docs/50-tenfold-operating-doctrine.md).
 
 ## Interpretation boundary
 
