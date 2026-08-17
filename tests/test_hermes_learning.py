@@ -122,7 +122,7 @@ def test_structured_json_request_binds_defender_role_and_exact_case(monkeypatch)
             return False
 
         def read(self):
-            return json.dumps({"choices": [{"message": {"content": json.dumps(output)}}]}).encode()
+            return json.dumps({"choices": [{"message": {"content": output}}]}).encode()
 
     def fake_urlopen(request, *args, **kwargs):
         captured["body"] = json.loads(request.data.decode("utf-8"))
