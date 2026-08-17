@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
+from .python_runtime_scan_text import python_runtime_scan_text
+
 _TEXT_SUFFIXES = {
     ".py",
     ".js",
@@ -237,8 +239,9 @@ def run_static_checksum_namespace_review(
 
     findings: list[dict[str, Any]] = []
     for path, text in texts.items():
-        findings.extend(_bare_checksum_producer_findings(path, text, texts))
-        findings.extend(_cwd_consumer_findings(path, text))
+        scan_text = python_runtime_scan_text(text) if Path(path).suffix.lower() == ".py" else text
+        findings.extend(_bare_checksum_producer_findings(path, scan_text, texts))
+        findings.extend(_cwd_consumer_findings(path, scan_text))
 
     unique: dict[tuple[str, str, int], dict[str, Any]] = {}
     for finding in findings:
