@@ -24,6 +24,14 @@
       "event_types": ["commit", "pull_request", "workflow_run", "review_finding", "runtime_log", "shell_trace", "test_failure", "repair"],
       "collection_state": "enabled-for-signal-intake",
       "learning_boundary": "behavioral defect/fix lineage required"
+    },
+    {
+      "repository": "jaydumisuni/Oracle-",
+      "source_class": "thetechguy-owned",
+      "languages": ["typescript", "javascript", "yaml"],
+      "event_types": ["commit", "pull_request", "workflow_run", "review_finding", "runtime_log", "test_failure", "repair", "release_failure"],
+      "collection_state": "enabled-for-signal-intake",
+      "learning_boundary": "behavioral defect/fix lineage required"
     }
   ],
   "external_candidate_pool": ".github/self-learning/week-1-pool.json",

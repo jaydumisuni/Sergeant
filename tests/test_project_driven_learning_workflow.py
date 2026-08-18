@@ -60,20 +60,14 @@ def test_techguycheckm8_project_round_binds_exact_harvest_candidates() -> None:
     }
 
 
-def test_candidate_packet_resolves_only_the_manifest_signal_files(monkeypatch) -> None:
+def test_completed_techguycheckm8_round_cannot_be_replayed(monkeypatch) -> None:
     monkeypatch.chdir(ROOT)
-    packet = _candidate_packet(MANIFEST.relative_to(ROOT), "a" * 40)
 
-    assert packet["candidate_count"] == 2
-    assert packet["execution_lane"] == "oracle-direct-terminal"
-    assert [row["case_id"] for row in packet["candidates"]] == [
-        "learn-tgcheckm8-checksum-path-namespace-20260723",
-        "learn-tgcheckm8-checkout-credential-boundary-20260723",
-    ]
-    assert [row["signal_path"] for row in packet["candidates"]] == [
-        ".github/self-learning/signals/tgcheckm8-checksum-path-namespace-2026-07-23.json",
-        ".github/self-learning/signals/tgcheckm8-checkout-credential-boundary-2026-07-23.json",
-    ]
+    with pytest.raises(
+        SystemExit,
+        match="manifest case is not currently candidate-ready and unprocessed",
+    ):
+        _candidate_packet(MANIFEST.relative_to(ROOT), "a" * 40)
 
 
 def test_candidate_packet_rejects_missing_round_id(tmp_path: Path) -> None:

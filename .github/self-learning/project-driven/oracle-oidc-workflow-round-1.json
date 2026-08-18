@@ -1,0 +1,19 @@
+{
+  "schema_version": "sergeant.project-learning-round.v1",
+  "round_id": "project-oracle-oidc-workflow-20260818",
+  "purpose": "Advance the provenance-complete Oracle PR #150 OIDC workflow-identity repair through frozen blind review and isolated Teacher/Prosecutor/Defender council without promotion or merge authority.",
+  "signal_paths": [
+    ".github/self-learning/signals/oracle-oidc-workflow-identity-2026-08-17.json"
+  ],
+  "expected_case_ids": [
+    "learn-oracle-oidc-workflow-identity-20260817"
+  ],
+  "candidate_count": 1,
+  "authority": {
+    "execution_lane": "oracle-direct-terminal",
+    "direct_terminal_authorization_flag": "--owner-authorized",
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "final_verdict": "Sergeant"
+  }
+}
