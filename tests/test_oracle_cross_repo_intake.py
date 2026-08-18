@@ -13,10 +13,13 @@ from scripts.run_project_driven_learning import _candidate_packet
 ROOT = Path(__file__).resolve().parents[1]
 SIGNALS = ROOT / ".github" / "self-learning" / "signals"
 ORACLE_SIGNAL = SIGNALS / "oracle-oidc-workflow-identity-2026-08-17.json"
+ORACLE_SIGNIN_SIGNAL = SIGNALS / "oracle-native-browser-signin-boundary-2026-08-18.json"
+ORACLE_UPDATE_SIGNAL = SIGNALS / "oracle-extension-update-install-authority-2026-08-18.json"
 CHECKOUT_SIGNAL = SIGNALS / "tgcheckm8-checkout-credential-boundary-2026-07-23.json"
 CHECKSUM_SIGNAL = SIGNALS / "tgcheckm8-checksum-path-namespace-2026-07-23.json"
 SOURCES = ROOT / ".github" / "self-learning" / "cross-repository-sources.json"
 ROUND = ROOT / ".github" / "self-learning" / "project-driven" / "oracle-oidc-workflow-round-1.json"
+BROWSER_ROUND = ROOT / ".github" / "self-learning" / "project-driven" / "oracle-browser-repairs-round-2.json"
 RESULT = ROOT / ".github" / "self-learning" / "results" / "project-oracle-oidc-workflow-20260818.json"
 
 
@@ -51,13 +54,115 @@ def test_oracle_oidc_signal_is_terminally_rejected_without_erasing_source_qualit
     }
 
 
-def test_direct_collector_excludes_all_completed_project_signals(tmp_path: Path) -> None:
+def test_oracle_native_browser_signin_signal_uses_recovered_merge_base_lineage() -> None:
+    signal = json.loads(ORACLE_SIGNIN_SIGNAL.read_text(encoding="utf-8"))
+    classified = classify_signal(signal)
+
+    assert classified["disposition"] == "candidate_ready"
+    assert classified["triage_private_count"] == 40
+    candidate = classified["candidate"]
+    assert candidate["case_id"] == "learn-oracle-native-browser-signin-boundary-20260818"
+    assert candidate["repository"] == "jaydumisuni/Oracle-"
+    assert candidate["source_pr"] == 153
+    assert candidate["defective_ref"] == "4410254e9468a28aa528c9eed0add31375a37372"
+    assert candidate["fixing_ref"] == "8d769e2a35c55778d08be5614d3e3abec16b213e"
+    assert candidate["language"] == "javascript"
+    assert candidate["scored_paths"] == [
+        "scripts/oracle-local-browser-launch.mjs",
+        "scripts/oracle-local-engine.mjs",
+    ]
+    assert signal["learning_state"] == "collected"
+    assert signal["accepted_lesson"] is False
+    assert signal["security_or_integrity"] is True
+    assert signal["concurrency_or_lifecycle"] is True
+    assert "32071512641" in " ".join(signal["evidence_refs"])
+    assert "32071512631" in " ".join(signal["evidence_refs"])
+    assert "32071512700" in " ".join(signal["evidence_refs"])
+
+
+def test_oracle_extension_update_signal_preserves_inherited_red_check_context() -> None:
+    signal = json.loads(ORACLE_UPDATE_SIGNAL.read_text(encoding="utf-8"))
+    classified = classify_signal(signal)
+
+    assert classified["disposition"] == "candidate_ready"
+    assert classified["triage_private_count"] == 60
+    candidate = classified["candidate"]
+    assert candidate["case_id"] == "learn-oracle-extension-update-install-authority-20260818"
+    assert candidate["repository"] == "jaydumisuni/Oracle-"
+    assert candidate["source_pr"] == 158
+    assert candidate["defective_ref"] == "547f40755a0fb5ef005ce224605fe6d1cd31a680"
+    assert candidate["fixing_ref"] == "5b58f0f3d8543ddc29a9a578e4ed84a70fdeaa2f"
+    assert candidate["language"] == "javascript"
+    assert candidate["scored_paths"] == [
+        "browser/bridge/extension-installer.mjs",
+        "browser/bridge/server.mjs",
+        "browser/extension/update-background.js",
+        "browser/extension/options/app.js",
+    ]
+    assert signal["learning_state"] == "collected"
+    assert signal["accepted_lesson"] is False
+    assert signal["cross_component"] is True
+    assert signal["security_or_integrity"] is True
+    assert signal["concurrency_or_lifecycle"] is True
+    evidence = " ".join(signal["evidence_refs"])
+    assert "32148873820" in evidence
+    assert "pull/157" in evidence
+    assert "32139686124" in evidence
+    assert "31/31" in signal["summary"]
+    assert "pre-existing privacy-shield timeout" in signal["summary"]
+
+
+def test_direct_collector_excludes_completed_signals_and_selects_only_new_oracle_repairs(tmp_path: Path) -> None:
     signals = tmp_path / "signals"
     signals.mkdir()
-    for source in (CHECKOUT_SIGNAL, CHECKSUM_SIGNAL, ORACLE_SIGNAL):
+    for source in (
+        CHECKOUT_SIGNAL,
+        CHECKSUM_SIGNAL,
+        ORACLE_SIGNAL,
+        ORACLE_SIGNIN_SIGNAL,
+        ORACLE_UPDATE_SIGNAL,
+    ):
         (signals / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
 
-    assert _signal_candidates(signals) == []
+    candidates = _signal_candidates(signals)
+    assert [row["case_id"] for row in candidates] == [
+        "learn-oracle-extension-update-install-authority-20260818",
+        "learn-oracle-native-browser-signin-boundary-20260818",
+    ]
+    assert [row["source_pr"] for row in candidates] == [158, 153]
+    assert [row["private_count"] for row in candidates] == [60, 40]
+    assert all(row["direct_event_candidate"] is True for row in candidates)
+    assert all(row["provenance_complete"] is True for row in candidates)
+
+
+def test_oracle_browser_project_round_binds_exact_two_new_candidates(monkeypatch) -> None:
+    manifest = json.loads(BROWSER_ROUND.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == "sergeant.project-learning-round.v1"
+    assert manifest["round_id"] == "project-oracle-browser-repairs-20260818"
+    assert manifest["candidate_count"] == 2
+    assert manifest["signal_paths"] == [
+        ".github/self-learning/signals/oracle-extension-update-install-authority-2026-08-18.json",
+        ".github/self-learning/signals/oracle-native-browser-signin-boundary-2026-08-18.json",
+    ]
+    assert manifest["expected_case_ids"] == [
+        "learn-oracle-extension-update-install-authority-20260818",
+        "learn-oracle-native-browser-signin-boundary-20260818",
+    ]
+    assert manifest["authority"] == {
+        "execution_lane": "oracle-direct-terminal",
+        "direct_terminal_authorization_flag": "--owner-authorized",
+        "may_auto_promote": False,
+        "may_auto_merge": False,
+        "final_verdict": "Sergeant",
+    }
+
+    monkeypatch.chdir(ROOT)
+    packet = _candidate_packet(BROWSER_ROUND.relative_to(ROOT), "e" * 40)
+    assert packet["candidate_count"] == 2
+    assert packet["direct_signal_candidate_count"] == 2
+    assert packet["reviewer_frozen_before_collection"] == "e" * 40
+    assert [row["case_id"] for row in packet["candidates"]] == manifest["expected_case_ids"]
+    assert [row["signal_path"] for row in packet["candidates"]] == manifest["signal_paths"]
 
 
 def test_completed_oracle_project_round_is_historical_and_non_replayable(monkeypatch) -> None:
@@ -124,7 +229,7 @@ def test_oracle_is_registered_as_confirmed_thetechguy_signal_source() -> None:
     )
 
     assert row["source_class"] == "thetechguy-owned"
-    assert "typescript" in row["languages"]
+    assert "javascript" in row["languages"]
     assert "repair" in row["event_types"]
     assert row["collection_state"] == "enabled-for-signal-intake"
     assert row["learning_boundary"] == "behavioral defect/fix lineage required"
