@@ -6,6 +6,7 @@ from pathlib import Path
 from main_review.cross_repo_learning import classify_signal
 from main_review.self_learning_queue import add_case, new_queue
 from scripts.collect_github_learning_candidates import _signal_candidates
+from scripts.run_project_driven_learning import _candidate_packet
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +15,7 @@ ORACLE_SIGNAL = SIGNALS / "oracle-oidc-workflow-identity-2026-08-17.json"
 CHECKOUT_SIGNAL = SIGNALS / "tgcheckm8-checkout-credential-boundary-2026-07-23.json"
 CHECKSUM_SIGNAL = SIGNALS / "tgcheckm8-checksum-path-namespace-2026-07-23.json"
 SOURCES = ROOT / ".github" / "self-learning" / "cross-repository-sources.json"
+ROUND = ROOT / ".github" / "self-learning" / "project-driven" / "oracle-oidc-workflow-round-1.json"
 
 
 def test_oracle_oidc_workflow_identity_signal_is_candidate_ready_but_unpromoted() -> None:
@@ -66,6 +68,30 @@ def test_direct_collector_excludes_completed_pr159_signals_and_keeps_oracle(tmp_
     assert candidates[0]["direct_event_candidate"] is True
     assert candidates[0]["provenance_complete"] is True
     assert candidates[0]["security_or_integrity"] is True
+
+
+def test_oracle_project_round_binds_only_the_new_candidate() -> None:
+    manifest = json.loads(ROUND.read_text(encoding="utf-8"))
+    packet = _candidate_packet(ROUND, "e" * 40)
+
+    assert manifest["round_id"] == "project-oracle-oidc-workflow-20260818"
+    assert manifest["candidate_count"] == 1
+    assert manifest["signal_paths"] == [
+        ".github/self-learning/signals/oracle-oidc-workflow-identity-2026-08-17.json"
+    ]
+    assert manifest["expected_case_ids"] == [
+        "learn-oracle-oidc-workflow-identity-20260817"
+    ]
+    assert manifest["authority"] == {
+        "execution_lane": "oracle-direct-terminal",
+        "direct_terminal_authorization_flag": "--owner-authorized",
+        "may_auto_promote": False,
+        "may_auto_merge": False,
+        "final_verdict": "Sergeant",
+    }
+    assert packet["candidate_count"] == 1
+    assert packet["candidates"][0]["case_id"] == "learn-oracle-oidc-workflow-identity-20260817"
+    assert packet["authority_head"] == "e" * 40
 
 
 def test_pr159_signal_terminal_states_are_durable() -> None:
