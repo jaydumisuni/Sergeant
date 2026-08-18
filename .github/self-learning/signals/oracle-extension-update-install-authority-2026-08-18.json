@@ -1,0 +1,54 @@
+{
+  "schema_version": "sergeant.cross-repository-learning-signal.v1",
+  "case_id": "learn-oracle-extension-update-install-authority-20260818",
+  "repository": "jaydumisuni/Oracle-",
+  "event_kind": "repair",
+  "source_url": "https://github.com/jaydumisuni/Oracle-",
+  "source_event_url": "https://github.com/jaydumisuni/Oracle-/pull/158",
+  "source_pr": 158,
+  "defective_ref": "547f40755a0fb5ef005ce224605fe6d1cd31a680",
+  "fixing_ref": "5b58f0f3d8543ddc29a9a578e4ed84a70fdeaa2f",
+  "language": "javascript",
+  "scored_paths": [
+    "browser/bridge/extension-installer.mjs",
+    "browser/bridge/server.mjs",
+    "browser/extension/update-background.js",
+    "browser/extension/options/app.js"
+  ],
+  "evidence_refs": [
+    "https://github.com/jaydumisuni/Oracle-/pull/158",
+    "https://github.com/jaydumisuni/Oracle-/commit/547f40755a0fb5ef005ce224605fe6d1cd31a680",
+    "https://github.com/jaydumisuni/Oracle-/commit/5b58f0f3d8543ddc29a9a578e4ed84a70fdeaa2f",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148873944",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148873852",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148874086",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148873820",
+    "https://github.com/jaydumisuni/Oracle-/pull/157",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32139686124"
+  ],
+  "summary": "Oracle Browser's unpacked and Brave-style installs could detect a newer trusted release but the Chromium extension runtime did not own filesystem authority to rewrite its installed files. The repair moves install authority into Oracle's loopback workstation/browser bridge, resolves the trusted mutable release ref to an immutable source commit, stages bounded assets, verifies hashes and exact installed version, rolls back partial replacement, and reloads only after verified proof. Automatic and manual update paths converge on the same installer and interrupted installing state reconciles to recoverable failure. The fixing head's updater-specific native suite passed 31/31; its only red Native Browser check was the same pre-existing privacy-shield timeout reproduced on PR #157 before this repair existed.",
+  "defect_confirmed": true,
+  "fix_verified": true,
+  "blind_review_possible": true,
+  "behavior_change": true,
+  "security_or_integrity": true,
+  "cross_component": true,
+  "concurrency_or_lifecycle": true,
+  "changed_files": 11,
+  "changed_lines": 1081,
+  "package_count": 2,
+  "dependency_depth": 2,
+  "defect_novelty": 0.98,
+  "learning_objectives": [
+    "A component that can discover an update but lacks installation authority must delegate mutation to the bounded component that owns the destination instead of treating update detection as permission to install.",
+    "Convert mutable release discovery into immutable source identity before mutation, stage and verify content before commit, preserve rollback, and declare success only after exact installed-state proof.",
+    "Manual and automatic mutation paths should converge on one installer/state machine, and interrupted transient states must reconcile to explicit recoverable failure rather than remain indefinitely in-progress."
+  ],
+  "learning_state": "collected",
+  "accepted_lesson": false,
+  "authority": {
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "final_verdict": "Sergeant"
+  }
+}
