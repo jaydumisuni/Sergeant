@@ -91,7 +91,7 @@ def test_oracle_project_round_binds_only_the_new_candidate() -> None:
     }
     assert packet["candidate_count"] == 1
     assert packet["candidates"][0]["case_id"] == "learn-oracle-oidc-workflow-identity-20260817"
-    assert packet["authority_head"] == "e" * 40
+    assert packet["reviewer_frozen_before_collection"] == "e" * 40
 
 
 def test_pr159_signal_terminal_states_are_durable() -> None:
