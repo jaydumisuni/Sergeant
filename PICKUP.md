@@ -29,12 +29,12 @@ Do not treat old chat transcripts, stale branches, closed pull requests, or copi
 
 Controlled self-learning week 1 is complete and integrated. The repository must prefer project-driven continuous learning from verified real engineering work rather than starting another scheduled learning week unless the owner explicitly authorizes one.
 
-Two real-project lessons are now permanently accepted through governed promotion:
+Two real-project lessons are permanently accepted through governed promotion:
 
-1. **Lumi credential destination/origin lesson** — already integrated before PR #159.
+1. **Lumi credential destination/origin lesson** — integrated before PR #159.
 2. **TechGuyCheckm8 checksum path-namespace lesson** — accepted through PR #159 after council, executable controls, unrelated-language transfer, hidden holdout, exact donor replay, canonical detector integration, exact-head proof, durable evidence verification, and explicit owner-controlled promotion.
 
-Authoritative accepted record for the TechGuyCheckm8 lesson:
+Authoritative TechGuyCheckm8 accepted record:
 
 - `.github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json`
 - source: `jaydumisuni/TechGuyCheckm8` PR #18
@@ -45,7 +45,7 @@ Authoritative accepted record for the TechGuyCheckm8 lesson:
 
 The second PR #159 candidate, `learn-tgcheckm8-checkout-credential-boundary-20260723`, is **rejected**. Its Defender disproved the proposed lesson. It has no accepted-lesson record and must not be revived from the same evidence. Any future credential-boundary candidate requires new provenance-complete defect/fix evidence and a new governed evaluation.
 
-The PR #159 admitted round is therefore fully dispositioned:
+The PR #159 admitted round is fully dispositioned:
 
 ```text
 checksum path namespace → accepted lesson
@@ -56,9 +56,15 @@ Unresolved TechGuyCheckm8 findings without verified fixing lineage remain eviden
 
 ## PR #159 campaign state
 
-PR #159, `learning/use-techguycheckm8-harvest`, remains the implementation/review vehicle for the completed TechGuyCheckm8 project-driven learning campaign.
+PR #159, `learning/use-techguycheckm8-harvest`, is **merged and complete**.
 
-The campaign established and proved:
+- exact merge-authority PR head: `7a1a5b1fad564d39ae67864505a5f086d94687c1`
+- merge commit on `main`: `9f653412cd056119aa2231ac4a6b5d3f8c53c03b`
+- merge method: two-parent merge commit after current-`main` reconciliation
+- final pre-merge proof: CI, Main Review, project-driven validation, Review Intelligence, Reviewer Comparison, Standalone Service, Multiplatform, Final Static Transfer Holdout, Controlled Self-Learning, and Live GitHub Ingestion all green on the exact PR head; ready-for-review triggered a fresh Main Review and Final Static Transfer Holdout, both green before merge.
+- CodeRabbit was green and all applicable inline review threads were resolved/dispositioned before merge.
+
+The merged campaign established and integrated:
 
 - validation-only GitHub workflow boundaries with no GitHub inference or promotion authority;
 - owner-authorized Oracle/workstation direct-terminal learning execution;
@@ -73,15 +79,7 @@ The campaign established and proved:
 
 `docs/57-project-harvest-source-disposition-20260816.md` records the final candidate disposition: one accepted, one rejected.
 
-Before PR #159 can be merged as an implementation vehicle, live GitHub must still be recovered on its current exact head and all of the following must hold together:
-
-1. current `main` is an ancestor of the PR head with no unresolved divergence;
-2. the relevant exact-head CI, Main Review, project-driven validation, review-intelligence, standalone/multiplatform, comparison, holdout, controlled-learning, and live-ingestion proofs are green;
-3. CodeRabbit/external status is acceptable and all applicable review threads are resolved or explicitly dispositioned;
-4. the PR body and pickup documentation no longer describe already-completed learning work as pending;
-5. merge occurs only under explicit owner instruction and never because a lesson was accepted automatically.
-
-Any branch movement invalidates the previous exact-head merge proof and requires the new head to be proved again.
+PR #159 is historical authority for this completed campaign. Do not reopen or duplicate it merely to continue learning. New project-driven learning must start from new provenance-complete engineering evidence and must earn its own governed evaluation.
 
 ## External donor state
 
@@ -108,17 +106,22 @@ If live GitHub state conflicts with this file, recover the newer evidence, updat
 
 ## Next valid work
 
-Unless the owner gives a different explicit instruction, finish the PR #159 implementation vehicle rather than restarting its learning campaign:
+Return to project-driven continuous learning from **new provenance-complete THETECHGUY engineering fixes**.
 
 ```text
-synchronize current main
-→ reconcile canonical pickup/PR description with completed campaign truth
-→ prove the new exact PR head
-→ resolve/disposition remaining review threads
-→ owner-controlled PR merge decision
+recover useful repository event
+→ verify defective ref + fixing ref + scored production paths
+→ classify evidence_only / needs_lineage / candidate_ready / rejected
+→ frozen blind review
+→ fixing truth reveal
+→ Teacher / Prosecutor / Defender
+→ negative controls
+→ unrelated-language or unrelated-repository transfer
+→ hidden holdout
+→ owner-controlled promotion proposal
 ```
 
-After PR #159 is dispositioned, return to project-driven continuous learning from new provenance-complete THETECHGUY engineering fixes. Do not restart the rejected credential proposal from the same evidence, do not duplicate the accepted checksum lesson, and do not start a calendar-based Week 2 merely because Week 1 is complete.
+Do not restart the rejected credential proposal from the same evidence, do not duplicate the accepted checksum lesson, and do not start a calendar-based Week 2 merely because Week 1 is complete.
 
 ## Completion boundary
 
@@ -131,5 +134,5 @@ A future chat has successfully recovered Sergeant only when it can state, withou
 - the governed cross-repository learning sequence;
 - which lessons are accepted, rejected, candidate-ready, or evidence-only;
 - the current live GitHub PR/check state;
-- the final PR #159 learning disposition and exact-head merge rule;
+- that PR #159 is merged at `9f653412cd056119aa2231ac4a6b5d3f8c53c03b` with one accepted and one rejected candidate;
 - the next valid owner-authorized action.
