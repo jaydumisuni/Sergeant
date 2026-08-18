@@ -1,0 +1,100 @@
+{
+  "schema_version": "sergeant.accepted-lesson.v1",
+  "lesson_id": "tgcheckm8-checksum-path-namespace-20260723",
+  "status": "accepted",
+  "source": {
+    "repository": "jaydumisuni/TechGuyCheckm8",
+    "source_pr": 18,
+    "defective_ref": "3b9b5d2469fed602cd6b5c728109cf193b9ccba1",
+    "fixing_ref": "40291a738e866e53b7d1cdcd0cf31f6e860357f5",
+    "scored_paths": [
+      "tools/apple-build/make_receipt.py",
+      ".github/workflows/reviewed-apple-tools-build.yml"
+    ],
+    "signal_path": ".github/self-learning/signals/tgcheckm8-checksum-path-namespace-2026-07-23.json",
+    "blind_authority_head": "67193aae6d87a1dbd3a7a1066a1a132260a57ff3",
+    "learning_queue_sha256": "e922476d686f8fa088c3a3d4abed8d25eabd314c67385ed3ddefc612ec4e7343",
+    "canonical_evidence_manifest_sha256": "0c93adb4ba2003f35dea62ea0a293dda57581dc48bbb1d09088c9a77802c6ee7",
+    "proof_evidence_manifest_sha256": "73e97a1e16f6eeafae92221d44b992b5d32ce89152aa3289afb88de240f12aa3",
+    "durable_evidence": "jaydumisuni/Oracle-:oracle_control/live_results/sergeant-pr159-head67193aae-final-independent-verification-20260817-1843z.json"
+  },
+  "generalized_rule": "When a text integrity manifest names artifacts below an explicit verifier or output root, the producer must preserve each artifact's path relative to that same portable root, and consumers must resolve relative entries against the manifest directory or another explicit final portable root rather than the process working directory. A basename-only manifest entry is valid only when the artifact is actually colocated with the manifest.",
+  "implementation": {
+    "officer": "Mechanic",
+    "root_causes": [
+      "checksum-manifest-drops-relative-directory",
+      "checksum-manifest-resolved-from-process-cwd"
+    ],
+    "detector": "main_review/static_checksum_namespace_review.py",
+    "python_runtime_boundary": "main_review/python_runtime_scan_text.py",
+    "canonical_path": "main_review/static_checksum_namespace_review.py -> main_review/static_status_review.py -> external/static pr-review",
+    "candidate_implementation_head": "84faf9644b323792e1afd565fd4e65b653f668ee"
+  },
+  "proof": {
+    "positive_controls": [
+      "exact TechGuyCheckm8 defective revision 3b9b5d2469fed602cd6b5c728109cf193b9ccba1 is admitted as checksum-manifest-drops-relative-directory",
+      "nested artifact with a basename-only SHA256SUMS entry is admitted",
+      "JavaScript checksum producer with a basename-only nested artifact entry transfers the same invariant",
+      "checksum consumer resolving relative entries from process CWD is admitted"
+    ],
+    "clean_controls": [
+      "exact TechGuyCheckm8 fixing revision 40291a738e866e53b7d1cdcd0cf31f6e860357f5 remains clean",
+      "nested artifact recorded with an explicit relative path remains clean",
+      "basename-only entry remains clean when the artifact is colocated with the manifest",
+      "relative_path metadata cannot mask a manifest that still emits filename",
+      "checksum consumer anchored to the manifest directory remains clean",
+      "Python generated-file fixture payloads and comments are not treated as executable checksum logic while executable Path.cwd() remains visible"
+    ],
+    "hidden_holdout": [
+      "post-freeze verification succeeds from a different working directory",
+      "absolute manifest paths are rejected",
+      "path traversal is rejected",
+      "missing portable base is rejected"
+    ],
+    "transfer": [
+      "unrelated-language JavaScript transfer passed",
+      "real donor defect/fix replay passed on exact TechGuyCheckm8 revisions"
+    ],
+    "canonical_integration": [
+      "static checksum namespace review is wired into static_status_review schema v35",
+      "GitHub Main Review on promotion-authority head returns APPROVE / PASS / zero required actions",
+      "CodeRabbit status on promotion-authority head is success"
+    ],
+    "tests": [
+      "tests/test_static_checksum_namespace_review.py",
+      "tests/test_python_runtime_scan_boundary.py",
+      "tests/test_static_external_integrity_review.py"
+    ],
+    "implementation_proof_head": "84faf9644b323792e1afd565fd4e65b653f668ee",
+    "promotion_authority_head": "84faf9644b323792e1afd565fd4e65b653f668ee",
+    "required_workflows": {
+      "CI": "success",
+      "Main Review": "success",
+      "Multiplatform Proof": "success",
+      "Project-Driven Self-Learning": "success",
+      "Standalone Service Proof": "success",
+      "Live GitHub Ingestion Proof": "success",
+      "Reviewer Comparison Proof": "success",
+      "Review Intelligence Proof": "success",
+      "Final Static Transfer Holdout": "success",
+      "Controlled Self-Learning Week 1": "success"
+    }
+  },
+  "authority": {
+    "promotion_mode": "owner_controlled",
+    "accepted_by": "explicit_owner_instruction",
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "normal_review_models_required": false,
+    "final_verdict": "Sergeant"
+  },
+  "promotion_gate": {
+    "controls_passed": true,
+    "unrelated_language_transfer_passed": true,
+    "hidden_holdout_passed": true,
+    "real_donor_replay_passed": true,
+    "canonical_path_wired": true,
+    "durable_evidence_verified": true,
+    "promotion_record_exact_head_pending": false
+  }
+}

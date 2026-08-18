@@ -1,0 +1,133 @@
+name: Project-Driven Self-Learning
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+    paths:
+      - ".github/workflows/project-driven-self-learning.yml"
+      - ".github/self-learning/project-driven/**"
+      - ".github/self-learning/signals/**"
+      - "main_review/adaptive_curriculum.py"
+      - "main_review/cross_repo_learning.py"
+      - "main_review/hermes_learning.py"
+      - "main_review/self_learning_queue.py"
+      - "scripts/collect_github_learning_candidates.py"
+      - "scripts/run_controlled_self_learning.py"
+      - "scripts/run_project_driven_learning.py"
+      - "scripts/resume_project_learning_worker.py"
+      - "scripts/project_learning_workers.py"
+      - "scripts/export_learning_proposals.py"
+      - "tests/test_project_driven_learning_workflow.py"
+      - "tests/test_project_learning_workers.py"
+      - "tests/test_resume_project_learning_worker.py"
+      - "tests/test_controlled_self_learning_git_safety.py"
+      - "tests/test_hermes_learning.py"
+
+permissions: {}
+
+concurrency:
+  group: project-driven-self-learning-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  AUTHORITY_HEAD: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  validate:
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login == 'jaydumisuni'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - name: Checkout exact learning head without persisted credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Sergeant and focused test runner
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+
+      - name: Prove project-driven learning contracts without provider secrets
+        run: |
+          python -m pytest -q \
+            tests/test_project_driven_learning_workflow.py \
+            tests/test_project_learning_workers.py \
+            tests/test_resume_project_learning_worker.py \
+            tests/test_controlled_self_learning_git_safety.py \
+            tests/test_cross_repo_learning.py \
+            tests/test_hermes_learning.py \
+            tests/test_self_learning_queue.py \
+            tests/test_techguycheckm8_cross_repo_harvest.py \
+            tests/test_run_static_training_set_provenance.py
+
+      - name: Build exact direct-terminal validation packet
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(git diff --name-only "${BASE_SHA}" "${AUTHORITY_HEAD}" -- '.github/self-learning/project-driven/*.json')
+          if [ "${#manifests[@]}" -ne 1 ]; then
+            echo "Exactly one changed project-driven learning manifest is required; found ${#manifests[@]}." >&2
+            printf '%s\n' "${manifests[@]}" >&2
+            exit 1
+          fi
+          manifest="${manifests[0]}"
+          round_id="$(jq -er '.round_id | select(type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"))' "${manifest}")"
+          expected_count="$(jq -er '.candidate_count | select(type == "number" and . > 0 and . <= 3)' "${manifest}")"
+          test "$(jq -r '.authority.execution_lane' "${manifest}")" = "oracle-direct-terminal"
+          test "$(jq -r '.authority.direct_terminal_authorization_flag' "${manifest}")" = "--owner-authorized"
+          test "$(jq -r '.authority.may_auto_promote' "${manifest}")" = "false"
+          test "$(jq -r '.authority.may_auto_merge' "${manifest}")" = "false"
+          test "$(jq -r '.authority.final_verdict' "${manifest}")" = "Sergeant"
+          mkdir -p "build/${round_id}"
+          python - "${manifest}" "build/${round_id}/candidates.json" <<'PY'
+          import json
+          import os
+          import sys
+          from pathlib import Path
+
+          from scripts.run_project_driven_learning import _candidate_packet
+
+          manifest_path = Path(sys.argv[1])
+          output_path = Path(sys.argv[2])
+          packet = _candidate_packet(manifest_path, os.environ["AUTHORITY_HEAD"].lower())
+          output_path.write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+          actual_count="$(jq -er '.candidate_count' "build/${round_id}/candidates.json")"
+          test "${actual_count}" = "${expected_count}"
+          cat >"build/${round_id}/ci-authority.json" <<JSON
+          {
+            "authority_head": "${AUTHORITY_HEAD}",
+            "execution_lane": "oracle-direct-terminal",
+            "github_inference_enabled": false,
+            "automatic_promotions": 0,
+            "automatic_merges": 0
+          }
+          JSON
+
+      - name: Upload frozen validation evidence only
+        uses: actions/upload-artifact@v4
+        with:
+          name: project-learning-validation-${{ github.event.pull_request.head.sha }}
+          path: build/
+          if-no-files-found: error
+          retention-days: 30

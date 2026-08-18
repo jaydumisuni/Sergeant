@@ -11,10 +11,10 @@ import argparse
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable, Mapping
 
 from main_review.adaptive_curriculum import plan_curriculum_round
-from main_review.hermes_learning import LearningWorkerError, worker_request
+from main_review.hermes_learning import LearningWorkerError, worker_request as _default_worker_request
 from main_review.self_learning_queue import (
     add_case,
     attach_worker,
@@ -29,6 +29,8 @@ try:
 except ImportError:  # Direct execution as python scripts/<name>.py.
     from run_static_training_set import run_manifest
 
+WorkerRequest = Callable[[str, Mapping[str, Any]], dict[str, Any]]
+
 
 def _run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
     completed = subprocess.run(
@@ -42,6 +44,21 @@ def _run(*args: str, cwd: Path | None = None, capture: bool = False) -> str:
         timeout=300,
     )
     return completed.stdout if capture else ""
+
+
+def _git_in_checkout(checkout: Path, *args: str, capture: bool = False) -> str:
+    """Run Git in one generated checkout with an invocation-scoped trust grant."""
+
+    safe_path = checkout.resolve().as_posix()
+    return _run(
+        "git",
+        "-c",
+        f"safe.directory={safe_path}",
+        "-C",
+        str(checkout),
+        *args,
+        capture=capture,
+    )
 
 
 def _source_fields(case: dict[str, Any]) -> dict[str, Any]:
@@ -64,17 +81,17 @@ def _checkout(case: dict[str, Any], root: Path) -> Path:
     destination = root / case["case_id"]
     destination.mkdir(parents=True, exist_ok=False)
     _run("git", "init", str(destination))
-    _run("git", "-C", str(destination), "remote", "add", "origin", f"https://github.com/{case['repository']}.git")
-    _run("git", "-C", str(destination), "config", "core.sparseCheckout", "true")
-    _run("git", "-C", str(destination), "config", "core.sparseCheckoutCone", "false")
+    _git_in_checkout(destination, "remote", "add", "origin", f"https://github.com/{case['repository']}.git")
+    _git_in_checkout(destination, "config", "core.sparseCheckout", "true")
+    _git_in_checkout(destination, "config", "core.sparseCheckoutCone", "false")
     sparse = destination / ".git" / "info" / "sparse-checkout"
     sparse.parent.mkdir(parents=True, exist_ok=True)
     sparse.write_text("".join(f"/{path}\n" for path in case["scored_paths"]), encoding="utf-8")
     for ref in (case["fixing_ref"], case["defective_ref"]):
-        _run("git", "-C", str(destination), "fetch", "--no-tags", "--filter=blob:none", "origin", ref)
-    _run("git", "-C", str(destination), "merge-base", "--is-ancestor", case["defective_ref"], case["fixing_ref"])
-    _run("git", "-C", str(destination), "checkout", "--detach", case["defective_ref"])
-    actual = _run("git", "-C", str(destination), "rev-parse", "HEAD", capture=True).strip()
+        _git_in_checkout(destination, "fetch", "--no-tags", "--filter=blob:none", "origin", ref)
+    _git_in_checkout(destination, "merge-base", "--is-ancestor", case["defective_ref"], case["fixing_ref"])
+    _git_in_checkout(destination, "checkout", "--detach", case["defective_ref"])
+    actual = _git_in_checkout(destination, "rev-parse", "HEAD", capture=True).strip()
     if actual != case["defective_ref"]:
         raise RuntimeError(f"defective checkout mismatch for {case['case_id']}")
     for path in case["scored_paths"]:
@@ -112,11 +129,18 @@ def _blind_manifest(case: dict[str, Any], checkout: Path, reviewer: str) -> dict
 
 
 def _truth_packet(case: dict[str, Any], checkout: Path, blind_result: dict[str, Any]) -> dict[str, Any]:
-    command = [
-        "git", "-C", str(checkout), "diff", "--no-ext-diff", "--unified=25",
-        case["defective_ref"], case["fixing_ref"], "--", *case["scored_paths"],
-    ]
-    diff = subprocess.check_output(command, text=True, encoding="utf-8", errors="replace", timeout=300)
+    diff = _git_in_checkout(
+        checkout,
+        "diff",
+        "--no-ext-diff",
+        "--no-textconv",
+        "--unified=25",
+        case["defective_ref"],
+        case["fixing_ref"],
+        "--",
+        *case["scored_paths"],
+        capture=True,
+    )
     if len(diff) > 24_000:
         diff = diff[:24_000] + "\n[TRUNCATED AFTER 24000 CHARACTERS]\n"
     summary = blind_result.get("summaries", [{}])[0]
@@ -140,9 +164,17 @@ def _truth_packet(case: dict[str, Any], checkout: Path, blind_result: dict[str, 
 
 
 def run_round(
-    *, candidates_packet: dict[str, Any], history: dict[str, Any], output_dir: Path,
-    authority_head: str, target_branch: str, count: int,
+    *,
+    candidates_packet: dict[str, Any],
+    history: dict[str, Any],
+    output_dir: Path,
+    authority_head: str,
+    target_branch: str,
+    count: int,
+    worker_request_fn: WorkerRequest = _default_worker_request,
 ) -> dict[str, Any]:
+    """Run one round with an explicitly selected isolated worker transport."""
+
     plan = plan_curriculum_round(
         candidates=candidates_packet.get("candidates", []),
         current_tier=int(history.get("current_tier", 0) or 0),
@@ -178,7 +210,7 @@ def run_round(
         worker_errors: dict[str, str] = {}
         for role in ("teacher", "prosecutor", "defender"):
             try:
-                packet = worker_request(role, truth)
+                packet = worker_request_fn(role, truth)
                 attach_worker(queue, case["case_id"], role, packet)
                 (case_dir / f"{role}.json").write_text(json.dumps(packet, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             except LearningWorkerError as exc:
