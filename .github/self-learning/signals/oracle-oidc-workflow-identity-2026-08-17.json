@@ -38,8 +38,26 @@
     "When extending an identity allowlist, preserve every independent repository, owner, ref, runner, event, subject, replay and freshness constraint rather than widening adjacent authority.",
     "Use positive controls for every intended workflow identity and a negative control proving an otherwise-valid third workflow identity remains rejected."
   ],
-  "learning_state": "collected",
+  "learning_state": "rejected",
   "accepted_lesson": false,
+  "rejection_reason": "Sergeant rejected the PR #165 lesson proposal after the owner-authorized Oracle/workstation council: the Teacher detector copied exact fixing-patch workflow identifiers instead of generalizing, the Defender identified overly broad repository trust as a false-positive risk, and the Defender identified missing explicit negative-control proof for an otherwise-valid third workflow identity.",
+  "council_authority_head": "b7b3be4ca9acf3c2f853ad03758e18131a69895b",
+  "campaign_merge_commit": "5753c5d1cff953c4591d009cc819c3eca661b56c",
+  "council_execution_node": "kratos-HP-290-G4-Microtower-PC",
+  "council_evidence": [
+    {
+      "id": "sergeant-pr165-kratos-run-oracle-oidc-round-b7b3be4c-20260818-1715z",
+      "oracle_result_blob_sha": "efa0a9d82cf2804579a64b3857134b9df9710a18"
+    },
+    {
+      "id": "sergeant-pr165-kratos-resume-teacher-70b-b7b3be4c-20260818-1722z",
+      "oracle_result_blob_sha": "7a6d6e55c2fa7d03ca2e5d712773c484e145376d"
+    },
+    {
+      "id": "sergeant-pr165-kratos-inspect-council-b7b3be4c-20260818-1724z",
+      "oracle_result_blob_sha": "b27af5d33819f9833ed061fd192f1b8687da0c01"
+    }
+  ],
   "authority": {
     "may_auto_promote": false,
     "may_auto_merge": false,

@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from main_review.cross_repo_learning import classify_signal
-from main_review.self_learning_queue import add_case, new_queue
 from scripts.collect_github_learning_candidates import _signal_candidates
 from scripts.run_project_driven_learning import _candidate_packet
 
@@ -16,21 +17,16 @@ CHECKOUT_SIGNAL = SIGNALS / "tgcheckm8-checkout-credential-boundary-2026-07-23.j
 CHECKSUM_SIGNAL = SIGNALS / "tgcheckm8-checksum-path-namespace-2026-07-23.json"
 SOURCES = ROOT / ".github" / "self-learning" / "cross-repository-sources.json"
 ROUND = ROOT / ".github" / "self-learning" / "project-driven" / "oracle-oidc-workflow-round-1.json"
+RESULT = ROOT / ".github" / "self-learning" / "results" / "project-oracle-oidc-workflow-20260818.json"
 
 
-def test_oracle_oidc_workflow_identity_signal_is_candidate_ready_but_unpromoted() -> None:
+def test_oracle_oidc_signal_is_terminally_rejected_without_erasing_source_quality() -> None:
     signal = json.loads(ORACLE_SIGNAL.read_text(encoding="utf-8"))
-    result = classify_signal(signal)
+    classified = classify_signal(signal)
 
-    assert result["disposition"] == "candidate_ready"
-    assert result["triage_private_count"] == 30
-    assert result["authority"] == {
-        "may_auto_promote": False,
-        "may_auto_merge": False,
-        "final_verdict": "Sergeant",
-    }
-
-    candidate = result["candidate"]
+    # Classification proves the source defect/fix lineage remains useful evidence.
+    assert classified["disposition"] == "candidate_ready"
+    candidate = classified["candidate"]
     assert candidate["case_id"] == "learn-oracle-oidc-workflow-identity-20260817"
     assert candidate["repository"] == "jaydumisuni/Oracle-"
     assert candidate["source_pr"] == 150
@@ -38,60 +34,71 @@ def test_oracle_oidc_workflow_identity_signal_is_candidate_ready_but_unpromoted(
     assert candidate["fixing_ref"] == "234c1e98af529973b946fa338602bc576164bc44"
     assert candidate["language"] == "typescript"
     assert candidate["scored_paths"] == ["src/live-oidc-auth.ts"]
-    assert candidate["private_count"] == 30
-    assert candidate["cross_repository"] is True
-    assert signal["learning_state"] == "collected"
+
+    # Lifecycle truth prevents the same evidence from being admitted again.
+    assert signal["learning_state"] == "rejected"
     assert signal["accepted_lesson"] is False
+    assert signal["council_authority_head"] == "b7b3be4ca9acf3c2f853ad03758e18131a69895b"
+    assert signal["campaign_merge_commit"] == "5753c5d1cff953c4591d009cc819c3eca661b56c"
+    assert signal["council_execution_node"] == "kratos-HP-290-G4-Microtower-PC"
+    reason = signal["rejection_reason"]
+    assert "copied exact fixing-patch workflow identifiers" in reason
+    assert "third workflow identity" in reason
+    assert signal["authority"] == {
+        "may_auto_promote": False,
+        "may_auto_merge": False,
+        "final_verdict": "Sergeant",
+    }
 
-    queue = new_queue(
-        "oracle-oidc-workflow-intake",
-        authority_head="e" * 40,
-        target_branch="learning/oracle-oidc-workflow-intake",
-    )
-    case = add_case(queue, candidate)
-    assert case["state"] == "collected"
-    assert queue["authority"]["may_auto_promote"] is False
-    assert queue["authority"]["may_auto_merge"] is False
 
-
-def test_direct_collector_excludes_completed_pr159_signals_and_keeps_oracle(tmp_path: Path) -> None:
+def test_direct_collector_excludes_all_completed_project_signals(tmp_path: Path) -> None:
     signals = tmp_path / "signals"
     signals.mkdir()
     for source in (CHECKOUT_SIGNAL, CHECKSUM_SIGNAL, ORACLE_SIGNAL):
         (signals / source.name).write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
 
-    candidates = _signal_candidates(signals)
-
-    assert [row["case_id"] for row in candidates] == [
-        "learn-oracle-oidc-workflow-identity-20260817",
-    ]
-    assert candidates[0]["direct_event_candidate"] is True
-    assert candidates[0]["provenance_complete"] is True
-    assert candidates[0]["security_or_integrity"] is True
+    assert _signal_candidates(signals) == []
 
 
-def test_oracle_project_round_binds_only_the_new_candidate() -> None:
+def test_completed_oracle_project_round_is_historical_and_non_replayable(monkeypatch) -> None:
     manifest = json.loads(ROUND.read_text(encoding="utf-8"))
-    packet = _candidate_packet(ROUND, "e" * 40)
-
     assert manifest["round_id"] == "project-oracle-oidc-workflow-20260818"
     assert manifest["candidate_count"] == 1
-    assert manifest["signal_paths"] == [
-        ".github/self-learning/signals/oracle-oidc-workflow-identity-2026-08-17.json"
-    ]
     assert manifest["expected_case_ids"] == [
         "learn-oracle-oidc-workflow-identity-20260817"
     ]
-    assert manifest["authority"] == {
-        "execution_lane": "oracle-direct-terminal",
-        "direct_terminal_authorization_flag": "--owner-authorized",
-        "may_auto_promote": False,
-        "may_auto_merge": False,
-        "final_verdict": "Sergeant",
-    }
-    assert packet["candidate_count"] == 1
-    assert packet["candidates"][0]["case_id"] == "learn-oracle-oidc-workflow-identity-20260817"
-    assert packet["reviewer_frozen_before_collection"] == "e" * 40
+    assert manifest["signal_paths"] == [
+        ".github/self-learning/signals/oracle-oidc-workflow-identity-2026-08-17.json"
+    ]
+    assert manifest["authority"]["may_auto_promote"] is False
+    assert manifest["authority"]["may_auto_merge"] is False
+    assert manifest["authority"]["final_verdict"] == "Sergeant"
+
+    monkeypatch.chdir(ROOT)
+    with pytest.raises(
+        SystemExit,
+        match="manifest case is not currently candidate-ready and unprocessed",
+    ):
+        _candidate_packet(ROUND.relative_to(ROOT), "e" * 40)
+
+
+def test_oracle_council_rejection_record_is_durable_and_unpromoted() -> None:
+    result = json.loads(RESULT.read_text(encoding="utf-8"))
+
+    assert result["schema_version"] == "sergeant.project-learning-disposition.v1"
+    assert result["round_id"] == "project-oracle-oidc-workflow-20260818"
+    assert result["case_id"] == "learn-oracle-oidc-workflow-identity-20260817"
+    assert result["authority_head"] == "b7b3be4ca9acf3c2f853ad03758e18131a69895b"
+    assert result["campaign_merge_commit"] == "5753c5d1cff953c4591d009cc819c3eca661b56c"
+    assert result["state"] == "rejected"
+    assert result["sergeant_verdict"] == "reject"
+    assert result["accepted_lesson"] is False
+    assert result["accepted_lesson_path"] is None
+    assert result["automatic_promotions"] == 0
+    assert result["automatic_merges"] == 0
+    assert result["preserved_workers"] == ["defender", "prosecutor", "teacher"]
+    assert result["evidence_file_count"] == 15
+    assert len(result["oracle_control_evidence"]) == 5
 
 
 def test_pr159_signal_terminal_states_are_durable() -> None:
