@@ -3,12 +3,12 @@
   "round_id": "project-oracle-browser-repairs-20260818",
   "purpose": "Advance two provenance-complete Oracle Browser repairs through frozen blind review and isolated Teacher/Prosecutor/Defender council without promotion or merge authority.",
   "signal_paths": [
-    ".github/self-learning/signals/oracle-extension-update-install-authority-2026-08-18.json",
-    ".github/self-learning/signals/oracle-native-browser-signin-boundary-2026-08-18.json"
+    ".github/self-learning/signals/oracle-native-browser-signin-boundary-2026-08-18.json",
+    ".github/self-learning/signals/oracle-extension-interrupted-install-recovery-2026-08-18.json"
   ],
   "expected_case_ids": [
-    "learn-oracle-extension-update-install-authority-20260818",
-    "learn-oracle-native-browser-signin-boundary-20260818"
+    "learn-oracle-native-browser-signin-boundary-20260818",
+    "learn-oracle-extension-interrupted-install-recovery-20260818"
   ],
   "candidate_count": 2,
   "authority": {
