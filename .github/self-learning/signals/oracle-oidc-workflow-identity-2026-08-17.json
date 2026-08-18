@@ -1,0 +1,48 @@
+{
+  "schema_version": "sergeant.cross-repository-learning-signal.v1",
+  "case_id": "learn-oracle-oidc-workflow-identity-20260817",
+  "repository": "jaydumisuni/Oracle-",
+  "event_kind": "repair",
+  "source_url": "https://github.com/jaydumisuni/Oracle-",
+  "source_event_url": "https://github.com/jaydumisuni/Oracle-/pull/150",
+  "source_pr": 150,
+  "defective_ref": "1439f05f6ff3b540d19acadd26f39641ae9a654a",
+  "fixing_ref": "234c1e98af529973b946fa338602bc576164bc44",
+  "language": "typescript",
+  "scored_paths": [
+    "src/live-oidc-auth.ts"
+  ],
+  "evidence_refs": [
+    "https://github.com/jaydumisuni/Oracle-/pull/150",
+    "https://github.com/jaydumisuni/Oracle-/commit/1439f05f6ff3b540d19acadd26f39641ae9a654a",
+    "https://github.com/jaydumisuni/Oracle-/commit/234c1e98af529973b946fa338602bc576164bc44",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32034698500",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32036069771",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32036069729"
+  ],
+  "summary": "Oracle's private deployment fallback obtained a valid GitHub OIDC identity, but the Live validator admitted only the canonical live-control workflow identity, so the private-deploy workflow failed closed with OIDC_WORKFLOW_REJECTED before KRATOS dispatch. The repair adds exactly the canonical private-deploy workflow identity to the workflow allowlist while preserving repository, owner, ref, runner, event, subject, run, JTI and freshness constraints; the exact fixing head passed Oracle Cloudflare CI and Wrangler deployment validation.",
+  "defect_confirmed": true,
+  "fix_verified": true,
+  "blind_review_possible": true,
+  "behavior_change": true,
+  "security_or_integrity": true,
+  "cross_component": false,
+  "concurrency_or_lifecycle": false,
+  "changed_files": 1,
+  "changed_lines": 8,
+  "package_count": 1,
+  "dependency_depth": 1,
+  "defect_novelty": 0.96,
+  "learning_objectives": [
+    "Bind federated CI authorization to an explicit set of canonical workflow identities instead of one incidental workflow or a broad repository-level trust category.",
+    "When extending an identity allowlist, preserve every independent repository, owner, ref, runner, event, subject, replay and freshness constraint rather than widening adjacent authority.",
+    "Use positive controls for every intended workflow identity and a negative control proving an otherwise-valid third workflow identity remains rejected."
+  ],
+  "learning_state": "collected",
+  "accepted_lesson": false,
+  "authority": {
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "final_verdict": "Sergeant"
+  }
+}
