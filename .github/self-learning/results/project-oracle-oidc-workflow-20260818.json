@@ -1,0 +1,47 @@
+{
+  "schema_version": "sergeant.project-learning-disposition.v1",
+  "round_id": "project-oracle-oidc-workflow-20260818",
+  "case_id": "learn-oracle-oidc-workflow-identity-20260817",
+  "source_repository": "jaydumisuni/Oracle-",
+  "source_pr": 150,
+  "authority_head": "b7b3be4ca9acf3c2f853ad03758e18131a69895b",
+  "campaign_merge_commit": "5753c5d1cff953c4591d009cc819c3eca661b56c",
+  "execution_node": "kratos-HP-290-G4-Microtower-PC",
+  "state": "rejected",
+  "accepted_lesson": false,
+  "automatic_promotions": 0,
+  "automatic_merges": 0,
+  "sergeant_verdict": "reject",
+  "reasons": [
+    "Teacher proposed a detector that copied exact fixing-patch workflow identifiers instead of producing a project-agnostic mechanism.",
+    "Defender identified overly broad repository trust as a false-positive risk.",
+    "Defender identified missing explicit negative-control proof for an otherwise-valid third workflow identity."
+  ],
+  "preserved_workers": [
+    "defender",
+    "prosecutor",
+    "teacher"
+  ],
+  "evidence_file_count": 15,
+  "accepted_lesson_path": null,
+  "oracle_control_evidence": [
+    {
+      "id": "sergeant-pr165-kratos-head-proof-b7b3be4c-20260818-1452z"
+    },
+    {
+      "id": "sergeant-pr165-kratos-clean-proof-b7b3be4c-20260818-1710z"
+    },
+    {
+      "id": "sergeant-pr165-kratos-run-oracle-oidc-round-b7b3be4c-20260818-1715z",
+      "result_blob_sha": "efa0a9d82cf2804579a64b3857134b9df9710a18"
+    },
+    {
+      "id": "sergeant-pr165-kratos-resume-teacher-70b-b7b3be4c-20260818-1722z",
+      "result_blob_sha": "7a6d6e55c2fa7d03ca2e5d712773c484e145376d"
+    },
+    {
+      "id": "sergeant-pr165-kratos-inspect-council-b7b3be4c-20260818-1724z",
+      "result_blob_sha": "b27af5d33819f9833ed061fd192f1b8687da0c01"
+    }
+  ]
+}

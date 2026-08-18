@@ -22,6 +22,7 @@ on:
       - "scripts/resume_project_learning_worker.py"
       - "scripts/project_learning_workers.py"
       - "scripts/export_learning_proposals.py"
+      - "scripts/validate_project_learning_closeout.py"
       - "tests/test_project_driven_learning_workflow.py"
       - "tests/test_project_learning_workers.py"
       - "tests/test_resume_project_learning_worker.py"
@@ -76,6 +77,7 @@ jobs:
             tests/test_hermes_learning.py \
             tests/test_self_learning_queue.py \
             tests/test_techguycheckm8_cross_repo_harvest.py \
+            tests/test_oracle_cross_repo_intake.py \
             tests/test_run_static_training_set_provenance.py
 
       - name: Build exact direct-terminal validation packet
@@ -85,11 +87,21 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t manifests < <(git diff --name-only "${BASE_SHA}" "${AUTHORITY_HEAD}" -- '.github/self-learning/project-driven/*.json')
+
+          if [ "${#manifests[@]}" -eq 0 ]; then
+            python scripts/validate_project_learning_closeout.py \
+              --base-sha "${BASE_SHA}" \
+              --authority-head "${AUTHORITY_HEAD}" \
+              --output build/project-learning-closeout/terminal-signals.json
+            exit 0
+          fi
+
           if [ "${#manifests[@]}" -ne 1 ]; then
-            echo "Exactly one changed project-driven learning manifest is required; found ${#manifests[@]}." >&2
+            echo "Exactly one changed project-driven learning manifest is required for a new round; found ${#manifests[@]}." >&2
             printf '%s\n' "${manifests[@]}" >&2
             exit 1
           fi
+
           manifest="${manifests[0]}"
           round_id="$(jq -er '.round_id | select(type == "string" and test("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"))' "${manifest}")"
           expected_count="$(jq -er '.candidate_count | select(type == "number" and . > 0 and . <= 3)' "${manifest}")"

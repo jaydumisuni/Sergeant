@@ -52,7 +52,26 @@ checksum path namespace → accepted lesson
 checkout credential boundary → rejected / no promotion
 ```
 
-Unresolved TechGuyCheckm8 findings without verified fixing lineage remain evidence only and must not be promoted as truth.
+The Oracle PR #150 candidate, `learn-oracle-oidc-workflow-identity-20260817`, is also **rejected for lesson promotion** after PR #165. The source repair remains valid provenance-complete THETECHGUY evidence and Oracle remains a confirmed signal source, but the council proposal did not earn promotion:
+
+- Teacher copied exact fixing-patch workflow identifiers into the proposed detector instead of producing a project-agnostic mechanism.
+- Defender identified overly broad repository trust as a false-positive risk.
+- Defender identified missing explicit negative-control proof for an otherwise-valid third workflow identity.
+- No accepted lesson file exists for this case.
+- Do not replay the same round or revive the same proposal from the same evidence.
+
+Authoritative Oracle disposition record:
+
+- `.github/self-learning/results/project-oracle-oidc-workflow-20260818.json`
+- source: `jaydumisuni/Oracle-` PR #150
+- defective ref: `1439f05f6ff3b540d19acadd26f39641ae9a654a`
+- fixing ref: `234c1e98af529973b946fa338602bc576164bc44`
+- council authority head: `b7b3be4ca9acf3c2f853ad03758e18131a69895b`
+- campaign merge commit: `5753c5d1cff953c4591d009cc819c3eca661b56c`
+- execution node: `kratos-HP-290-G4-Microtower-PC`
+- final disposition: rejected / no promotion
+
+Unresolved project findings without verified fixing lineage remain evidence only and must not be promoted as truth.
 
 ## PR #159 campaign state
 
@@ -79,7 +98,25 @@ The merged campaign established and integrated:
 
 `docs/57-project-harvest-source-disposition-20260816.md` records the final candidate disposition: one accepted, one rejected.
 
-PR #159 is historical authority for this completed campaign. Do not reopen or duplicate it merely to continue learning. New project-driven learning must start from new provenance-complete engineering evidence and must earn its own governed evaluation.
+PR #159 is historical authority for this completed campaign. Do not reopen or duplicate it merely to continue learning.
+
+## PR #165 campaign state
+
+PR #165, `learning/oracle-oidc-workflow-intake`, is **merged and complete**.
+
+- exact council / merge-authority PR head: `b7b3be4ca9acf3c2f853ad03758e18131a69895b`
+- merge commit on `main`: `5753c5d1cff953c4591d009cc819c3eca661b56c`
+- source repair: `jaydumisuni/Oracle-` PR #150
+- council execution: owner-authorized Oracle Live on `kratos-HP-290-G4-Microtower-PC`
+- exact-head and clean-worktree proofs passed before inference.
+- initial council preserved Prosecutor + Defender and stopped at `truth_revealed` when Teacher failed its role contract.
+- isolated Teacher recovery was performed through the canonical resume path; a malformed 8B response was rejected before evidence mutation, then a schema-valid 70B Teacher response completed the three-worker council.
+- final durable council evidence contained 15 hashed files, one proposal, zero automatic promotions, and zero automatic merges.
+- Sergeant rejected the proposal for overfitting/exact-identifier copying plus the Defender's false-positive and missing-negative-control findings.
+- final pre-merge proof: CI, Main Review, Project-Driven Self-Learning, Review Intelligence, Reviewer Comparison, Standalone Service, Multiplatform, Final Static Transfer Holdout, Controlled Self-Learning, and Live GitHub Ingestion were green on the exact PR head; ready-for-review triggered a fresh Main Review and Final Static Transfer Holdout, both green before merge.
+- CodeRabbit was green and there were no unresolved inline review threads.
+
+PR #165 is historical authority for the completed Oracle evaluation. Do not create an accepted lesson from it and do not re-admit its signal after terminal closeout.
 
 ## External donor state
 
@@ -121,7 +158,7 @@ recover useful repository event
 → owner-controlled promotion proposal
 ```
 
-Do not restart the rejected credential proposal from the same evidence, do not duplicate the accepted checksum lesson, and do not start a calendar-based Week 2 merely because Week 1 is complete.
+Do not restart either rejected PR #159 credential proposal or rejected PR #165 Oracle proposal from the same evidence, do not duplicate the accepted checksum lesson, and do not start a calendar-based Week 2 merely because Week 1 is complete.
 
 ## Completion boundary
 
@@ -135,4 +172,5 @@ A future chat has successfully recovered Sergeant only when it can state, withou
 - which lessons are accepted, rejected, candidate-ready, or evidence-only;
 - the current live GitHub PR/check state;
 - that PR #159 is merged at `9f653412cd056119aa2231ac4a6b5d3f8c53c03b` with one accepted and one rejected candidate;
+- that PR #165 is merged at `5753c5d1cff953c4591d009cc819c3eca661b56c` and its Oracle lesson proposal is rejected with no accepted lesson;
 - the next valid owner-authorized action.

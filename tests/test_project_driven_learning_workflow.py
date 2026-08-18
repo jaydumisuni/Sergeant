@@ -5,6 +5,10 @@ import json
 import pytest
 
 from scripts.run_project_driven_learning import _candidate_packet, _write_evidence_manifest
+from scripts.validate_project_learning_closeout import (
+    CloseoutValidationError,
+    validate_terminal_transition,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +16,7 @@ WORKFLOW = ROOT / ".github" / "workflows" / "project-driven-self-learning.yml"
 MANIFEST = ROOT / ".github" / "self-learning" / "project-driven" / "techguycheckm8-round-1.json"
 RUNNER = ROOT / "scripts" / "run_project_driven_learning.py"
 CONTROLLED_RUNNER = ROOT / "scripts" / "run_controlled_self_learning.py"
+CLOSEOUT_VALIDATOR = ROOT / "scripts" / "validate_project_learning_closeout.py"
 
 
 def test_project_driven_learning_workflow_is_validation_only_and_read_only() -> None:
@@ -30,12 +35,145 @@ def test_project_driven_learning_workflow_is_validation_only_and_read_only() -> 
     assert "scripts/resume_project_learning_worker.py" in text
     assert "scripts/project_learning_workers.py" in text
     assert "scripts/export_learning_proposals.py" in text
+    assert "scripts/validate_project_learning_closeout.py" in text
     assert "tests/test_project_learning_workers.py" in text
     assert "tests/test_resume_project_learning_worker.py" in text
+    assert "tests/test_oracle_cross_repo_intake.py" in text
     assert "from scripts.run_project_driven_learning import _candidate_packet" in text
     assert 'test("^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")' in text
     assert '"execution_lane": "oracle-direct-terminal"' in text
     assert '"github_inference_enabled": false' in text
+    assert 'if [ "${#manifests[@]}" -eq 0 ]; then' in text
+    assert "--output build/project-learning-closeout/terminal-signals.json" in text
+
+
+def test_terminal_closeout_validator_accepts_only_real_nonterminal_to_terminal_transitions() -> None:
+    previous = {
+        "case_id": "case-a",
+        "learning_state": "collected",
+        "accepted_lesson": False,
+    }
+    authority = {
+        "may_auto_promote": False,
+        "may_auto_merge": False,
+        "final_verdict": "Sergeant",
+    }
+
+    rejected = {
+        **previous,
+        "learning_state": "rejected",
+        "accepted_lesson": False,
+        "rejection_reason": "Council rejected the proposal.",
+        "authority": authority,
+    }
+    assert validate_terminal_transition(
+        previous,
+        rejected,
+        ".github/self-learning/signals/case-a.json",
+    ) == {
+        "path": ".github/self-learning/signals/case-a.json",
+        "case_id": "case-a",
+        "from_state": "collected",
+        "to_state": "rejected",
+    }
+
+    accepted = {
+        **previous,
+        "learning_state": "accepted",
+        "accepted_lesson": True,
+        "accepted_lesson_path": ".github/self-learning/lessons/case-a.json",
+        "authority": authority,
+    }
+    assert validate_terminal_transition(
+        previous,
+        accepted,
+        ".github/self-learning/signals/case-a.json",
+    )["to_state"] == "accepted"
+
+
+@pytest.mark.parametrize(
+    "previous,current,error",
+    [
+        (
+            {"case_id": "case-a", "learning_state": "rejected"},
+            {
+                "case_id": "case-a",
+                "learning_state": "rejected",
+                "accepted_lesson": False,
+                "rejection_reason": "again",
+                "authority": {
+                    "may_auto_promote": False,
+                    "may_auto_merge": False,
+                    "final_verdict": "Sergeant",
+                },
+            },
+            "already terminal",
+        ),
+        (
+            {"case_id": "case-a", "learning_state": "collected"},
+            {
+                "case_id": "case-a",
+                "learning_state": "collected",
+                "accepted_lesson": False,
+                "authority": {
+                    "may_auto_promote": False,
+                    "may_auto_merge": False,
+                    "final_verdict": "Sergeant",
+                },
+            },
+            "must terminalize",
+        ),
+        (
+            {"case_id": "case-a", "learning_state": "collected"},
+            {
+                "case_id": "case-a",
+                "learning_state": "accepted",
+                "accepted_lesson": True,
+                "authority": {
+                    "may_auto_promote": False,
+                    "may_auto_merge": False,
+                    "final_verdict": "Sergeant",
+                },
+            },
+            "accepted lesson path",
+        ),
+        (
+            {"case_id": "case-a", "learning_state": "collected"},
+            {
+                "case_id": "case-a",
+                "learning_state": "rejected",
+                "accepted_lesson": False,
+                "authority": {
+                    "may_auto_promote": False,
+                    "may_auto_merge": False,
+                    "final_verdict": "Sergeant",
+                },
+            },
+            "rejection_reason",
+        ),
+    ],
+)
+def test_terminal_closeout_validator_rejects_invalid_lifecycle_changes(
+    previous: dict,
+    current: dict,
+    error: str,
+) -> None:
+    with pytest.raises(CloseoutValidationError, match=error):
+        validate_terminal_transition(
+            previous,
+            current,
+            ".github/self-learning/signals/case-a.json",
+        )
+
+
+def test_closeout_validator_source_preserves_no_automatic_authority() -> None:
+    text = CLOSEOUT_VALIDATOR.read_text(encoding="utf-8")
+    assert 'TERMINAL_STATES = {"accepted", "rejected"}' in text
+    assert '"automatic_promotions": 0' in text
+    assert '"automatic_merges": 0' in text
+    assert 'authority.get("may_auto_promote") is not False' in text
+    assert 'authority.get("may_auto_merge") is not False' in text
+    assert 'authority.get("final_verdict") != "Sergeant"' in text
 
 
 def test_techguycheckm8_project_round_binds_exact_harvest_candidates() -> None:
