@@ -36,8 +36,9 @@
     "Preserve relative directories in checksum records when artifacts are stored below the verification root.",
     "Test producer and verifier together with the exact runtime working directory instead of validating each component in isolation."
   ],
-  "learning_state": "collected",
-  "accepted_lesson": false,
+  "learning_state": "accepted",
+  "accepted_lesson": true,
+  "accepted_lesson_path": ".github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json",
   "authority": {
     "may_auto_promote": false,
     "may_auto_merge": false,
