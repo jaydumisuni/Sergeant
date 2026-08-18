@@ -10,7 +10,6 @@
   "fixing_ref": "8d769e2a35c55778d08be5614d3e3abec16b213e",
   "language": "javascript",
   "scored_paths": [
-    "scripts/oracle-local-browser-launch.mjs",
     "scripts/oracle-local-engine.mjs"
   ],
   "evidence_refs": [
@@ -22,7 +21,7 @@
     "https://github.com/jaydumisuni/Oracle-/actions/runs/32071512613",
     "https://github.com/jaydumisuni/Oracle-/actions/runs/32071512700"
   ],
-  "summary": "Oracle's headed local browser could reach Google sign-in but Playwright-owned Chromium process launch triggered Google's unsupported-browser rejection. The repair keeps the same local profile and user-visible browser while preferring an installed native Chromium process attached over a validated loopback DevTools endpoint, with bounded startup retries and bundled Chromium fallback. Canonical authentication pages become human-only surfaces: Oracle forces observe/human control and suppresses agent interaction, screenshots, and evidence capture there without stealth, user-agent spoofing, cookie copying, or a second login browser.",
+  "summary": "Oracle's headed local browser could reach Google sign-in but Playwright-owned Chromium process launch triggered Google's unsupported-browser rejection. The repair keeps the same local profile and user-visible browser while preferring an installed native Chromium process attached through a local DevTools connection, with bundled Chromium fallback. Canonical authentication pages become human-only surfaces: Oracle forces observe/human control and suppresses agent interaction, screenshots, and evidence capture there without stealth, user-agent spoofing, cookie copying, or a second login browser. The scored production surface is the pre-existing local engine so blind review is valid at the defective snapshot; the newly introduced launch helper remains fixing-side supporting implementation rather than a blind-scored path.",
   "defect_confirmed": true,
   "fix_verified": true,
   "blind_review_possible": true,
@@ -30,15 +29,15 @@
   "security_or_integrity": true,
   "cross_component": false,
   "concurrency_or_lifecycle": true,
-  "changed_files": 4,
-  "changed_lines": 457,
+  "changed_files": 1,
+  "changed_lines": 124,
   "package_count": 1,
   "dependency_depth": 1,
   "defect_novelty": 0.96,
   "learning_objectives": [
     "When automation-owned process launch breaks a service compatibility or trust boundary, evaluate whether a user/runtime-owned native process can remain authoritative while automation attaches through a bounded local control channel.",
     "Treat sensitive authentication surfaces as an authority transition: revoke agent interaction and evidence capture and require visible human control rather than relying only on field-level redaction.",
-    "Native-process attachment must validate the local endpoint identity, bound retries and cleanup failed processes while keeping fallback runtime semantics explicit."
+    "When control changes from an automation-owned browser runtime to an attached native runtime, track connection and process lifecycle separately and clean both on failure, close, or disconnect."
   ],
   "learning_state": "collected",
   "accepted_lesson": false,
