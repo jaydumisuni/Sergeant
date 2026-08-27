@@ -37,6 +37,14 @@
       "role": "canonical_recovery_pointer_on_roadmap_branch"
     }
   ],
+  "proof_fixtures": [
+    {
+      "path": "tests/test_assurance_evolution_roadmap_freeze.py",
+      "blob_sha": "bc304713c2830f0d55ba6d2d8336e9dbf4687e96",
+      "role": "static_freeze_manifest_and_dependency_graph_proof",
+      "assurance_evolution_runtime_implementation": false
+    }
+  ],
   "roadmap_graph": {
     "total_nodes": 28,
     "programme_nodes": 25,
