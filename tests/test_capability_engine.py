@@ -511,6 +511,56 @@ def test_performance_finding_detects_nested_loop_in_uppercase_py_extension(tmp_p
     assert any(finding["capability"] == "performance" for finding in report["findings"])
 
 
+def test_performance_finding_handles_quoted_brace_inside_interpolation(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4, follow-up): a quoted
+    "}" inside a template interpolation must not be mistaken for the
+    interpolation's own closing brace."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.js").write_text(
+        'const report = `${foo("}") + xs.map(x => ys.map(y => y))}`;\n',
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.js"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_go_raw_string_backtick_content(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4, follow-up): Go backtick
+    strings are raw strings with no interpolation semantics -- JS-style
+    ${...} preservation must not apply to them."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "fixture.go").write_text(
+        "var fixture = `${while (ready) { while (other) {} }}`\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/fixture.go"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_still_detects_genuine_nested_go_loop(tmp_path: Path) -> None:
+    """Sanity check for the Go-backtick fix: real, brace-delimited nested
+    Go loops (unrelated to backtick strings) must still be detected."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "real.go").write_text(
+        "func pairs(rows []int) {\n"
+        "\tfor i := 0; i < len(rows); i++ {\n"
+        "\t\tfor j := 0; j < len(rows); j++ {\n"
+        "\t\t\tfmt.Println(rows[i], rows[j])\n"
+        "\t\t}\n"
+        "\t}\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/real.go"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
 def test_sergeant_review_includes_capability_review(tmp_path: Path) -> None:
     _write_project(tmp_path)
     (tmp_path / ".github" / "workflows").mkdir(parents=True)

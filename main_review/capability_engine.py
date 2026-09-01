@@ -419,6 +419,52 @@ def _find_matching_close_brace(text: str, open_index: int) -> int:
     return length
 
 
+def _find_interpolation_close_brace(text: str, open_index: int) -> int:
+    """Like ``_find_matching_close_brace``, but ignores '{'/'}' characters
+    that appear inside a nested string, comment, or backtick-template
+    span while scanning -- used for ``${...}`` interpolation matching,
+    which runs on RAW (not yet stripped) text and so can encounter real
+    quote/comment characters that themselves contain braces (e.g.
+    ``${foo("}") + xs.map(...)}``)."""
+
+    depth = 0
+    index = open_index
+    length = len(text)
+    while index < length:
+        character = text[index]
+        two = text[index:index + 2]
+        if two == "//":
+            newline = text.find("\n", index)
+            index = length if newline == -1 else newline
+            continue
+        if two == "/*":
+            end = text.find("*/", index + 2)
+            index = length if end == -1 else end + 2
+            continue
+        if character in ("'", '"', "`"):
+            quote = character
+            index += 1
+            while index < length:
+                if text[index] == "\\":
+                    index += 2
+                    continue
+                if text[index] == quote:
+                    index += 1
+                    break
+                if quote != "`" and text[index] == "\n":
+                    break
+                index += 1
+            continue
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return length
+
+
 def _strip_template_literal(match: "re.Match[str]") -> str:
     """A backtick template literal's own text is a string, but a
     ``${...}`` interpolation inside it is executable code (e.g.
@@ -436,29 +482,45 @@ def _strip_template_literal(match: "re.Match[str]") -> str:
             break
         pieces.append(_blank_run(chunk[index:interpolation]))
         open_brace = interpolation + 1
-        close_brace = _find_matching_close_brace(chunk, open_brace)
+        close_brace = _find_interpolation_close_brace(chunk, open_brace)
         pieces.append(chunk[interpolation:close_brace + 1])
         index = close_brace + 1
     return "".join(pieces)
+
+
+#: Only these languages have JS-style template-literal interpolation
+#: (`${...}` inside backticks is executable code). Everywhere else that
+#: uses backticks at all -- most notably Go, where a backtick string is a
+#: RAW string literal with no interpolation semantics whatsoever -- a
+#: literal `${...}`-shaped substring is just ordinary string content and
+#: must be blanked like any other string, not preserved as code.
+_BACKTICK_HAS_INTERPOLATION_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx")
 
 
 def _strip_comments_and_strings(text: str, path: str = "") -> str:
     """Blank out comment and string-literal spans (keeping line breaks so
     downstream line-based logic still lines up) so structural checks never
     match prose in a docstring/comment or content inside a string literal.
-    A backtick template literal's own ``${...}`` interpolations are kept
-    verbatim (they are executable code, not string content). "#" is only
-    treated as a comment marker for languages that actually use it that
-    way -- everywhere else (JS/TS private fields, Rust attributes, C/C++
-    preprocessor directives, ...) it is left alone. Extension matching is
-    case-insensitive, matching this repository's own language registry."""
+    In a language with JS-style template literals, a backtick string's own
+    ``${...}`` interpolations are kept verbatim (they are executable code,
+    not string content); everywhere else backtick strings are blanked
+    like any other string (e.g. Go's raw strings have no interpolation at
+    all). "#" is only treated as a comment marker for languages that
+    actually use it that way -- everywhere else (JS/TS private fields,
+    Rust attributes, C/C++ preprocessor directives, ...) it is left
+    alone. Extension matching is case-insensitive, matching this
+    repository's own language registry."""
 
     def _blank(match: "re.Match[str]") -> str:
         return _blank_run(match.group(0))
 
-    text = _BACKTICK_TEMPLATE_RE.sub(_strip_template_literal, text)
+    lowered_path = path.lower()
+    if lowered_path.endswith(_BACKTICK_HAS_INTERPOLATION_EXTENSIONS):
+        text = _BACKTICK_TEMPLATE_RE.sub(_strip_template_literal, text)
+    else:
+        text = _BACKTICK_TEMPLATE_RE.sub(_blank, text)
     text = _STRING_AND_COMMENT_RE.sub(_blank, text)
-    if path.lower().endswith(_HASH_IS_COMMENT_EXTENSIONS):
+    if lowered_path.endswith(_HASH_IS_COMMENT_EXTENSIONS):
         text = _HASH_COMMENT_RE.sub(_blank, text)
     return text
 
