@@ -46,6 +46,521 @@ def test_capability_engine_reports_tier1_signals(tmp_path: Path) -> None:
     assert "test_impact" in capabilities
 
 
+def test_performance_finding_ignores_prose_comment_mentioning_for_twice(tmp_path: Path) -> None:
+    """Regression for a real false positive: the performance detector
+    used to be a raw-text regex matching any two occurrences of the word
+    "for" within 160 characters, including inside comments/docstrings."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "notes.py").write_text(
+        "# tionally exists -- confirmed concretely for SC-23\n"
+        "# below. Each condition below is genuinely, functionally exercised:\n"
+        "# where a dedicated Trust Table row exists for the artifact, admission\n"
+        "# is checked via something else entirely\n"
+        "def f():\n    return 1\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/notes.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_two_adjacent_unrelated_comprehensions(tmp_path: Path) -> None:
+    """Regression for a real false positive: two separate, independent,
+    single-level comprehensions sitting near each other in source are not
+    nested iteration, even though they each contain the word "for"."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "build.py").write_text(
+        "def build(RequirementClass, ObligationClass):\n"
+        "    obl = {rc: (rc.value,) for rc in RequirementClass}\n"
+        "    obl_to_predicates = {oc: (oc.value,) for oc in ObligationClass}\n"
+        "    return obl, obl_to_predicates\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/build.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_still_detects_genuine_nested_python_loop(tmp_path: Path) -> None:
+    """A real for-loop directly containing another for-loop must still be
+    flagged -- the fix must not create a false negative."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def pairs(rows):\n"
+        "    for left in rows:\n"
+        "        for right in rows:\n"
+        "            yield left, right\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_still_detects_multi_generator_comprehension(tmp_path: Path) -> None:
+    """A single comprehension with two generators is genuine O(n*m) and
+    must still be flagged."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "pairs.py").write_text(
+        "def pairs(a, b):\n    return [x for x in a for y in b]\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/pairs.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_rust_doc_comment_mentioning_for_twice(tmp_path: Path) -> None:
+    """Regression for a real false positive found in Rust doc comments
+    (``///``), which the old raw-text regex could not distinguish from
+    real nested loop code."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "lib.rs").write_text(
+        "/// The Trust Table row for this crate's whole artifact family. Each\n"
+        "/// artifact family has its own row, checked before admission for use.\n"
+        "fn admitted() -> bool { true }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/lib.rs"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_still_detects_genuine_nested_brace_language_loop(tmp_path: Path) -> None:
+    """A real nested for-loop in a brace language (e.g. Rust) must still
+    be flagged."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "lib.rs").write_text(
+        "fn pairs(rows: &Vec<i32>) {\n"
+        "    for left in rows {\n"
+        "        for right in rows {\n"
+        "            println!(\"{} {}\", left, right);\n"
+        "        }\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/lib.rs"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_comprehension_nested_in_for_body(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: a single-generator comprehension
+    evaluated once per outer iteration is genuine O(n*m), even though no
+    single comprehension node itself has two generators."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n"
+        "    for x in xs:\n"
+        "        result = [y for y in ys]\n"
+        "    return result\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_comprehension_nested_in_comprehension(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: ``[[y for y in ys] for x in xs]``
+    is genuine nested iteration even though each comprehension only has
+    one generator of its own."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n    return [[y for y in ys] for x in xs]\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_allman_style_nested_loop(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: a brace on its own line (Allman
+    style) must still bind to its controlling for/while header."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Report.cs").write_text(
+        "void Pairs(int[] rows)\n"
+        "{\n"
+        "    for (int i = 0; i < rows.Length; i++)\n"
+        "    {\n"
+        "        for (int j = 0; j < rows.Length; j++)\n"
+        "        {\n"
+        "            Console.WriteLine(rows[i] + rows[j]);\n"
+        "        }\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/Report.cs"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_in_pyw_file(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: ``.pyw`` is a registered Python
+    extension (see languages.py) and must route through the Python AST
+    check, not the brace-language fallback."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.pyw").write_text(
+        "def pairs(rows):\n"
+        "    for left in rows:\n"
+        "        for right in rows:\n"
+        "            yield left, right\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.pyw"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_excludes_loop_else_suite(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): a for/while ``else``
+    suite runs once after normal completion, not once per outer
+    iteration -- a loop there is sequential, not nested."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n"
+        "    while xs:\n"
+        "        xs.pop()\n"
+        "    else:\n"
+        "        while ys:\n"
+        "            ys.pop()\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_generator_in_comprehension_filter(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): a comprehension filter
+    (``if any(y for y in ys)``) iterates once per outer item just as much
+    as the element expression does."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n    return [x for x in xs if any(y for y in ys)]\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_in_c_preprocessor_macro(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): "#" introduces a
+    preprocessor directive in C/C++, not a comment -- a macro body with
+    real nested loops must not be blanked out before structural analysis."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "macro.c").write_text(
+        "#define PAIRS(N) for(int i=0;i<N;i++){for(int j=0;j<N;j++){}}\n"
+        "int main(void) { return 0; }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/macro.c"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_plain_c_macro_with_no_loops(tmp_path: Path) -> None:
+    """Sanity check for the preprocessor-comment fix: an ordinary
+    #include/#define with no loops must not falsely trigger."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "plain.c").write_text(
+        "#include <stdio.h>\n#define MAX(a,b) ((a) > (b) ? (a) : (b))\n"
+        "int main(void) { return 0; }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/plain.c"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_non_loop_for_keyword_in_body(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): a bare "for"/"while"
+    token inside a loop body that is NOT itself a genuine loop header
+    (e.g. a JS object key ``{for: value}``) must not count as nesting."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "queue.js").write_text(
+        "function consume(queue) {\n"
+        "    while (queue.length) {\n"
+        "        consume2({for: queue.pop()});\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/queue.js"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_rust_impl_for_trait_syntax(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): Rust's ``impl X for Y``
+    contains the word "for" but is not a loop header -- a single genuine
+    while-loop inside must not be reported as nested."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "worker.rs").write_text(
+        "impl Worker for Thing {\n"
+        "    fn run(&self) {\n"
+        "        while ready() {\n"
+        "        }\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/worker.rs"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_map_inside_template_interpolation(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): a ``${...}`` template
+    interpolation is executable code, not string content -- nested
+    .map() calls inside one must still be detected."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.js").write_text(
+        "const report = `${xs.map(x => ys.map(y => y))}`;\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.js"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_using_js_private_fields(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): "#" is not a comment
+    marker in JavaScript/TypeScript -- a private field access
+    (``this.#items``) must not have the rest of its line erased."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.js").write_text(
+        "class Report {\n"
+        "  sum() {\n"
+        "    for (const x of this.#items) {\n"
+        "      for (const y of this.#items) {\n"
+        "        console.log(x, y);\n"
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.js"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_eager_default_value_comprehension(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): a function's default
+    value expression is evaluated once per enclosing loop iteration
+    (at def-time), unlike its body, which is deferred until called."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        def g(values=[y for y in ys]):\n"
+        "            return values\n"
+        "        g()\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_still_ignores_loop_defining_but_not_calling_nested_function(tmp_path: Path) -> None:
+    """Sanity check for the eager-default-value fix: a function merely
+    DEFINED (not called) inside a loop, with a genuinely deferred body
+    loop and no eager default, must still not be flagged -- matches the
+    round-1 loop-boundary test, now that visit_FunctionDef visits
+    decorators/defaults instead of returning unconditionally."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(rows):\n"
+        "    for row in rows:\n"
+        "        def helper(items):\n"
+        "            for item in items:\n"
+        "                print(item)\n"
+        "        helper(row)\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_brace_less_chained_nested_loop(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): a C-style single-
+    statement loop body with no braces at all must still be detected
+    when it is itself another loop header."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "chain.c").write_text(
+        "void f(int n) { for (int i=0;i<n;i++) for (int j=0;j<n;j++) work(); }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/chain.c"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_sequential_brace_less_loops(tmp_path: Path) -> None:
+    """Sanity check for the brace-less nesting fix: two sequential
+    (not chained) brace-less loops must not be reported as nested."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "sequential.c").write_text(
+        "void f(int n) { for (int i=0;i<n;i++) foo(); for (int j=0;j<n;j++) bar(); }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/sequential.c"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_eagerly_executed_class_body(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): unlike a function body,
+    a class body executes immediately when the class statement runs --
+    once per enclosing loop iteration."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        class C:\n"
+        "            values = [y for y in ys]\n"
+        "    return C\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_eager_annotation_expression(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): without postponed
+    evaluation, parameter annotations are evaluated once per
+    def-statement execution, same as default values."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        def g(arg: [y for y in ys]):\n"
+        "            return arg\n"
+        "        g(1)\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_annotation_with_postponed_evaluation(tmp_path: Path) -> None:
+    """Sanity check for the eager-annotation fix: with `from __future__
+    import annotations`, the same annotation is stored as a string and
+    never evaluated, so it must not be flagged."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "from __future__ import annotations\n"
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        def g(arg: [y for y in ys]):\n"
+        "            return arg\n"
+        "        g(1)\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_in_uppercase_py_extension(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): the repository's own
+    language registry matches .py/.pyw case-insensitively; this
+    detector's own dispatch must too."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.PY").write_text(
+        "def pairs(rows):\n    for left in rows:\n        for right in rows:\n            yield left, right\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.PY"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_handles_quoted_brace_inside_interpolation(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4, follow-up): a quoted
+    "}" inside a template interpolation must not be mistaken for the
+    interpolation's own closing brace."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.js").write_text(
+        'const report = `${foo("}") + xs.map(x => ys.map(y => y))}`;\n',
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.js"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_go_raw_string_backtick_content(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4, follow-up): Go backtick
+    strings are raw strings with no interpolation semantics -- JS-style
+    ${...} preservation must not apply to them."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "fixture.go").write_text(
+        "var fixture = `${while (ready) { while (other) {} }}`\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/fixture.go"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_still_detects_genuine_nested_go_loop(tmp_path: Path) -> None:
+    """Sanity check for the Go-backtick fix: real, brace-delimited nested
+    Go loops (unrelated to backtick strings) must still be detected."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "real.go").write_text(
+        "func pairs(rows []int) {\n"
+        "\tfor i := 0; i < len(rows); i++ {\n"
+        "\t\tfor j := 0; j < len(rows); j++ {\n"
+        "\t\t\tfmt.Println(rows[i], rows[j])\n"
+        "\t\t}\n"
+        "\t}\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/real.go"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
 def test_sergeant_review_includes_capability_review(tmp_path: Path) -> None:
     _write_project(tmp_path)
     (tmp_path / ".github" / "workflows").mkdir(parents=True)

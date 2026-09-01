@@ -54,7 +54,6 @@ SINK_RE = re.compile(
     r"\bRuntime\.getRuntime\(\)\.exec\s*\(|\bProcessBuilder\s*\(|\bProcess\.Start\s*\()",
     re.I,
 )
-N2_LOOP_RE = re.compile(r"\bfor\b[\s\S]{0,160}\bfor\b")
 RUBY_EACH_DO_RE = re.compile(r"\.each\s+do\s+\|[^|]+\|", re.I)
 RUBY_BLOCK_OPEN_RE = re.compile(
     r"^(?:class|module|def|if|unless|case|begin|while|until|for)\b|\bdo\s*(?:\|[^|]*\|)?\s*$",
@@ -380,8 +379,464 @@ def _first_unguarded_shared_mutation(text: str) -> re.Match[str] | None:
     )
 
 
+_STRING_AND_COMMENT_RE = re.compile(
+    r'"""[\s\S]*?"""'
+    r"|'''[\s\S]*?'''"
+    r'|"(?:\\.|[^"\\\n])*"'
+    r"|'(?:\\.|[^'\\\n])*'"
+    r"|//[^\n]*"
+    r"|/\*[\s\S]*?\*/"
+)
+_HASH_COMMENT_RE = re.compile(r"#[^\n]*")
+_BACKTICK_TEMPLATE_RE = re.compile(r"`(?:\\.|[^`\\])*`")
+#: Languages where "#" genuinely introduces a full-line comment. Everywhere
+#: else (JS/TS private fields, Rust attributes, C/C++ preprocessor
+#: directives, and simply languages that don't use "#" at all) "#" must be
+#: left alone -- an allowlist is safer here than trying to enumerate every
+#: language that does NOT use "#" as a comment marker.
+_HASH_IS_COMMENT_EXTENSIONS = (".py", ".pyw", ".rb", ".sh", ".bash", ".zsh", ".ps1", ".pl", ".r", ".yml", ".yaml")
+
+
+def _blank_run(chunk: str) -> str:
+    return "".join("\n" if character == "\n" else " " for character in chunk)
+
+
+def _find_matching_close_brace(text: str, open_index: int) -> int:
+    """``open_index`` must point at a '{'. Returns the index of its
+    matching '}', or ``len(text)`` if unterminated."""
+
+    depth = 0
+    index = open_index
+    length = len(text)
+    while index < length:
+        if text[index] == "{":
+            depth += 1
+        elif text[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return length
+
+
+def _find_interpolation_close_brace(text: str, open_index: int) -> int:
+    """Like ``_find_matching_close_brace``, but ignores '{'/'}' characters
+    that appear inside a nested string, comment, or backtick-template
+    span while scanning -- used for ``${...}`` interpolation matching,
+    which runs on RAW (not yet stripped) text and so can encounter real
+    quote/comment characters that themselves contain braces (e.g.
+    ``${foo("}") + xs.map(...)}``)."""
+
+    depth = 0
+    index = open_index
+    length = len(text)
+    while index < length:
+        character = text[index]
+        two = text[index:index + 2]
+        if two == "//":
+            newline = text.find("\n", index)
+            index = length if newline == -1 else newline
+            continue
+        if two == "/*":
+            end = text.find("*/", index + 2)
+            index = length if end == -1 else end + 2
+            continue
+        if character in ("'", '"', "`"):
+            quote = character
+            index += 1
+            while index < length:
+                if text[index] == "\\":
+                    index += 2
+                    continue
+                if text[index] == quote:
+                    index += 1
+                    break
+                if quote != "`" and text[index] == "\n":
+                    break
+                index += 1
+            continue
+        if character == "{":
+            depth += 1
+        elif character == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return length
+
+
+def _strip_template_literal(match: "re.Match[str]") -> str:
+    """A backtick template literal's own text is a string, but a
+    ``${...}`` interpolation inside it is executable code (e.g.
+    ``xs.map(x => ys.map(y => y))``) and must be preserved, not blanked
+    along with the surrounding literal text."""
+
+    chunk = match.group(0)
+    pieces: list[str] = []
+    index = 0
+    length = len(chunk)
+    while index < length:
+        interpolation = chunk.find("${", index)
+        if interpolation == -1:
+            pieces.append(_blank_run(chunk[index:]))
+            break
+        pieces.append(_blank_run(chunk[index:interpolation]))
+        open_brace = interpolation + 1
+        close_brace = _find_interpolation_close_brace(chunk, open_brace)
+        pieces.append(chunk[interpolation:close_brace + 1])
+        index = close_brace + 1
+    return "".join(pieces)
+
+
+#: Only these languages have JS-style template-literal interpolation
+#: (`${...}` inside backticks is executable code). Everywhere else that
+#: uses backticks at all -- most notably Go, where a backtick string is a
+#: RAW string literal with no interpolation semantics whatsoever -- a
+#: literal `${...}`-shaped substring is just ordinary string content and
+#: must be blanked like any other string, not preserved as code.
+_BACKTICK_HAS_INTERPOLATION_EXTENSIONS = (".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx")
+
+
+def _strip_comments_and_strings(text: str, path: str = "") -> str:
+    """Blank out comment and string-literal spans (keeping line breaks so
+    downstream line-based logic still lines up) so structural checks never
+    match prose in a docstring/comment or content inside a string literal.
+    In a language with JS-style template literals, a backtick string's own
+    ``${...}`` interpolations are kept verbatim (they are executable code,
+    not string content); everywhere else backtick strings are blanked
+    like any other string (e.g. Go's raw strings have no interpolation at
+    all). "#" is only treated as a comment marker for languages that
+    actually use it that way -- everywhere else (JS/TS private fields,
+    Rust attributes, C/C++ preprocessor directives, ...) it is left
+    alone. Extension matching is case-insensitive, matching this
+    repository's own language registry."""
+
+    def _blank(match: "re.Match[str]") -> str:
+        return _blank_run(match.group(0))
+
+    lowered_path = path.lower()
+    if lowered_path.endswith(_BACKTICK_HAS_INTERPOLATION_EXTENSIONS):
+        text = _BACKTICK_TEMPLATE_RE.sub(_strip_template_literal, text)
+    else:
+        text = _BACKTICK_TEMPLATE_RE.sub(_blank, text)
+    text = _STRING_AND_COMMENT_RE.sub(_blank, text)
+    if lowered_path.endswith(_HASH_IS_COMMENT_EXTENSIONS):
+        text = _HASH_COMMENT_RE.sub(_blank, text)
+    return text
+
+
+_LOOP_HEADER_RE = re.compile(
+    r"^(?:'?[A-Za-z_]\w*\s*:\s*)?"  # optional loop label ('outer: / outer:)
+    r"(?:#\s*define\s+[A-Za-z_]\w*(?:\([^)]*\))?\s+)?"  # optional C/C++ macro-definition prefix
+    r"(?:for|while)\b"
+)
+
+
+def _is_loop_header(header: str) -> bool:
+    """A genuine loop header starts with (an optional loop label, then)
+    ``for``/``while`` -- not merely contains the keyword anywhere, which
+    would also match e.g. Rust's ``impl Worker for Thing``."""
+
+    return bool(_LOOP_HEADER_RE.match(header.strip()))
+
+
+def _skip_whitespace(text: str, position: int) -> int:
+    length = len(text)
+    while position < length and text[position].isspace():
+        position += 1
+    return position
+
+
+def _find_header_paren_end(text: str, keyword_end: int) -> int | None:
+    """``keyword_end`` is the index right after a ``for``/``while``
+    keyword. If a parenthesized condition/clause directly follows (only
+    whitespace in between, as in C/C++/Java/C#/JS), return the index just
+    past its matching ``)``. Returns None for a paren-less header (Rust/Go
+    ``for x in xs {``/``for i := 0; ...; i++ {``), which the brace-scope
+    path already covers, or for a non-loop use of the keyword (e.g. Rust's
+    ``impl Worker for Thing``, where no ``(`` follows at all)."""
+
+    index = _skip_whitespace(text, keyword_end)
+    if index >= len(text) or text[index] != "(":
+        return None
+    depth = 0
+    length = len(text)
+    while index < length:
+        if text[index] == "(":
+            depth += 1
+        elif text[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+        index += 1
+    return None
+
+
+def _loop_headers_with_body_spans(stripped_text: str) -> list[tuple[int, int, int]]:
+    """Every genuine C-style ``for (...)``/``while (...)`` header found
+    anywhere in the text, paired with the span of its own governed body:
+    a matching ``{...}`` block if one follows, or -- for a brace-less
+    single-statement body -- a zero-width span placed exactly where that
+    statement begins. A header starting exactly there is a directly
+    chained brace-less nested loop (``for (...) for (...) work();``); a
+    brace-less body reached through an intervening non-loop statement or
+    an ``if`` is a further, deeper case not attempted here."""
+
+    spans = []
+    for match in re.finditer(r"\b(?:for|while)\b", stripped_text):
+        header_start = match.start()
+        header_end = _find_header_paren_end(stripped_text, match.end())
+        if header_end is None:
+            continue
+        body_start = _skip_whitespace(stripped_text, header_end)
+        if stripped_text[body_start:body_start + 1] == "{":
+            body_end = _find_matching_close_brace(stripped_text, body_start)
+        else:
+            body_end = body_start
+        spans.append((header_start, body_start, body_end))
+    return spans
+
+
+def _has_c_style_nested_loop(stripped_text: str) -> bool:
+    """Covers parenthesized C-style loop headers whose nesting the
+    brace-scope path can miss entirely: a brace-less single-statement
+    body has no ``{``/``}`` pair to define a scope in the first place."""
+
+    headers = _loop_headers_with_body_spans(stripped_text)
+    for index, (_outer_start, body_start, body_end) in enumerate(headers):
+        for other_index, (inner_start, _inner_body_start, _inner_body_end) in enumerate(headers):
+            if other_index != index and body_start <= inner_start <= body_end:
+                return True
+    return False
+
+
+class _LoopBoundaryVisitor(ast.NodeVisitor):
+    """Detects a for/while loop -- or a comprehension/generator expression,
+    itself an implicit loop -- reachable from the visited statements
+    without crossing into a separately-invoked function/lambda body (a
+    class body, unlike a function body, executes immediately and so IS
+    followed into). A function/lambda/class definition's decorators,
+    base classes, and default-value/annotation expressions are evaluated
+    eagerly, once per enclosing loop iteration, and are always visited."""
+
+    def __init__(self, *, annotations_are_eager: bool = True) -> None:
+        self.found = False
+        self._annotations_are_eager = annotations_are_eager
+
+    def visit_For(self, node: ast.AST) -> None:
+        self.found = True
+
+    visit_AsyncFor = visit_For
+    visit_While = visit_For
+    visit_ListComp = visit_For
+    visit_SetComp = visit_For
+    visit_DictComp = visit_For
+    visit_GeneratorExp = visit_For
+
+    def _visit_eager_def_time_expressions(self, node: "ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda | ast.ClassDef") -> None:
+        for decorator in getattr(node, "decorator_list", ()):
+            self.visit(decorator)
+            if self.found:
+                return
+        for base in getattr(node, "bases", ()):
+            self.visit(base)
+            if self.found:
+                return
+        for keyword in getattr(node, "keywords", ()):
+            self.visit(keyword)
+            if self.found:
+                return
+        args = getattr(node, "args", None)
+        if args is not None:
+            eager_defaults = list(args.defaults) + [default for default in args.kw_defaults if default is not None]
+            for default in eager_defaults:
+                self.visit(default)
+                if self.found:
+                    return
+            if self._annotations_are_eager:
+                annotated_args = list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
+                if args.vararg is not None:
+                    annotated_args.append(args.vararg)
+                if args.kwarg is not None:
+                    annotated_args.append(args.kwarg)
+                for arg in annotated_args:
+                    if arg.annotation is not None:
+                        self.visit(arg.annotation)
+                        if self.found:
+                            return
+                returns = getattr(node, "returns", None)
+                if returns is not None:
+                    self.visit(returns)
+                    if self.found:
+                        return
+
+    def visit_FunctionDef(self, node: ast.AST) -> None:
+        self._visit_eager_def_time_expressions(node)
+        # The function BODY is deliberately never visited here -- it only
+        # executes when the function is called, not once per enclosing
+        # loop iteration.
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+    visit_Lambda = visit_FunctionDef
+
+    def visit_ClassDef(self, node: ast.AST) -> None:
+        self._visit_eager_def_time_expressions(node)
+        if self.found:
+            return
+        # Unlike a function body, a class BODY executes immediately when
+        # the `class` statement itself runs -- once per enclosing loop
+        # iteration -- so it genuinely must be visited.
+        for statement in node.body:
+            self.visit(statement)
+            if self.found:
+                return
+
+    def generic_visit(self, node: ast.AST) -> None:
+        if self.found:
+            return
+        super().generic_visit(node)
+
+
+def _body_contains_loop(statements: list[ast.stmt], *, annotations_are_eager: bool = True) -> bool:
+    visitor = _LoopBoundaryVisitor(annotations_are_eager=annotations_are_eager)
+    for statement in statements:
+        visitor.visit(statement)
+        if visitor.found:
+            return True
+    return False
+
+
+def _comprehension_element_expressions(node: "ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp") -> list[ast.AST]:
+    expressions: list[ast.AST] = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
+    for generator in node.generators:
+        # A filter clause (`if any(y for y in ys)`) runs once per outer
+        # item just as much as the element expression does.
+        expressions.extend(generator.ifs)
+    return expressions
+
+
+def _annotations_are_eager(tree: ast.Module) -> bool:
+    """Parameter/return annotations are evaluated once per def-statement
+    execution UNLESS postponed evaluation is active (``from __future__
+    import annotations``), in which case they are stored as strings and
+    never evaluated as real expressions."""
+
+    for node in tree.body:
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module == "__future__"
+            and any(alias.name == "annotations" for alias in node.names)
+        ):
+            return False
+    return True
+
+
+def _python_has_nested_loop(text: str) -> bool | None:
+    """Genuine structural check via a real parse: a for/while loop whose own
+    body directly contains another for/while loop or comprehension; a
+    comprehension with two or more ``for`` clauses (itself O(n*m)); a
+    comprehension whose own element or filter expression contains another
+    comprehension (``[[y for y in ys] for x in xs]``,
+    ``[x for x in xs if any(y for y in ys)]``). Returns None on a syntax
+    error so callers can fall back rather than silently treat it as False."""
+
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    annotations_are_eager = _annotations_are_eager(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
+            # `else` on a for/while runs once after normal loop completion,
+            # not once per outer iteration -- only `body` is genuinely
+            # repeated work.
+            if _body_contains_loop(node.body, annotations_are_eager=annotations_are_eager):
+                return True
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            if len(node.generators) >= 2:
+                return True
+            visitor = _LoopBoundaryVisitor(annotations_are_eager=annotations_are_eager)
+            for element in _comprehension_element_expressions(node):
+                visitor.visit(element)
+            if visitor.found:
+                return True
+    return False
+
+
+def _preceding_nonblank_line(text: str, position: int) -> str:
+    """Walk backward from ``position`` past blank lines to the nearest
+    non-empty line -- covers Allman-style braces (``for (...)\n{``), where
+    the same-line header at the opening brace itself is empty."""
+
+    line_start = text.rfind("\n", 0, position)
+    while True:
+        line = text[line_start + 1:position].strip()
+        if line:
+            return line
+        if line_start <= 0:
+            return ""
+        position = line_start
+        line_start = text.rfind("\n", 0, position)
+
+
+def _effective_loop_header(text: str, opening: int) -> str:
+    header = _brace_header(text, opening)
+    if _is_loop_header(header):
+        return header
+    return _preceding_nonblank_line(text, opening)
+
+
+def _generic_has_nested_loop(stripped_text: str) -> bool:
+    """Brace-language fallback for non-Python source. Two complementary
+    checks: (1) a for/while-headed brace scope (Rust/Go-style headers
+    included) that itself contains ANOTHER genuinely for/while-headed
+    brace scope, matched via ``_effective_loop_header`` so a brace on its
+    own line (Allman style) still binds to its preceding header; and (2)
+    ``_has_c_style_nested_loop`` for parenthesized C-style headers whose
+    body has no brace scope at all to find (a brace-less single
+    statement)."""
+
+    scopes = _brace_scopes(stripped_text)
+    loop_scope_spans = [
+        (opening, closing)
+        for opening, closing in scopes
+        if _is_loop_header(_effective_loop_header(stripped_text, opening))
+    ]
+    for outer_opening, outer_closing in loop_scope_spans:
+        for inner_opening, _inner_closing in loop_scope_spans:
+            if inner_opening != outer_opening and outer_opening < inner_opening < outer_closing:
+                return True
+    return _has_c_style_nested_loop(stripped_text)
+
+
+def _has_nested_loop_statement(path: str, text: str) -> bool:
+    """Real nested-iteration check, replacing a former raw-text regex that
+    matched any two occurrences of the word "for" within 160 characters --
+    including inside comments, docstrings, and unrelated single-level
+    comprehensions sitting near each other. Python files get a genuine AST
+    check; other languages get a comment/string-stripped, brace-scope-aware
+    check so a for/while must actually be lexically nested to count.
+    Extension matching is case-insensitive."""
+
+    if path.lower().endswith((".py", ".pyw")):
+        result = _python_has_nested_loop(text)
+        if result is not None:
+            return result
+    return _generic_has_nested_loop(_strip_comments_and_strings(text, path))
+
+
 def _performance_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    return [CapabilityFinding("performance", "minor", "Nested iteration pattern may create scaling risk.", path, "Nested loop/map/each pattern detected in changed file.", 0.62) for path in sorted(changed) if N2_LOOP_RE.search(indexes["texts"].get(path, "")) or _has_nested_ruby_each(indexes["texts"].get(path, "")) or re.search(r"\.map\([^\)]*=>[\s\S]{0,120}\.map\(", indexes["texts"].get(path, ""))]
+    findings: list[CapabilityFinding] = []
+    for path in sorted(changed):
+        text = indexes["texts"].get(path, "")
+        stripped = _strip_comments_and_strings(text, path)
+        if (
+            _has_nested_loop_statement(path, text)
+            or _has_nested_ruby_each(text)
+            or re.search(r"\.map\([^\)]*=>[\s\S]{0,120}\.map\(", stripped)
+        ):
+            findings.append(CapabilityFinding("performance", "minor", "Nested iteration pattern may create scaling risk.", path, "Nested loop/map/each pattern detected in changed file.", 0.62))
+    return findings
 
 
 def _concurrency_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
