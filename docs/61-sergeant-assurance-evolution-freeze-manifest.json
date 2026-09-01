@@ -1,0 +1,81 @@
+{
+  "schema_version": "sergeant.assurance-evolution-freeze-manifest.v1",
+  "freeze_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "branch": "roadmap/sergeant-assurance-evolution-v1.1-20260828",
+  "base": {
+    "ref": "main",
+    "sha": "4a277cc5950aa08a98157b950c96fb88f2178c79"
+  },
+  "authority_state": "owner_approved_isolated_roadmap_authority",
+  "implementation_state": "not_started",
+  "normal_sergeant_activation": "unchanged_until_SAE-170_genesis_exit",
+  "documents": [
+    {
+      "path": "ASSURANCE_EVOLUTION_START_HERE.md",
+      "blob_sha": "75d462b5989c4bbfacae4e991a61a24ae6e7fb8d",
+      "role": "zero_context_entrypoint"
+    },
+    {
+      "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
+      "blob_sha": "b7d7ea0cec987046ece2aecb554cc29d86aa447b",
+      "role": "founding_architecture"
+    },
+    {
+      "path": "docs/59-sergeant-assurance-evolution-roadmap.md",
+      "blob_sha": "f54dd414da2c01284c94a3f7349030da0cda4457",
+      "role": "programme_dependency_dag_and_roadmap_v1.1"
+    },
+    {
+      "path": "docs/60-sergeant-assurance-evolution-freeze-record.md",
+      "blob_sha": "6b713bc8b3ecda9ee568b3c5d2b5d2057ae3277a",
+      "role": "freeze_and_recovery_record"
+    },
+    {
+      "path": "AI_START_HERE.md",
+      "blob_sha": "f18c3829d991e87101bf6b1796fb2b4bba108be5",
+      "role": "canonical_recovery_pointer_on_roadmap_branch"
+    }
+  ],
+  "proof_fixtures": [
+    {
+      "path": "tests/test_assurance_evolution_roadmap_freeze.py",
+      "blob_sha": "bc304713c2830f0d55ba6d2d8336e9dbf4687e96",
+      "role": "static_freeze_manifest_and_dependency_graph_proof",
+      "assurance_evolution_runtime_implementation": false
+    }
+  ],
+  "roadmap_graph": {
+    "total_nodes": 28,
+    "programme_nodes": 25,
+    "feasibility_spikes": 3,
+    "root": "SAE-00",
+    "terminal": "SAE-180",
+    "known_missing_dependency_references": 0,
+    "known_dependency_cycles": 0
+  },
+  "review_disposition": {
+    "architecture": "ready_for_founding_architecture_freeze",
+    "roadmap": "approved_after_edge_corrections",
+    "independent_genesis_lane_satisfied_by_planning_reviews": false,
+    "planning_review_independence": "NOT_INDEPENDENT"
+  },
+  "live_fence_at_freeze": {
+    "pr": 167,
+    "state": "open",
+    "draft": true,
+    "merged": false,
+    "base_sha": "4a277cc5950aa08a98157b950c96fb88f2178c79",
+    "head_sha": "536dd6dcf99c4763a4b1ec9c86bcde7e03d5b13c",
+    "retrofit_assurance_evolution": false,
+    "must_recover_live_state_before_execution": true
+  },
+  "prohibitions": [
+    "do_not_treat_architecture_freeze_as_implementation",
+    "do_not_activate_partial_assurance_evolution",
+    "do_not_retrofit_pr_167",
+    "do_not_count_project_controlled_ai_reviews_as_independent_genesis_evidence",
+    "do_not_merge_main_as_part_of_this_freeze_operation",
+    "do_not_change_roadmap_semantics_without_new_review_and_owner_approval"
+  ]
+}
