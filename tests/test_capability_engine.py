@@ -409,6 +409,108 @@ def test_performance_finding_still_ignores_loop_defining_but_not_calling_nested_
     assert not any(finding["capability"] == "performance" for finding in report["findings"])
 
 
+def test_performance_finding_detects_brace_less_chained_nested_loop(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): a C-style single-
+    statement loop body with no braces at all must still be detected
+    when it is itself another loop header."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "chain.c").write_text(
+        "void f(int n) { for (int i=0;i<n;i++) for (int j=0;j<n;j++) work(); }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/chain.c"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_sequential_brace_less_loops(tmp_path: Path) -> None:
+    """Sanity check for the brace-less nesting fix: two sequential
+    (not chained) brace-less loops must not be reported as nested."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "sequential.c").write_text(
+        "void f(int n) { for (int i=0;i<n;i++) foo(); for (int j=0;j<n;j++) bar(); }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/sequential.c"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_eagerly_executed_class_body(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): unlike a function body,
+    a class body executes immediately when the class statement runs --
+    once per enclosing loop iteration."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        class C:\n"
+        "            values = [y for y in ys]\n"
+        "    return C\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_eager_annotation_expression(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): without postponed
+    evaluation, parameter annotations are evaluated once per
+    def-statement execution, same as default values."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        def g(arg: [y for y in ys]):\n"
+        "            return arg\n"
+        "        g(1)\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_annotation_with_postponed_evaluation(tmp_path: Path) -> None:
+    """Sanity check for the eager-annotation fix: with `from __future__
+    import annotations`, the same annotation is stored as a string and
+    never evaluated, so it must not be flagged."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "from __future__ import annotations\n"
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        def g(arg: [y for y in ys]):\n"
+        "            return arg\n"
+        "        g(1)\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_in_uppercase_py_extension(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 4): the repository's own
+    language registry matches .py/.pyw case-insensitively; this
+    detector's own dispatch must too."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.PY").write_text(
+        "def pairs(rows):\n    for left in rows:\n        for right in rows:\n            yield left, right\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.PY"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
 def test_sergeant_review_includes_capability_review(tmp_path: Path) -> None:
     _write_project(tmp_path)
     (tmp_path / ".github" / "workflows").mkdir(parents=True)

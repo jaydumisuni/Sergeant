@@ -450,14 +450,15 @@ def _strip_comments_and_strings(text: str, path: str = "") -> str:
     verbatim (they are executable code, not string content). "#" is only
     treated as a comment marker for languages that actually use it that
     way -- everywhere else (JS/TS private fields, Rust attributes, C/C++
-    preprocessor directives, ...) it is left alone."""
+    preprocessor directives, ...) it is left alone. Extension matching is
+    case-insensitive, matching this repository's own language registry."""
 
     def _blank(match: "re.Match[str]") -> str:
         return _blank_run(match.group(0))
 
     text = _BACKTICK_TEMPLATE_RE.sub(_strip_template_literal, text)
     text = _STRING_AND_COMMENT_RE.sub(_blank, text)
-    if path.endswith(_HASH_IS_COMMENT_EXTENSIONS):
+    if path.lower().endswith(_HASH_IS_COMMENT_EXTENSIONS):
         text = _HASH_COMMENT_RE.sub(_blank, text)
     return text
 
@@ -477,17 +478,88 @@ def _is_loop_header(header: str) -> bool:
     return bool(_LOOP_HEADER_RE.match(header.strip()))
 
 
+def _skip_whitespace(text: str, position: int) -> int:
+    length = len(text)
+    while position < length and text[position].isspace():
+        position += 1
+    return position
+
+
+def _find_header_paren_end(text: str, keyword_end: int) -> int | None:
+    """``keyword_end`` is the index right after a ``for``/``while``
+    keyword. If a parenthesized condition/clause directly follows (only
+    whitespace in between, as in C/C++/Java/C#/JS), return the index just
+    past its matching ``)``. Returns None for a paren-less header (Rust/Go
+    ``for x in xs {``/``for i := 0; ...; i++ {``), which the brace-scope
+    path already covers, or for a non-loop use of the keyword (e.g. Rust's
+    ``impl Worker for Thing``, where no ``(`` follows at all)."""
+
+    index = _skip_whitespace(text, keyword_end)
+    if index >= len(text) or text[index] != "(":
+        return None
+    depth = 0
+    length = len(text)
+    while index < length:
+        if text[index] == "(":
+            depth += 1
+        elif text[index] == ")":
+            depth -= 1
+            if depth == 0:
+                return index + 1
+        index += 1
+    return None
+
+
+def _loop_headers_with_body_spans(stripped_text: str) -> list[tuple[int, int, int]]:
+    """Every genuine C-style ``for (...)``/``while (...)`` header found
+    anywhere in the text, paired with the span of its own governed body:
+    a matching ``{...}`` block if one follows, or -- for a brace-less
+    single-statement body -- a zero-width span placed exactly where that
+    statement begins. A header starting exactly there is a directly
+    chained brace-less nested loop (``for (...) for (...) work();``); a
+    brace-less body reached through an intervening non-loop statement or
+    an ``if`` is a further, deeper case not attempted here."""
+
+    spans = []
+    for match in re.finditer(r"\b(?:for|while)\b", stripped_text):
+        header_start = match.start()
+        header_end = _find_header_paren_end(stripped_text, match.end())
+        if header_end is None:
+            continue
+        body_start = _skip_whitespace(stripped_text, header_end)
+        if stripped_text[body_start:body_start + 1] == "{":
+            body_end = _find_matching_close_brace(stripped_text, body_start)
+        else:
+            body_end = body_start
+        spans.append((header_start, body_start, body_end))
+    return spans
+
+
+def _has_c_style_nested_loop(stripped_text: str) -> bool:
+    """Covers parenthesized C-style loop headers whose nesting the
+    brace-scope path can miss entirely: a brace-less single-statement
+    body has no ``{``/``}`` pair to define a scope in the first place."""
+
+    headers = _loop_headers_with_body_spans(stripped_text)
+    for index, (_outer_start, body_start, body_end) in enumerate(headers):
+        for other_index, (inner_start, _inner_body_start, _inner_body_end) in enumerate(headers):
+            if other_index != index and body_start <= inner_start <= body_end:
+                return True
+    return False
+
+
 class _LoopBoundaryVisitor(ast.NodeVisitor):
     """Detects a for/while loop -- or a comprehension/generator expression,
     itself an implicit loop -- reachable from the visited statements
-    without crossing into a separately-invoked function/class body. A
-    loop's own BODY is deferred (only runs once actually called), but a
-    function/class definition's decorators and default-value expressions
-    are evaluated eagerly, once per enclosing loop iteration, and must
-    still be visited."""
+    without crossing into a separately-invoked function/lambda body (a
+    class body, unlike a function body, executes immediately and so IS
+    followed into). A function/lambda/class definition's decorators,
+    base classes, and default-value/annotation expressions are evaluated
+    eagerly, once per enclosing loop iteration, and are always visited."""
 
-    def __init__(self) -> None:
+    def __init__(self, *, annotations_are_eager: bool = True) -> None:
         self.found = False
+        self._annotations_are_eager = annotations_are_eager
 
     def visit_For(self, node: ast.AST) -> None:
         self.found = True
@@ -519,18 +591,43 @@ class _LoopBoundaryVisitor(ast.NodeVisitor):
                 self.visit(default)
                 if self.found:
                     return
-        # `node.body` is deliberately never visited here -- for a
-        # function/lambda it only executes when called, not once per
-        # enclosing loop iteration. (A class body is technically also
-        # eager, but that is a separate, broader question than the
-        # decorator/default-value gap this visitor closes.)
+            if self._annotations_are_eager:
+                annotated_args = list(args.posonlyargs) + list(args.args) + list(args.kwonlyargs)
+                if args.vararg is not None:
+                    annotated_args.append(args.vararg)
+                if args.kwarg is not None:
+                    annotated_args.append(args.kwarg)
+                for arg in annotated_args:
+                    if arg.annotation is not None:
+                        self.visit(arg.annotation)
+                        if self.found:
+                            return
+                returns = getattr(node, "returns", None)
+                if returns is not None:
+                    self.visit(returns)
+                    if self.found:
+                        return
 
     def visit_FunctionDef(self, node: ast.AST) -> None:
         self._visit_eager_def_time_expressions(node)
+        # The function BODY is deliberately never visited here -- it only
+        # executes when the function is called, not once per enclosing
+        # loop iteration.
 
     visit_AsyncFunctionDef = visit_FunctionDef
     visit_Lambda = visit_FunctionDef
-    visit_ClassDef = visit_FunctionDef
+
+    def visit_ClassDef(self, node: ast.AST) -> None:
+        self._visit_eager_def_time_expressions(node)
+        if self.found:
+            return
+        # Unlike a function body, a class BODY executes immediately when
+        # the `class` statement itself runs -- once per enclosing loop
+        # iteration -- so it genuinely must be visited.
+        for statement in node.body:
+            self.visit(statement)
+            if self.found:
+                return
 
     def generic_visit(self, node: ast.AST) -> None:
         if self.found:
@@ -538,8 +635,8 @@ class _LoopBoundaryVisitor(ast.NodeVisitor):
         super().generic_visit(node)
 
 
-def _body_contains_loop(statements: list[ast.stmt]) -> bool:
-    visitor = _LoopBoundaryVisitor()
+def _body_contains_loop(statements: list[ast.stmt], *, annotations_are_eager: bool = True) -> bool:
+    visitor = _LoopBoundaryVisitor(annotations_are_eager=annotations_are_eager)
     for statement in statements:
         visitor.visit(statement)
         if visitor.found:
@@ -556,6 +653,22 @@ def _comprehension_element_expressions(node: "ast.ListComp | ast.SetComp | ast.D
     return expressions
 
 
+def _annotations_are_eager(tree: ast.Module) -> bool:
+    """Parameter/return annotations are evaluated once per def-statement
+    execution UNLESS postponed evaluation is active (``from __future__
+    import annotations``), in which case they are stored as strings and
+    never evaluated as real expressions."""
+
+    for node in tree.body:
+        if (
+            isinstance(node, ast.ImportFrom)
+            and node.module == "__future__"
+            and any(alias.name == "annotations" for alias in node.names)
+        ):
+            return False
+    return True
+
+
 def _python_has_nested_loop(text: str) -> bool | None:
     """Genuine structural check via a real parse: a for/while loop whose own
     body directly contains another for/while loop or comprehension; a
@@ -569,17 +682,18 @@ def _python_has_nested_loop(text: str) -> bool | None:
         tree = ast.parse(text)
     except SyntaxError:
         return None
+    annotations_are_eager = _annotations_are_eager(tree)
     for node in ast.walk(tree):
         if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
             # `else` on a for/while runs once after normal loop completion,
             # not once per outer iteration -- only `body` is genuinely
             # repeated work.
-            if _body_contains_loop(node.body):
+            if _body_contains_loop(node.body, annotations_are_eager=annotations_are_eager):
                 return True
         if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
             if len(node.generators) >= 2:
                 return True
-            visitor = _LoopBoundaryVisitor()
+            visitor = _LoopBoundaryVisitor(annotations_are_eager=annotations_are_eager)
             for element in _comprehension_element_expressions(node):
                 visitor.visit(element)
             if visitor.found:
@@ -611,15 +725,14 @@ def _effective_loop_header(text: str, opening: int) -> str:
 
 
 def _generic_has_nested_loop(stripped_text: str) -> bool:
-    """Brace-language fallback for non-Python source: a for/while-headed
-    brace scope must itself contain ANOTHER genuinely for/while-headed
-    brace scope. The header must actually START with (an optional label,
-    then) ``for``/``while`` -- not merely contain the keyword anywhere,
-    which would also match e.g. a JS object key ``{for: value}`` or
-    Rust's ``impl Worker for Thing``. The header is resolved via
-    ``_effective_loop_header`` so a brace placed on its own line (Allman
-    style) still binds to its controlling ``for``/``while`` on the
-    preceding line."""
+    """Brace-language fallback for non-Python source. Two complementary
+    checks: (1) a for/while-headed brace scope (Rust/Go-style headers
+    included) that itself contains ANOTHER genuinely for/while-headed
+    brace scope, matched via ``_effective_loop_header`` so a brace on its
+    own line (Allman style) still binds to its preceding header; and (2)
+    ``_has_c_style_nested_loop`` for parenthesized C-style headers whose
+    body has no brace scope at all to find (a brace-less single
+    statement)."""
 
     scopes = _brace_scopes(stripped_text)
     loop_scope_spans = [
@@ -631,7 +744,7 @@ def _generic_has_nested_loop(stripped_text: str) -> bool:
         for inner_opening, _inner_closing in loop_scope_spans:
             if inner_opening != outer_opening and outer_opening < inner_opening < outer_closing:
                 return True
-    return False
+    return _has_c_style_nested_loop(stripped_text)
 
 
 def _has_nested_loop_statement(path: str, text: str) -> bool:
@@ -640,9 +753,10 @@ def _has_nested_loop_statement(path: str, text: str) -> bool:
     including inside comments, docstrings, and unrelated single-level
     comprehensions sitting near each other. Python files get a genuine AST
     check; other languages get a comment/string-stripped, brace-scope-aware
-    check so a for/while must actually be lexically nested to count."""
+    check so a for/while must actually be lexically nested to count.
+    Extension matching is case-insensitive."""
 
-    if path.endswith((".py", ".pyw")):
+    if path.lower().endswith((".py", ".pyw")):
         result = _python_has_nested_loop(text)
         if result is not None:
             return result
