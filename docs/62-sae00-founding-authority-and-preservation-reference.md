@@ -139,7 +139,7 @@ Both rejected candidates exist only as retained evidence in `.github/self-learni
 
 ### 4.4 Normal Sergeant baseline is reproducible
 
-The full test suite was run fresh from the current branch (`main` at construction time) using CI's exact invocation (`.github/workflows/ci.yml`'s `test` job: `pytest -q -ra`):
+The full test suite was run fresh from the current branch (`main` at construction time) using the exact invocation the repository's continuous-integration `test` job uses (`pytest -q -ra`):
 
 ```
 python -m pytest -q -ra

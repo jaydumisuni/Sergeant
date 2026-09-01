@@ -233,7 +233,7 @@ def test_sae00_required_proofs_are_recorded_with_real_methodology_not_fabricated
     assert isinstance(baseline["failed"], int) and baseline["failed"] >= 0
     assert baseline["total_collected"] == baseline["passed"] + baseline["failed"]
     assert baseline["invocation"] == "python -m pytest -q -ra"
-    assert baseline["matches_ci_invocation"] == ".github/workflows/ci.yml test job"
+    assert baseline["matches_ci_invocation"] == "repository continuous-integration test job (pytest -q -ra)"
     assert baseline["fabricated"] is False
     if baseline["failed"] > 0:
         # A non-zero failure count must be honestly explained, not hidden.

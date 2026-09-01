@@ -129,7 +129,7 @@
     },
     {
       "path": "docs/62-sae00-founding-authority-and-preservation-reference.md",
-      "blob_sha": "f867abb2fa7c767e1859a096af8157deed8b3dc8",
+      "blob_sha": "ddf2f206be48bba23e009d0c152073b46fa236dd",
       "role": "sae00_human_readable_binding_record"
     }
   ],
@@ -238,7 +238,7 @@
     },
     "normal_sergeant_baseline_reproducible": {
       "invocation": "python -m pytest -q -ra",
-      "matches_ci_invocation": ".github/workflows/ci.yml test job",
+      "matches_ci_invocation": "repository continuous-integration test job (pytest -q -ra)",
       "total_collected": 1025,
       "passed": 1024,
       "failed": 1,
