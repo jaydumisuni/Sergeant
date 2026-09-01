@@ -379,59 +379,112 @@ def _first_unguarded_shared_mutation(text: str) -> re.Match[str] | None:
     )
 
 
-_STRING_AND_SLASH_COMMENT_RE = re.compile(
+_STRING_AND_COMMENT_RE = re.compile(
     r'"""[\s\S]*?"""'
     r"|'''[\s\S]*?'''"
     r'|"(?:\\.|[^"\\\n])*"'
     r"|'(?:\\.|[^'\\\n])*'"
-    r"|`(?:\\.|[^`\\])*`"
     r"|//[^\n]*"
     r"|/\*[\s\S]*?\*/"
 )
-_STRING_AND_HASH_OR_SLASH_COMMENT_RE = re.compile(
-    r'"""[\s\S]*?"""'
-    r"|'''[\s\S]*?'''"
-    r'|"(?:\\.|[^"\\\n])*"'
-    r"|'(?:\\.|[^'\\\n])*'"
-    r"|`(?:\\.|[^`\\])*`"
-    r"|//[^\n]*"
-    r"|#[^\n]*"
-    r"|/\*[\s\S]*?\*/"
-)
-#: In C/C++/Objective-C, a leading "#" introduces a preprocessor directive
-#: (#define, #include, ...), not a comment -- a macro body on that same
-#: line (e.g. a one-line nested-loop `#define PAIRS(N) for(...) for(...)`)
-#: must not be blanked out as though it were prose.
-_HASH_IS_PREPROCESSOR_NOT_COMMENT_EXTENSIONS = (".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".m", ".mm")
+_HASH_COMMENT_RE = re.compile(r"#[^\n]*")
+_BACKTICK_TEMPLATE_RE = re.compile(r"`(?:\\.|[^`\\])*`")
+#: Languages where "#" genuinely introduces a full-line comment. Everywhere
+#: else (JS/TS private fields, Rust attributes, C/C++ preprocessor
+#: directives, and simply languages that don't use "#" at all) "#" must be
+#: left alone -- an allowlist is safer here than trying to enumerate every
+#: language that does NOT use "#" as a comment marker.
+_HASH_IS_COMMENT_EXTENSIONS = (".py", ".pyw", ".rb", ".sh", ".bash", ".zsh", ".ps1", ".pl", ".r", ".yml", ".yaml")
+
+
+def _blank_run(chunk: str) -> str:
+    return "".join("\n" if character == "\n" else " " for character in chunk)
+
+
+def _find_matching_close_brace(text: str, open_index: int) -> int:
+    """``open_index`` must point at a '{'. Returns the index of its
+    matching '}', or ``len(text)`` if unterminated."""
+
+    depth = 0
+    index = open_index
+    length = len(text)
+    while index < length:
+        if text[index] == "{":
+            depth += 1
+        elif text[index] == "}":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+    return length
+
+
+def _strip_template_literal(match: "re.Match[str]") -> str:
+    """A backtick template literal's own text is a string, but a
+    ``${...}`` interpolation inside it is executable code (e.g.
+    ``xs.map(x => ys.map(y => y))``) and must be preserved, not blanked
+    along with the surrounding literal text."""
+
+    chunk = match.group(0)
+    pieces: list[str] = []
+    index = 0
+    length = len(chunk)
+    while index < length:
+        interpolation = chunk.find("${", index)
+        if interpolation == -1:
+            pieces.append(_blank_run(chunk[index:]))
+            break
+        pieces.append(_blank_run(chunk[index:interpolation]))
+        open_brace = interpolation + 1
+        close_brace = _find_matching_close_brace(chunk, open_brace)
+        pieces.append(chunk[interpolation:close_brace + 1])
+        index = close_brace + 1
+    return "".join(pieces)
 
 
 def _strip_comments_and_strings(text: str, path: str = "") -> str:
     """Blank out comment and string-literal spans (keeping line breaks so
     downstream line-based logic still lines up) so structural checks never
     match prose in a docstring/comment or content inside a string literal.
-    "#" is treated as a comment marker EXCEPT for C/C++-family paths, where
-    it introduces a preprocessor directive instead."""
+    A backtick template literal's own ``${...}`` interpolations are kept
+    verbatim (they are executable code, not string content). "#" is only
+    treated as a comment marker for languages that actually use it that
+    way -- everywhere else (JS/TS private fields, Rust attributes, C/C++
+    preprocessor directives, ...) it is left alone."""
 
-    def _blank(match: re.Match[str]) -> str:
-        chunk = match.group(0)
-        return "".join("\n" if character == "\n" else " " for character in chunk)
+    def _blank(match: "re.Match[str]") -> str:
+        return _blank_run(match.group(0))
 
-    pattern = (
-        _STRING_AND_SLASH_COMMENT_RE
-        if path.endswith(_HASH_IS_PREPROCESSOR_NOT_COMMENT_EXTENSIONS)
-        else _STRING_AND_HASH_OR_SLASH_COMMENT_RE
-    )
-    return pattern.sub(_blank, text)
+    text = _BACKTICK_TEMPLATE_RE.sub(_strip_template_literal, text)
+    text = _STRING_AND_COMMENT_RE.sub(_blank, text)
+    if path.endswith(_HASH_IS_COMMENT_EXTENSIONS):
+        text = _HASH_COMMENT_RE.sub(_blank, text)
+    return text
+
+
+_LOOP_HEADER_RE = re.compile(
+    r"^(?:'?[A-Za-z_]\w*\s*:\s*)?"  # optional loop label ('outer: / outer:)
+    r"(?:#\s*define\s+[A-Za-z_]\w*(?:\([^)]*\))?\s+)?"  # optional C/C++ macro-definition prefix
+    r"(?:for|while)\b"
+)
+
+
+def _is_loop_header(header: str) -> bool:
+    """A genuine loop header starts with (an optional loop label, then)
+    ``for``/``while`` -- not merely contains the keyword anywhere, which
+    would also match e.g. Rust's ``impl Worker for Thing``."""
+
+    return bool(_LOOP_HEADER_RE.match(header.strip()))
 
 
 class _LoopBoundaryVisitor(ast.NodeVisitor):
     """Detects a for/while loop -- or a comprehension/generator expression,
     itself an implicit loop -- reachable from the visited statements
-    without crossing into a separately-invoked function/class/lambda scope.
-    A loop merely DEFINED (not directly nested) inside another loop's body
-    is not itself a scaling-risk shape, but a comprehension evaluated
-    directly inside a for/while body genuinely runs once per outer
-    iteration and must count."""
+    without crossing into a separately-invoked function/class body. A
+    loop's own BODY is deferred (only runs once actually called), but a
+    function/class definition's decorators and default-value expressions
+    are evaluated eagerly, once per enclosing loop iteration, and must
+    still be visited."""
 
     def __init__(self) -> None:
         self.found = False
@@ -446,8 +499,34 @@ class _LoopBoundaryVisitor(ast.NodeVisitor):
     visit_DictComp = visit_For
     visit_GeneratorExp = visit_For
 
+    def _visit_eager_def_time_expressions(self, node: "ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda | ast.ClassDef") -> None:
+        for decorator in getattr(node, "decorator_list", ()):
+            self.visit(decorator)
+            if self.found:
+                return
+        for base in getattr(node, "bases", ()):
+            self.visit(base)
+            if self.found:
+                return
+        for keyword in getattr(node, "keywords", ()):
+            self.visit(keyword)
+            if self.found:
+                return
+        args = getattr(node, "args", None)
+        if args is not None:
+            eager_defaults = list(args.defaults) + [default for default in args.kw_defaults if default is not None]
+            for default in eager_defaults:
+                self.visit(default)
+                if self.found:
+                    return
+        # `node.body` is deliberately never visited here -- for a
+        # function/lambda it only executes when called, not once per
+        # enclosing loop iteration. (A class body is technically also
+        # eager, but that is a separate, broader question than the
+        # decorator/default-value gap this visitor closes.)
+
     def visit_FunctionDef(self, node: ast.AST) -> None:
-        return
+        self._visit_eager_def_time_expressions(node)
 
     visit_AsyncFunctionDef = visit_FunctionDef
     visit_Lambda = visit_FunctionDef
@@ -526,7 +605,7 @@ def _preceding_nonblank_line(text: str, position: int) -> str:
 
 def _effective_loop_header(text: str, opening: int) -> str:
     header = _brace_header(text, opening)
-    if re.search(r"\b(?:for|while)\b", header):
+    if _is_loop_header(header):
         return header
     return _preceding_nonblank_line(text, opening)
 
@@ -534,9 +613,10 @@ def _effective_loop_header(text: str, opening: int) -> str:
 def _generic_has_nested_loop(stripped_text: str) -> bool:
     """Brace-language fallback for non-Python source: a for/while-headed
     brace scope must itself contain ANOTHER genuinely for/while-headed
-    brace scope -- not merely the bare word "for"/"while" occurring
-    anywhere in its body (which would also match, e.g., a JS object key
-    ``{for: value}`` or an identifier). The header is resolved via
+    brace scope. The header must actually START with (an optional label,
+    then) ``for``/``while`` -- not merely contain the keyword anywhere,
+    which would also match e.g. a JS object key ``{for: value}`` or
+    Rust's ``impl Worker for Thing``. The header is resolved via
     ``_effective_loop_header`` so a brace placed on its own line (Allman
     style) still binds to its controlling ``for``/``while`` on the
     preceding line."""
@@ -545,7 +625,7 @@ def _generic_has_nested_loop(stripped_text: str) -> bool:
     loop_scope_spans = [
         (opening, closing)
         for opening, closing in scopes
-        if re.search(r"\b(?:for|while)\b", _effective_loop_header(stripped_text, opening))
+        if _is_loop_header(_effective_loop_header(stripped_text, opening))
     ]
     for outer_opening, outer_closing in loop_scope_spans:
         for inner_opening, _inner_closing in loop_scope_spans:

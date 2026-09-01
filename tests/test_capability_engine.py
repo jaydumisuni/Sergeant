@@ -310,6 +310,105 @@ def test_performance_finding_ignores_non_loop_for_keyword_in_body(tmp_path: Path
     assert not any(finding["capability"] == "performance" for finding in report["findings"])
 
 
+def test_performance_finding_ignores_rust_impl_for_trait_syntax(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): Rust's ``impl X for Y``
+    contains the word "for" but is not a loop header -- a single genuine
+    while-loop inside must not be reported as nested."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "worker.rs").write_text(
+        "impl Worker for Thing {\n"
+        "    fn run(&self) {\n"
+        "        while ready() {\n"
+        "        }\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/worker.rs"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_map_inside_template_interpolation(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): a ``${...}`` template
+    interpolation is executable code, not string content -- nested
+    .map() calls inside one must still be detected."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.js").write_text(
+        "const report = `${xs.map(x => ys.map(y => y))}`;\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.js"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_using_js_private_fields(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): "#" is not a comment
+    marker in JavaScript/TypeScript -- a private field access
+    (``this.#items``) must not have the rest of its line erased."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.js").write_text(
+        "class Report {\n"
+        "  sum() {\n"
+        "    for (const x of this.#items) {\n"
+        "      for (const y of this.#items) {\n"
+        "        console.log(x, y);\n"
+        "      }\n"
+        "    }\n"
+        "  }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.js"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_eager_default_value_comprehension(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 3): a function's default
+    value expression is evaluated once per enclosing loop iteration
+    (at def-time), unlike its body, which is deferred until called."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(xs, ys):\n"
+        "    for x in xs:\n"
+        "        def g(values=[y for y in ys]):\n"
+        "            return values\n"
+        "        g()\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_still_ignores_loop_defining_but_not_calling_nested_function(tmp_path: Path) -> None:
+    """Sanity check for the eager-default-value fix: a function merely
+    DEFINED (not called) inside a loop, with a genuinely deferred body
+    loop and no eager default, must still not be flagged -- matches the
+    round-1 loop-boundary test, now that visit_FunctionDef visits
+    decorators/defaults instead of returning unconditionally."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def outer(rows):\n"
+        "    for row in rows:\n"
+        "        def helper(items):\n"
+        "            for item in items:\n"
+        "                print(item)\n"
+        "        helper(row)\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
 def test_sergeant_review_includes_capability_review(tmp_path: Path) -> None:
     _write_project(tmp_path)
     (tmp_path / ".github" / "workflows").mkdir(parents=True)
