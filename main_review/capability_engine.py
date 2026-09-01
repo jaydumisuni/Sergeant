@@ -54,7 +54,6 @@ SINK_RE = re.compile(
     r"\bRuntime\.getRuntime\(\)\.exec\s*\(|\bProcessBuilder\s*\(|\bProcess\.Start\s*\()",
     re.I,
 )
-N2_LOOP_RE = re.compile(r"\bfor\b[\s\S]{0,160}\bfor\b")
 RUBY_EACH_DO_RE = re.compile(r"\.each\s+do\s+\|[^|]+\|", re.I)
 RUBY_BLOCK_OPEN_RE = re.compile(
     r"^(?:class|module|def|if|unless|case|begin|while|until|for)\b|\bdo\s*(?:\|[^|]*\|)?\s*$",
@@ -380,8 +379,132 @@ def _first_unguarded_shared_mutation(text: str) -> re.Match[str] | None:
     )
 
 
+_COMMENT_STRING_RE = re.compile(
+    r'"""[\s\S]*?"""'
+    r"|'''[\s\S]*?'''"
+    r'|"(?:\\.|[^"\\\n])*"'
+    r"|'(?:\\.|[^'\\\n])*'"
+    r"|`(?:\\.|[^`\\])*`"
+    r"|//[^\n]*"
+    r"|#[^\n]*"
+    r"|/\*[\s\S]*?\*/"
+)
+
+
+def _strip_comments_and_strings(text: str) -> str:
+    """Blank out comment and string-literal spans (keeping line breaks so
+    downstream line-based logic still lines up) so structural checks never
+    match prose in a docstring/comment or content inside a string literal."""
+
+    def _blank(match: re.Match[str]) -> str:
+        chunk = match.group(0)
+        return "".join("\n" if character == "\n" else " " for character in chunk)
+
+    return _COMMENT_STRING_RE.sub(_blank, text)
+
+
+class _LoopBoundaryVisitor(ast.NodeVisitor):
+    """Detects a for/while loop reachable from the visited statements
+    without crossing into a separately-invoked function/class/lambda scope
+    -- a loop merely DEFINED (not directly nested) inside another loop's
+    body is not itself a scaling-risk shape."""
+
+    def __init__(self) -> None:
+        self.found = False
+
+    def visit_For(self, node: ast.AST) -> None:
+        self.found = True
+
+    visit_AsyncFor = visit_For
+    visit_While = visit_For
+
+    def visit_FunctionDef(self, node: ast.AST) -> None:
+        return
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+    visit_Lambda = visit_FunctionDef
+    visit_ClassDef = visit_FunctionDef
+
+    def generic_visit(self, node: ast.AST) -> None:
+        if self.found:
+            return
+        super().generic_visit(node)
+
+
+def _body_contains_loop(statements: list[ast.stmt]) -> bool:
+    visitor = _LoopBoundaryVisitor()
+    for statement in statements:
+        visitor.visit(statement)
+        if visitor.found:
+            return True
+    return False
+
+
+def _python_has_nested_loop(text: str) -> bool | None:
+    """Genuine structural check via a real parse: a for/while loop whose own
+    body directly contains another for/while loop, or a comprehension with
+    two or more ``for`` clauses (itself O(n*m)). Returns None on a syntax
+    error so callers can fall back rather than silently treat it as False."""
+
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
+            if _body_contains_loop(node.body) or _body_contains_loop(getattr(node, "orelse", [])):
+                return True
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+            if len(node.generators) >= 2:
+                return True
+    return False
+
+
+def _generic_has_nested_loop(stripped_text: str) -> bool:
+    """Brace-language fallback for non-Python source: a for/while header's
+    own brace-delimited body must itself contain another for/while header,
+    not merely occur within 160 characters of raw, unscoped text."""
+
+    scopes = _brace_scopes(stripped_text)
+    loop_scope_spans = [
+        (opening, closing)
+        for opening, closing in scopes
+        if re.search(r"\b(?:for|while)\b", _brace_header(stripped_text, opening))
+    ]
+    for opening, closing in loop_scope_spans:
+        body = stripped_text[opening + 1:closing]
+        if re.search(r"\b(?:for|while)\b", body):
+            return True
+    return False
+
+
+def _has_nested_loop_statement(path: str, text: str) -> bool:
+    """Real nested-iteration check, replacing a former raw-text regex that
+    matched any two occurrences of the word "for" within 160 characters --
+    including inside comments, docstrings, and unrelated single-level
+    comprehensions sitting near each other. Python files get a genuine AST
+    check; other languages get a comment/string-stripped, brace-scope-aware
+    check so a for/while must actually be lexically nested to count."""
+
+    if path.endswith(".py"):
+        result = _python_has_nested_loop(text)
+        if result is not None:
+            return result
+    return _generic_has_nested_loop(_strip_comments_and_strings(text))
+
+
 def _performance_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    return [CapabilityFinding("performance", "minor", "Nested iteration pattern may create scaling risk.", path, "Nested loop/map/each pattern detected in changed file.", 0.62) for path in sorted(changed) if N2_LOOP_RE.search(indexes["texts"].get(path, "")) or _has_nested_ruby_each(indexes["texts"].get(path, "")) or re.search(r"\.map\([^\)]*=>[\s\S]{0,120}\.map\(", indexes["texts"].get(path, ""))]
+    findings: list[CapabilityFinding] = []
+    for path in sorted(changed):
+        text = indexes["texts"].get(path, "")
+        stripped = _strip_comments_and_strings(text)
+        if (
+            _has_nested_loop_statement(path, text)
+            or _has_nested_ruby_each(text)
+            or re.search(r"\.map\([^\)]*=>[\s\S]{0,120}\.map\(", stripped)
+        ):
+            findings.append(CapabilityFinding("performance", "minor", "Nested iteration pattern may create scaling risk.", path, "Nested loop/map/each pattern detected in changed file.", 0.62))
+    return findings
 
 
 def _concurrency_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
