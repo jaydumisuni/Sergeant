@@ -379,7 +379,16 @@ def _first_unguarded_shared_mutation(text: str) -> re.Match[str] | None:
     )
 
 
-_COMMENT_STRING_RE = re.compile(
+_STRING_AND_SLASH_COMMENT_RE = re.compile(
+    r'"""[\s\S]*?"""'
+    r"|'''[\s\S]*?'''"
+    r'|"(?:\\.|[^"\\\n])*"'
+    r"|'(?:\\.|[^'\\\n])*'"
+    r"|`(?:\\.|[^`\\])*`"
+    r"|//[^\n]*"
+    r"|/\*[\s\S]*?\*/"
+)
+_STRING_AND_HASH_OR_SLASH_COMMENT_RE = re.compile(
     r'"""[\s\S]*?"""'
     r"|'''[\s\S]*?'''"
     r'|"(?:\\.|[^"\\\n])*"'
@@ -389,18 +398,30 @@ _COMMENT_STRING_RE = re.compile(
     r"|#[^\n]*"
     r"|/\*[\s\S]*?\*/"
 )
+#: In C/C++/Objective-C, a leading "#" introduces a preprocessor directive
+#: (#define, #include, ...), not a comment -- a macro body on that same
+#: line (e.g. a one-line nested-loop `#define PAIRS(N) for(...) for(...)`)
+#: must not be blanked out as though it were prose.
+_HASH_IS_PREPROCESSOR_NOT_COMMENT_EXTENSIONS = (".c", ".h", ".cc", ".cpp", ".cxx", ".hpp", ".hh", ".m", ".mm")
 
 
-def _strip_comments_and_strings(text: str) -> str:
+def _strip_comments_and_strings(text: str, path: str = "") -> str:
     """Blank out comment and string-literal spans (keeping line breaks so
     downstream line-based logic still lines up) so structural checks never
-    match prose in a docstring/comment or content inside a string literal."""
+    match prose in a docstring/comment or content inside a string literal.
+    "#" is treated as a comment marker EXCEPT for C/C++-family paths, where
+    it introduces a preprocessor directive instead."""
 
     def _blank(match: re.Match[str]) -> str:
         chunk = match.group(0)
         return "".join("\n" if character == "\n" else " " for character in chunk)
 
-    return _COMMENT_STRING_RE.sub(_blank, text)
+    pattern = (
+        _STRING_AND_SLASH_COMMENT_RE
+        if path.endswith(_HASH_IS_PREPROCESSOR_NOT_COMMENT_EXTENSIONS)
+        else _STRING_AND_HASH_OR_SLASH_COMMENT_RE
+    )
+    return pattern.sub(_blank, text)
 
 
 class _LoopBoundaryVisitor(ast.NodeVisitor):
@@ -448,19 +469,22 @@ def _body_contains_loop(statements: list[ast.stmt]) -> bool:
 
 
 def _comprehension_element_expressions(node: "ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp") -> list[ast.AST]:
-    if isinstance(node, ast.DictComp):
-        return [node.key, node.value]
-    return [node.elt]
+    expressions: list[ast.AST] = [node.key, node.value] if isinstance(node, ast.DictComp) else [node.elt]
+    for generator in node.generators:
+        # A filter clause (`if any(y for y in ys)`) runs once per outer
+        # item just as much as the element expression does.
+        expressions.extend(generator.ifs)
+    return expressions
 
 
 def _python_has_nested_loop(text: str) -> bool | None:
     """Genuine structural check via a real parse: a for/while loop whose own
     body directly contains another for/while loop or comprehension; a
-    comprehension with two or more ``for`` clauses (itself O(n*m)); or a
-    comprehension whose own element expression contains another
-    comprehension (``[[y for y in ys] for x in xs]``). Returns None on a
-    syntax error so callers can fall back rather than silently treat it as
-    False."""
+    comprehension with two or more ``for`` clauses (itself O(n*m)); a
+    comprehension whose own element or filter expression contains another
+    comprehension (``[[y for y in ys] for x in xs]``,
+    ``[x for x in xs if any(y for y in ys)]``). Returns None on a syntax
+    error so callers can fall back rather than silently treat it as False."""
 
     try:
         tree = ast.parse(text)
@@ -468,7 +492,10 @@ def _python_has_nested_loop(text: str) -> bool | None:
         return None
     for node in ast.walk(tree):
         if isinstance(node, (ast.For, ast.AsyncFor, ast.While)):
-            if _body_contains_loop(node.body) or _body_contains_loop(getattr(node, "orelse", [])):
+            # `else` on a for/while runs once after normal loop completion,
+            # not once per outer iteration -- only `body` is genuinely
+            # repeated work.
+            if _body_contains_loop(node.body):
                 return True
         if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
             if len(node.generators) >= 2:
@@ -505,12 +532,14 @@ def _effective_loop_header(text: str, opening: int) -> str:
 
 
 def _generic_has_nested_loop(stripped_text: str) -> bool:
-    """Brace-language fallback for non-Python source: a for/while header's
-    own brace-delimited body must itself contain another for/while header,
-    not merely occur within 160 characters of raw, unscoped text. The
-    header is resolved via ``_effective_loop_header`` so a brace placed on
-    its own line (Allman style) still binds to its controlling ``for``/
-    ``while`` on the preceding line."""
+    """Brace-language fallback for non-Python source: a for/while-headed
+    brace scope must itself contain ANOTHER genuinely for/while-headed
+    brace scope -- not merely the bare word "for"/"while" occurring
+    anywhere in its body (which would also match, e.g., a JS object key
+    ``{for: value}`` or an identifier). The header is resolved via
+    ``_effective_loop_header`` so a brace placed on its own line (Allman
+    style) still binds to its controlling ``for``/``while`` on the
+    preceding line."""
 
     scopes = _brace_scopes(stripped_text)
     loop_scope_spans = [
@@ -518,10 +547,10 @@ def _generic_has_nested_loop(stripped_text: str) -> bool:
         for opening, closing in scopes
         if re.search(r"\b(?:for|while)\b", _effective_loop_header(stripped_text, opening))
     ]
-    for opening, closing in loop_scope_spans:
-        body = stripped_text[opening + 1:closing]
-        if re.search(r"\b(?:for|while)\b", body):
-            return True
+    for outer_opening, outer_closing in loop_scope_spans:
+        for inner_opening, _inner_closing in loop_scope_spans:
+            if inner_opening != outer_opening and outer_opening < inner_opening < outer_closing:
+                return True
     return False
 
 
@@ -537,14 +566,14 @@ def _has_nested_loop_statement(path: str, text: str) -> bool:
         result = _python_has_nested_loop(text)
         if result is not None:
             return result
-    return _generic_has_nested_loop(_strip_comments_and_strings(text))
+    return _generic_has_nested_loop(_strip_comments_and_strings(text, path))
 
 
 def _performance_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
     findings: list[CapabilityFinding] = []
     for path in sorted(changed):
         text = indexes["texts"].get(path, "")
-        stripped = _strip_comments_and_strings(text)
+        stripped = _strip_comments_and_strings(text, path)
         if (
             _has_nested_loop_statement(path, text)
             or _has_nested_ruby_each(text)

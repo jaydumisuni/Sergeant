@@ -225,6 +225,91 @@ def test_performance_finding_detects_nested_loop_in_pyw_file(tmp_path: Path) -> 
     assert any(finding["capability"] == "performance" for finding in report["findings"])
 
 
+def test_performance_finding_excludes_loop_else_suite(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): a for/while ``else``
+    suite runs once after normal completion, not once per outer
+    iteration -- a loop there is sequential, not nested."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n"
+        "    while xs:\n"
+        "        xs.pop()\n"
+        "    else:\n"
+        "        while ys:\n"
+        "            ys.pop()\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_generator_in_comprehension_filter(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): a comprehension filter
+    (``if any(y for y in ys)``) iterates once per outer item just as much
+    as the element expression does."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n    return [x for x in xs if any(y for y in ys)]\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_in_c_preprocessor_macro(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): "#" introduces a
+    preprocessor directive in C/C++, not a comment -- a macro body with
+    real nested loops must not be blanked out before structural analysis."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "macro.c").write_text(
+        "#define PAIRS(N) for(int i=0;i<N;i++){for(int j=0;j<N;j++){}}\n"
+        "int main(void) { return 0; }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/macro.c"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_plain_c_macro_with_no_loops(tmp_path: Path) -> None:
+    """Sanity check for the preprocessor-comment fix: an ordinary
+    #include/#define with no loops must not falsely trigger."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "plain.c").write_text(
+        "#include <stdio.h>\n#define MAX(a,b) ((a) > (b) ? (a) : (b))\n"
+        "int main(void) { return 0; }\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/plain.c"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_ignores_non_loop_for_keyword_in_body(tmp_path: Path) -> None:
+    """Codex review finding on PR #169 (round 2): a bare "for"/"while"
+    token inside a loop body that is NOT itself a genuine loop header
+    (e.g. a JS object key ``{for: value}``) must not count as nesting."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "queue.js").write_text(
+        "function consume(queue) {\n"
+        "    while (queue.length) {\n"
+        "        consume2({for: queue.pop()});\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/queue.js"])
+
+    assert not any(finding["capability"] == "performance" for finding in report["findings"])
+
+
 def test_sergeant_review_includes_capability_review(tmp_path: Path) -> None:
     _write_project(tmp_path)
     (tmp_path / ".github" / "workflows").mkdir(parents=True)
