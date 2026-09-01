@@ -151,6 +151,80 @@ def test_performance_finding_still_detects_genuine_nested_brace_language_loop(tm
     assert any(finding["capability"] == "performance" for finding in report["findings"])
 
 
+def test_performance_finding_detects_comprehension_nested_in_for_body(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: a single-generator comprehension
+    evaluated once per outer iteration is genuine O(n*m), even though no
+    single comprehension node itself has two generators."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n"
+        "    for x in xs:\n"
+        "        result = [y for y in ys]\n"
+        "    return result\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_comprehension_nested_in_comprehension(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: ``[[y for y in ys] for x in xs]``
+    is genuine nested iteration even though each comprehension only has
+    one generator of its own."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.py").write_text(
+        "def f(xs, ys):\n    return [[y for y in ys] for x in xs]\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.py"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_allman_style_nested_loop(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: a brace on its own line (Allman
+    style) must still bind to its controlling for/while header."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "Report.cs").write_text(
+        "void Pairs(int[] rows)\n"
+        "{\n"
+        "    for (int i = 0; i < rows.Length; i++)\n"
+        "    {\n"
+        "        for (int j = 0; j < rows.Length; j++)\n"
+        "        {\n"
+        "            Console.WriteLine(rows[i] + rows[j]);\n"
+        "        }\n"
+        "    }\n"
+        "}\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/Report.cs"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
+def test_performance_finding_detects_nested_loop_in_pyw_file(tmp_path: Path) -> None:
+    """Codex review finding on PR #169: ``.pyw`` is a registered Python
+    extension (see languages.py) and must route through the Python AST
+    check, not the brace-language fallback."""
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "report.pyw").write_text(
+        "def pairs(rows):\n"
+        "    for left in rows:\n"
+        "        for right in rows:\n"
+        "            yield left, right\n",
+        encoding="utf-8",
+    )
+
+    report = run_capability_engine(tmp_path, changed_files=["src/report.pyw"])
+
+    assert any(finding["capability"] == "performance" for finding in report["findings"])
+
+
 def test_sergeant_review_includes_capability_review(tmp_path: Path) -> None:
     _write_project(tmp_path)
     (tmp_path / ".github" / "workflows").mkdir(parents=True)

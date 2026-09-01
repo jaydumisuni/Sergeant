@@ -404,10 +404,13 @@ def _strip_comments_and_strings(text: str) -> str:
 
 
 class _LoopBoundaryVisitor(ast.NodeVisitor):
-    """Detects a for/while loop reachable from the visited statements
-    without crossing into a separately-invoked function/class/lambda scope
-    -- a loop merely DEFINED (not directly nested) inside another loop's
-    body is not itself a scaling-risk shape."""
+    """Detects a for/while loop -- or a comprehension/generator expression,
+    itself an implicit loop -- reachable from the visited statements
+    without crossing into a separately-invoked function/class/lambda scope.
+    A loop merely DEFINED (not directly nested) inside another loop's body
+    is not itself a scaling-risk shape, but a comprehension evaluated
+    directly inside a for/while body genuinely runs once per outer
+    iteration and must count."""
 
     def __init__(self) -> None:
         self.found = False
@@ -417,6 +420,10 @@ class _LoopBoundaryVisitor(ast.NodeVisitor):
 
     visit_AsyncFor = visit_For
     visit_While = visit_For
+    visit_ListComp = visit_For
+    visit_SetComp = visit_For
+    visit_DictComp = visit_For
+    visit_GeneratorExp = visit_For
 
     def visit_FunctionDef(self, node: ast.AST) -> None:
         return
@@ -440,11 +447,20 @@ def _body_contains_loop(statements: list[ast.stmt]) -> bool:
     return False
 
 
+def _comprehension_element_expressions(node: "ast.ListComp | ast.SetComp | ast.DictComp | ast.GeneratorExp") -> list[ast.AST]:
+    if isinstance(node, ast.DictComp):
+        return [node.key, node.value]
+    return [node.elt]
+
+
 def _python_has_nested_loop(text: str) -> bool | None:
     """Genuine structural check via a real parse: a for/while loop whose own
-    body directly contains another for/while loop, or a comprehension with
-    two or more ``for`` clauses (itself O(n*m)). Returns None on a syntax
-    error so callers can fall back rather than silently treat it as False."""
+    body directly contains another for/while loop or comprehension; a
+    comprehension with two or more ``for`` clauses (itself O(n*m)); or a
+    comprehension whose own element expression contains another
+    comprehension (``[[y for y in ys] for x in xs]``). Returns None on a
+    syntax error so callers can fall back rather than silently treat it as
+    False."""
 
     try:
         tree = ast.parse(text)
@@ -457,19 +473,50 @@ def _python_has_nested_loop(text: str) -> bool | None:
         if isinstance(node, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
             if len(node.generators) >= 2:
                 return True
+            visitor = _LoopBoundaryVisitor()
+            for element in _comprehension_element_expressions(node):
+                visitor.visit(element)
+            if visitor.found:
+                return True
     return False
+
+
+def _preceding_nonblank_line(text: str, position: int) -> str:
+    """Walk backward from ``position`` past blank lines to the nearest
+    non-empty line -- covers Allman-style braces (``for (...)\n{``), where
+    the same-line header at the opening brace itself is empty."""
+
+    line_start = text.rfind("\n", 0, position)
+    while True:
+        line = text[line_start + 1:position].strip()
+        if line:
+            return line
+        if line_start <= 0:
+            return ""
+        position = line_start
+        line_start = text.rfind("\n", 0, position)
+
+
+def _effective_loop_header(text: str, opening: int) -> str:
+    header = _brace_header(text, opening)
+    if re.search(r"\b(?:for|while)\b", header):
+        return header
+    return _preceding_nonblank_line(text, opening)
 
 
 def _generic_has_nested_loop(stripped_text: str) -> bool:
     """Brace-language fallback for non-Python source: a for/while header's
     own brace-delimited body must itself contain another for/while header,
-    not merely occur within 160 characters of raw, unscoped text."""
+    not merely occur within 160 characters of raw, unscoped text. The
+    header is resolved via ``_effective_loop_header`` so a brace placed on
+    its own line (Allman style) still binds to its controlling ``for``/
+    ``while`` on the preceding line."""
 
     scopes = _brace_scopes(stripped_text)
     loop_scope_spans = [
         (opening, closing)
         for opening, closing in scopes
-        if re.search(r"\b(?:for|while)\b", _brace_header(stripped_text, opening))
+        if re.search(r"\b(?:for|while)\b", _effective_loop_header(stripped_text, opening))
     ]
     for opening, closing in loop_scope_spans:
         body = stripped_text[opening + 1:closing]
@@ -486,7 +533,7 @@ def _has_nested_loop_statement(path: str, text: str) -> bool:
     check; other languages get a comment/string-stripped, brace-scope-aware
     check so a for/while must actually be lexically nested to count."""
 
-    if path.endswith(".py"):
+    if path.endswith((".py", ".pyw")):
         result = _python_has_nested_loop(text)
         if result is not None:
             return result
