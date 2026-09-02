@@ -1,0 +1,68 @@
+{
+  "schema_version": "sergeant.spike-ext-proven-lifecycle-closeout.v1",
+  "node": "SPIKE-EXT",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "authority_gain": "none",
+  "proof_requires": ["SAE-00"],
+  "sae00_proven_authority": {
+    "merge_commit": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+    "closeout_document": "docs/66-sae00-proven-lifecycle-closeout.md",
+    "closeout_document_blob_sha": "1e1c6bceb74f0b899e965c4530f092a316caa7c9",
+    "closeout_manifest": "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
+    "closeout_manifest_blob_sha": "578b9e5505e6ebcdf3b82f1d41f04fdd893bb9d1",
+    "required_output": "ROADMAP_EXECUTION_AUTHORITY"
+  },
+  "historical_candidate": {
+    "pull_request": 171,
+    "head": "e6b7c2d8e92a2028d84ef955a608532a1ddb1e60",
+    "document": "docs/64-spike-ext-external-review-sourcing-feasibility.md",
+    "document_blob_sha": "fcfaef40cbccca173193889906edf389f070a018",
+    "manifest": "docs/65-spike-ext-external-review-sourcing-feasibility-manifest.json",
+    "manifest_blob_sha": "bf9be4b821735903461782f502d8d4f84e294a2e",
+    "historical_lifecycle_state": "CANDIDATE"
+  },
+  "reconciliation": {
+    "transplant_commit": "4d88e08873a5729a4c1187b62706f0449aaa48d6",
+    "reviewed_candidate_blobs_transplanted_unchanged": true,
+    "reconciliation_proof_fixture": "tests/test_spike_ext_external_review_sourcing_feasibility.py",
+    "reconciliation_proof_fixture_blob_sha": "db4bc97bce702e5358bfd1c5933d49e484a54710",
+    "historical_world_verification_method": "git object identity at exact historical candidate head"
+  },
+  "closeout_document": {
+    "path": "docs/68-spike-ext-proven-lifecycle-closeout.md",
+    "blob_sha": "529ff823ab03d737d1dc9ce66205e964225a1ffc"
+  },
+  "required_outputs": {
+    "acceptable_external_source_classes": true,
+    "authentication_provenance_route": true,
+    "independence_control_lineage_criteria": true,
+    "expected_mandatory_external_review_lane_cardinality_proposal": true,
+    "sourcing_logistics_disposition": true
+  },
+  "bootstrap_authority": {
+    "kind": "SAE00_ROADMAP_EXECUTION_PLUS_OWNER_ROOT_CONSTITUTIONAL_TCB",
+    "necessity": "SAE-30 creates the general qualification substrate but itself depends on PROVEN SPIKE-EXT, so SPIKE-EXT cannot require SAE-30 qualification without circularity",
+    "scope": "determine only whether the bounded SPIKE-EXT feasibility charter is satisfied",
+    "not_general_qualification_authority": true,
+    "cannot_qualify_other_nodes": true,
+    "cannot_declare_independence": true,
+    "cannot_satisfy_genesis_external_lane": true,
+    "cannot_convert_business_risk_to_pass": true,
+    "partial_generation_activation_allowed": false
+  },
+  "sourcing_disposition": {
+    "status": "OPEN_GAP",
+    "real_independent_lane_established": false,
+    "fresh_live_recheck_required_before_future_reliance": true,
+    "genesis_external_lane_satisfied": false
+  },
+  "dependency_effect": {
+    "spike_ext_proof_dependency_resolved": true,
+    "sae30_still_requires_spike_id": true,
+    "sae30_auto_qualified": false,
+    "sae30_auto_proven": false,
+    "genesis_auto_unblocked": false
+  }
+}
