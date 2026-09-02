@@ -27,16 +27,18 @@
     "transplant_commit": "4d88e08873a5729a4c1187b62706f0449aaa48d6",
     "reviewed_candidate_blobs_transplanted_unchanged": true,
     "reconciliation_proof_fixture": "tests/test_spike_ext_external_review_sourcing_feasibility.py",
-    "reconciliation_proof_fixture_blob_sha": "db4bc97bce702e5358bfd1c5933d49e484a54710",
-    "historical_world_verification_method": "git object identity at exact historical candidate head"
+    "reconciliation_proof_fixture_blob_sha": "09da4ef8e9afea4ef7e613d6bdd704ce674922d5",
+    "historical_world_verification_method": "content-addressed candidate artifact identity plus recorded GitHub head",
+    "local_history_required_for_proof": false,
+    "github_lineage_requires_live_recovery": true
   },
   "closeout_document": {
     "path": "docs/68-spike-ext-proven-lifecycle-closeout.md",
-    "blob_sha": "529ff823ab03d737d1dc9ce66205e964225a1ffc"
+    "blob_sha": "75bc500f0cdbb0674c6e43d09236b73a57634c54"
   },
   "proof_fixture": {
     "path": "tests/test_spike_ext_proven_lifecycle_closeout.py",
-    "blob_sha": "3f2ccd189f055b0066bb1d0b5df4e43caf510fab"
+    "blob_sha": "94bc85248b856be432657795b7bce3c4d0d0c553"
   },
   "required_outputs": {
     "acceptable_external_source_classes": true,
