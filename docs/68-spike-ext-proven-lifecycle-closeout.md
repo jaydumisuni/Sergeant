@@ -19,7 +19,7 @@ This record closes the lifecycle of the bounded `SPIKE-EXT — Genuine external-
 - Exact transplant onto proven-root `main`: `4d88e08873a5729a4c1187b62706f0449aaa48d6`.
 - Reconciliation-aware proof fixture: `tests/test_spike_ext_external_review_sourcing_feasibility.py`.
 
-The reviewed `docs/64` deliverable and `docs/65` candidate manifest were transplanted byte-for-byte from the original candidate branch. The historical manifest therefore continues to say `CANDIDATE` and continues to describe the world that existed when it was written. The reconciliation-aware test verifies those historical blob bindings against the exact old candidate commit rather than pretending later canonical files did not happen.
+The reviewed `docs/64` deliverable and `docs/65` candidate manifest were transplanted byte-for-byte from the original candidate branch. The historical manifest therefore continues to say `CANDIDATE` and continues to describe the world that existed when it was written. Current mechanical proof binds those historical artifacts by their exact content identities without requiring old commits in the local checkout; the exact historical PR/head remains recorded as GitHub authority and must be recovered live when lineage itself is being judged. This keeps Sergeant's normal depth-1 CI checkout valid without rewriting history or silently weakening provenance.
 
 ## Why this node may close now
 
@@ -69,4 +69,4 @@ Genesis remains blocked on obtaining and authenticating materially independent e
 
 ## Recovery rule
 
-A zero-context executor must read `docs/64`/`docs/65` as the historical reviewed candidate generation and this file plus `docs/69-spike-ext-proven-lifecycle-closeout-manifest.json` as the later lifecycle disposition. Current external-review availability must always be re-checked live; the dated sourcing evidence in the candidate manifest is not an eternal-present claim.
+A zero-context executor must read `docs/64`/`docs/65` as the historical reviewed candidate generation and this file plus `docs/69-spike-ext-proven-lifecycle-closeout-manifest.json` as the later lifecycle disposition. Current external-review availability and historical GitHub lineage must be re-checked live when relevant; dated sourcing evidence and a recorded head SHA are evidence, not eternal-present authority.
