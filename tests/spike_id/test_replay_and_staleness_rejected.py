@@ -78,7 +78,6 @@ def test_expired_attestation_is_rejected_despite_valid_signature(
 def test_attestation_is_rejected_at_exact_expiry_instant(
     identity_environment: IdentityEnvironment, tmp_path: Path
 ) -> None:
-    """Expiry is an exclusive upper bound; equality must fail closed."""
     now = datetime.now(timezone.utc)
     payload = build_attestation_payload(
         subject_digest="sha256:12" + "0" * 62,
@@ -98,6 +97,31 @@ def test_attestation_is_rejected_at_exact_expiry_instant(
     )
     assert disposition.cryptographically_valid
     assert disposition.expired
+    assert not disposition.accepted
+
+
+def test_future_issued_attestation_is_not_yet_valid(
+    identity_environment: IdentityEnvironment, tmp_path: Path
+) -> None:
+    now = datetime.now(timezone.utc)
+    payload = build_attestation_payload(
+        subject_digest="sha256:13" + "0" * 62,
+        attestation_id="attest-future-issued-0001",
+        sequence=1,
+        issuer_identity=identity_environment.issuer_key.identity,
+        issuer_generation="qa-issuer-gen-1",
+        issued_at=(now + timedelta(minutes=5)).isoformat(),
+        expires_at=(now + timedelta(days=30)).isoformat(),
+    )
+    disposition = _signed_disposition(
+        identity_environment=identity_environment,
+        tmp_path=tmp_path,
+        payload=payload,
+        now=now,
+        filename_stem="future-issued-attestation",
+    )
+    assert disposition.cryptographically_valid
+    assert disposition.not_yet_valid
     assert not disposition.accepted
 
 
