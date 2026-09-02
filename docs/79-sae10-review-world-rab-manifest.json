@@ -1,0 +1,58 @@
+{
+  "authority_limits": [
+    "no_normal_verdict_authority",
+    "no_sae30_fabrication",
+    "no_candidate_self_activation",
+    "no_genesis_activation"
+  ],
+  "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
+  "content_blobs": {
+    "docs/78-sae10-review-world-rab-contract.md": "f6123ee2c194a832e602986185d8043b9f765374",
+    "main_review/review_authority_bundle.py": "5251aa8a89dc6fd49df06475cd7066edd2c85f25",
+    "main_review/review_world.py": "ddfd41fd1607a5f0191ca3c14323d5bfd560a632",
+    "main_review/review_world_currentness.py": "4949fccce1954a1acb6aca20cd27bd3871a120f3",
+    "main_review/review_world_git.py": "6273f7efed47ca356c207efda62b413f802a1940",
+    "tests/test_review_authority_bundle.py": "b0eeb2df805afc06a2de034d0113aaa0e3a6a69b",
+    "tests/test_review_world_currentness.py": "e48444fae5c50c723486b9e1fc7e3fd9a50aaf9b",
+    "tests/test_review_world_git.py": "e56e09f50ea51a4af66761bdf05d232f3f63067d",
+    "tests/test_review_world_identity.py": "d03de9cf0013c17cecb8a1cc98fe88e2095b14f2",
+    "tests/test_review_world_persistence.py": "3547e0cacdbd97b067add555a7f37d2e60b82cb8",
+    "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d"
+  },
+  "external_authority_blobs": {
+    "docs/58-sergeant-assurance-evolution-founding-architecture.md": "b7d7ea0cec987046ece2aecb554cc29d86aa447b",
+    "docs/59-sergeant-assurance-evolution-roadmap.md": "f54dd414da2c01284c94a3f7349030da0cda4457",
+    "docs/66-sae00-proven-lifecycle-closeout.md": "1e1c6bceb74f0b899e965c4530f092a316caa7c9",
+    "docs/67-sae00-proven-lifecycle-closeout-manifest.json": "578b9e5505e6ebcdf3b82f1d41f04fdd893bb9d1",
+    "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "0f5d0000a6773eda26b7d28bb376642c9e3aee77",
+    "docs/superpowers/specs/2026-09-02-sae-10-review-world-rab-design.md": "7206cc27650fcf54b5dc7a2d0b42a67d77371c90"
+  },
+  "imported_github_checkpoint": "17c4240af1969e0fc999379c5243696347820def",
+  "lifecycle_state": "CANDIDATE",
+  "node": "SAE-10",
+  "normal_verdict_authority": false,
+  "produces": [
+    "QUALIFIED_REVIEW_WORLD_CONTRACT",
+    "QUALIFIED_RAB_CONTRACT"
+  ],
+  "proof_dependency": [
+    "SAE-00"
+  ],
+  "required_hostile_attacks": [
+    "same_head_different_base",
+    "wrong_merge_tree",
+    "local_mutation_after_snapshot",
+    "scope_downgrade",
+    "unauthorized_rab_combination",
+    "candidate_self_activation"
+  ],
+  "schema_version": "sergeant.sae10-review-world-rab-candidate.v1",
+  "tenfold_proof": {
+    "actions_required": false,
+    "formation_lanes": 20,
+    "local_test_result": {
+      "failed": 0,
+      "passed": 63
+    }
+  }
+}
