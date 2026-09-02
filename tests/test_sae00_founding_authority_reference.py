@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -225,6 +226,12 @@ def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -
     assert "from .verification import verify_repository_standard" in final_proof_source
     verification_source = (ROOT / proof_behavior["verification_path"]).read_text(encoding="utf-8")
     assert "from .scanner import scan_repository" in verification_source
+    for dep_path in proof_behavior["scanner_dependency_paths"]:
+        assert (ROOT / dep_path).is_file(), dep_path
+    scanner_source = (ROOT / proof_behavior["scanner_path"]).read_text(encoding="utf-8")
+    assert "from .languages import" in scanner_source
+    assert "from .models import" in scanner_source
+    assert proof_behavior["security_boundary_shared_dependency_path"] == security["implementation_path"]
     assert proof_behavior["fabricated"] is False
     assert proof_behavior["result"]["passed"] is True
     assert proof_behavior["result"]["blockers"] == []
@@ -238,6 +245,60 @@ def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -
     assert fence["merged"] is False
     assert fence["retrofit_assurance_evolution"] is False
     assert fence["sae00_touched_pr_167"] is False
+
+
+_LOCAL_IMPORT_RE = re.compile(r"^from \.([A-Za-z_][A-Za-z0-9_]*) import ", re.M)
+
+
+def test_sae00_final_proof_dependency_closure_is_exhaustive() -> None:
+    """Mechanically prove the existing_proof_behavior binding hash-binds the
+    COMPLETE transitive local-import closure of run_final_proof, not just
+    however many hops the last review round happened to trace by hand.
+
+    For every file in the bound closure set, parse its own
+    'from .X import ...' lines and assert every referenced local
+    main_review module is itself in the bound set. A future edit that adds
+    an import to an unbound module fails this test immediately, instead of
+    requiring another review round to discover -- this is what makes the
+    closure claim in docs/62 sec.3.9 an exact, checked claim rather than an
+    asserted one.
+    """
+    manifest = _load_manifest()
+    proof_behavior = manifest["bindings"]["existing_proof_behavior"]
+    security = manifest["bindings"]["current_security_boundary"]
+
+    assert proof_behavior["security_boundary_shared_dependency_path"] == security["implementation_path"]
+
+    closure_paths = {
+        proof_behavior["verdict_engine_path"],
+        proof_behavior["final_proof_gate_path"],
+        proof_behavior["verification_path"],
+        proof_behavior["scanner_path"],
+        security["implementation_path"],
+        *proof_behavior["scanner_dependency_paths"],
+    }
+    # Every path in the closure must also be individually hash-bound in
+    # docs/63's top-level documents list, not only referenced by name here.
+    bound_document_paths = {document["path"] for document in manifest["documents"]}
+    assert closure_paths <= bound_document_paths, closure_paths - bound_document_paths
+
+    closure_module_names = {Path(p).stem for p in closure_paths}
+    for rel_path in sorted(closure_paths):
+        path = ROOT / rel_path
+        assert path.is_file(), rel_path
+        source = path.read_text(encoding="utf-8")
+        for module_name in _LOCAL_IMPORT_RE.findall(source):
+            assert module_name in closure_module_names, (
+                f"{rel_path} imports main_review.{module_name}, which is not "
+                "in the hash-bound existing-proof-behavior closure -- the "
+                "binding is no longer exhaustive"
+            )
+
+    # The claimed terminal leaves must genuinely have no further local
+    # imports, or the closure would not actually be complete.
+    for leaf_path in proof_behavior["scanner_dependency_paths"]:
+        source = (ROOT / leaf_path).read_text(encoding="utf-8")
+        assert not _LOCAL_IMPORT_RE.findall(source), leaf_path
 
 
 def test_sae00_pr_167_fence_is_unchanged_since_roadmap_freeze() -> None:

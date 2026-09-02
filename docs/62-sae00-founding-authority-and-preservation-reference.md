@@ -85,7 +85,9 @@ All three files are hash-bound in `docs/63`.
 
 ### 3.9 Existing proof behavior
 
-Binds to `main_review/verdict.py` (`review_repository`, the deterministic verdict engine) and `main_review/final_proof.py` (`run_final_proof`, the combined review-PASS + verification-verified gate — the same gate CI's `clean-clone-proof` job exercises via `main-review final-proof --pretty`). `run_final_proof` itself delegates to `verification.verify_repository_standard` (`main_review/verification.py`), which in turn imports `scan_repository` from `main_review/scanner.py` — both are load-bearing dependencies of the gate's actual behavior, not just its entry point, so both are hash-bound alongside `verdict.py`/`final_proof.py` in `docs/63`. Binding only the two top-level files would let either dependency silently change what "verified" means without invalidating this reference.
+Binds to `main_review/verdict.py` (`review_repository`, the deterministic verdict engine) and `main_review/final_proof.py` (`run_final_proof`, the combined review-PASS + verification-verified gate — the same gate CI's `clean-clone-proof` job exercises via `main-review final-proof --pretty`).
+
+The binding traces `run_final_proof`'s complete transitive local-import closure rather than stopping one hop from the entry point, because two review rounds correctly showed that a shallower binding left load-bearing behavior unfrozen: `final_proof.py` → `verdict.py` (which itself imports `evidence.collect_evidence`, already separately hash-bound under the security-boundary binding) and `verification.py`; both `verification.py` and `evidence.py` import `scanner.scan_repository`; `scanner.py` imports `classify_role`/`detect_language`/`is_high_risk_path` from `languages.py` and `FileInsight`/`RepositoryInsight` from `models.py`. `languages.py` and `models.py` have zero further local `main_review.*` imports, so the closure terminates there. All seven reachable modules — `final_proof.py`, `verdict.py`, `verification.py`, `scanner.py`, `evidence.py`, `languages.py`, `models.py` — are hash-bound in `docs/63`, and `tests/test_sae00_founding_authority_reference.py::test_sae00_final_proof_dependency_closure_is_exhaustive` mechanically parses every bound file's own `from .X import ...` lines and asserts each resolves to another module already in the bound set — so a future import edge this binding missed would fail that test immediately, rather than requiring another review round to discover. This is an **exact closure of the local-module import graph specifically**, not a claim of exhaustive whole-program closure over every stdlib/third-party dependency reachable from these seven files — that broader claim is out of scope for a binding/recovery node.
 
 Run fresh, directly, during this construction session:
 
@@ -97,7 +99,7 @@ result = run_final_proof(".")
 # result["review_verdict"]["verdict"] -> "PASS"
 ```
 
-All four files are hash-bound in `docs/63`.
+All seven files are hash-bound in `docs/63`.
 
 ### 3.10 PR #167 non-retrofit fence
 

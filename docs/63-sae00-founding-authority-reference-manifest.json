@@ -99,6 +99,16 @@
       "role": "existing_proof_behavior_dependency"
     },
     {
+      "path": "main_review/languages.py",
+      "blob_sha": "4a213cb399e4df8a20c74c5773d28d0874c43cde",
+      "role": "existing_proof_behavior_dependency"
+    },
+    {
+      "path": "main_review/models.py",
+      "blob_sha": "99aeb4d383b3b94f888d9523b0d1af220be02f2c",
+      "role": "existing_proof_behavior_dependency"
+    },
+    {
       "path": "main_review/officer_council.py",
       "blob_sha": "0089e55db3493501e85fba30f502b36f59fc5433",
       "role": "existing_cpl_officer_hierarchy_implementation"
@@ -165,14 +175,14 @@
     },
     {
       "path": "docs/62-sae00-founding-authority-and-preservation-reference.md",
-      "blob_sha": "ff9ada116e526a3148292fc3472444e07da55240",
+      "blob_sha": "c2f23a197723fb3e6e23bdf151b4d770144f7e6b",
       "role": "sae00_human_readable_binding_record"
     }
   ],
   "proof_fixtures": [
     {
       "path": "tests/test_sae00_founding_authority_reference.py",
-      "blob_sha": "775b018ac4610490d700c163db66e1deb76dfcb5",
+      "blob_sha": "64d600eec2290c2505e8dfc71072f0f06e6e1510",
       "role": "sae00_manifest_and_binding_proof",
       "assurance_evolution_runtime_implementation": false,
       "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures",
@@ -255,7 +265,12 @@
       "final_proof_gate_path": "main_review/final_proof.py",
       "verification_path": "main_review/verification.py",
       "scanner_path": "main_review/scanner.py",
-      "dependency_chain_detail": "final_proof.run_final_proof calls verdict.review_repository and verification.verify_repository_standard; verification.py imports scan_repository from scanner.py -- all four are hash-bound so the gate's actual behavior, not only its entry point, is frozen",
+      "scanner_dependency_paths": [
+        "main_review/languages.py",
+        "main_review/models.py"
+      ],
+      "security_boundary_shared_dependency_path": "main_review/evidence.py",
+      "dependency_chain_detail": "Complete transitive local-import closure of run_final_proof, traced and verified by direct grep of every module's own import lines rather than assumed one hop deep: final_proof.py imports verdict.review_repository and verification.verify_repository_standard; verdict.py imports evidence.collect_evidence (already separately hash-bound under current_security_boundary); verification.py and evidence.py both import scanner.scan_repository; scanner.py imports classify_role/detect_language/is_high_risk_path from languages.py and FileInsight/RepositoryInsight from models.py. languages.py and models.py have zero further local main_review.* imports, so the closure terminates there -- all 7 reachable local modules (final_proof, verdict, verification, scanner, evidence, languages, models) are hash-bound. This is asserted as an EXACT closure of run_final_proof's *local-module* import graph specifically (verified by test_sae00_final_proof_dependency_closure_is_exhaustive), not a claim of exhaustive whole-program closure over every stdlib/third-party import reachable from these files.",
       "invocation": "python -c \"from main_review.final_proof import run_final_proof; print(run_final_proof('.'))\"",
       "result": {
         "passed": true,
