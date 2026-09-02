@@ -60,7 +60,7 @@
     },
     {
       "path": "PICKUP.md",
-      "blob_sha": "4f5e43679a34ca550ffd29418f45ed4cdceceae3",
+      "blob_sha": "8365e220b36be64740c06756ad78a4c2db23bb18",
       "role": "existing_learning_state"
     },
     {
@@ -87,6 +87,16 @@
       "path": "main_review/verdict.py",
       "blob_sha": "31ddefeafca8f083e6981e0aa8e0bdab4d8cc9ce",
       "role": "existing_proof_behavior"
+    },
+    {
+      "path": "main_review/verification.py",
+      "blob_sha": "b56a50be5e86e4e26263864e3742093d8ee67b08",
+      "role": "existing_proof_behavior_dependency"
+    },
+    {
+      "path": "main_review/scanner.py",
+      "blob_sha": "d9b09047ed59d0c8d7c5c1cbb3b7eb4e8345431e",
+      "role": "existing_proof_behavior_dependency"
     },
     {
       "path": "main_review/officer_council.py",
@@ -155,16 +165,18 @@
     },
     {
       "path": "docs/62-sae00-founding-authority-and-preservation-reference.md",
-      "blob_sha": "8db2b83de5e509ce9f09ea3b2ef3ca4bb51931e8",
+      "blob_sha": "ff9ada116e526a3148292fc3472444e07da55240",
       "role": "sae00_human_readable_binding_record"
     }
   ],
   "proof_fixtures": [
     {
       "path": "tests/test_sae00_founding_authority_reference.py",
+      "blob_sha": "775b018ac4610490d700c163db66e1deb76dfcb5",
       "role": "sae00_manifest_and_binding_proof",
       "assurance_evolution_runtime_implementation": false,
-      "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures"
+      "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures",
+      "self_hash_check": "test_sae00_proof_fixture_self_hash_matches_manifest asserts this file's own current git hash-object output equals blob_sha above"
     }
   ],
   "bindings": {
@@ -241,6 +253,9 @@
     "existing_proof_behavior": {
       "verdict_engine_path": "main_review/verdict.py",
       "final_proof_gate_path": "main_review/final_proof.py",
+      "verification_path": "main_review/verification.py",
+      "scanner_path": "main_review/scanner.py",
+      "dependency_chain_detail": "final_proof.run_final_proof calls verdict.review_repository and verification.verify_repository_standard; verification.py imports scan_repository from scanner.py -- all four are hash-bound so the gate's actual behavior, not only its entry point, is frozen",
       "invocation": "python -c \"from main_review.final_proof import run_final_proof; print(run_final_proof('.'))\"",
       "result": {
         "passed": true,

@@ -85,7 +85,7 @@ All three files are hash-bound in `docs/63`.
 
 ### 3.9 Existing proof behavior
 
-Binds to `main_review/verdict.py` (`review_repository`, the deterministic verdict engine) and `main_review/final_proof.py` (`run_final_proof`, the combined review-PASS + verification-verified gate — the same gate CI's `clean-clone-proof` job exercises via `main-review final-proof --pretty`).
+Binds to `main_review/verdict.py` (`review_repository`, the deterministic verdict engine) and `main_review/final_proof.py` (`run_final_proof`, the combined review-PASS + verification-verified gate — the same gate CI's `clean-clone-proof` job exercises via `main-review final-proof --pretty`). `run_final_proof` itself delegates to `verification.verify_repository_standard` (`main_review/verification.py`), which in turn imports `scan_repository` from `main_review/scanner.py` — both are load-bearing dependencies of the gate's actual behavior, not just its entry point, so both are hash-bound alongside `verdict.py`/`final_proof.py` in `docs/63`. Binding only the two top-level files would let either dependency silently change what "verified" means without invalidating this reference.
 
 Run fresh, directly, during this construction session:
 
@@ -97,7 +97,7 @@ result = run_final_proof(".")
 # result["review_verdict"]["verdict"] -> "PASS"
 ```
 
-Both files are hash-bound in `docs/63`.
+All four files are hash-bound in `docs/63`.
 
 ### 3.10 PR #167 non-retrofit fence
 

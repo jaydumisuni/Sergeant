@@ -119,6 +119,21 @@ def test_sae00_manifest_binds_authority_documents_by_real_git_blob_sha() -> None
     fixture_path = ROOT / fixtures[0]["path"]
     assert fixture_path.is_file()
     assert fixtures[0]["assurance_evolution_runtime_implementation"] is False
+    assert fixtures[0]["blob_sha"]
+    assert _git_blob_sha(fixture_path) == fixtures[0]["blob_sha"], fixtures[0]["path"]
+
+
+def test_sae00_proof_fixture_self_hash_matches_manifest() -> None:
+    """This test file is its own proof fixture (docs/63's proof_fixtures
+    entry). Verify its own current on-disk content still matches the hash
+    the manifest records for it -- an edit to this file that isn't matched
+    by a manifest update should be caught here, mirroring how docs/61
+    hash-binds tests/test_assurance_evolution_roadmap_freeze.py."""
+    manifest = _load_manifest()
+    fixture = manifest["proof_fixtures"][0]
+    this_file = ROOT / fixture["path"]
+    assert this_file.resolve() == Path(__file__).resolve()
+    assert _git_blob_sha(this_file) == fixture["blob_sha"]
 
 
 def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -> None:
@@ -198,10 +213,18 @@ def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -
         assert (ROOT / doctrine_path).is_file(), doctrine_path
     assert (ROOT / hierarchy["implementation_path"]).is_file()
 
-    # 9: existing proof behavior.
+    # 9: existing proof behavior -- including the verification/scanner
+    # dependency chain final_proof.py actually delegates to, not just the
+    # two top-level entry-point files.
     proof_behavior = bindings["existing_proof_behavior"]
     assert (ROOT / proof_behavior["verdict_engine_path"]).is_file()
     assert (ROOT / proof_behavior["final_proof_gate_path"]).is_file()
+    assert (ROOT / proof_behavior["verification_path"]).is_file()
+    assert (ROOT / proof_behavior["scanner_path"]).is_file()
+    final_proof_source = (ROOT / proof_behavior["final_proof_gate_path"]).read_text(encoding="utf-8")
+    assert "from .verification import verify_repository_standard" in final_proof_source
+    verification_source = (ROOT / proof_behavior["verification_path"]).read_text(encoding="utf-8")
+    assert "from .scanner import scan_repository" in verification_source
     assert proof_behavior["fabricated"] is False
     assert proof_behavior["result"]["passed"] is True
     assert proof_behavior["result"]["blockers"] == []
