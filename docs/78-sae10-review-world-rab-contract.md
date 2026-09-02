@@ -39,9 +39,9 @@ Additional falsifiers cover persisted-object tamper, unknown fields, truncated a
 
 ## Tenfold Gen 1 proof
 
-The local candidate was reviewed through twenty distinct evidence lanes rather than using GitHub as the development surface. The core reconciled local suite is `57 passed, 0 failed`; candidate-manifest binding adds six proof tests for a final exact candidate result of `63 passed, 0 failed`.
+The local candidate was reviewed through twenty distinct evidence lanes rather than using GitHub as the development surface. Before GitHub review, the exact candidate result was `63 passed, 0 failed`. GitHub hostile review of milestone `c977449177eb9c9f3d6034265ad97cc32180c069` exposed one valid cross-generation proof-infrastructure defect: the immutable SPIKE-SEM 14,439-relation historical measurement was still being asserted as a current-tree invariant after SAE-10 added four `main_review/` modules. The frozen SPIKE-SEM proof fixture remains byte-identical; the obsolete current-tree interpretation is superseded externally with an exact-node strict XFAIL, matching the existing SAE-00 historical-snapshot precedent. Two regressions bind that historical provenance. The repaired local candidate result is `66 passed, 1 intentional historical XFAIL, 0 failed`.
 
-The twenty lanes cover syntax, identity/persistence, RAB, Git/local state, currentness, hostile matrix, static security, repeated determinism, tamper mutation, workspace non-mutation, strict decode, Git object formats, path attacks, RAB roster, revocation/suspension, symlink identity, generated binding, selected-untracked scope, canonical re-encoding, and full-suite reconciliation.
+The twenty lanes cover syntax, identity/persistence, RAB, Git/local state, currentness, hostile matrix, static security, repeated determinism, tamper mutation, workspace non-mutation, strict decode, Git object formats, path attacks, RAB roster, revocation/suspension, symlink identity, generated binding, selected-untracked scope, historical-proof supersession, and full-suite reconciliation.
 
 GitHub Actions are supplementary only and are not assumed available.
 
@@ -53,4 +53,4 @@ That bootstrap cannot issue a general Qualification Attestation, create external
 
 ## Residual boundary
 
-This is still **CANDIDATE**. It is not lifecycle-PROVEN until the milestone is pushed, live PR review is recovered and dispositioned, the exact pushed head is reconciled against current `main`, and a separate immutable SAE-10 PROVEN closeout generation is created and proved.
+This is still **CANDIDATE**. The first pushed milestone was hostile-reviewed and its valid SPIKE-SEM historical-proof finding has been repaired in the Tenfold workspace. SAE-10 is not lifecycle-PROVEN until the replacement milestone is pushed and reviewed cleanly, the exact reviewed head is reconciled against current `main`, and a separate immutable SAE-10 PROVEN closeout generation is created and proved.
