@@ -27,6 +27,10 @@
     "path": "docs/70-spike-id-identity-provenance-feasibility.md",
     "blob_sha": "3e1e38225e87ee8f602592bb1f4f0355845aff9c"
   },
+  "manifest_proof_fixture": {
+    "path": "tests/test_spike_id_feasibility_manifest.py",
+    "blob_sha": "c6bc1a88a3822295a44e861005c6674f283fcc8b"
+  },
   "disposition": {
     "outcome": "selected_initial_mechanism",
     "selected_mechanism": "sshsig-owner-held-dedicated-ed25519-keypair-with-verifier-trusted-registry-and-explicit-revocation",
