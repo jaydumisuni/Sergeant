@@ -35,7 +35,7 @@ def test_candidate_signed_attestation_fails_verification_against_issuer_registry
         attestation_id="attest-forged-0001",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=now.isoformat(),
         expires_at=(now + timedelta(days=30)).isoformat(),
     )
@@ -49,7 +49,7 @@ def test_candidate_signed_attestation_fails_verification_against_issuer_registry
     verify_result = verify_signature(
         payload_bytes,
         forged_signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem="forged-attestation",
@@ -67,7 +67,7 @@ def test_candidate_cannot_launder_authority_by_shipping_its_own_registry(
         attestation_id="attest-forged-registry-0001",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=now.isoformat(),
         expires_at=(now + timedelta(days=30)).isoformat(),
     )
@@ -93,6 +93,9 @@ def test_candidate_cannot_launder_authority_by_shipping_its_own_registry(
         encoding="utf-8",
     )
 
+    # Raw SSHSIG verification can succeed against candidate-controlled trust
+    # material. Because this raw Path carries no verifier-trusted generation
+    # binding it still cannot yield an accepted qualification disposition.
     verify_against_forged_registry = verify_signature(
         payload_bytes,
         forged_signature,
@@ -102,11 +105,12 @@ def test_candidate_cannot_launder_authority_by_shipping_its_own_registry(
         filename_stem="forged-registry-attempt-a",
     )
     assert verify_against_forged_registry.ok
+    assert verify_against_forged_registry.authenticated_issuer_generation is None
 
     verify_against_real_registry = verify_signature(
         payload_bytes,
         forged_signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem="forged-registry-attempt-b",
@@ -137,11 +141,12 @@ def test_candidate_key_under_its_own_honest_identity_is_not_qualification_author
     verify_result = verify_signature(
         payload_bytes,
         signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.candidate_key.identity,
         tmp_path,
         filename_stem="honest-candidate-attestation",
     )
     assert not verify_result.ok
     assert verify_result.returncode != 0
+    assert verify_result.authenticated_issuer_generation is None
     assert "could not verify signature" in (verify_result.stderr + verify_result.stdout).lower()
