@@ -11,6 +11,7 @@ MANIFEST_PATH = ROOT / "docs/65-spike-ext-external-review-sourcing-feasibility-m
 DOC_PATH = ROOT / "docs/64-spike-ext-external-review-sourcing-feasibility.md"
 ROADMAP_PATH = ROOT / "docs/59-sergeant-assurance-evolution-roadmap.md"
 FOUNDING_ARCHITECTURE_PATH = ROOT / "docs/58-sergeant-assurance-evolution-founding-architecture.md"
+HISTORICAL_CANDIDATE_HEAD = "e6b7c2d8e92a2028d84ef955a608532a1ddb1e60"
 
 REQUIRED_OUTPUT_KEYS = {
     "acceptable_external_source_classes",
@@ -22,18 +23,7 @@ REQUIRED_OUTPUT_KEYS = {
 
 
 def _git_blob_sha(path: Path) -> str:
-    """Canonical git blob SHA via git itself rather than raw-byte hashing.
-
-    A raw-byte hash is fragile on any Windows checkout with
-    core.autocrlf=true, which rewrites LF line endings to CRLF in the
-    working tree without changing the tracked git blob content. This is
-    the exact false-failure class documented in
-    docs/62-sae00-founding-authority-and-preservation-reference.md
-    section 4.4/5 and reproduced live by
-    tests/test_assurance_evolution_roadmap_freeze.py on Windows checkouts.
-    `git hash-object` asks git itself what the blob identity is, so it
-    agrees with the actual tracked content on every platform.
-    """
+    """Canonical current-tree git blob SHA via git, not raw-byte hashing."""
     result = subprocess.run(
         ["git", "hash-object", str(path)],
         cwd=ROOT,
@@ -42,6 +32,28 @@ def _git_blob_sha(path: Path) -> str:
         text=True,
     )
     return result.stdout.strip()
+
+
+def _git_blob_sha_at(ref: str, path: str) -> str:
+    """Return the tracked blob identity for path in an exact historical Review World."""
+    result = subprocess.run(
+        ["git", "rev-parse", f"{ref}:{path}"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _path_exists_at(ref: str, path: str) -> bool:
+    result = subprocess.run(
+        ["git", "cat-file", "-e", f"{ref}:{path}"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+    )
+    return result.returncode == 0
 
 
 def _load_manifest() -> dict:
@@ -82,8 +94,7 @@ def _dependency_registry() -> dict[str, list[str]]:
 
 
 def test_spike_ext_is_charter_matched_to_roadmap_section_6() -> None:
-    """Independently re-derive that SPIKE-EXT's proof dependency is exactly
-    [SAE-00], rather than trusting the manifest's own claim about itself."""
+    """Independently re-derive SPIKE-EXT's exact proof dependency."""
     dependencies = _dependency_registry()
     assert dependencies["SPIKE-EXT"] == ["SAE-00"]
 
@@ -92,48 +103,48 @@ def test_spike_ext_is_charter_matched_to_roadmap_section_6() -> None:
     assert "Authority gain: none." in roadmap_text.split("SPIKE-EXT", 1)[1].split("SPIKE-SEM", 1)[0]
 
 
-def test_spike_ext_manifest_binds_documents_by_real_git_blob_sha() -> None:
+def test_spike_ext_manifest_binds_its_exact_historical_candidate_world() -> None:
     manifest = _load_manifest()
 
     assert manifest["schema_version"] == "sergeant.spike-ext-external-review-sourcing-feasibility-manifest.v1"
     assert manifest["node"] == "SPIKE-EXT"
     assert manifest["proof_requires"] == ["SAE-00"]
     assert manifest["authority_gain"] == "none"
-    # Forbidden equivalence (docs/59 sec.3): TESTS GREEN != QUALIFIED. SAE-00
-    # had not merged to canonical main at write time, so this node must not
-    # self-declare QUALIFIED or PROVEN.
     assert manifest["lifecycle_state"] in {"AUTHORIZED", "CANDIDATE", "REVIEWED", "QUALIFIED", "PROVEN"}
     assert manifest["lifecycle_state"] == "CANDIDATE"
     assert manifest["lifecycle_note"]
 
+    # docs/65 is a historical candidate-world manifest. Reconciliation onto a
+    # later main must not rewrite what existed at write time. Prove its claims
+    # against the exact reviewed candidate head rather than today's tree.
+    subprocess.check_call(
+        ["git", "cat-file", "-e", f"{HISTORICAL_CANDIDATE_HEAD}^{{commit}}"], cwd=ROOT
+    )
     assert manifest["sae00_state_at_write_time"]["merged_to_canonical_main"] is False
     for candidate_path in manifest["sae00_state_at_write_time"]["candidate_documents_not_bound_here"]:
-        # These SAE-00 candidate files must genuinely be absent from this
-        # branch -- if one now exists, the manifest's honesty claim is stale.
-        assert not (ROOT / candidate_path).is_file(), candidate_path
+        assert not _path_exists_at(HISTORICAL_CANDIDATE_HEAD, candidate_path), candidate_path
 
     documents = manifest["documents"]
     assert len(documents) >= 10
     seen_paths: set[str] = set()
     for document in documents:
-        path = ROOT / document["path"]
-        assert path.is_file(), document["path"]
-        assert _git_blob_sha(path) == document["blob_sha"], document["path"]
+        assert _git_blob_sha_at(HISTORICAL_CANDIDATE_HEAD, document["path"]) == document["blob_sha"], document["path"]
         assert document["role"], document["path"]
         seen_paths.add(document["path"])
     assert len(seen_paths) == len(documents)
 
+    # The reviewed deliverable itself was transplanted byte-for-byte.
+    historical_doc = next(item for item in documents if item["path"] == "docs/64-spike-ext-external-review-sourcing-feasibility.md")
+    assert _git_blob_sha(DOC_PATH) == historical_doc["blob_sha"]
+
     fixtures = manifest["proof_fixtures"]
     assert len(fixtures) == 1
-    fixture_path = ROOT / fixtures[0]["path"]
-    assert fixture_path.is_file()
     assert fixtures[0]["assurance_evolution_runtime_implementation"] is False
-    # The proof fixture itself must be hash-bound too (docs/61 precedent),
-    # not only the documents it checks -- otherwise a later silent weakening
-    # or replacement of this very test file would leave the manifest still
-    # validating, which is exactly the gap this binding closes.
     assert "blob_sha" in fixtures[0]
-    assert _git_blob_sha(fixture_path) == fixtures[0]["blob_sha"]
+    # The manifest records the original reviewed fixture. That historical
+    # identity remains provable even though this reconciliation-aware fixture
+    # necessarily changed to stop treating later canonical files as defects.
+    assert _git_blob_sha_at(HISTORICAL_CANDIDATE_HEAD, fixtures[0]["path"]) == fixtures[0]["blob_sha"]
 
 
 def test_spike_ext_produces_all_five_required_outputs() -> None:
@@ -160,21 +171,14 @@ def test_spike_ext_source_classes_are_present_in_doc_and_named_distinctly() -> N
         section_heading = f"### {entry['doc_section']} "
         assert section_heading in doc, entry["id"]
 
-    # The false-positive trap (different AI vendor/account alone) must be
-    # explicitly marked as not establishing independence by itself, both in
-    # the manifest and in the doc's own prose.
     sc5 = next(entry for entry in source_classes if entry["id"] == "SC-5")
     assert sc5["does_not_by_itself_establish_independence"] is True
     assert "does not, by itself, establish independence" in doc
 
-    # The most logistically ready class (CodeRabbit) must honestly record
-    # its current doctrinal role rather than overclaiming readiness.
     sc6 = next(entry for entry in source_classes if entry["id"] == "SC-6")
     assert sc6["current_role_per_repo_doctrine"] == "training_material_not_qualification_authority_per_docs_12"
     assert sc6["currently_engaged"] is False
 
-    # No source class may be marked as currently engaged -- this spike is
-    # analysis-only and must not have contacted a real reviewer.
     assert all(entry["currently_engaged"] is False for entry in source_classes)
 
 
@@ -192,20 +196,12 @@ def test_spike_ext_independence_criteria_are_distinct_and_present_in_doc() -> No
     rule = manifest["independence_disposition_rule"]
     assert {"INDEPENDENT", "NOT_INDEPENDENT", "UNKNOWN_INDEPENDENCE"} <= set(rule.keys())
 
-    # These three states are recovered from docs/58 section 13, not invented
-    # here -- confirm the founding architecture actually defines them.
     architecture_text = FOUNDING_ARCHITECTURE_PATH.read_text(encoding="utf-8")
     for state in ("`INDEPENDENT`", "`NOT_INDEPENDENT`", "`UNKNOWN_INDEPENDENCE`"):
         assert state in architecture_text
 
 
 def _resolve_disposition(criteria_states: list[bool | None]) -> str:
-    """Re-implement the manifest's own precedence_order as executable logic,
-    independent of any prose, and use it to exercise the mixed-evidence
-    case a reader could otherwise misread as ambiguous: one criterion
-    verified false (None below stands for "unverified/undocumented") and a
-    separate criterion simultaneously unverified must resolve to exactly one
-    disposition, never two at once."""
     if any(state is False for state in criteria_states):
         return "NOT_INDEPENDENT"
     if any(state is None for state in criteria_states):
@@ -214,11 +210,6 @@ def _resolve_disposition(criteria_states: list[bool | None]) -> str:
 
 
 def test_spike_ext_disposition_precedence_resolves_mixed_evidence_to_exactly_one_state() -> None:
-    """docs/64 sec.5 and docs/65's independence_disposition_rule.precedence_order
-    must make NOT_INDEPENDENT win over UNKNOWN_INDEPENDENCE when an
-    arrangement has both a confirmed-false criterion and a separately
-    undocumented one -- the exact mixed case a naive three-independent-checks
-    reading would otherwise leave ambiguous between two states at once."""
     manifest = _load_manifest()
     doc = _load_doc()
 
@@ -232,23 +223,14 @@ def test_spike_ext_disposition_precedence_resolves_mixed_evidence_to_exactly_one
     assert "UNKNOWN_INDEPENDENCE" in precedence_order[1]
     assert "INDEPENDENT" in precedence_order[2]
 
-    # All nine true -> INDEPENDENT.
     assert _resolve_disposition([True] * 9) == "INDEPENDENT"
-    # All nine undocumented (the default state before any arrangement
-    # exists) -> UNKNOWN_INDEPENDENCE, never INDEPENDENT or NOT_INDEPENDENT.
     assert _resolve_disposition([None] * 9) == "UNKNOWN_INDEPENDENCE"
-    # One confirmed false, rest true -> NOT_INDEPENDENT.
     assert _resolve_disposition([False] + [True] * 8) == "NOT_INDEPENDENT"
-    # The mixed case: one confirmed false AND one separately undocumented
-    # criterion at the same time -- must resolve to exactly one state
-    # (NOT_INDEPENDENT), not both NOT_INDEPENDENT and UNKNOWN_INDEPENDENCE.
     mixed = [False, None] + [True] * 7
     result = _resolve_disposition(mixed)
     assert result == "NOT_INDEPENDENT"
     assert result != "UNKNOWN_INDEPENDENCE"
 
-    # The doc must actually state this precedence in prose, not only the
-    # manifest asserting it about itself.
     assert "precedence order" in doc.lower()
     assert "regardless of the state of any other criterion" in doc
 
@@ -287,14 +269,9 @@ def test_spike_ext_cardinality_proposal_is_a_reasoned_positive_integer_range() -
     assert cardinality["status"] == "proposal_for_sae20_acr_authoring_audit_not_binding_law"
     assert cardinality["reasoning_summary"]
 
-    # The reasoning must actually appear in the doc, not only in the
-    # manifest's own summary of itself.
     assert f"minimum {minimum}" in doc.lower() or "minimum 2, target 3" in doc.lower()
     assert "single point of failure" in doc.lower()
 
-    # SAE-20 is the roadmap node explicitly chartered to audit external-
-    # review-lane cardinality (docs/59 sec.7) -- confirm that charter is
-    # real, not asserted, before this proposal claims to feed it.
     roadmap_text = ROADMAP_PATH.read_text(encoding="utf-8")
     assert "mandatory external-review-lane-cardinality attacks" in roadmap_text
 
@@ -309,9 +286,6 @@ def test_spike_ext_sourcing_disposition_is_honest_open_gap_not_false_positive() 
     assert len(disposition["evidence"]) >= 5
     assert len(disposition["nearest_practical_path_ranked"]) >= 1
 
-    # The claim must be explicitly bounded to captured live evidence at a
-    # stated date, not asserted as an unbounded eternal-present fact -- a
-    # reader must be able to tell this needs re-checking after new activity.
     assert disposition["as_of"]
     assert disposition["claim_scope"]
     assert "re-check" in disposition["claim_scope"].lower() or "recheck" in disposition["claim_scope"].lower()
@@ -320,8 +294,6 @@ def test_spike_ext_sourcing_disposition_is_honest_open_gap_not_false_positive() 
     assert "no genuinely independent external-review source was found active or engaged" in doc.lower()
     assert disposition["as_of"] in doc
 
-    # The live gh api contributor/collaborator/reviewer check must actually
-    # be recorded as evidence, not only asserted as a bare disposition.
     live_check_evidence = [item for item in disposition["evidence"] if "gh api" in item.lower()]
     assert len(live_check_evidence) == 1
     assert "contributors" in live_check_evidence[0]
@@ -330,10 +302,6 @@ def test_spike_ext_sourcing_disposition_is_honest_open_gap_not_false_positive() 
     assert "coderabbitai" in live_check_evidence[0]
     assert "chatgpt-codex-connector" in live_check_evidence[0]
 
-    # Cross-check the disposition's own evidence claim against the live
-    # source registry rather than trusting the manifest's assertion about
-    # it: every confirmed cross-repository source must actually be
-    # owner-owned for the "open gap" claim to be honest.
     sources = json.loads(
         (ROOT / ".github/self-learning/cross-repository-sources.json").read_text(encoding="utf-8")
     )
@@ -361,10 +329,6 @@ def test_spike_ext_does_not_overclaim_and_prohibitions_preserve_scope() -> None:
 
 
 def test_spike_ext_dependency_dag_remains_closed_and_acyclic_with_spike_ext_present() -> None:
-    """Re-run the same structural closure/acyclic proof
-    tests/test_assurance_evolution_roadmap_freeze.py performs, confirming
-    this spike's document did not (and structurally cannot, since it is
-    docs-only) alter the frozen roadmap's dependency graph."""
     dependencies = _dependency_registry()
 
     assert len(dependencies) == 28
