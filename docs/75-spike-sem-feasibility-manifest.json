@@ -1,5 +1,5 @@
 {
-  "schema_version": "sergeant.spike-sem-feasibility-manifest.v1",
+  "schema_version": "sergeant.spike-sem-feasibility-manifest.v2",
   "node": "SPIKE-SEM",
   "node_title": "Semantic-analysis feasibility and UNKNOWN-rate study",
   "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
@@ -22,19 +22,23 @@
   },
   "candidate_document": {
     "path": "docs/74-spike-sem-semantic-feasibility.md",
-    "blob_sha": "d21d1d39caef2f71165afd6066cda025dac0c79a"
+    "blob_sha": "d39fa0c17a16b3ebc09b3608168b6c0018c6fbbb"
   },
   "probe": {
     "path": "tests/spike_sem/semantic_feasibility_probe.py",
-    "blob_sha": "d21c3536a9986aa1ed4d958663395a9cc6cd0e02",
+    "blob_sha": "37002781449c63d4022161487b80defc8f468cd9",
     "assurance_evolution_runtime_implementation": false,
     "production_authority": false,
-    "default_max_states": 500000,
-    "default_max_alias_hops": 2
+    "default_max_operations": 2000000,
+    "default_max_alias_hops": 2,
+    "every_python_call_classified": true,
+    "candidate_expansion_charged_to_budget": true,
+    "lexical_shadowing_fails_closed": true,
+    "ambiguous_module_rebinding_fails_closed": true
   },
   "proof_fixture": {
     "path": "tests/spike_sem/test_semantic_feasibility_probe.py",
-    "blob_sha": "e611a4835b1afca0cfb6a1ec7dc6317ecd0c8c25",
+    "blob_sha": "0bc87a86923580ebbf113d2472516640ce1d8828",
     "assurance_evolution_runtime_implementation": false
   },
   "required_constructs": {
@@ -48,63 +52,74 @@
     "resource_explosion_behavior": true
   },
   "grade_law": {
-    "EXACT": "statically closed target inside the bounded corpus",
+    "EXACT": "statically closed target inside the bounded corpus with no detected lexical shadowing or ambiguous module rebinding",
     "CONSERVATIVE_SUPERSET": "finite over-approximation when exact receiver identity is unavailable",
     "PARTIAL": "useful binding exists but required semantics are outside the bounded model",
-    "UNKNOWN": "safe closure is unavailable, parsing fails, or resource bounds are exceeded"
+    "UNKNOWN": "safe closure is unavailable, an unresolved call remains, parsing fails, or finite resource bounds are exceeded"
   },
   "synthetic_required_matrix": {
-    "total_relations": 10,
+    "total_relations": 12,
     "grades": {
       "EXACT": 6,
       "CONSERVATIVE_SUPERSET": 0,
       "PARTIAL": 2,
-      "UNKNOWN": 2
+      "UNKNOWN": 4
     },
     "rates": {
-      "EXACT": 0.6,
+      "EXACT": 0.5,
       "CONSERVATIVE_SUPERSET": 0.0,
-      "PARTIAL": 0.2,
-      "UNKNOWN": 0.2
+      "PARTIAL": 0.16666666666666666,
+      "UNKNOWN": 0.3333333333333333
     },
     "budget_exceeded": false,
     "parse_error_count": 0
   },
-  "real_sergeant_measurement": {
-    "scope": "main_review/ Python corpus",
+  "hostile_review": {
+    "reviewed_initial_head": "3667561baf731482d76be10a38c7cfa1ef54f2b5",
+    "findings": {
+      "unresolved_calls_omitted_from_denominator": {
+        "severity": "P1",
+        "valid": true,
+        "implemented": true,
+        "execution_reproof_pending": true
+      },
+      "lexical_shadowing_false_exact": {
+        "severity": "P2",
+        "valid": true,
+        "implemented": true,
+        "execution_reproof_pending": true
+      },
+      "candidate_expansion_not_budgeted": {
+        "severity": "P2",
+        "valid": true,
+        "implemented": true,
+        "execution_reproof_pending": true
+      }
+    }
+  },
+  "invalidated_measurement": {
     "discovery_head": "3667561baf731482d76be10a38c7cfa1ef54f2b5",
     "discovery_github_actions_run_id": 33615685272,
-    "discovery_test_result": {
-      "passed": 1096,
-      "failed": 1,
-      "xfailed": 1,
-      "expected_single_failure": "test_real_sergeant_main_review_semantic_metrics_are_frozen_from_observation",
-      "purpose": "mechanically expose fresh metrics before freezing them"
-    },
-    "frozen_metrics_head": "e2da5285a2538a40142027c767dde9c3e0416380",
     "files_parsed": 136,
     "states_visited": 225231,
     "total_relations": 4539,
-    "parse_error_count": 0,
-    "budget_exceeded": false,
     "grades": {
       "EXACT": 2528,
       "CONSERVATIVE_SUPERSET": 3,
       "PARTIAL": 2008,
       "UNKNOWN": 0
     },
-    "rates": {
-      "EXACT": 0.5569508702357348,
-      "CONSERVATIVE_SUPERSET": 0.0006609385327164573,
-      "PARTIAL": 0.4423881912315488,
-      "UNKNOWN": 0.0
-    },
-    "by_kind": {
-      "attribute_name_candidate": 3,
-      "decorator_binding": 57,
-      "direct_call": 4479
-    },
-    "interpretation": "current measured corpus pressure is predominantly PARTIAL precision/closure rather than UNKNOWN or resource explosion; zero UNKNOWN is corpus-specific and cannot weaken fail-closed treatment for future dynamic constructs"
+    "authority_status": "WITHDRAWN",
+    "reason": "review proved unresolved calls were omitted, lexical shadowing could false-grade EXACT, and later candidate expansion was outside the resource counter"
+  },
+  "corrected_real_sergeant_measurement": {
+    "scope": "main_review/ Python corpus",
+    "status": "DISCOVERY_PENDING_AFTER_REVIEW_HARDENING",
+    "max_operations": 2000000,
+    "expected_discovery_test": "test_real_sergeant_main_review_semantic_metrics_are_frozen_from_observation",
+    "require_unknown_greater_than_zero": true,
+    "require_parse_error_count": 0,
+    "require_budget_exceeded": false
   },
   "false_positive_pressure": {
     "fixture": "duplicate exported/local handle symbol names",
@@ -116,19 +131,18 @@
     "result": "bare-name production call-graph correlation is not eligible for future EXACT semantic authority"
   },
   "resource_behavior": {
-    "main_review_states_used": 225231,
-    "probe_state_budget": 500000,
-    "budget_fraction_used": 0.450462,
-    "budget_exceeded_on_main_review": false,
+    "probe_operation_budget": 2000000,
+    "alias_hop_limit": 2,
     "explicit_exhaustion_fixture_emits_unknown": true,
+    "candidate_expansion_exhaustion_fixture_emits_unknown": true,
     "universal_budget_sufficiency_claimed": false
   },
   "initial_exact_domain_recommendation": [
-    "statically_bound_local_or_imported_direct_calls",
-    "exactly_resolved_imported_module_attribute_calls",
-    "constant_key_dispatch_tables_with_statically_bound_values",
+    "non_shadowed_statically_bound_local_or_imported_direct_calls",
+    "non_shadowed_exactly_resolved_imported_module_attribute_calls",
+    "non_shadowed_constant_key_dispatch_tables_with_statically_bound_values",
     "statically_bound_decorator_identity",
-    "literal_getattr_on_exactly_resolved_imported_module",
+    "literal_getattr_on_non_shadowed_exactly_resolved_imported_module",
     "concrete_packaging_entry_points_with_target_present_in_exact_review_world"
   ],
   "non_exact_domain_recommendation": {
@@ -140,10 +154,14 @@
       "calls_whose_implementation_semantics_are_outside_the_bounded_review_world"
     ],
     "UNKNOWN": [
+      "unresolved_calls",
+      "lexical_shadowing",
+      "ambiguous_module_rebinding",
       "dynamic_getattr",
       "dynamic_dispatch_keys",
       "runtime_generated_target_configuration",
       "star_import_binding_ambiguity",
+      "parse_failure",
       "resource_budget_exhaustion",
       "otherwise_unclosed_semantics"
     ]
@@ -151,6 +169,7 @@
   "known_gaps": [
     "production_semantic_analyzer_not_implemented",
     "complete_python_import_and_packaging_resolution_not_qualified",
+    "precise_python_lexical_scope_model_not_qualified",
     "dispatch_table_mutation_alias_and_escape_analysis_not_solved",
     "framework_specific_invocation_semantics_not_qualified",
     "cross_language_semantic_relations_not_solved",
@@ -165,8 +184,10 @@
     "do_not_treat_spike_probe_as_main_review_production_code",
     "do_not_treat_grade_labels_as_current_sergeant_verdict_authority",
     "do_not_promote_bare_name_call_graph_correlation_to_exact_semantics",
+    "do_not_omit_unresolved_calls_to_improve_unknown_rate",
+    "do_not_ignore_candidate_expansion_in_resource_accounting",
     "do_not_lower_dynamic_or_unclosed_constructs_below_unknown_to_improve_coverage",
-    "do_not_claim_zero_unknown_in_current_corpus_means_universal_dynamic_coverage",
+    "do_not_reuse_invalidated_first_measurement",
     "do_not_activate_partial_assurance_evolution_generation",
     "do_not_retrofit_pr_167"
   ]
