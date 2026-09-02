@@ -1,0 +1,246 @@
+{
+  "schema_version": "sergeant.spike-ext-external-review-sourcing-feasibility-manifest.v1",
+  "node": "SPIKE-EXT",
+  "node_title": "Genuine external-review sourcing feasibility",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "branch": "roadmap/spike-ext-external-review-sourcing",
+  "base": {
+    "ref": "main",
+    "sha": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757"
+  },
+  "proof_requires": ["SAE-00"],
+  "sae00_state_at_write_time": {
+    "merged_to_canonical_main": false,
+    "candidate_branch": "roadmap/sae-00-founding-authority-reference",
+    "candidate_documents_not_bound_here": [
+      "docs/62-sae00-founding-authority-and-preservation-reference.md",
+      "docs/63-sae00-founding-authority-reference-manifest.json"
+    ],
+    "reason_not_bound": "these files do not exist on this main-based branch; binding to files absent from this branch would fabricate provenance rather than record real provenance"
+  },
+  "authority_state": "spike_ext_candidate_analysis_only_proof_pending_sae00",
+  "lifecycle_state": "CANDIDATE",
+  "lifecycle_note": "SPIKE-EXT proof formally requires SAE-00 (docs/59 sec.15). SAE-00 has not merged to canonical main at write time, so this node cannot exceed CANDIDATE/REVIEWED. TESTS GREEN != QUALIFIED (docs/59 sec.3) applies to this node's own claims about itself.",
+  "authority_gain": "none",
+  "documents": [
+    {
+      "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
+      "blob_sha": "b7d7ea0cec987046ece2aecb554cc29d86aa447b",
+      "role": "founding_architecture_eepr_and_independence_law_source"
+    },
+    {
+      "path": "docs/59-sergeant-assurance-evolution-roadmap.md",
+      "blob_sha": "f54dd414da2c01284c94a3f7349030da0cda4457",
+      "role": "spike_ext_charter_and_dependency_registry"
+    },
+    {
+      "path": "docs/60-sergeant-assurance-evolution-freeze-record.md",
+      "blob_sha": "6b713bc8b3ecda9ee568b3c5d2b5d2057ae3277a",
+      "role": "freeze_record_independence_classification_precedent"
+    },
+    {
+      "path": "docs/61-sergeant-assurance-evolution-freeze-manifest.json",
+      "blob_sha": "e99fce593c7dc73bf2028af9c9868f47205ebf05",
+      "role": "prior_manifest_structural_precedent"
+    },
+    {
+      "path": "docs/01-research-sources.md",
+      "blob_sha": "4231efcba5808f23c67c6efd59eb45676c14e0e3",
+      "role": "kilocode_donor_and_research_source_evidence"
+    },
+    {
+      "path": "docs/12-external-review-learning-loop.md",
+      "blob_sha": "bbe68b0b710b794cb4fd6821f476d890145c4a60",
+      "role": "coderabbit_training_material_not_authority_rule"
+    },
+    {
+      "path": "docs/51-cross-repository-learning-intake.md",
+      "blob_sha": "3c8811be3e688ee1a3d447cd64a70592393b8c72",
+      "role": "cross_repository_learning_governance_precedent"
+    },
+    {
+      "path": "PICKUP.md",
+      "blob_sha": "83e003df27f189114076abd3abc40e18a72c191c",
+      "role": "oracle_pr150_rejection_precedent_and_learning_state"
+    },
+    {
+      "path": "AGENTS.md",
+      "blob_sha": "7b8fa36f36200cb67e77cf955a3582677c614c93",
+      "role": "operating_memory_anchor"
+    },
+    {
+      "path": "ASSURANCE_EVOLUTION_START_HERE.md",
+      "blob_sha": "75d462b5989c4bbfacae4e991a61a24ae6e7fb8d",
+      "role": "zero_context_entrypoint"
+    },
+    {
+      "path": ".github/self-learning/cross-repository-sources.json",
+      "blob_sha": "104d15f66bbb74692760af1fb682ca67be4ff6d4",
+      "role": "evidence_all_confirmed_sources_are_owner_owned"
+    },
+    {
+      "path": "docs/64-spike-ext-external-review-sourcing-feasibility.md",
+      "blob_sha": "fcfaef40cbccca173193889906edf389f070a018",
+      "role": "spike_ext_human_readable_deliverable"
+    }
+  ],
+  "proof_fixtures": [
+    {
+      "path": "tests/test_spike_ext_external_review_sourcing_feasibility.py",
+      "role": "spike_ext_manifest_and_doc_content_proof",
+      "assurance_evolution_runtime_implementation": false,
+      "blob_sha": "34d22564a9d3b4c885f8f5c52b6057b3fa8a96f6",
+      "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures per docs/62 sec.5 and tests/test_sae00_founding_authority_reference.py precedent; the fixture also self-verifies this value against its own live blob at test-run time, closing the gap where a later silent weakening of this file would otherwise leave the manifest still validating"
+    }
+  ],
+  "required_outputs": {
+    "acceptable_external_source_classes": true,
+    "authentication_provenance_route": true,
+    "independence_control_lineage_criteria": true,
+    "expected_mandatory_external_review_lane_cardinality_proposal": true,
+    "sourcing_logistics_disposition": true
+  },
+  "source_classes": [
+    {
+      "id": "SC-1",
+      "name": "paid_independent_security_or_code_review_contractor_or_firm",
+      "doc_section": "4.1",
+      "sourcing_method": "freelance/contracting marketplace or direct outreach, explicit paid statement-of-work",
+      "cost_model": "real_money_fixed_fee_or_hourly",
+      "independence_proof_approach": "signed engagement contract, ordinary commercial payment rate, contractor-owned infrastructure, no pre-existing relationship, contractor-authored methodology, signed/timestamped deliverable",
+      "feasibility": "highest_independence_confidence_lowest_current_relationship_readiness",
+      "currently_engaged": false
+    },
+    {
+      "id": "SC-2",
+      "name": "academic_research_collaborator",
+      "doc_section": "4.2",
+      "sourcing_method": "cold outreach to a university research group, collaboration in exchange for research material access or co-authorship",
+      "cost_model": "non_monetary_or_low_cost_reciprocal",
+      "independence_proof_approach": "institutional affiliation predating contact, no funding/consulting relationship, own-name publication, written non-direction confirmation",
+      "feasibility": "least_logistically_ready_no_existing_relationship_long_timeline",
+      "currently_engaged": false
+    },
+    {
+      "id": "SC-3",
+      "name": "structured_public_bug_bounty_style_programme",
+      "doc_section": "4.3",
+      "sourcing_method": "funded scoped bounty, self-hosted or via an existing bounty platform",
+      "cost_model": "funded_payout_pool",
+      "independence_proof_approach": "participant identity capture, arm's-length payout record, non-Owner-directed confirmation",
+      "feasibility": "poor_fit_for_specification_completeness_review_no_existing_programme",
+      "currently_engaged": false
+    },
+    {
+      "id": "SC-4",
+      "name": "independent_open_source_maintainer_reciprocal_review",
+      "doc_section": "4.4",
+      "sourcing_method": "approach maintainers of comparable review tooling for a mutual review swap or small sponsorship",
+      "cost_model": "reciprocal_or_small_sponsorship",
+      "independence_proof_approach": "maintainer identity/history predating engagement, no owner payment beyond disclosed swap, maintainer-controlled delivery and selection",
+      "feasibility": "plausible_but_no_existing_relationship_evidenced",
+      "currently_engaged": false
+    },
+    {
+      "id": "SC-5",
+      "name": "different_ai_vendor_or_account_operated_by_unaffiliated_third_party",
+      "doc_section": "4.5",
+      "sourcing_method": "not_a_standalone_source_class_collapses_into_sc1_or_sc4",
+      "cost_model": "n/a",
+      "independence_proof_approach": "n/a_vendor_diversity_alone_never_establishes_independence",
+      "feasibility": "false_positive_trap_explicitly_not_acceptable_by_itself",
+      "does_not_by_itself_establish_independence": true,
+      "currently_engaged": false
+    },
+    {
+      "id": "SC-6",
+      "name": "existing_paid_third_party_review_saas_coderabbit",
+      "doc_section": "4.6",
+      "sourcing_method": "elevate existing commercial SaaS relationship to a distinct scoped paid hostile-qualification engagement",
+      "cost_model": "existing_commercial_relationship_new_scoped_engagement_required",
+      "independence_proof_approach": "vendor has no equity/personal/repo-write relationship to Owner beyond SaaS billing, vendor-owned review methodology, arm's-length billing, distinct engagement documentation separating hostile-qualification tasking from default automated commentary",
+      "feasibility": "most_logistically_ready_existing_relationship_not_yet_genesis_grade",
+      "currently_engaged": false,
+      "current_role_per_repo_doctrine": "training_material_not_qualification_authority_per_docs_12"
+    }
+  ],
+  "independence_criteria": [
+    "The reviewer is a distinct legal or natural person who is not the Owner and is not an entity the Owner controls, is employed by, or holds equity in.",
+    "The reviewer has no financial dependency on the Owner beyond the specific arm's-length review engagement itself.",
+    "The reviewer has no undisclosed pre-existing personal relationship with the Owner that could bias findings.",
+    "The reviewer was not granted repository write or admin access as part of or before the review.",
+    "The reviewer authored or selected their own review approach, prompts, and inputs rather than being handed a fixed script or a predetermined conclusion by the Owner.",
+    "The reviewer used their own compute, account, and infrastructure rather than Owner-provisioned or Owner-configured infrastructure.",
+    "The reviewer, not the Owner, selected and controlled which findings were submitted as the final review output.",
+    "Any payment, reciprocal consideration, or engagement benefit was structured as compensation for performing the review, never contingent on reaching a particular verdict or outcome — this covers unpaid or reciprocal arrangements (section 4.2, 4.4) exactly the same way it covers a paid one: the requirement is outcome-independence, not the presence of money. An arrangement with no consideration at all trivially satisfies this criterion.",
+    "The engagement and deliverable are bound to an authenticated External Evidence Provenance Record satisfying `docs/58` section 13 before independence can be claimed rather than merely asserted."
+  ],
+  "independence_disposition_rule": {
+    "INDEPENDENT": "all nine criteria verified true with evidence",
+    "NOT_INDEPENDENT": "any one criterion verified false",
+    "UNKNOWN_INDEPENDENCE": "any one criterion unverifiable or undocumented; default state before a real arrangement exists",
+    "precedence_order": [
+      "NOT_INDEPENDENT if any criterion is verified false, regardless of the state of any other criterion",
+      "otherwise UNKNOWN_INDEPENDENCE if any criterion is unverifiable or undocumented",
+      "otherwise INDEPENDENT only if all nine are verified true with evidence"
+    ],
+    "resolves_mixed_evidence_uniquely": true
+  },
+  "authentication_provenance_route": {
+    "steps": [
+      "submission_channel_binding",
+      "content_addressed_hash_binding",
+      "independent_timestamp",
+      "explicit_control_lineage_statement",
+      "reviewer_identity_provenance_verification_method_recorded",
+      "independence_disposition_assigned_and_justified"
+    ],
+    "identity_technology_required_first": false,
+    "compatible_with_spike_id": true,
+    "blocked_on_spike_id": false,
+    "spike_id_content_available_at_write_time": false
+  },
+  "cardinality_proposal": {
+    "minimum": 2,
+    "target": 3,
+    "minimum_distinct_source_classes": 2,
+    "excluded_source_class_for_cardinality_purposes": "SC-5",
+    "status": "proposal_for_sae20_acr_authoring_audit_not_binding_law",
+    "reasoning_summary": "one lane is a single point of failure; two lanes establish a cross-check floor; three lanes widen independent coverage (not a vote/tie-breaker -- every finding from any lane is still admitted and reconciled by Judge/Sergeant on its own merits per docs/58 section 1, evidence providers create facts not verdict votes); diversity across source classes guards against correlated blind spots; a larger N was rejected as unrealistic for a single-owner project with no evidenced dedicated assurance budget"
+  },
+  "sourcing_disposition": {
+    "status": "open_gap_no_independent_lane_currently_active",
+    "as_of": "2026-09-02",
+    "claim_scope": "bounded to live evidence captured during this spike's construction session, not an unbounded eternal-present claim; re-check against fresh live evidence before relying on this after new engagement activity",
+    "evidence": [
+      "all confirmed cross-repository-sources.json sources are tagged thetechguy-owned",
+      "docs/01 KiloCode entry: owner mirror is the practical inspection source, no upstream maintainer engagement evidenced",
+      "PICKUP.md Oracle PR #150 candidate rejected, never claimed independent",
+      "no evidenced existing contractor, academic, bounty, or independent-maintainer relationship anywhere in this repository",
+      "live gh api check: repos/jaydumisuni/Sergeant/contributors returns exactly jaydumisuni and github-actions[bot]; collaborators returns exactly one human (jaydumisuni); reviewer set across the 20 most recent PRs contains no account other than jaydumisuni, coderabbitai (bot), and chatgpt-codex-connector (bot)"
+    ],
+    "nearest_practical_path_ranked": [
+      "elevate_existing_coderabbit_relationship_to_scoped_hostile_qualification_engagement",
+      "engage_one_paid_independent_contractor_or_firm_with_no_prior_relationship"
+    ],
+    "this_spike_initiated_any_real_engagement": false,
+    "genesis_impact": "SAE-150 mandatory independent lane cannot close until a real arrangement satisfying independence_criteria exists and is captured via authentication_provenance_route; SAE-30 substrate construction is not blocked by this gap"
+  },
+  "what_this_spike_does_not_establish": [
+    "no source class currently satisfies INDEPENDENT disposition",
+    "coderabbit_has_not_produced_independent_evidence_yet",
+    "different_ai_vendor_account_alone_never_satisfies_independence",
+    "no_real_external_reviewer_was_contacted_hired_or_contracted",
+    "no_proof_dependency_or_authority_boundary_in_docs_59_was_changed"
+  ],
+  "prohibitions": [
+    "do_not_treat_this_node_as_a_solved_independent_lane",
+    "do_not_claim_a_different_ai_vendor_account_alone_is_independent",
+    "do_not_engage_or_contact_a_real_external_reviewer_from_this_node",
+    "do_not_grant_normal_sergeant_verdict_authority_from_this_node",
+    "do_not_treat_project_controlled_ai_hostile_review_rounds_as_independent",
+    "do_not_change_roadmap_semantics_without_new_review_and_owner_approval",
+    "do_not_retrofit_pr_167"
+  ]
+}
