@@ -9,11 +9,33 @@ from tests.spike_sem.semantic_feasibility_probe import analyze_python_tree, rela
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Deliberately RED on the first repository run.  The failure message exposes
-# fresh main_review/ metrics so the next commit can freeze observed evidence
-# rather than inventing or hand-estimating the semantic distribution.
+# Frozen from the first deliberate RED measurement run on PR #175 head
+# 3667561baf731482d76be10a38c7cfa1ef54f2b5.  These values are an
+# observation of the current main_review/ corpus, not a universal semantic
+# guarantee and not a production capability claim.
 EXPECTED_REAL_SERGEANT_METRICS: dict[str, object] = {
-    "DISCOVERY_PENDING": True,
+    "total_relations": 4539,
+    "grades": {
+        "EXACT": 2528,
+        "CONSERVATIVE_SUPERSET": 3,
+        "PARTIAL": 2008,
+        "UNKNOWN": 0,
+    },
+    "rates": {
+        "EXACT": 0.5569508702357348,
+        "CONSERVATIVE_SUPERSET": 0.0006609385327164573,
+        "PARTIAL": 0.4423881912315488,
+        "UNKNOWN": 0.0,
+    },
+    "by_kind": {
+        "attribute_name_candidate": 3,
+        "decorator_binding": 57,
+        "direct_call": 4479,
+    },
+    "states_visited": 225231,
+    "files_parsed": 136,
+    "parse_error_count": 0,
+    "budget_exceeded": False,
 }
 
 
