@@ -9,11 +9,35 @@ from tests.spike_sem.semantic_feasibility_probe import analyze_python_tree, rela
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Deliberately RED after review invalidated the first measurement. The next
-# exact-head repository run must expose the corrected metrics after unresolved
-# calls, lexical shadowing, and operation-budget charging are all represented.
+# Frozen from the review-hardened deliberate RED discovery run on PR #175
+# head 6f47c742ffae3bf624e4147a15c0271ea435d3a9 / Actions run 33619547519.
+# That run had exactly one failure: this metric sentinel. These values are a
+# bounded observation of current main_review/, never a universal coverage law.
 EXPECTED_REAL_SERGEANT_METRICS: dict[str, object] = {
-    "DISCOVERY_PENDING_AFTER_REVIEW_HARDENING": True,
+    "total_relations": 14439,
+    "grades": {
+        "EXACT": 2528,
+        "CONSERVATIVE_SUPERSET": 3,
+        "PARTIAL": 2008,
+        "UNKNOWN": 9900,
+    },
+    "rates": {
+        "EXACT": 0.17508137682665004,
+        "CONSERVATIVE_SUPERSET": 0.00020777062123415748,
+        "PARTIAL": 0.13906780247939607,
+        "UNKNOWN": 0.6856430500727198,
+    },
+    "by_kind": {
+        "attribute_name_candidate": 3,
+        "decorator_binding": 70,
+        "direct_call": 4479,
+        "lexical_shadowing": 25,
+        "unresolved_call": 9862,
+    },
+    "states_visited": 924042,
+    "files_parsed": 136,
+    "parse_error_count": 0,
+    "budget_exceeded": False,
 }
 
 
@@ -97,7 +121,7 @@ def test_required_construct_matrix_records_bounded_exact_partial_and_unknown(tmp
     assert any(entry["grade"] == "UNKNOWN" for entry in matrix.get("getattr_dynamic_call", []))
     assert any(entry["grade"] == "UNKNOWN" for entry in matrix.get("generated_config_dynamic", []))
 
-    # Every ast.Call is now represented. The two builtin getattr calls are
+    # Every ast.Call is represented. The two builtin getattr calls are
     # intentionally UNKNOWN in addition to the dynamic semantic relations.
     assert summary["grades"] == {
         "EXACT": 6,
