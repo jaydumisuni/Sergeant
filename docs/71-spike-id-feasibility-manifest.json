@@ -1,0 +1,124 @@
+{
+  "schema_version": "sergeant.spike-id-feasibility-manifest.v2",
+  "node": "SPIKE-ID",
+  "node_title": "Identity / authenticated provenance feasibility",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "branch": "roadmap/spike-id-reconciled-20260902",
+  "lifecycle_state": "CANDIDATE",
+  "proof_requires": ["SAE-00"],
+  "authority_gain": "none",
+  "construction_base": {
+    "main_sha": "14576a06cedd46f2a0f805e0ab5a6ad5207f08f9",
+    "sae00_proven_merge": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+    "spike_ext_proven_merge": "14576a06cedd46f2a0f805e0ab5a6ad5207f08f9"
+  },
+  "historical_candidate": {
+    "head": "a703f009bd2ecd7e85aa01f259c01936d6114ec8",
+    "base": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757",
+    "document_path": "docs/64-spike-id-identity-provenance-feasibility.md",
+    "document_blob_sha": "59a14b980eb284de35f132e553a9971a00463a6e",
+    "manifest_path": "docs/65-spike-id-feasibility-manifest.json",
+    "manifest_blob_sha": "267d5545e61edc07724ab00c5c044a0b2fc4c460",
+    "recorded_fixture_result": "10 passed",
+    "result_is_historical_not_fresh": true
+  },
+  "current_document": {
+    "path": "docs/70-spike-id-identity-provenance-feasibility.md",
+    "blob_sha": "3e1e38225e87ee8f602592bb1f4f0355845aff9c"
+  },
+  "disposition": {
+    "outcome": "selected_initial_mechanism",
+    "selected_mechanism": "sshsig-owner-held-dedicated-ed25519-keypair-with-verifier-trusted-registry-and-explicit-revocation",
+    "no_safe_mechanism": false,
+    "qualified_for_sae30": false
+  },
+  "proof_fixtures": [
+    {
+      "path": "tests/spike_id/qualification_attestation_fixture.py",
+      "blob_sha": "c547f7cb6181cae03516e73db832b1b4d46e3bb0",
+      "role": "reference_sshsig_attestation_library",
+      "assurance_evolution_runtime_implementation": false,
+      "changed_from_historical_candidate": true,
+      "change_reason": "expiry is now fail-closed at the exact expires_at instant"
+    },
+    {
+      "path": "tests/spike_id/conftest.py",
+      "blob_sha": "59a40300b80715ad401e20e7a66defc65aec6ce2",
+      "role": "shared_identity_environment_fixture",
+      "assurance_evolution_runtime_implementation": false,
+      "changed_from_historical_candidate": false
+    },
+    {
+      "path": "tests/spike_id/test_valid_attestation_verifies.py",
+      "blob_sha": "5c1caba9118dc0bc60b347b8c318216fc54cfdb1",
+      "role": "positive_control_and_tamper_detection_proof",
+      "assurance_evolution_runtime_implementation": false,
+      "changed_from_historical_candidate": false
+    },
+    {
+      "path": "tests/spike_id/test_replay_and_staleness_rejected.py",
+      "blob_sha": "5ad3ae3a3501a6a2bcec32adf15ed33d117acd5b",
+      "role": "expiry_boundary_replay_and_currentness_proof",
+      "assurance_evolution_runtime_implementation": false,
+      "changed_from_historical_candidate": true,
+      "change_reason": "adds exact-expiry equality falsifier"
+    },
+    {
+      "path": "tests/spike_id/test_revoked_attestation_rejected.py",
+      "blob_sha": "b782c91bc51e9744b1c17cc94da6f2bc54ea246e",
+      "role": "revocation_proof",
+      "assurance_evolution_runtime_implementation": false,
+      "changed_from_historical_candidate": false
+    },
+    {
+      "path": "tests/spike_id/test_negative_proof_candidate_cannot_sign_as_issuer.py",
+      "blob_sha": "97c36477a52bdc0ee51c7e01225d3e482d720449",
+      "role": "negative_proof_candidate_automation_cannot_acquire_issuer_authority",
+      "assurance_evolution_runtime_implementation": false,
+      "changed_from_historical_candidate": false
+    }
+  ],
+  "required_outputs": {
+    "identity_authentication_option_analysis": true,
+    "selected_initial_mechanism_or_no_safe_mechanism_disposition": true,
+    "key_credential_custody_threat_model": true,
+    "replay_revocation_fixtures": true,
+    "negative_proof_candidate_automation_cannot_acquire_issuer_authority": true
+  },
+  "mechanism": {
+    "signature_format": "SSHSIG via ssh-keygen -Y sign / -Y verify with ed25519",
+    "domain_separation_namespace": "sergeant-qualification-attestation-v1",
+    "registry_shape": "OpenSSH allowed_signers binding issuer identity to public key and namespace",
+    "expires_at_semantics": "exclusive_upper_bound_now_greater_than_or_equal_is_expired",
+    "revocation_granularity": ["attestation_id", "issuer_generation"],
+    "replay_control": "verifier-side consumed attestation_id set"
+  },
+  "negative_proof": {
+    "path": "tests/spike_id/test_negative_proof_candidate_cannot_sign_as_issuer.py",
+    "test_names": [
+      "test_registry_structurally_excludes_the_candidate_public_key",
+      "test_candidate_signed_attestation_fails_verification_against_issuer_registry",
+      "test_candidate_cannot_launder_authority_by_shipping_its_own_registry",
+      "test_candidate_key_under_its_own_honest_identity_is_not_qualification_authority"
+    ],
+    "load_bearing_boundary": "verifier-trusted registry and issuer key custody must remain outside candidate control"
+  },
+  "known_gaps": [
+    "registry_and_revocation_list_distribution_custody_not_solved",
+    "no_public_transparency_log",
+    "key_holder_loss_rotation_and_succession_protocol_undesigned",
+    "fixture_attestation_schema_is_bounded_subset_of_docs58_section12",
+    "no_real_qualification_authority_registry_exists",
+    "no_real_qualification_issuer_key_is_created_or_stored_by_this_spike",
+    "signature_authenticity_does_not_establish_external_independence"
+  ],
+  "prohibitions": [
+    "do_not_treat_this_spike_as_sae30_implementation",
+    "do_not_treat_selected_sshsig_mechanism_as_qualified_for_sae30",
+    "do_not_grant_normal_sergeant_verdict_authority_from_this_spike",
+    "do_not_treat_signature_authenticity_as_independence",
+    "do_not_retrofit_pr_167",
+    "do_not_activate_partial_assurance_evolution_generation"
+  ]
+}
