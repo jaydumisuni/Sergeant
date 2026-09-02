@@ -58,7 +58,7 @@ def test_sae00_historical_candidate_suite_count_remains_a_snapshot_not_current_t
 
     assert candidate["lifecycle_state"] == "CANDIDATE"
     assert exact["total_collected"] == 1040
-    assert closeout["historical_candidate_manifest"] == CANDIDATE_MANIFEST_PATH.name
+    assert closeout["historical_candidate_manifest"] == CANDIDATE_MANIFEST_PATH.relative_to(ROOT).as_posix()
     assert closeout["historical_candidate_state"] == "CANDIDATE"
     assert closeout["lifecycle_state"] == "PROVEN"
 
