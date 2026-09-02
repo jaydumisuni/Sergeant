@@ -21,7 +21,7 @@ Those document numbers later became canonical SPIKE-EXT authority, so the old SP
 - preserves the old head and old document/blob identities as historical provenance in `docs/71-spike-id-feasibility-manifest.json`;
 - moves the current SPIKE-ID authority record to `docs/70`/`docs/71`;
 - transplants the real `tests/spike_id/` fixture set onto current-main ancestry;
-- records any corrections made during current review instead of pretending the old fixture bytes were unchanged.
+- records corrections made during current review instead of pretending the old fixture bytes were unchanged.
 
 SAE-00 is now PROVEN through `docs/66`/`docs/67`. SPIKE-ID's sole roadmap proof dependency is therefore available for later lifecycle closeout once this reconciled candidate earns its own review gate.
 
@@ -69,8 +69,10 @@ The selected initial mechanism is OpenSSH SSHSIG using a **dedicated ed25519 qua
 - verify: `ssh-keygen -Y verify`;
 - domain separation namespace: `sergeant-qualification-attestation-v1`;
 - verifier trust source: an `allowed_signers`-shaped registry binding issuer identity to public key and namespace;
+- signed issuer coherence: payload `issuer_identity` must equal the identity the verifier actually authenticated;
 - revocation units: `attestation_id` and `issuer_generation`;
-- freshness: `expires_at` as an exclusive upper bound;
+- issue-time currentness: a future `issued_at` is not yet valid;
+- expiry currentness: `expires_at` is an exclusive upper bound, so equality is already expired;
 - replay protection: verifier-side consumed `attestation_id` state.
 
 Why selected: it uses audited OpenSSH primitives, adds no Python cryptography dependency, has no mandatory third-party service, and makes candidate/issuer credential separation concrete: candidate automation may possess its own key, but the verifier trusts only a separately-custodied issuer key.
@@ -113,16 +115,21 @@ This is the largest remaining operational gap. The fixtures prove verifier behav
 
 `tests/spike_id/` is deliberately outside `main_review/`: the code is feasibility evidence, not production capability.
 
-- `qualification_attestation_fixture.py` — reference SSHSIG signing, verification, and application-layer disposition.
+- `qualification_attestation_fixture.py` — reference SSHSIG signing, verification, authenticated-issuer coherence, and application-layer disposition.
 - `conftest.py` — generates independent issuer and candidate keypairs and an issuer-only verifier registry.
-- `test_valid_attestation_verifies.py` — positive control plus payload tamper rejection.
-- `test_replay_and_staleness_rejected.py` — stale, exact-expiry, and replay rejection.
+- `test_valid_attestation_verifies.py` — positive control, payload tamper rejection, and payload/authenticated-issuer mismatch rejection.
+- `test_replay_and_staleness_rejected.py` — stale, exact-expiry, future-issued, and replay rejection.
 - `test_revoked_attestation_rejected.py` — individual attestation and whole issuer-generation revocation.
 - `test_negative_proof_candidate_cannot_sign_as_issuer.py` — required candidate non-authority proof.
 
-The current review corrected one boundary discovered in the historical fixture: expiry previously used `now > expires_at`, admitting an attestation at the exact expiry instant. The reconciled fixture uses `now >= expires_at`, and the currentness suite contains an exact-equality falsifier. This correction is recorded as a real change; the historical fixture blob remains preserved in provenance rather than falsely described as current.
+Current static review made four explicit corrections relative to the historical fixture generation:
 
-The historical candidate recorded a real local fixture result of **10 passed** and real direct `ssh-keygen -Y sign/-Y verify` confirmation. Those are historical execution results, not claimed as fresh execution in this reconciliation session.
+1. **Exact expiry now fails closed.** Historical code used `now > expires_at`, which admitted an attestation at the exact expiry instant. Current code uses `now >= expires_at` and carries an equality falsifier.
+2. **Future-issued attestations are rejected.** `issued_at` is now checked; an attestation whose issue time is later than verifier time is `not_yet_valid`.
+3. **Signed issuer identity is coherent with the authenticated principal.** A cryptographically valid issuer signature over a payload that names some other `issuer_identity` is rejected as `identity_mismatch`.
+4. **Negative-proof subject digests were normalized.** Historical illustrative values used malformed repeated `sha256:` prefixes; current fixtures use ordinary `sha256:` plus 64 hex characters. This is fixture hygiene, not a change to the authority invariant.
+
+The historical candidate recorded a real local fixture result of **10 passed** and real direct `ssh-keygen -Y sign/-Y verify` confirmation. Those are historical execution results, not claimed as fresh execution in this reconciliation session. The reconciled suite contains **13 test cases by construction** after the three new falsifiers; the manifest proof executes them when a runtime with OpenSSH is available, but this record does not fabricate a fresh run in the current GitHub-only workspace.
 
 ## 6. Negative-proof boundary
 
@@ -140,7 +147,7 @@ SSHSIG can authenticate an external evidence submitter's bytes and declared iden
 
 ## 8. Residual gaps
 
-The selected mechanism remains bounded by these unresolved items:
+The selected mechanism remains bounded by unresolved items that belong to SAE-30 qualification rather than this feasibility probe:
 
 1. registry and revocation-list distribution custody;
 2. no public transparency log;
@@ -148,7 +155,10 @@ The selected mechanism remains bounded by these unresolved items:
 4. fixture payload is only a subset of the full SAE-30 attestation schema;
 5. no real Qualification Authority Registry exists yet;
 6. no real qualification issuer key is created or stored by this spike;
-7. external-source independence remains governed by SPIKE-EXT/SAE-30, not by signature validity.
+7. external-source independence remains governed by SPIKE-EXT/SAE-30, not by signature validity;
+8. issuer-generation authorization is not bound to a registry record beyond revocation behavior in the fixture;
+9. subject/domain/ACR-generation/protocol-generation/evidence-root/proof-ceiling/closure-ceiling match checks are signed but not semantically qualified by this fixture;
+10. malformed or timezone-naive timestamp schema validation is not modeled as a production fail-closed parser here.
 
 None of these gaps authorizes weakening the founding architecture. If SAE-30 cannot close them, SAE-30 cannot become PROVEN.
 
