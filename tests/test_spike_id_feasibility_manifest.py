@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -17,6 +18,7 @@ SPIKE_ID_DIR = ROOT / "tests/spike_id"
 NEGATIVE_PROOF_PATH = SPIKE_ID_DIR / "test_negative_proof_candidate_cannot_sign_as_issuer.py"
 CURRENTNESS_PATH = SPIKE_ID_DIR / "test_replay_and_staleness_rejected.py"
 VALID_PATH = SPIKE_ID_DIR / "test_valid_attestation_verifies.py"
+REVOCATION_PATH = SPIKE_ID_DIR / "test_revoked_attestation_rejected.py"
 FIXTURE_PATH = SPIKE_ID_DIR / "qualification_attestation_fixture.py"
 
 
@@ -68,8 +70,9 @@ def test_spike_id_dependency_is_real_and_sae00_is_proven() -> None:
     assert manifest["proof_requires"] == ["SAE-00"]
     assert sae00["node"] == "SAE-00"
     assert sae00["lifecycle_state"] == "PROVEN"
+
     dependency_section = roadmap.split("## 15. Dependency registry v1.1", 1)[1]
-    assert "SPIKE-ID:\n  - SAE-00" in dependency_section
+    assert re.search(r"(?m)^SPIKE-ID:\s*\[SAE-00\]\s*$", dependency_section)
 
 
 def test_spike_id_selected_mechanism_stays_feasibility_only() -> None:
@@ -105,24 +108,30 @@ def test_spike_id_negative_proof_declarations_exist_in_real_file() -> None:
     assert "custody" in negative["load_bearing_boundary"]
 
 
-def test_spike_id_currentness_and_authenticated_identity_are_fail_closed() -> None:
+def test_spike_id_currentness_identity_and_generation_are_fail_closed() -> None:
     manifest = _load(MANIFEST_PATH)
     fixture_source = FIXTURE_PATH.read_text(encoding="utf-8")
     currentness_source = CURRENTNESS_PATH.read_text(encoding="utf-8")
     valid_source = VALID_PATH.read_text(encoding="utf-8")
+    revocation_source = REVOCATION_PATH.read_text(encoding="utf-8")
 
     mechanism = manifest["mechanism"]
     assert mechanism["expires_at_semantics"] == "exclusive_upper_bound_now_greater_than_or_equal_is_expired"
     assert mechanism["issued_at_semantics"] == "future_issued_attestation_is_not_yet_valid"
     assert mechanism["authenticated_issuer_binding"] == "payload_issuer_identity_must_equal_verified_identity"
+    assert mechanism["authenticated_generation_binding"] == "issuer_generation_comes_from_verifier_trusted_registry_not_payload"
 
     assert "expired = now >= expires_at" in fixture_source
     assert "not_yet_valid = now < issued_at" in fixture_source
     assert 'identity_mismatch = payload["issuer_identity"] != verify_result.identity' in fixture_source
+    assert "authenticated_generation = verify_result.authenticated_issuer_generation" in fixture_source
+    assert 'payload["issuer_generation"] != authenticated_generation' in fixture_source
+    assert "authenticated_generation in revoked_issuer_generations" in fixture_source
 
     assert "def test_attestation_is_rejected_at_exact_expiry_instant(" in currentness_source
     assert "def test_future_issued_attestation_is_not_yet_valid(" in currentness_source
     assert "def test_payload_issuer_identity_must_match_authenticated_signer_identity(" in valid_source
+    assert "def test_compromised_generation_cannot_evade_revocation_by_claiming_new_generation(" in revocation_source
 
 
 def test_spike_id_fixture_suite_genuinely_passes_when_executed() -> None:
@@ -137,7 +146,7 @@ def test_spike_id_fixture_suite_genuinely_passes_when_executed() -> None:
         timeout=180,
     )
     assert result.returncode == 0, result.stdout
-    assert "13 passed" in result.stdout, result.stdout
+    assert "14 passed" in result.stdout, result.stdout
 
 
 def test_spike_id_known_gaps_remain_explicit() -> None:
@@ -150,7 +159,6 @@ def test_spike_id_known_gaps_remain_explicit() -> None:
         "no_real_qualification_authority_registry_exists",
         "no_real_qualification_issuer_key_is_created_or_stored_by_this_spike",
         "signature_authenticity_does_not_establish_external_independence",
-        "issuer_generation_authorization_binding_not_modeled_outside_revocation",
         "attestation_subject_domain_generation_and_ceiling_match_checks_not_modeled",
         "malformed_or_timezone_naive_timestamp_schema_validation_not_modeled_by_spike_fixture",
     }
