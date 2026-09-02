@@ -24,7 +24,7 @@ def test_genuinely_issuer_signed_current_attestation_is_accepted(
         attestation_id="attest-0001",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=now.isoformat(),
         expires_at=(now + timedelta(days=30)).isoformat(),
     )
@@ -38,12 +38,13 @@ def test_genuinely_issuer_signed_current_attestation_is_accepted(
     verify_result = verify_signature(
         payload_bytes,
         signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem="valid-attestation",
     )
     assert verify_result.ok, verify_result.stderr
+    assert verify_result.authenticated_issuer_generation == identity_environment.issuer_generation
 
     disposition = evaluate_attestation(
         verify_result=verify_result,
@@ -59,6 +60,7 @@ def test_genuinely_issuer_signed_current_attestation_is_accepted(
     assert not disposition.expired
     assert not disposition.replayed
     assert not disposition.identity_mismatch
+    assert not disposition.issuer_generation_mismatch
     assert not disposition.not_yet_valid
 
 
@@ -71,7 +73,7 @@ def test_tampered_payload_fails_cryptographic_verification(
         attestation_id="attest-0002",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=now.isoformat(),
         expires_at=(now + timedelta(days=30)).isoformat(),
     )
@@ -88,7 +90,7 @@ def test_tampered_payload_fails_cryptographic_verification(
     verify_result = verify_signature(
         canonical_json(tampered_payload),
         signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem="tampered-attestation",
@@ -105,11 +107,8 @@ def test_payload_issuer_identity_must_match_authenticated_signer_identity(
         subject_digest="sha256:" + "ab" * 32,
         attestation_id="attest-identity-mismatch-0001",
         sequence=1,
-        # The real issuer key signs bytes that incorrectly name the candidate
-        # as issuer. Cryptography alone is valid; semantic identity binding
-        # must still reject the attestation.
         issuer_identity=identity_environment.candidate_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=now.isoformat(),
         expires_at=(now + timedelta(days=30)).isoformat(),
     )
@@ -123,7 +122,7 @@ def test_payload_issuer_identity_must_match_authenticated_signer_identity(
     verify_result = verify_signature(
         payload_bytes,
         signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem="identity-mismatch-attestation",
