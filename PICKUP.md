@@ -128,6 +128,12 @@ Relevant authority:
 - `docs/12-external-review-learning-loop.md`
 - `docs/51-cross-repository-learning-intake.md`
 
+## Sergeant Assurance Evolution roadmap state
+
+The Assurance Evolution founding architecture and roadmap (`docs/58` through `docs/61`) are frozen, isolated-authority documentation on `main`. `ASSURANCE_EVOLUTION_START_HERE.md` is the canonical Assurance Evolution recovery entrypoint; both it and `docs/61`'s freeze manifest are themselves git-blob-SHA-hash-bound historical proof of the freeze event, and must not be edited to enumerate later roadmap nodes without a new owner-approved freeze generation. Because of that, later roadmap-node binding records are not automatically added to that frozen numbered list.
+
+Before treating Assurance Evolution recovery as complete, also check current `docs/` for any binding record numbered after `docs/61` (for example `docs/62`/`docs/63`, the `SAE-00 — Founding authority and preservation reference` binding, if merged) and any open or merged roadmap-node pull requests. `SAE-00` is the roadmap's dependency-DAG root (`docs/59` section 15: `SAE-00: []`). Per the existing machine-native dependency-frontier law, this gates only freezing, qualification, and proof-authority completion for nodes whose proof requires `SAE-00`: no such node may freeze, qualify, or prove against `SAE-00` as resolved upstream truth until **both** `SAE-00`'s own binding record is verified current **and** `SAE-00`'s own recorded `lifecycle_state` has itself resolved past `CANDIDATE` (`docs/59` section 3: `AUTHORIZED → CANDIDATE → REVIEWED → QUALIFIED → PROVEN`). A binding record that is merely current-and-unchanged while still `CANDIDATE` does **not** satisfy this gate — `TESTS GREEN != QUALIFIED` applies to SAE-00 itself, not only to its dependents. It does **not** gate safe preparatory work already permitted independently of upstream truth — fixtures, donor analysis, threat modeling, and isolated candidate work on those nodes may proceed on the active dependency frontier regardless.
+
 ## Live-state recovery rule
 
 Before claiming the repository is ready, blocked, mergeable, releasable, or has no active work, query GitHub live. At minimum verify:
