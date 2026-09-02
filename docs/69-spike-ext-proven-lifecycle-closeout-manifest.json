@@ -34,6 +34,10 @@
     "path": "docs/68-spike-ext-proven-lifecycle-closeout.md",
     "blob_sha": "529ff823ab03d737d1dc9ce66205e964225a1ffc"
   },
+  "proof_fixture": {
+    "path": "tests/test_spike_ext_proven_lifecycle_closeout.py",
+    "blob_sha": "3f2ccd189f055b0066bb1d0b5df4e43caf510fab"
+  },
   "required_outputs": {
     "acceptable_external_source_classes": true,
     "authentication_provenance_route": true,
