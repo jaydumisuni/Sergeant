@@ -1,7 +1,7 @@
 """SPIKE-ID reference fixture for an SSHSIG-backed Qualification Attestation.
 
-This module is feasibility evidence only. It is not Sergeant production code,
-does not implement SAE-30, and grants no qualification authority.
+Feasibility evidence only: not Sergeant production code, not SAE-30, and no
+qualification authority is granted by importing or executing this module.
 """
 
 from __future__ import annotations
@@ -25,7 +25,6 @@ class SSHKeyPair:
 
 
 def generate_ssh_keypair(directory: Path, identity: str) -> SSHKeyPair:
-    """Generate one throwaway ed25519 fixture identity under ``directory``."""
     private_key_path = directory / f"{identity}.key"
     public_key_path = directory / f"{identity}.key.pub"
     subprocess.run(
@@ -55,7 +54,6 @@ def generate_ssh_keypair(directory: Path, identity: str) -> SSHKeyPair:
 
 
 def build_allowed_signers(entries: list[tuple[str, str, str]]) -> str:
-    """Build the verifier-trusted OpenSSH ``allowed_signers`` registry body."""
     return "".join(
         f'{identity} namespaces="{namespace}" {public_key_line}\n'
         for identity, namespace, public_key_line in entries
@@ -84,7 +82,6 @@ def build_attestation_payload(
     closure_grade_ceiling: str = "PARTIAL",
     independence_disposition: str = "NOT_INDEPENDENT",
 ) -> dict[str, Any]:
-    """Build the bounded illustrative payload exercised by the spike fixtures."""
     return {
         "schema": "spike-id.qualification-attestation-fixture.v1",
         "subject_digest": subject_digest,
@@ -139,6 +136,8 @@ class VerifyResult:
     returncode: int
     stdout: str
     stderr: str
+    identity: str
+    namespace: str
 
 
 def verify_signature(
@@ -175,6 +174,8 @@ def verify_signature(
         returncode=proc.returncode,
         stdout=proc.stdout.decode("utf-8", "replace"),
         stderr=proc.stderr.decode("utf-8", "replace"),
+        identity=identity,
+        namespace=namespace,
     )
 
 
@@ -184,6 +185,8 @@ class AttestationDisposition:
     revoked: bool
     expired: bool
     replayed: bool
+    identity_mismatch: bool
+    not_yet_valid: bool
 
     @property
     def accepted(self) -> bool:
@@ -192,6 +195,8 @@ class AttestationDisposition:
             and not self.revoked
             and not self.expired
             and not self.replayed
+            and not self.identity_mismatch
+            and not self.not_yet_valid
         )
 
 
@@ -204,13 +209,17 @@ def evaluate_attestation(
     seen_attestation_ids: set[str],
     now: datetime,
 ) -> AttestationDisposition:
-    """Apply verifier-side currentness/replay/revocation checks.
+    """Apply bounded verifier-side authority/currentness checks.
 
-    ``expires_at`` is an exclusive upper bound: an attestation is stale at
-    the exact expiry instant, so the fail-closed comparison is ``>=``.
+    `expires_at` is an exclusive upper bound, `issued_at` may not be in the
+    future, and the issuer identity inside the signed payload must equal the
+    principal identity actually authenticated by the verifier.
     """
+    issued_at = datetime.fromisoformat(payload["issued_at"])
     expires_at = datetime.fromisoformat(payload["expires_at"])
     expired = now >= expires_at
+    not_yet_valid = now < issued_at
+    identity_mismatch = payload["issuer_identity"] != verify_result.identity
     revoked = (
         payload["attestation_id"] in revoked_attestation_ids
         or payload["issuer_generation"] in revoked_issuer_generations
@@ -221,4 +230,6 @@ def evaluate_attestation(
         revoked=revoked,
         expired=expired,
         replayed=replayed,
+        identity_mismatch=identity_mismatch,
+        not_yet_valid=not_yet_valid,
     )
