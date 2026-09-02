@@ -176,3 +176,74 @@ def test_direct_authorization_set_rejects_noncanonical_record_order():
     )
     with pytest.raises(r.ReviewAuthorityBundleError, match='order|canonical'):
         forged.expected_id()
+
+@pytest.mark.parametrize(
+    ('state', 'field', 'value'),
+    [
+        ('authorized', 'authorization_generation', 123),
+        ('authorized', 'root_basis', 123),
+        ('revoked', 'reason', 123),
+    ],
+)
+def test_authorization_payload_rejects_non_string_authority_fields(state, field, value):
+    payload = {
+        'rab_id': 'a' * 64,
+        'state': state,
+        'authorization_generation': 'auth-g1',
+        'root_basis': 'root',
+        'reason': None if state == 'authorized' else 'revoked for test',
+    }
+    payload[field] = value
+    with pytest.raises(r.ReviewAuthorityBundleError, match=field):
+        r.RABAuthorization.from_payload(payload)
+
+@pytest.mark.parametrize(
+    ('state', 'field', 'value'),
+    [
+        ('active', 'generation', ' g1 '),
+        ('inactive_not_yet_established', 'basis', ' padded basis '),
+    ],
+)
+def test_component_payload_rejects_noncanonical_normalized_fields(state, field, value):
+    payload = {
+        'name': 'root_authority',
+        'lifecycle_state': state,
+        'generation': 'g1' if state == 'active' else None,
+        'content_id': 'a' * 64 if state == 'active' else None,
+        'basis': None if state == 'active' else 'basis',
+        'authority_domain': 'sergeant' if state == 'active' else 'sergeant-assurance',
+    }
+    payload[field] = value
+    with pytest.raises(r.ReviewAuthorityBundleError, match=field):
+        r.RABComponent.from_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ('state', 'field', 'value'),
+    [
+        ('authorized', 'authorization_generation', ' auth-g1 '),
+        ('authorized', 'root_basis', ' root '),
+        ('revoked', 'reason', ' revoked for test '),
+    ],
+)
+def test_authorization_payload_rejects_noncanonical_normalized_fields(state, field, value):
+    payload = {
+        'rab_id': 'a' * 64,
+        'state': state,
+        'authorization_generation': 'auth-g1',
+        'root_basis': 'root',
+        'reason': None if state == 'authorized' else 'revoked for test',
+    }
+    payload[field] = value
+    with pytest.raises(r.ReviewAuthorityBundleError, match=field):
+        r.RABAuthorization.from_payload(payload)
+
+
+def test_authorization_set_payload_rejects_noncanonical_record_order():
+    first = r.RABAuthorization.authorized('b' * 64, 'auth-g1', 'root')
+    second = r.RABAuthorization.authorized('a' * 64, 'auth-g1', 'root')
+    canonical = r.RABAuthorizationSet.create([first, second])
+    payload = canonical.to_payload()
+    payload['records'] = list(reversed(payload['records']))
+    with pytest.raises(r.ReviewAuthorityBundleError, match='order|canonical'):
+        r.RABAuthorizationSet.from_payload(payload)

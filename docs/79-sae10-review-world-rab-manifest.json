@@ -7,20 +7,20 @@
   ],
   "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
   "content_blobs": {
-    "docs/78-sae10-review-world-rab-contract.md": "5f59199b5e71595c52d874877d6d881351bf9403",
+    "docs/78-sae10-review-world-rab-contract.md": "50fb3a73650c3f0765cf082fb04f20c94f05deb0",
     "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "f23a88cff7e77eef6e8fd814a0b76b9366b36c00",
-    "main_review/review_authority_bundle.py": "66130636e77411f6a9e5b9a35c5a6ee250063e93",
+    "main_review/review_authority_bundle.py": "633ac2013140a45c67df7c34d55380c52d1ab183",
     "main_review/review_world.py": "82120a62213f94001ddba1cb1bcc7873bf72446a",
     "main_review/review_world_currentness.py": "6593bb3721cdcd3e188523dd79c0bd2448fc9a78",
     "main_review/review_world_git.py": "051bbe22b6a53eb2efec2722abd1712788f15563",
     "tests/conftest.py": "c9d4e3ceb940bd97ec2a851ae56f705aafb54365",
-    "tests/test_review_authority_bundle.py": "bb35f359bd35fedc2fe2a8a321008706ad065fe2",
+    "tests/test_review_authority_bundle.py": "3a177f90daea1ea6b6943d8ab23254113bf9cb29",
     "tests/test_review_world_currentness.py": "58045ae2cba3d08e57f6668c6d8166c014ae3231",
     "tests/test_review_world_git.py": "5bdbdb57e146fe9302459aea5f8f4af151e18803",
     "tests/test_review_world_identity.py": "4dafb2f433d855e81f957513e47056e91dcecd12",
     "tests/test_review_world_persistence.py": "dc1f86340a08ad997b08c309f88e6162adc9e80e",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_sae10_review_world_rab_manifest.py": "b8525078b9504316ed59f3f894ae1020f255f770",
+    "tests/test_sae10_review_world_rab_manifest.py": "fc479a0f293d2acaa2f0f073dcd6a40d168ca554",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
@@ -134,7 +134,40 @@
       "passed": 66,
       "xfailed": 1
     },
-    "valid_finding": "spike_sem_historical_metric_current_tree_invariant"
+    "valid_finding": "spike_sem_historical_metric_current_tree_invariant",
+    "owner_root_persisted_decode_review": {
+      "reviewed_head": "924d33aa188dff673a9ca7eb7c843b6222e798fe",
+      "review_basis": "proven_sae00_plus_owner_root_pre_sae30_bootstrap",
+      "finding_class": "persisted_authority_decode_canonicality",
+      "actionable_findings": 1,
+      "red_regressions": {
+        "failed_as_expected": 9
+      },
+      "accepted_repairs": [
+        "rab_component_payload_requires_precanonical_fields",
+        "rab_authorization_payload_rejects_type_coercion_and_normalization",
+        "rab_authorization_set_payload_rejects_noncanonical_record_order"
+      ],
+      "superseded_head_repository_reproof": {
+        "ci_run_id": 33679634924,
+        "failed": 0,
+        "passed": 1211,
+        "xfailed": 2,
+        "clean_clone_proof": "pass",
+        "main_review": "pass"
+      },
+      "external_exact_head_review_run": {
+        "run_id": "a9274c9c-c2a1-4e31-9379-f4daa8d24c5b",
+        "state_at_local_finding": "in_progress",
+        "disposition": "superseded_for_freeze_by_owner_root_finding"
+      },
+      "replacement_local_reproof": {
+        "failed": 0,
+        "passed": 93,
+        "xfailed": 0
+      },
+      "focused_collection": 105
+    }
   },
   "imported_github_checkpoint": "17c4240af1969e0fc999379c5243696347820def",
   "lifecycle_state": "CANDIDATE",
@@ -155,14 +188,14 @@
     "unauthorized_rab_combination",
     "candidate_self_activation"
   ],
-  "schema_version": "sergeant.sae10-review-world-rab-candidate.v4",
+  "schema_version": "sergeant.sae10-review-world-rab-candidate.v5",
   "tenfold_proof": {
     "actions_required": false,
-    "focused_collection": 96,
+    "focused_collection": 105,
     "formation_lanes": 20,
     "local_dependency_surface_result": {
       "failed": 0,
-      "passed": 84,
+      "passed": 93,
       "xfailed": 0
     },
     "repository_only_focused_tests": 12

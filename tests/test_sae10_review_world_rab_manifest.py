@@ -68,6 +68,7 @@ def _assert_exact_blob_bindings(bindings: object, expected_paths: set[str], *, b
 
 def test_candidate_manifest_lifecycle_and_dependency():
     manifest = _load()
+    assert manifest['schema_version'] == 'sergeant.sae10-review-world-rab-candidate.v5'
     assert manifest['lifecycle_state'] == 'CANDIDATE'
     assert manifest['proof_dependency'] == ['SAE-00']
     assert manifest['normal_verdict_authority'] is False
@@ -120,8 +121,8 @@ def test_tenfold_formation_and_focused_proof_are_bound():
     assert manifest['tenfold_proof'] == {
         'actions_required': False,
         'formation_lanes': 20,
-        'focused_collection': 96,
-        'local_dependency_surface_result': {'failed': 0, 'passed': 84, 'xfailed': 0},
+        'focused_collection': 105,
+        'local_dependency_surface_result': {'failed': 0, 'passed': 93, 'xfailed': 0},
         'repository_only_focused_tests': 12,
     }
 
@@ -200,5 +201,17 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
         'xfailed': 2,
         'sole_failure': 'candidate_content_blob_bindings_stale',
     }
+    persisted = review['owner_root_persisted_decode_review']
+    assert persisted['reviewed_head'] == '924d33aa188dff673a9ca7eb7c843b6222e798fe'
+    assert persisted['actionable_findings'] == 1
+    assert persisted['finding_class'] == 'persisted_authority_decode_canonicality'
+    assert persisted['red_regressions'] == {'failed_as_expected': 9}
+    assert set(persisted['accepted_repairs']) == {
+        'rab_component_payload_requires_precanonical_fields',
+        'rab_authorization_payload_rejects_type_coercion_and_normalization',
+        'rab_authorization_set_payload_rejects_noncanonical_record_order',
+    }
+    assert persisted['replacement_local_reproof'] == {'failed': 0, 'passed': 93, 'xfailed': 0}
+    assert persisted['focused_collection'] == 105
     expected = review['historical_fixture_blob_preserved']
     assert expected == manifest['external_authority_blobs'][str(HISTORICAL_SPIKE_FIXTURE)]

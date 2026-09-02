@@ -126,6 +126,11 @@ class RABComponent:
             raise ReviewAuthorityBundleError(f'invalid lifecycle state for {name}')
         if obj.authority_domain != domain:
             raise ReviewAuthorityBundleError(f'authority domain mismatch for {name}')
+        if obj.to_payload() != payload:
+            for field, canonical in obj.to_payload().items():
+                if payload[field] != canonical:
+                    raise ReviewAuthorityBundleError(f'{name}.{field} must be canonical in persisted payload')
+            raise ReviewAuthorityBundleError(f'{name} persisted payload is not canonical')
         return obj
 
 @dataclass(frozen=True)
@@ -176,7 +181,7 @@ class ReviewAuthorityBundle:
             raise ReviewAuthorityBundleError('RAB component roster is not canonical')
         parsed = {name: RABComponent.from_payload(components[name]) for name in RAB_SLOTS}
         obj = cls.create(**parsed)
-        if require_full_sha256(str(payload['rab_id']), 'rab_id') != obj.rab_id:
+        if require_full_sha256(_require_string(payload['rab_id'], 'rab_id'), 'rab_id') != obj.rab_id:
             raise ReviewAuthorityBundleError('rab_id mismatch')
         return obj
 
@@ -202,14 +207,17 @@ class RABAuthorization:
 
     @classmethod
     def _create(cls, rab_id: str, state: str, authorization_generation: str, root_basis: str, reason: str | None) -> 'RABAuthorization':
-        rab_id = require_full_sha256(rab_id, 'authorization.rab_id')
+        rab_id = require_full_sha256(_require_string(rab_id, 'authorization.rab_id'), 'authorization.rab_id')
+        state = _require_string(state, 'state')
         generation = _require_generation(authorization_generation, 'authorization_generation')
-        basis = str(root_basis or '').strip()
+        raw_basis = _require_string(root_basis, 'root_basis')
+        basis = raw_basis.strip()
         if not basis:
             raise ReviewAuthorityBundleError('root_basis must be non-empty')
         if state not in {'authorized', 'revoked', 'suspended'}:
             raise ReviewAuthorityBundleError('invalid RAB authorization state')
-        normalized = str(reason or '').strip() or None
+        raw_reason = None if reason is None else _require_string(reason, 'reason')
+        normalized = (raw_reason or '').strip() or None
         if state != 'authorized' and normalized is None:
             raise ReviewAuthorityBundleError(f'{state} RAB authorization requires a reason')
         if state == 'authorized' and normalized is not None:
@@ -233,17 +241,28 @@ class RABAuthorization:
     @classmethod
     def from_payload(cls, payload: dict[str, object]) -> 'RABAuthorization':
         _expect_keys(payload, {'rab_id', 'state', 'authorization_generation', 'root_basis', 'reason'}, 'RABAuthorization')
-        state = str(payload['state'])
-        reason = None if payload['reason'] is None else str(payload['reason'])
+        state = _require_string(payload['state'], 'state')
+        rab_id = _require_string(payload['rab_id'], 'rab_id')
+        generation = _require_string(payload['authorization_generation'], 'authorization_generation')
+        root_basis = _require_string(payload['root_basis'], 'root_basis')
+        reason = None if payload['reason'] is None else _require_string(payload['reason'], 'reason')
         if state == 'authorized' and reason is not None:
             raise ReviewAuthorityBundleError('authorized RAB record cannot carry reason')
         if state == 'authorized':
-            return cls.authorized(str(payload['rab_id']), str(payload['authorization_generation']), str(payload['root_basis']))
-        if state == 'revoked':
-            return cls.revoked(str(payload['rab_id']), str(payload['authorization_generation']), str(payload['root_basis']), str(reason or ''))
-        if state == 'suspended':
-            return cls.suspended(str(payload['rab_id']), str(payload['authorization_generation']), str(payload['root_basis']), str(reason or ''))
-        raise ReviewAuthorityBundleError('invalid RAB authorization state')
+            obj = cls.authorized(rab_id, generation, root_basis)
+        elif state == 'revoked':
+            obj = cls.revoked(rab_id, generation, root_basis, reason or '')
+        elif state == 'suspended':
+            obj = cls.suspended(rab_id, generation, root_basis, reason or '')
+        else:
+            raise ReviewAuthorityBundleError('invalid RAB authorization state')
+        canonical = obj.to_payload()
+        if canonical != payload:
+            for field, value in canonical.items():
+                if payload[field] != value:
+                    raise ReviewAuthorityBundleError(f'{field} must be canonical in persisted payload')
+            raise ReviewAuthorityBundleError('RABAuthorization persisted payload is not canonical')
+        return obj
 
 @dataclass(frozen=True)
 class RABAuthorizationSet:
@@ -301,8 +320,12 @@ class RABAuthorizationSet:
         records = payload['records']
         if not isinstance(records, list):
             raise ReviewAuthorityBundleError('RAB authorization records must be an array')
-        obj = cls.create([RABAuthorization.from_payload(item) for item in records])
-        if require_full_sha256(str(payload['authorization_set_id']), 'authorization_set_id') != obj.authorization_set_id:
+        parsed = [RABAuthorization.from_payload(item) for item in records]
+        if tuple(parsed) != tuple(sorted(parsed, key=lambda item: item.rab_id)):
+            raise ReviewAuthorityBundleError('RAB authorization payload records are not in canonical rab_id order')
+        obj = cls.create(parsed)
+        authorization_set_id = _require_string(payload['authorization_set_id'], 'authorization_set_id')
+        if require_full_sha256(authorization_set_id, 'authorization_set_id') != obj.authorization_set_id:
             raise ReviewAuthorityBundleError('authorization_set_id mismatch')
         return obj
 
