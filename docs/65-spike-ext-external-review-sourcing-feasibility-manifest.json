@@ -81,7 +81,7 @@
     },
     {
       "path": "docs/64-spike-ext-external-review-sourcing-feasibility.md",
-      "blob_sha": "6c1b78d083fd03c70c0c889304b28995236b03f5",
+      "blob_sha": "fcfaef40cbccca173193889906edf389f070a018",
       "role": "spike_ext_human_readable_deliverable"
     }
   ],
@@ -90,7 +90,8 @@
       "path": "tests/test_spike_ext_external_review_sourcing_feasibility.py",
       "role": "spike_ext_manifest_and_doc_content_proof",
       "assurance_evolution_runtime_implementation": false,
-      "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures per docs/62 sec.5 and tests/test_sae00_founding_authority_reference.py precedent"
+      "blob_sha": "34d22564a9d3b4c885f8f5c52b6057b3fa8a96f6",
+      "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures per docs/62 sec.5 and tests/test_sae00_founding_authority_reference.py precedent; the fixture also self-verifies this value against its own live blob at test-run time, closing the gap where a later silent weakening of this file would otherwise leave the manifest still validating"
     }
   ],
   "required_outputs": {
@@ -172,13 +173,19 @@
     "The reviewer authored or selected their own review approach, prompts, and inputs rather than being handed a fixed script or a predetermined conclusion by the Owner.",
     "The reviewer used their own compute, account, and infrastructure rather than Owner-provisioned or Owner-configured infrastructure.",
     "The reviewer, not the Owner, selected and controlled which findings were submitted as the final review output.",
-    "Payment or engagement was structured as pay-for-service, never contingent on reaching a particular verdict or outcome.",
+    "Any payment, reciprocal consideration, or engagement benefit was structured as compensation for performing the review, never contingent on reaching a particular verdict or outcome — this covers unpaid or reciprocal arrangements (section 4.2, 4.4) exactly the same way it covers a paid one: the requirement is outcome-independence, not the presence of money. An arrangement with no consideration at all trivially satisfies this criterion.",
     "The engagement and deliverable are bound to an authenticated External Evidence Provenance Record satisfying `docs/58` section 13 before independence can be claimed rather than merely asserted."
   ],
   "independence_disposition_rule": {
     "INDEPENDENT": "all nine criteria verified true with evidence",
     "NOT_INDEPENDENT": "any one criterion verified false",
-    "UNKNOWN_INDEPENDENCE": "any one criterion unverifiable or undocumented; default state before a real arrangement exists"
+    "UNKNOWN_INDEPENDENCE": "any one criterion unverifiable or undocumented; default state before a real arrangement exists",
+    "precedence_order": [
+      "NOT_INDEPENDENT if any criterion is verified false, regardless of the state of any other criterion",
+      "otherwise UNKNOWN_INDEPENDENCE if any criterion is unverifiable or undocumented",
+      "otherwise INDEPENDENT only if all nine are verified true with evidence"
+    ],
+    "resolves_mixed_evidence_uniquely": true
   },
   "authentication_provenance_route": {
     "steps": [
@@ -200,15 +207,18 @@
     "minimum_distinct_source_classes": 2,
     "excluded_source_class_for_cardinality_purposes": "SC-5",
     "status": "proposal_for_sae20_acr_authoring_audit_not_binding_law",
-    "reasoning_summary": "one lane is a single point of failure; two lanes establish a cross-check floor; three lanes avoid two-way deadlock and add rough consensus; diversity across source classes guards against correlated blind spots; a larger N was rejected as unrealistic for a single-owner project with no evidenced dedicated assurance budget"
+    "reasoning_summary": "one lane is a single point of failure; two lanes establish a cross-check floor; three lanes widen independent coverage (not a vote/tie-breaker -- every finding from any lane is still admitted and reconciled by Judge/Sergeant on its own merits per docs/58 section 1, evidence providers create facts not verdict votes); diversity across source classes guards against correlated blind spots; a larger N was rejected as unrealistic for a single-owner project with no evidenced dedicated assurance budget"
   },
   "sourcing_disposition": {
     "status": "open_gap_no_independent_lane_currently_active",
+    "as_of": "2026-09-02",
+    "claim_scope": "bounded to live evidence captured during this spike's construction session, not an unbounded eternal-present claim; re-check against fresh live evidence before relying on this after new engagement activity",
     "evidence": [
       "all confirmed cross-repository-sources.json sources are tagged thetechguy-owned",
       "docs/01 KiloCode entry: owner mirror is the practical inspection source, no upstream maintainer engagement evidenced",
       "PICKUP.md Oracle PR #150 candidate rejected, never claimed independent",
-      "no evidenced existing contractor, academic, bounty, or independent-maintainer relationship anywhere in this repository"
+      "no evidenced existing contractor, academic, bounty, or independent-maintainer relationship anywhere in this repository",
+      "live gh api check: repos/jaydumisuni/Sergeant/contributors returns exactly jaydumisuni and github-actions[bot]; collaborators returns exactly one human (jaydumisuni); reviewer set across the 20 most recent PRs contains no account other than jaydumisuni, coderabbitai (bot), and chatgpt-codex-connector (bot)"
     ],
     "nearest_practical_path_ranked": [
       "elevate_existing_coderabbit_relationship_to_scoped_hostile_qualification_engagement",

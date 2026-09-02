@@ -125,8 +125,15 @@ def test_spike_ext_manifest_binds_documents_by_real_git_blob_sha() -> None:
 
     fixtures = manifest["proof_fixtures"]
     assert len(fixtures) == 1
-    assert (ROOT / fixtures[0]["path"]).is_file()
+    fixture_path = ROOT / fixtures[0]["path"]
+    assert fixture_path.is_file()
     assert fixtures[0]["assurance_evolution_runtime_implementation"] is False
+    # The proof fixture itself must be hash-bound too (docs/61 precedent),
+    # not only the documents it checks -- otherwise a later silent weakening
+    # or replacement of this very test file would leave the manifest still
+    # validating, which is exactly the gap this binding closes.
+    assert "blob_sha" in fixtures[0]
+    assert _git_blob_sha(fixture_path) == fixtures[0]["blob_sha"]
 
 
 def test_spike_ext_produces_all_five_required_outputs() -> None:
@@ -183,13 +190,67 @@ def test_spike_ext_independence_criteria_are_distinct_and_present_in_doc() -> No
         assert criterion in doc, criterion
 
     rule = manifest["independence_disposition_rule"]
-    assert set(rule.keys()) == {"INDEPENDENT", "NOT_INDEPENDENT", "UNKNOWN_INDEPENDENCE"}
+    assert {"INDEPENDENT", "NOT_INDEPENDENT", "UNKNOWN_INDEPENDENCE"} <= set(rule.keys())
 
     # These three states are recovered from docs/58 section 13, not invented
     # here -- confirm the founding architecture actually defines them.
     architecture_text = FOUNDING_ARCHITECTURE_PATH.read_text(encoding="utf-8")
     for state in ("`INDEPENDENT`", "`NOT_INDEPENDENT`", "`UNKNOWN_INDEPENDENCE`"):
         assert state in architecture_text
+
+
+def _resolve_disposition(criteria_states: list[bool | None]) -> str:
+    """Re-implement the manifest's own precedence_order as executable logic,
+    independent of any prose, and use it to exercise the mixed-evidence
+    case a reader could otherwise misread as ambiguous: one criterion
+    verified false (None below stands for "unverified/undocumented") and a
+    separate criterion simultaneously unverified must resolve to exactly one
+    disposition, never two at once."""
+    if any(state is False for state in criteria_states):
+        return "NOT_INDEPENDENT"
+    if any(state is None for state in criteria_states):
+        return "UNKNOWN_INDEPENDENCE"
+    return "INDEPENDENT"
+
+
+def test_spike_ext_disposition_precedence_resolves_mixed_evidence_to_exactly_one_state() -> None:
+    """docs/64 sec.5 and docs/65's independence_disposition_rule.precedence_order
+    must make NOT_INDEPENDENT win over UNKNOWN_INDEPENDENCE when an
+    arrangement has both a confirmed-false criterion and a separately
+    undocumented one -- the exact mixed case a naive three-independent-checks
+    reading would otherwise leave ambiguous between two states at once."""
+    manifest = _load_manifest()
+    doc = _load_doc()
+
+    rule = manifest["independence_disposition_rule"]
+    assert rule["resolves_mixed_evidence_uniquely"] is True
+    precedence_order = rule["precedence_order"]
+    assert len(precedence_order) == 3
+    assert "false" in precedence_order[0].lower()
+    assert "NOT_INDEPENDENT" in precedence_order[0]
+    assert "unknown" in precedence_order[1].lower() or "undocumented" in precedence_order[1].lower()
+    assert "UNKNOWN_INDEPENDENCE" in precedence_order[1]
+    assert "INDEPENDENT" in precedence_order[2]
+
+    # All nine true -> INDEPENDENT.
+    assert _resolve_disposition([True] * 9) == "INDEPENDENT"
+    # All nine undocumented (the default state before any arrangement
+    # exists) -> UNKNOWN_INDEPENDENCE, never INDEPENDENT or NOT_INDEPENDENT.
+    assert _resolve_disposition([None] * 9) == "UNKNOWN_INDEPENDENCE"
+    # One confirmed false, rest true -> NOT_INDEPENDENT.
+    assert _resolve_disposition([False] + [True] * 8) == "NOT_INDEPENDENT"
+    # The mixed case: one confirmed false AND one separately undocumented
+    # criterion at the same time -- must resolve to exactly one state
+    # (NOT_INDEPENDENT), not both NOT_INDEPENDENT and UNKNOWN_INDEPENDENCE.
+    mixed = [False, None] + [True] * 7
+    result = _resolve_disposition(mixed)
+    assert result == "NOT_INDEPENDENT"
+    assert result != "UNKNOWN_INDEPENDENCE"
+
+    # The doc must actually state this precedence in prose, not only the
+    # manifest asserting it about itself.
+    assert "precedence order" in doc.lower()
+    assert "regardless of the state of any other criterion" in doc
 
 
 def test_spike_ext_authentication_provenance_route_is_not_blocked_on_spike_id() -> None:
@@ -245,11 +306,29 @@ def test_spike_ext_sourcing_disposition_is_honest_open_gap_not_false_positive() 
     disposition = manifest["sourcing_disposition"]
     assert disposition["status"] == "open_gap_no_independent_lane_currently_active"
     assert disposition["this_spike_initiated_any_real_engagement"] is False
-    assert len(disposition["evidence"]) >= 3
+    assert len(disposition["evidence"]) >= 5
     assert len(disposition["nearest_practical_path_ranked"]) >= 1
 
+    # The claim must be explicitly bounded to captured live evidence at a
+    # stated date, not asserted as an unbounded eternal-present fact -- a
+    # reader must be able to tell this needs re-checking after new activity.
+    assert disposition["as_of"]
+    assert disposition["claim_scope"]
+    assert "re-check" in disposition["claim_scope"].lower() or "recheck" in disposition["claim_scope"].lower()
+
     assert "open gap" in doc.lower()
-    assert "no genuinely independent external-review source is currently" in doc.lower()
+    assert "no genuinely independent external-review source was found active or engaged" in doc.lower()
+    assert disposition["as_of"] in doc
+
+    # The live gh api contributor/collaborator/reviewer check must actually
+    # be recorded as evidence, not only asserted as a bare disposition.
+    live_check_evidence = [item for item in disposition["evidence"] if "gh api" in item.lower()]
+    assert len(live_check_evidence) == 1
+    assert "contributors" in live_check_evidence[0]
+    assert "collaborators" in live_check_evidence[0]
+    assert "jaydumisuni" in live_check_evidence[0]
+    assert "coderabbitai" in live_check_evidence[0]
+    assert "chatgpt-codex-connector" in live_check_evidence[0]
 
     # Cross-check the disposition's own evidence claim against the live
     # source registry rather than trusting the manifest's assertion about
