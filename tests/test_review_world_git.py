@@ -84,3 +84,29 @@ def test_generated_fail(tmp_path):
     init(tmp_path)
     with pytest.raises(g.GitCommandError, match='generated'):
         g.build_local_snapshot(tmp_path, scope=rw.ReviewScope.repository(), policy=g.LocalSnapshotPolicy(untracked_policy='exclude_untracked', generated_state='material_unbound'))
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git unavailable')
+def test_git_resolver_ignores_inherited_git_dir(tmp_path, monkeypatch):
+    repo = tmp_path / 'repo'
+    other = tmp_path / 'other'
+    repo.mkdir(); other.mkdir()
+    init(repo); init(other)
+    (repo / 'src/a').write_text('repo-unique\n')
+    git(repo, 'add', '.'); git(repo, 'commit', '-qm', 'repo-unique')
+    (other / 'src/a').write_text('other\n')
+    git(other, 'add', '.'); git(other, 'commit', '-qm', 'other')
+    head = git(repo, 'rev-parse', 'HEAD')
+    tree = git(repo, 'rev-parse', 'HEAD^{tree}')
+    monkeypatch.setenv('GIT_DIR', str(other / '.git'))
+    assert g.GitObjectResolver(repo).tree_for_commit(head) == tree
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git unavailable')
+def test_local_snapshot_ignores_inherited_git_index_file(tmp_path, monkeypatch):
+    init(tmp_path)
+    monkeypatch.setenv('GIT_INDEX_FILE', str(tmp_path / 'ambient-index'))
+    snapshot = g.build_local_snapshot(
+        tmp_path,
+        scope=rw.ReviewScope.repository(),
+        policy=g.LocalSnapshotPolicy.exclude_untracked(),
+    )
+    assert any(entry.path == 'src/a' for entry in snapshot.entries)

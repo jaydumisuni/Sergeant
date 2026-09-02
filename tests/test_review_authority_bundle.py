@@ -39,3 +39,15 @@ def test_duplicate_record_rejected():
     x = r.RABAuthorization.authorized(b.rab_id, 'auth', 'root')
     with pytest.raises(r.ReviewAuthorityBundleError, match='duplicate'):
         r.RABAuthorizationSet.create([x, x])
+
+def test_forged_unknown_authorization_state_is_never_accepted():
+    b = r.ReviewAuthorityBundle.create(root_authority=comp('root_authority', 'g1'))
+    forged = r.RABAuthorization(
+        rab_id=b.rab_id,
+        state='forged',
+        authorization_generation='auth1',
+        root_basis='root',
+        reason=None,
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='invalid RAB authorization state'):
+        r.RABAuthorizationSet.create([forged])

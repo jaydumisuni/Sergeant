@@ -7,19 +7,21 @@
   ],
   "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
   "content_blobs": {
-    "docs/78-sae10-review-world-rab-contract.md": "dc98cf43daa9939c76137c1af12fcf7cff40b960",
-    "main_review/review_authority_bundle.py": "5251aa8a89dc6fd49df06475cd7066edd2c85f25",
-    "main_review/review_world.py": "ddfd41fd1607a5f0191ca3c14323d5bfd560a632",
+    "docs/78-sae10-review-world-rab-contract.md": "ac025e723c3bb2dbdbaaff0346f86c8d83cb58cb",
+    "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "f23a88cff7e77eef6e8fd814a0b76b9366b36c00",
+    "main_review/review_authority_bundle.py": "e1a31751e99584fd042d6981b51930fa67b02391",
+    "main_review/review_world.py": "edb1d50e860e839177f87928f391659b57056cfd",
     "main_review/review_world_currentness.py": "4949fccce1954a1acb6aca20cd27bd3871a120f3",
-    "main_review/review_world_git.py": "6273f7efed47ca356c207efda62b413f802a1940",
+    "main_review/review_world_git.py": "b9bfafec48879cfca28879902ccf4dd2c7e34289",
     "tests/conftest.py": "c9d4e3ceb940bd97ec2a851ae56f705aafb54365",
-    "tests/test_review_authority_bundle.py": "b0eeb2df805afc06a2de034d0113aaa0e3a6a69b",
+    "tests/test_review_authority_bundle.py": "e2e8c3dd68f1c1184621a8f9c0cf3cf37870e402",
     "tests/test_review_world_currentness.py": "e48444fae5c50c723486b9e1fc7e3fd9a50aaf9b",
-    "tests/test_review_world_git.py": "e56e09f50ea51a4af66761bdf05d232f3f63067d",
+    "tests/test_review_world_git.py": "e9f1194802d08bb95d8bce1b6699a75c4821b18a",
     "tests/test_review_world_identity.py": "d03de9cf0013c17cecb8a1cc98fe88e2095b14f2",
-    "tests/test_review_world_persistence.py": "3547e0cacdbd97b067add555a7f37d2e60b82cb8",
+    "tests/test_review_world_persistence.py": "dc1f86340a08ad997b08c309f88e6162adc9e80e",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_spike_sem_historical_metric_supersession.py": "7f930200a55a358c0300e45cda94af3b02c1b559"
+    "tests/test_sae10_review_world_rab_manifest.py": "3442f8521ec73ba96dc9675d43b62a210f963f6e",
+    "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
     "docs/58-sergeant-assurance-evolution-founding-architecture.md": "b7d7ea0cec987046ece2aecb554cc29d86aa447b",
@@ -28,13 +30,33 @@
     "docs/67-sae00-proven-lifecycle-closeout-manifest.json": "578b9e5505e6ebcdf3b82f1d41f04fdd893bb9d1",
     "docs/75-spike-sem-feasibility-manifest.json": "b3bc6d2687ea465ff3c8959e2495d89a8d77f912",
     "docs/77-spike-sem-proven-lifecycle-closeout-manifest.json": "15bf09cd4fc55d3c025a9e793812956b69f3c660",
-    "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "0f5d0000a6773eda26b7d28bb376642c9e3aee77",
     "docs/superpowers/specs/2026-09-02-sae-10-review-world-rab-design.md": "7206cc27650fcf54b5dc7a2d0b42a67d77371c90",
     "tests/spike_sem/test_semantic_feasibility_probe.py": "b2bf08d7103e490dc816a1a195c05c34b0d0d97d"
   },
   "first_published_candidate": "c977449177eb9c9f3d6034265ad97cc32180c069",
   "github_hostile_review": {
     "ci_run_id": 33629230632,
+    "followup_review": {
+      "actionable_findings": 7,
+      "all_valid_findings_corrected_in_tenfold": true,
+      "historical_fixture_execution": "github_full_repository_only",
+      "replacement_local_reproof": {
+        "failed": 0,
+        "passed": 71,
+        "xfailed": 0
+      },
+      "review_id": 5089723949,
+      "reviewed_head": "bf368b46cd0120736645d87e8dc7fec4904a046a",
+      "valid_findings": [
+        "manifest_exact_content_roster_and_path_confinement",
+        "historical_fixture_blob_mechanical_binding",
+        "plan_rab_slot_name_drift",
+        "rab_authorization_record_state_validation",
+        "git_environment_metadata_isolation",
+        "review_scope_duplicate_payload_strict_decode",
+        "historical_xfail_exact_node_strict_binding"
+      ]
+    },
     "historical_fixture_blob_preserved": "b2bf08d7103e490dc816a1a195c05c34b0d0d97d",
     "initial_candidate_head": "c977449177eb9c9f3d6034265ad97cc32180c069",
     "initial_full_suite": {
@@ -69,14 +91,14 @@
     "unauthorized_rab_combination",
     "candidate_self_activation"
   ],
-  "schema_version": "sergeant.sae10-review-world-rab-candidate.v2",
+  "schema_version": "sergeant.sae10-review-world-rab-candidate.v3",
   "tenfold_proof": {
     "actions_required": false,
     "formation_lanes": 20,
     "local_test_result": {
       "failed": 0,
-      "passed": 66,
-      "xfailed": 1
+      "passed": 71,
+      "xfailed": 0
     }
   }
 }

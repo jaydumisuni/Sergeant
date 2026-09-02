@@ -192,6 +192,17 @@ class RABAuthorization:
             raise ReviewAuthorityBundleError('authorized RAB record cannot carry revocation reason')
         return cls(rab_id, state, generation, basis, normalized)
 
+    def validate(self) -> None:
+        normalized = type(self)._create(
+            self.rab_id,
+            self.state,
+            self.authorization_generation,
+            self.root_basis,
+            self.reason,
+        )
+        if normalized != self:
+            raise ReviewAuthorityBundleError('RAB authorization record is not canonical')
+
     def to_payload(self) -> dict[str, object]:
         return {'rab_id': self.rab_id, 'state': self.state, 'authorization_generation': self.authorization_generation, 'root_basis': self.root_basis, 'reason': self.reason}
 
@@ -218,9 +229,15 @@ class RABAuthorizationSet:
 
     @classmethod
     def create(cls, records: list[RABAuthorization] | tuple[RABAuthorization, ...]) -> 'RABAuthorizationSet':
+        validated = []
+        for record in records:
+            if not isinstance(record, RABAuthorization):
+                raise ReviewAuthorityBundleError('RAB authorization set contains an invalid record type')
+            record.validate()
+            validated.append(record)
         seen = set()
         ordered = []
-        for record in sorted(records, key=lambda item: item.rab_id):
+        for record in sorted(validated, key=lambda item: item.rab_id):
             if record.rab_id in seen:
                 raise ReviewAuthorityBundleError(f'duplicate RAB authorization record for {record.rab_id}')
             seen.add(record.rab_id)
@@ -237,6 +254,10 @@ class RABAuthorizationSet:
     def expected_id(self) -> str:
         if self.schema_version != 'sergeant.rab-authorization-set.v1':
             raise ReviewAuthorityBundleError('unknown RAB authorization-set schema version')
+        for record in self.records:
+            if not isinstance(record, RABAuthorization):
+                raise ReviewAuthorityBundleError('RAB authorization set contains an invalid record type')
+            record.validate()
         if len({item.rab_id for item in self.records}) != len(self.records):
             raise ReviewAuthorityBundleError('duplicate RAB authorization record')
         return sha256_id(self.to_payload(include_id=False))
@@ -277,4 +298,6 @@ def authorize_rab(bundle: ReviewAuthorityBundle, authorization_set: RABAuthoriza
         return RABAuthorizationResult(False, 'rab_revoked', bundle.rab_id, record.authorization_generation)
     if record.state == 'suspended':
         return RABAuthorizationResult(False, 'rab_suspended', bundle.rab_id, record.authorization_generation)
+    if record.state != 'authorized':
+        return RABAuthorizationResult(False, 'invalid_authorization_state', bundle.rab_id, record.authorization_generation)
     return RABAuthorizationResult(True, 'authorized', bundle.rab_id, record.authorization_generation)

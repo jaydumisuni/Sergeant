@@ -140,7 +140,10 @@ class ReviewScope:
         paths = payload['paths']
         if not isinstance(paths, list) or not all((isinstance(x, str) for x in paths)):
             raise ReviewWorldError('ReviewScope paths must be a string array')
-        obj = cls._create(kind=str(payload['kind']), paths=paths, generated_artifacts=str(payload['generated_artifacts']), submodules=str(payload['submodules']), untracked=str(payload['untracked']), generation=str(payload['generation']))
+        normalized_paths = [_normalize_repo_path(path) for path in paths]
+        if len(set(normalized_paths)) != len(normalized_paths):
+            raise ReviewWorldError('ReviewScope paths are non-canonical after normalization')
+        obj = cls._create(kind=str(payload['kind']), paths=normalized_paths, generated_artifacts=str(payload['generated_artifacts']), submodules=str(payload['submodules']), untracked=str(payload['untracked']), generation=str(payload['generation']))
         if require_full_sha256(str(payload['scope_id']), 'scope_id') != obj.scope_id:
             raise ReviewWorldError('scope_id mismatch')
         return obj

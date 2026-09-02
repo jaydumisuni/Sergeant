@@ -9,6 +9,25 @@ from main_review.review_world import GitHubDiffIdentity, GitHubReviewWorld, Loca
 class GitCommandError(ReviewWorldError):
     pass
 
+_GIT_ENV_ALLOWLIST = (
+    'PATH',
+    'HOME',
+    'USERPROFILE',
+    'SYSTEMROOT',
+    'WINDIR',
+    'COMSPEC',
+    'PATHEXT',
+    'TMP',
+    'TEMP',
+    'TMPDIR',
+    'LANG',
+    'LC_ALL',
+    'LC_CTYPE',
+)
+
+def _git_subprocess_env() -> dict[str, str]:
+    return {name: os.environ[name] for name in _GIT_ENV_ALLOWLIST if name in os.environ}
+
 class GitObjectResolverProtocol(Protocol):
 
     def tree_for_commit(self, commit: str) -> str:
@@ -24,7 +43,7 @@ class GitObjectResolver:
 
     def _run(self, *args: str) -> str:
         try:
-            c = subprocess.run(['git', *args], cwd=self.root, text=True, capture_output=True, check=False)
+            c = subprocess.run(['git', *args], cwd=self.root, text=True, capture_output=True, check=False, env=_git_subprocess_env())
         except OSError as e:
             raise GitCommandError(f'git command unavailable: {e}') from e
         if c.returncode != 0:
@@ -34,7 +53,7 @@ class GitObjectResolver:
 
     def _run_bytes(self, *args: str) -> bytes:
         try:
-            c = subprocess.run(['git', *args], cwd=self.root, capture_output=True, check=False)
+            c = subprocess.run(['git', *args], cwd=self.root, capture_output=True, check=False, env=_git_subprocess_env())
         except OSError as e:
             raise GitCommandError(f'git command unavailable: {e}') from e
         if c.returncode != 0:

@@ -96,3 +96,10 @@ def test_authorized_record_standalone_reason_is_rejected():
     record['reason'] = 'not allowed'
     with pytest.raises(rab.ReviewAuthorityBundleError, match='authorized.*reason|non-canonical'):
         rab.RABAuthorization.from_payload(record)
+
+def test_scope_payload_duplicate_paths_rejected_even_with_canonical_deduplicated_id():
+    scope = rw.ReviewScope.selected_paths(['src/a.py', 'src/b.py'])
+    payload = scope.to_payload()
+    payload['paths'] = ['src/a.py', 'src/a.py', 'src/b.py']
+    with pytest.raises(rw.ReviewWorldError, match='non-canonical'):
+        rw.ReviewScope.from_payload(payload)
