@@ -14,6 +14,17 @@
     "disposition": "finish Sergeant first using proven Tenfold Gen 1 execution and push after milestones",
     "scope": "Assurance Evolution programme execution; no weakening of roadmap authority or proof dependencies"
   },
+  "bootstrap_authority": {
+    "kind": "OWNER_ROOT_CONSTITUTIONAL_TCB",
+    "basis": "docs/58-sergeant-assurance-evolution-founding-architecture.md section 26 permits Owner/Root constitutional authority inside the finite TCB",
+    "necessity": "SAE-00 is the DAG root and SAE-30, which creates the general qualification substrate, depends on SAE-00; requiring SAE-30 to qualify SAE-00 would be circular",
+    "scope": "exact SAE-00 generation and its declared isolated construction-authority outputs only",
+    "not_general_qualification_authority": true,
+    "cannot_qualify_dependents": true,
+    "cannot_satisfy_genesis_external_lane": true,
+    "cannot_convert_business_risk_to_pass": true,
+    "partial_generation_activation_allowed": false
+  },
   "produces": [
     "SERGEANT_PRESERVATION_REFERENCE",
     "FOUNDING_ARCHITECTURE_AUTHORITY",
