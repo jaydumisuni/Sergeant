@@ -9,33 +9,11 @@ from tests.spike_sem.semantic_feasibility_probe import analyze_python_tree, rela
 
 ROOT = Path(__file__).resolve().parents[2]
 
-# Frozen from the first deliberate RED measurement run on PR #175 head
-# 3667561baf731482d76be10a38c7cfa1ef54f2b5.  These values are an
-# observation of the current main_review/ corpus, not a universal semantic
-# guarantee and not a production capability claim.
+# Deliberately RED after review invalidated the first measurement. The next
+# exact-head repository run must expose the corrected metrics after unresolved
+# calls, lexical shadowing, and operation-budget charging are all represented.
 EXPECTED_REAL_SERGEANT_METRICS: dict[str, object] = {
-    "total_relations": 4539,
-    "grades": {
-        "EXACT": 2528,
-        "CONSERVATIVE_SUPERSET": 3,
-        "PARTIAL": 2008,
-        "UNKNOWN": 0,
-    },
-    "rates": {
-        "EXACT": 0.5569508702357348,
-        "CONSERVATIVE_SUPERSET": 0.0006609385327164573,
-        "PARTIAL": 0.4423881912315488,
-        "UNKNOWN": 0.0,
-    },
-    "by_kind": {
-        "attribute_name_candidate": 3,
-        "decorator_binding": 57,
-        "direct_call": 4479,
-    },
-    "states_visited": 225231,
-    "files_parsed": 136,
-    "parse_error_count": 0,
-    "budget_exceeded": False,
+    "DISCOVERY_PENDING_AFTER_REVIEW_HARDENING": True,
 }
 
 
@@ -116,25 +94,18 @@ def test_required_construct_matrix_records_bounded_exact_partial_and_unknown(tmp
     assert _relation_for(matrix, "framework_registration", "pkg.target.registered_handler")["grade"] == "PARTIAL"
     assert _relation_for(matrix, "plugin_entry_point", "pkg.target.direct")["grade"] == "EXACT"
 
-    assert any(
-        entry["grade"] == "UNKNOWN"
-        for entry in matrix.get("getattr_dynamic_call", [])
-    )
-    assert any(
-        entry["grade"] == "UNKNOWN"
-        for entry in matrix.get("generated_config_dynamic", [])
-    )
+    assert any(entry["grade"] == "UNKNOWN" for entry in matrix.get("getattr_dynamic_call", []))
+    assert any(entry["grade"] == "UNKNOWN" for entry in matrix.get("generated_config_dynamic", []))
 
-    # Frozen synthetic calibration: this matrix deliberately contains one
-    # external call (os.getenv) that is PARTIAL, so the distribution is a
-    # measured 60/20/20 rather than a curated all-green toy.
+    # Every ast.Call is now represented. The two builtin getattr calls are
+    # intentionally UNKNOWN in addition to the dynamic semantic relations.
     assert summary["grades"] == {
         "EXACT": 6,
         "CONSERVATIVE_SUPERSET": 0,
         "PARTIAL": 2,
-        "UNKNOWN": 2,
+        "UNKNOWN": 4,
     }
-    assert summary["total_relations"] == 10
+    assert summary["total_relations"] == 12
     assert summary["budget_exceeded"] is False
     assert summary["parse_error_count"] == 0
 
@@ -179,6 +150,46 @@ def test_dynamic_dispatch_key_fails_closed_unknown(tmp_path: Path) -> None:
     assert dynamic[0].target is None
 
 
+def test_import_shadowed_by_parameter_is_unknown_not_false_exact(tmp_path: Path) -> None:
+    (tmp_path / "target.py").write_text("def run():\n    return 1\n", encoding="utf-8")
+    (tmp_path / "caller.py").write_text(
+        "from target import run\n"
+        "def invoke(run):\n"
+        "    return run()\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_python_tree(tmp_path)
+
+    assert not any(
+        relation.target == "target.run" and relation.grade == "EXACT"
+        for relation in report.relations
+    )
+    assert any(
+        relation.kind == "lexical_shadowing" and relation.grade == "UNKNOWN"
+        for relation in report.relations
+    )
+
+
+def test_every_unresolved_call_is_explicit_unknown(tmp_path: Path) -> None:
+    (tmp_path / "caller.py").write_text(
+        "def invoke(callback, path):\n"
+        "    callback()\n"
+        "    path.read_text()\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_python_tree(tmp_path)
+    call_like = [
+        relation
+        for relation in report.relations
+        if relation.kind in {"lexical_shadowing", "unresolved_call", "attribute_name_candidate"}
+    ]
+
+    assert len(call_like) == 2
+    assert all(relation.grade == "UNKNOWN" for relation in call_like)
+
+
 def test_state_budget_exhaustion_fails_closed_unknown(tmp_path: Path) -> None:
     (tmp_path / "large.py").write_text(
         "\n".join(f"def f_{index}(): return {index}" for index in range(200)) + "\n",
@@ -192,6 +203,29 @@ def test_state_budget_exhaustion_fails_closed_unknown(tmp_path: Path) -> None:
         relation.kind == "resource_budget" and relation.grade == "UNKNOWN"
         for relation in report.relations
     )
+
+
+def test_candidate_expansion_consumes_operation_budget(tmp_path: Path) -> None:
+    for index in range(80):
+        (tmp_path / f"m{index}.py").write_text(
+            "def handle():\n    return 1\n",
+            encoding="utf-8",
+        )
+    (tmp_path / "caller.py").write_text(
+        "class Obj:\n    pass\n"
+        "obj = Obj()\n"
+        + "\n".join("obj.handle()" for _ in range(80))
+        + "\n",
+        encoding="utf-8",
+    )
+
+    report = analyze_python_tree(tmp_path, max_states=5_000)
+    budget = [relation for relation in report.relations if relation.kind == "resource_budget"]
+
+    assert report.budget_exceeded is True
+    assert len(budget) == 1
+    assert "attribute candidate expansion" in budget[0].reason
+    assert budget[0].grade == "UNKNOWN"
 
 
 def test_current_capability_engine_name_only_call_graph_has_measurable_false_positive_pressure(
@@ -241,13 +275,14 @@ def test_real_sergeant_main_review_semantic_metrics_are_frozen_from_observation(
     report = analyze_python_tree(
         ROOT,
         include_prefixes=("main_review/",),
-        max_states=500_000,
+        max_states=2_000_000,
     )
     summary = report.summary()
 
     assert summary["files_parsed"] > 20
     assert summary["total_relations"] > 0
     assert summary["grades"]["EXACT"] > 0
+    assert summary["grades"]["UNKNOWN"] > 0
     assert summary["budget_exceeded"] is False
     assert summary["parse_error_count"] == 0
 
