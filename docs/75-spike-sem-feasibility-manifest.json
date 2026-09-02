@@ -1,7 +1,7 @@
 {
   "schema_version": "sergeant.spike-sem-feasibility-manifest.v2",
   "node": "SPIKE-SEM",
-  "node_title": "Semantic-analysis feasibility and UNKNOWN-rate study",
+  "node_title": "Real semantic qualification / false-UNKNOWN feasibility",
   "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
   "repository": "jaydumisuni/Sergeant",
   "branch": "roadmap/spike-sem-semantic-feasibility-20260902",
@@ -22,7 +22,7 @@
   },
   "candidate_document": {
     "path": "docs/74-spike-sem-semantic-feasibility.md",
-    "blob_sha": "d39fa0c17a16b3ebc09b3608168b6c0018c6fbbb"
+    "blob_sha": "706e3f15d7f676431eb46022733bdd4104cbfae5"
   },
   "probe": {
     "path": "tests/spike_sem/semantic_feasibility_probe.py",
@@ -38,7 +38,7 @@
   },
   "proof_fixture": {
     "path": "tests/spike_sem/test_semantic_feasibility_probe.py",
-    "blob_sha": "0bc87a86923580ebbf113d2472516640ce1d8828",
+    "blob_sha": "b2bf08d7103e490dc816a1a195c05c34b0d0d97d",
     "assurance_evolution_runtime_implementation": false
   },
   "required_constructs": {
@@ -76,24 +76,27 @@
   },
   "hostile_review": {
     "reviewed_initial_head": "3667561baf731482d76be10a38c7cfa1ef54f2b5",
+    "execution_reproof_head": "6f47c742ffae3bf624e4147a15c0271ea435d3a9",
+    "execution_reproof_github_actions_run_id": 33619547519,
+    "candidate_green_reproof_pending": true,
     "findings": {
       "unresolved_calls_omitted_from_denominator": {
         "severity": "P1",
         "valid": true,
         "implemented": true,
-        "execution_reproof_pending": true
+        "execution_reproof_pending": false
       },
       "lexical_shadowing_false_exact": {
         "severity": "P2",
         "valid": true,
         "implemented": true,
-        "execution_reproof_pending": true
+        "execution_reproof_pending": false
       },
       "candidate_expansion_not_budgeted": {
         "severity": "P2",
         "valid": true,
         "implemented": true,
-        "execution_reproof_pending": true
+        "execution_reproof_pending": false
       }
     }
   },
@@ -114,12 +117,41 @@
   },
   "corrected_real_sergeant_measurement": {
     "scope": "main_review/ Python corpus",
-    "status": "DISCOVERY_PENDING_AFTER_REVIEW_HARDENING",
+    "status": "FROZEN_FROM_SINGLE_SENTINEL_DISCOVERY",
+    "discovery_head": "6f47c742ffae3bf624e4147a15c0271ea435d3a9",
+    "discovery_github_actions_run_id": 33619547519,
+    "discovery_test_result": {
+      "passed": 1107,
+      "failed": 1,
+      "xfailed": 1,
+      "sole_failure": "test_real_sergeant_main_review_semantic_metrics_are_frozen_from_observation"
+    },
     "max_operations": 2000000,
-    "expected_discovery_test": "test_real_sergeant_main_review_semantic_metrics_are_frozen_from_observation",
-    "require_unknown_greater_than_zero": true,
-    "require_parse_error_count": 0,
-    "require_budget_exceeded": false
+    "files_parsed": 136,
+    "operations_used": 924042,
+    "total_relations": 14439,
+    "parse_error_count": 0,
+    "budget_exceeded": false,
+    "grades": {
+      "EXACT": 2528,
+      "CONSERVATIVE_SUPERSET": 3,
+      "PARTIAL": 2008,
+      "UNKNOWN": 9900
+    },
+    "rates": {
+      "EXACT": 0.17508137682665004,
+      "CONSERVATIVE_SUPERSET": 0.00020777062123415748,
+      "PARTIAL": 0.13906780247939607,
+      "UNKNOWN": 0.6856430500727198
+    },
+    "by_kind": {
+      "attribute_name_candidate": 3,
+      "decorator_binding": 70,
+      "direct_call": 4479,
+      "lexical_shadowing": 25,
+      "unresolved_call": 9862
+    },
+    "interpretation": "under the deliberately narrow review-hardened domain, current main_review is UNKNOWN-dominant; future precision must be earned rather than removing unresolved calls from the denominator"
   },
   "false_positive_pressure": {
     "fixture": "duplicate exported/local handle symbol names",
@@ -132,6 +164,9 @@
   },
   "resource_behavior": {
     "probe_operation_budget": 2000000,
+    "main_review_operations_used": 924042,
+    "main_review_budget_fraction_used": 0.462021,
+    "main_review_budget_exceeded": false,
     "alias_hop_limit": 2,
     "explicit_exhaustion_fixture_emits_unknown": true,
     "candidate_expansion_exhaustion_fixture_emits_unknown": true,
