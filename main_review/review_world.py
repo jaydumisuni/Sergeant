@@ -132,6 +132,20 @@ class ReviewScope:
             payload['scope_id'] = self.scope_id
         return payload
 
+    def validate(self) -> None:
+        if self.schema_version != 'sergeant.review-scope.v1':
+            raise ReviewWorldError('unknown ReviewScope schema version')
+        canonical = type(self)._create(
+            kind=self.kind,
+            paths=self.paths,
+            generated_artifacts=self.generated_artifacts,
+            submodules=self.submodules,
+            untracked=self.untracked,
+            generation=self.generation,
+        )
+        if canonical != self:
+            raise ReviewWorldError('ReviewScope object is non-canonical or scope_id mismatched')
+
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> 'ReviewScope':
         _expect_keys(payload, {'schema_version', 'kind', 'paths', 'generated_artifacts', 'submodules', 'untracked', 'generation', 'scope_id'}, label='ReviewScope')
@@ -162,6 +176,7 @@ class GitHubDiffIdentity:
 
     @classmethod
     def create(cls, *, repository: str, base_commit: str, base_tree: str, head_commit: str, head_tree: str, scope: ReviewScope, algorithm_generation: str='git-tree-transition-v1') -> 'GitHubDiffIdentity':
+        scope.validate()
         repository_id = normalize_repository_identity(repository)
         base_commit = require_git_object_id(base_commit, 'base_commit')
         base_tree = require_git_object_id(base_tree, 'base_tree')
@@ -178,6 +193,30 @@ class GitHubDiffIdentity:
         if include_id:
             payload['diff_id'] = self.diff_id
         return payload
+
+    def validate(self) -> None:
+        if self.schema_version != 'sergeant.github-diff-identity.v1':
+            raise ReviewWorldError('unknown GitHubDiffIdentity schema version')
+        repository = normalize_repository_identity(self.repository)
+        base_commit = require_git_object_id(self.base_commit, 'base_commit')
+        base_tree = require_git_object_id(self.base_tree, 'base_tree')
+        head_commit = require_git_object_id(self.head_commit, 'head_commit')
+        head_tree = require_git_object_id(self.head_tree, 'head_tree')
+        scope_id = require_full_sha256(self.scope_id, 'scope_id')
+        if not self.algorithm_generation:
+            raise ReviewWorldError('diff identity algorithm generation must be non-empty')
+        body = {
+            'schema_version': 'sergeant.github-diff-identity.v1',
+            'repository': repository,
+            'base_commit': base_commit,
+            'base_tree': base_tree,
+            'head_commit': head_commit,
+            'head_tree': head_tree,
+            'algorithm_generation': self.algorithm_generation,
+            'scope_id': scope_id,
+        }
+        if repository != self.repository or sha256_id(body) != require_full_sha256(self.diff_id, 'diff_id'):
+            raise ReviewWorldError('diff identity object is non-canonical or diff_id mismatched')
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object], *, scope: ReviewScope) -> 'GitHubDiffIdentity':
@@ -209,6 +248,8 @@ class GitHubReviewWorld:
 
     @classmethod
     def create(cls, *, repository: str, pr_number: int, diff: GitHubDiffIdentity, scope: ReviewScope, review_mode: str, rab_id: str, review_generation: str, merge_commit: str | None=None, merge_tree: str | None=None, unresolved_state: Sequence[str]=()) -> 'GitHubReviewWorld':
+        scope.validate()
+        diff.validate()
         repository_id = normalize_repository_identity(repository)
         if pr_number <= 0:
             raise ReviewWorldError('pr_number must be positive')
@@ -240,6 +281,24 @@ class GitHubReviewWorld:
         if include_id:
             payload['review_world_id'] = self.review_world_id
         return payload
+
+    def validate(self) -> None:
+        if self.schema_version != 'sergeant.review-world.github-pr.v1' or self.kind != 'github_pr':
+            raise ReviewWorldError('unknown GitHubReviewWorld schema/kind')
+        canonical = type(self).create(
+            repository=self.repository,
+            pr_number=self.pr_number,
+            diff=self.diff,
+            scope=self.scope,
+            review_mode=self.review_mode,
+            rab_id=self.rab_id,
+            review_generation=self.review_generation,
+            merge_commit=self.merge_commit,
+            merge_tree=self.merge_tree,
+            unresolved_state=self.unresolved_state,
+        )
+        if canonical != self:
+            raise ReviewWorldError('Review World object is non-canonical or review_world_id mismatched')
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> 'GitHubReviewWorld':
@@ -273,6 +332,7 @@ class LocalReviewWorld:
 
     @classmethod
     def create(cls, *, repository: str | None, local_snapshot_id: str, scope: ReviewScope, rab_id: str, review_generation: str) -> 'LocalReviewWorld':
+        scope.validate()
         repository_id = normalize_repository_identity(repository) if repository else None
         local_snapshot_id = require_full_sha256(local_snapshot_id, 'local_snapshot_id')
         rab_id = require_full_sha256(rab_id, 'rab_id')
@@ -286,6 +346,19 @@ class LocalReviewWorld:
         if include_id:
             payload['review_world_id'] = self.review_world_id
         return payload
+
+    def validate(self) -> None:
+        if self.schema_version != 'sergeant.review-world.local.v1' or self.kind != 'local':
+            raise ReviewWorldError('unknown LocalReviewWorld schema/kind')
+        canonical = type(self).create(
+            repository=self.repository,
+            local_snapshot_id=self.local_snapshot_id,
+            scope=self.scope,
+            rab_id=self.rab_id,
+            review_generation=self.review_generation,
+        )
+        if canonical != self:
+            raise ReviewWorldError('Review World object is non-canonical or review_world_id mismatched')
 
     @classmethod
     def from_payload(cls, payload: Mapping[str, object]) -> 'LocalReviewWorld':

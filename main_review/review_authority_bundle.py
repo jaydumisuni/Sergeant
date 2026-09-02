@@ -79,17 +79,26 @@ class RABComponent:
     def validate(self) -> None:
         if self.name not in RAB_SLOTS:
             raise ReviewAuthorityBundleError(f'unknown RAB component slot: {self.name!r}')
-        _require_authority_domain(self.authority_domain, f'{self.name}.authority_domain')
+        domain = _require_authority_domain(self.authority_domain, f'{self.name}.authority_domain')
         if self.lifecycle_state == 'active':
-            _require_generation(str(self.generation or ''), f'{self.name}.generation')
+            raw_generation = str(self.generation or '')
+            generation = _require_generation(raw_generation, f'{self.name}.generation')
+            if generation != raw_generation:
+                raise ReviewAuthorityBundleError(f'{self.name}.generation must be canonical without surrounding whitespace')
             require_full_sha256(str(self.content_id or ''), f'{self.name}.content_id')
             if self.basis is not None:
                 raise ReviewAuthorityBundleError(f'active {self.name} cannot carry inactive basis')
         elif self.lifecycle_state in {'inactive_not_yet_established', 'prohibited'}:
+            if domain != 'sergeant-assurance':
+                raise ReviewAuthorityBundleError(f'{self.name}.authority_domain must be sergeant-assurance while inactive/prohibited')
             if self.generation is not None or self.content_id is not None:
                 raise ReviewAuthorityBundleError(f'inactive/prohibited {self.name} cannot carry active identity')
-            if not str(self.basis or '').strip():
+            raw_basis = str(self.basis or '')
+            basis = raw_basis.strip()
+            if not basis:
                 raise ReviewAuthorityBundleError(f'{self.name}.basis must be non-empty')
+            if basis != raw_basis:
+                raise ReviewAuthorityBundleError(f'{self.name}.basis must be canonical without surrounding whitespace')
         else:
             raise ReviewAuthorityBundleError(f'invalid lifecycle state for {self.name}')
 

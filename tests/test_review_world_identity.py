@@ -50,3 +50,35 @@ def test_scope_changes_world():
     w1 = rw.GitHubReviewWorld.create(repository='o/r', pr_number=1, diff=d1, scope=s1, review_mode='head', rab_id=R, review_generation='g')
     w2 = rw.GitHubReviewWorld.create(repository='o/r', pr_number=1, diff=d2, scope=s2, review_mode='head', rab_id=R, review_generation='g')
     assert w1.review_world_id != w2.review_world_id
+
+
+def test_direct_noncanonical_scope_cannot_seed_diff_identity():
+    forged = rw.ReviewScope(
+        schema_version='sergeant.review-scope.v1',
+        kind='repository',
+        paths=('src',),
+        generated_artifacts='excluded',
+        submodules='excluded',
+        untracked='excluded',
+        generation='scope-v1',
+        scope_id=R,
+    )
+    with pytest.raises(rw.ReviewWorldError, match='ReviewScope|scope'):
+        rw.GitHubDiffIdentity.create(repository='o/r', base_commit=A, base_tree=C, head_commit=B, head_tree=D, scope=forged)
+
+
+def test_direct_forged_diff_identity_cannot_seed_review_world():
+    scope = rw.ReviewScope.repository()
+    forged = rw.GitHubDiffIdentity(
+        schema_version='sergeant.github-diff-identity.v1',
+        repository='o/r',
+        base_commit=A,
+        base_tree=C,
+        head_commit=B,
+        head_tree=D,
+        algorithm_generation='git-tree-transition-v1',
+        scope_id=scope.scope_id,
+        diff_id=R,
+    )
+    with pytest.raises(rw.ReviewWorldError, match='diff'):
+        rw.GitHubReviewWorld.create(repository='o/r', pr_number=1, diff=forged, scope=scope, review_mode='head', rab_id=R, review_generation='g')

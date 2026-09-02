@@ -81,3 +81,46 @@ def test_direct_component_construction_rejects_noncanonical_authority_domain():
     )
     with pytest.raises(r.ReviewAuthorityBundleError, match='authority_domain'):
         r.ReviewAuthorityBundle.create(root_authority=forged)
+
+@pytest.mark.parametrize('state,basis', [
+    ('inactive_not_yet_established', 'not established'),
+    ('prohibited', 'prohibited by authority'),
+])
+def test_direct_inactive_component_rejects_noncanonical_authority_domain(state, basis):
+    forged = r.RABComponent(
+        name='root_authority',
+        lifecycle_state=state,
+        generation=None,
+        content_id=None,
+        basis=basis,
+        authority_domain='alternate-domain',
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='authority_domain'):
+        r.ReviewAuthorityBundle.create(root_authority=forged)
+
+
+def test_direct_active_component_rejects_noncanonical_generation():
+    forged = r.RABComponent(
+        name='root_authority',
+        lifecycle_state='active',
+        generation=' g1 ',
+        content_id='a' * 64,
+        basis=None,
+        authority_domain='sergeant',
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='generation'):
+        r.ReviewAuthorityBundle.create(root_authority=forged)
+
+
+@pytest.mark.parametrize('state', ['inactive_not_yet_established', 'prohibited'])
+def test_direct_inactive_component_rejects_noncanonical_basis(state):
+    forged = r.RABComponent(
+        name='root_authority',
+        lifecycle_state=state,
+        generation=None,
+        content_id=None,
+        basis=' padded basis ',
+        authority_domain='sergeant-assurance',
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='basis'):
+        r.ReviewAuthorityBundle.create(root_authority=forged)

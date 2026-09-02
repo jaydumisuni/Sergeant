@@ -58,3 +58,43 @@ def test_unknown_rab_authorization_preserves_local_world_mismatch_reasons():
     assert result.state == 'UNKNOWN_CURRENTNESS'
     assert 'rab_authorization_unknown' in result.reasons
     assert 'local_snapshot_mutation' in result.reasons
+
+
+def test_currentness_rejects_direct_forged_github_world_identity():
+    valid = world()
+    forged = rw.GitHubReviewWorld(
+        schema_version=valid.schema_version,
+        kind=valid.kind,
+        repository=valid.repository,
+        pr_number=valid.pr_number,
+        diff=valid.diff,
+        scope=valid.scope,
+        review_mode=valid.review_mode,
+        rab_id=valid.rab_id,
+        review_generation=valid.review_generation,
+        merge_commit=valid.merge_commit,
+        merge_tree=valid.merge_tree,
+        unresolved_state=valid.unresolved_state,
+        review_world_id='f' * 64,
+    )
+    import pytest
+    with pytest.raises(rw.ReviewWorldError, match='Review World|review_world_id'):
+        c.check_github_currentness(forged, forged, rab_authorized=True)
+
+
+def test_currentness_rejects_direct_forged_local_world_identity():
+    scope = rw.ReviewScope.repository()
+    valid = rw.LocalReviewWorld.create(repository='o/r', local_snapshot_id='2' * 64, scope=scope, rab_id=R, review_generation='g')
+    forged = rw.LocalReviewWorld(
+        schema_version=valid.schema_version,
+        kind=valid.kind,
+        repository=valid.repository,
+        local_snapshot_id=valid.local_snapshot_id,
+        scope=valid.scope,
+        rab_id=valid.rab_id,
+        review_generation=valid.review_generation,
+        review_world_id='f' * 64,
+    )
+    import pytest
+    with pytest.raises(rw.ReviewWorldError, match='Review World|review_world_id'):
+        c.check_local_currentness(forged, forged, rab_authorized=True)

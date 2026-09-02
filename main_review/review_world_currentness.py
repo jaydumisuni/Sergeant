@@ -19,8 +19,10 @@ def _finish(reasons: list[str], *, unknown: bool=False) -> CurrentnessResult:
     return CurrentnessResult('CURRENT', ())
 
 def check_github_currentness(frozen: GitHubReviewWorld, current: GitHubReviewWorld | None, *, rab_authorized: bool | None) -> CurrentnessResult:
+    frozen.validate()
     if current is None:
         return CurrentnessResult('UNKNOWN_CURRENTNESS', ('comparison_facts_unavailable',))
+    current.validate()
     reasons = []
     if frozen.repository != current.repository:
         reasons.append('repository_mismatch')
@@ -47,8 +49,10 @@ def check_github_currentness(frozen: GitHubReviewWorld, current: GitHubReviewWor
     return _finish(reasons, unknown=rab_authorized is None)
 
 def check_local_currentness(frozen: LocalReviewWorld, current: LocalReviewWorld | None, *, rab_authorized: bool | None) -> CurrentnessResult:
+    frozen.validate()
     if current is None:
         return CurrentnessResult('UNKNOWN_CURRENTNESS', ('comparison_facts_unavailable',))
+    current.validate()
     reasons = []
     if frozen.repository != current.repository:
         reasons.append('repository_mismatch')

@@ -7,20 +7,20 @@
   ],
   "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
   "content_blobs": {
-    "docs/78-sae10-review-world-rab-contract.md": "37e56fda1b49bcc72f36360032313b44e8fa9ea9",
+    "docs/78-sae10-review-world-rab-contract.md": "843be37d9ae225d20f61f1ac05a5dc3722f2fa7e",
     "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "f23a88cff7e77eef6e8fd814a0b76b9366b36c00",
-    "main_review/review_authority_bundle.py": "7fca75fc74844f71cd74f061f470242a6dabd528",
-    "main_review/review_world.py": "edb1d50e860e839177f87928f391659b57056cfd",
-    "main_review/review_world_currentness.py": "f52fe06de3de3371d4652188e0f51efcf316c4ef",
+    "main_review/review_authority_bundle.py": "20b8fb445d216186ff7c5b06b25dd21068b33e2c",
+    "main_review/review_world.py": "0267748657837332f3f6a0059df3d065f3181cad",
+    "main_review/review_world_currentness.py": "6593bb3721cdcd3e188523dd79c0bd2448fc9a78",
     "main_review/review_world_git.py": "b9bfafec48879cfca28879902ccf4dd2c7e34289",
     "tests/conftest.py": "c9d4e3ceb940bd97ec2a851ae56f705aafb54365",
-    "tests/test_review_authority_bundle.py": "c5a3b3ed9a2318c7a208ab64166cd155171915a3",
-    "tests/test_review_world_currentness.py": "e2f3ab0411ada908fadf3c92a2ef977647c9ce10",
+    "tests/test_review_authority_bundle.py": "207e0fc71c900fe3de65946ed40cf2d3096b9341",
+    "tests/test_review_world_currentness.py": "58045ae2cba3d08e57f6668c6d8166c014ae3231",
     "tests/test_review_world_git.py": "e9f1194802d08bb95d8bce1b6699a75c4821b18a",
-    "tests/test_review_world_identity.py": "d03de9cf0013c17cecb8a1cc98fe88e2095b14f2",
+    "tests/test_review_world_identity.py": "f6aa799bcd67c8948801cf02c1ed621d5dd9eac5",
     "tests/test_review_world_persistence.py": "dc1f86340a08ad997b08c309f88e6162adc9e80e",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_sae10_review_world_rab_manifest.py": "ab83da87c675b667333c601bdc7fe6d6a9729d6f",
+    "tests/test_sae10_review_world_rab_manifest.py": "366faea40e6323042ea9d39da27ba5c797234235",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
@@ -81,6 +81,22 @@
       "passed": 1178,
       "xfailed": 1
     },
+    "owner_root_exact_head_review": {
+      "accepted_repairs": [
+        "rab_component_direct_canonical_round_trip",
+        "nested_review_scope_diff_identity_validation",
+        "currentness_rejects_forged_review_world_identity"
+      ],
+      "actionable_findings": 1,
+      "finding_class": "in_memory_authority_canonicality",
+      "replacement_local_reproof": {
+        "failed": 0,
+        "passed": 86,
+        "xfailed": 0
+      },
+      "review_basis": "proven_sae00_plus_owner_root_pre_sae30_bootstrap",
+      "reviewed_head": "97055f975c2fe76f77b7483df885f1aa9064c560"
+    },
     "repair": "external_exact_node_strict_xfail_preserve_historical_fixture",
     "repair_local_reproof": {
       "failed": 0,
@@ -114,7 +130,7 @@
     "formation_lanes": 20,
     "local_test_result": {
       "failed": 0,
-      "passed": 77,
+      "passed": 86,
       "xfailed": 0
     }
   }
