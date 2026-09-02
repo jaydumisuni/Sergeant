@@ -25,6 +25,16 @@ EXPECTED_CONTENT_BLOBS = {
     'tests/test_spike_sem_historical_metric_supersession.py',
     'tests/test_sae10_review_world_rab_manifest.py',
 }
+EXPECTED_EXTERNAL_AUTHORITY_BLOBS = {
+    'docs/58-sergeant-assurance-evolution-founding-architecture.md',
+    'docs/59-sergeant-assurance-evolution-roadmap.md',
+    'docs/66-sae00-proven-lifecycle-closeout.md',
+    'docs/67-sae00-proven-lifecycle-closeout-manifest.json',
+    'docs/75-spike-sem-feasibility-manifest.json',
+    'docs/77-spike-sem-proven-lifecycle-closeout-manifest.json',
+    'docs/superpowers/specs/2026-09-02-sae-10-review-world-rab-design.md',
+    'tests/spike_sem/test_semantic_feasibility_probe.py',
+}
 
 
 def _load() -> dict[str, object]:
@@ -49,6 +59,13 @@ def blob(path: str | Path) -> str:
     ).stdout.strip()
 
 
+def _assert_exact_blob_bindings(bindings: object, expected_paths: set[str], *, blob_fn=blob) -> None:
+    assert isinstance(bindings, dict)
+    assert set(bindings) == expected_paths
+    for path, expected in bindings.items():
+        assert blob_fn(path) == expected
+
+
 def test_candidate_manifest_lifecycle_and_dependency():
     manifest = _load()
     assert manifest['lifecycle_state'] == 'CANDIDATE'
@@ -66,7 +83,6 @@ def test_candidate_manifest_outputs_are_exact():
 
 def test_manifest_paths_are_repository_confined():
     import pytest
-
     with pytest.raises(AssertionError, match='non-repository manifest path'):
         _repo_path('../outside')
     with pytest.raises(AssertionError, match='non-repository manifest path'):
@@ -75,11 +91,28 @@ def test_manifest_paths_are_repository_confined():
 
 def test_candidate_content_blob_bindings_match_exact_repository_roster():
     manifest = _load()
-    bindings = manifest['content_blobs']
-    assert isinstance(bindings, dict)
-    assert set(bindings) == EXPECTED_CONTENT_BLOBS
-    for path, expected in bindings.items():
-        assert blob(path) == expected
+    _assert_exact_blob_bindings(manifest['content_blobs'], EXPECTED_CONTENT_BLOBS)
+
+
+def test_external_authority_blob_bindings_match_exact_repository_roster():
+    manifest = _load()
+    _assert_exact_blob_bindings(manifest['external_authority_blobs'], EXPECTED_EXTERNAL_AUTHORITY_BLOBS)
+
+
+def test_external_authority_binding_guard_rejects_extra_member_and_hash_mismatch():
+    import pytest
+    manifest = _load()
+    bindings = dict(manifest['external_authority_blobs'])
+    fake_hashes = dict(bindings)
+    fake_blob = lambda path: fake_hashes[str(path)]
+    _assert_exact_blob_bindings(bindings, EXPECTED_EXTERNAL_AUTHORITY_BLOBS, blob_fn=fake_blob)
+    with pytest.raises(AssertionError):
+        _assert_exact_blob_bindings({**bindings, 'docs/extra-authority.md': 'a' * 40}, EXPECTED_EXTERNAL_AUTHORITY_BLOBS, blob_fn=fake_blob)
+    bad = dict(fake_hashes)
+    first = next(iter(bad))
+    bad[first] = '0' * 40
+    with pytest.raises(AssertionError):
+        _assert_exact_blob_bindings(bindings, EXPECTED_EXTERNAL_AUTHORITY_BLOBS, blob_fn=lambda path: bad[str(path)])
 
 
 def test_tenfold_formation_and_local_proof_are_bound():
@@ -94,12 +127,8 @@ def test_tenfold_formation_and_local_proof_are_bound():
 def test_required_hostile_attacks_are_bound():
     manifest = _load()
     assert set(manifest['required_hostile_attacks']) == {
-        'same_head_different_base',
-        'wrong_merge_tree',
-        'local_mutation_after_snapshot',
-        'scope_downgrade',
-        'unauthorized_rab_combination',
-        'candidate_self_activation',
+        'same_head_different_base', 'wrong_merge_tree', 'local_mutation_after_snapshot',
+        'scope_downgrade', 'unauthorized_rab_combination', 'candidate_self_activation',
     }
 
 
@@ -124,12 +153,9 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
     assert followup['actionable_findings'] == 7
     assert followup['all_valid_findings_corrected_in_tenfold'] is True
     assert set(followup['valid_findings']) == {
-        'manifest_exact_content_roster_and_path_confinement',
-        'historical_fixture_blob_mechanical_binding',
-        'plan_rab_slot_name_drift',
-        'rab_authorization_record_state_validation',
-        'git_environment_metadata_isolation',
-        'review_scope_duplicate_payload_strict_decode',
+        'manifest_exact_content_roster_and_path_confinement', 'historical_fixture_blob_mechanical_binding',
+        'plan_rab_slot_name_drift', 'rab_authorization_record_state_validation',
+        'git_environment_metadata_isolation', 'review_scope_duplicate_payload_strict_decode',
         'historical_xfail_exact_node_strict_binding',
     }
     assert followup['replacement_local_reproof'] == {'failed': 0, 'passed': 71, 'xfailed': 0}
@@ -140,9 +166,7 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
         'rab_component_authority_domain_validation',
         'unknown_rab_authorization_preserves_world_mismatch_reasons',
     }
-    assert exact['dispositioned_without_mutation'] == [
-        'historical_design_freeze_status_preserved',
-    ]
+    assert exact['dispositioned_without_mutation'] == ['historical_design_freeze_status_preserved']
     assert exact['replacement_local_reproof'] == {'failed': 0, 'passed': 77, 'xfailed': 0}
     owner_root = review['owner_root_exact_head_review']
     assert owner_root['reviewed_head'] == '97055f975c2fe76f77b7483df885f1aa9064c560'
@@ -156,4 +180,3 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
     assert owner_root['replacement_local_reproof'] == {'failed': 0, 'passed': 86, 'xfailed': 0}
     expected = review['historical_fixture_blob_preserved']
     assert expected == manifest['external_authority_blobs'][str(HISTORICAL_SPIKE_FIXTURE)]
-    assert blob(HISTORICAL_SPIKE_FIXTURE) == expected

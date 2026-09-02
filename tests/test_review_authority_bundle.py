@@ -124,3 +124,55 @@ def test_direct_inactive_component_rejects_noncanonical_basis(state):
     )
     with pytest.raises(r.ReviewAuthorityBundleError, match='basis'):
         r.ReviewAuthorityBundle.create(root_authority=forged)
+
+@pytest.mark.parametrize(
+    ('field', 'value'),
+    [
+        ('authority_domain', 123),
+        ('generation', 123),
+        ('content_id', int('1' * 64)),
+    ],
+)
+def test_direct_active_rab_component_rejects_non_string_authority_fields(field, value):
+    values = dict(
+        name='root_authority',
+        lifecycle_state='active',
+        generation='g1',
+        content_id='a' * 64,
+        basis=None,
+        authority_domain='sergeant',
+    )
+    values[field] = value
+    component = r.RABComponent(**values)
+    with pytest.raises(r.ReviewAuthorityBundleError, match=field):
+        r.ReviewAuthorityBundle.create(root_authority=component)
+
+
+def test_direct_inactive_rab_component_rejects_non_string_basis():
+    component = r.RABComponent(
+        name='root_authority',
+        lifecycle_state='inactive_not_yet_established',
+        generation=None,
+        content_id=None,
+        basis=123,
+        authority_domain='sergeant-assurance',
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='basis'):
+        r.ReviewAuthorityBundle.create(root_authority=component)
+
+
+def test_direct_authorization_set_rejects_noncanonical_record_order():
+    first = r.RABAuthorization.authorized('b' * 64, 'auth-g1', 'root')
+    second = r.RABAuthorization.authorized('a' * 64, 'auth-g1', 'root')
+    records = (first, second)
+    body = {
+        'schema_version': 'sergeant.rab-authorization-set.v1',
+        'records': [record.to_payload() for record in records],
+    }
+    forged = r.RABAuthorizationSet(
+        'sergeant.rab-authorization-set.v1',
+        records,
+        __import__('main_review.review_world', fromlist=['sha256_id']).sha256_id(body),
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='order|canonical'):
+        forged.expected_id()

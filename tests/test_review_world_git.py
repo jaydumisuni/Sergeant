@@ -110,3 +110,39 @@ def test_local_snapshot_ignores_inherited_git_index_file(tmp_path, monkeypatch):
         policy=g.LocalSnapshotPolicy.exclude_untracked(),
     )
     assert any(entry.path == 'src/a' for entry in snapshot.entries)
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git unavailable')
+def test_unborn_repository_has_explicit_canonical_head_state_and_builds_local_world(tmp_path):
+    git(tmp_path, 'init', '-q')
+    scope = rw.ReviewScope.repository()
+    policy = g.LocalSnapshotPolicy.exclude_untracked()
+    snapshot, world = g.build_local_review_world(
+        tmp_path,
+        repository=None,
+        scope=scope,
+        policy=policy,
+        rab_id=R,
+        review_generation='sae10-v1',
+    )
+    assert snapshot.head_state == 'unborn'
+    assert snapshot.head_commit is None
+    assert snapshot.head_tree is None
+    assert world.local_snapshot_id == snapshot.local_snapshot_id
+    repeated = g.build_local_snapshot(tmp_path, scope=scope, policy=policy)
+    assert repeated.local_snapshot_id == snapshot.local_snapshot_id
+
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git unavailable')
+def test_detached_repository_preserves_commit_tree_with_explicit_head_state(tmp_path):
+    init(tmp_path)
+    head = git(tmp_path, 'rev-parse', 'HEAD')
+    tree = git(tmp_path, 'rev-parse', 'HEAD^{tree}')
+    git(tmp_path, 'checkout', '--detach', '-q', head)
+    snapshot = g.build_local_snapshot(
+        tmp_path,
+        scope=rw.ReviewScope.repository(),
+        policy=g.LocalSnapshotPolicy.exclude_untracked(),
+    )
+    assert snapshot.head_state == 'detached'
+    assert snapshot.head_commit == head
+    assert snapshot.head_tree == tree

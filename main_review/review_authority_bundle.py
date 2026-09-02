@@ -20,8 +20,14 @@ def _expect_keys(payload, required, label):
     if extra:
         raise ReviewAuthorityBundleError(f'{label} has unexpected fields: {sorted(extra)!r}')
 
+def _require_string(value: object, field: str) -> str:
+    if not isinstance(value, str):
+        raise ReviewAuthorityBundleError(f'{field} must be a string')
+    return value
+
 def _require_generation(value: str, field: str) -> str:
-    candidate = str(value or '').strip()
+    raw = _require_string(value, field)
+    candidate = raw.strip()
     if not candidate:
         raise ReviewAuthorityBundleError(f'{field} must be non-empty')
     if candidate.lower() in _MUTABLE_ALIASES:
@@ -29,7 +35,7 @@ def _require_generation(value: str, field: str) -> str:
     return candidate
 
 def _require_authority_domain(value: str, field: str) -> str:
-    raw = str(value or '')
+    raw = _require_string(value, field)
     candidate = raw.strip()
     if not candidate:
         raise ReviewAuthorityBundleError(f'{field} must be non-empty')
@@ -51,7 +57,7 @@ class RABComponent:
         if name not in RAB_SLOTS:
             raise ReviewAuthorityBundleError(f'unknown RAB component slot: {name!r}')
         generation = _require_generation(generation, f'{name}.generation')
-        content_id = require_full_sha256(content_id, f'{name}.content_id')
+        content_id = require_full_sha256(_require_string(content_id, f'{name}.content_id'), f'{name}.content_id')
         domain = _require_authority_domain(authority_domain, f'{name}.authority_domain')
         return cls(name, 'active', generation, content_id, None, domain)
 
@@ -59,7 +65,8 @@ class RABComponent:
     def inactive(cls, *, name: str, basis: str) -> 'RABComponent':
         if name not in RAB_SLOTS:
             raise ReviewAuthorityBundleError(f'unknown RAB component slot: {name!r}')
-        basis = str(basis or '').strip()
+        raw_basis = _require_string(basis, f'{name}.basis')
+        basis = raw_basis.strip()
         if not basis:
             raise ReviewAuthorityBundleError(f'{name}.basis must be non-empty')
         return cls(name, 'inactive_not_yet_established', None, None, basis, 'sergeant-assurance')
@@ -68,7 +75,8 @@ class RABComponent:
     def prohibited(cls, *, name: str, basis: str) -> 'RABComponent':
         if name not in RAB_SLOTS:
             raise ReviewAuthorityBundleError(f'unknown RAB component slot: {name!r}')
-        basis = str(basis or '').strip()
+        raw_basis = _require_string(basis, f'{name}.basis')
+        basis = raw_basis.strip()
         if not basis:
             raise ReviewAuthorityBundleError(f'{name}.basis must be non-empty')
         return cls(name, 'prohibited', None, None, basis, 'sergeant-assurance')
@@ -81,11 +89,10 @@ class RABComponent:
             raise ReviewAuthorityBundleError(f'unknown RAB component slot: {self.name!r}')
         domain = _require_authority_domain(self.authority_domain, f'{self.name}.authority_domain')
         if self.lifecycle_state == 'active':
-            raw_generation = str(self.generation or '')
-            generation = _require_generation(raw_generation, f'{self.name}.generation')
-            if generation != raw_generation:
+            generation = _require_generation(self.generation, f'{self.name}.generation')
+            if generation != self.generation:
                 raise ReviewAuthorityBundleError(f'{self.name}.generation must be canonical without surrounding whitespace')
-            require_full_sha256(str(self.content_id or ''), f'{self.name}.content_id')
+            require_full_sha256(_require_string(self.content_id, f'{self.name}.content_id'), f'{self.name}.content_id')
             if self.basis is not None:
                 raise ReviewAuthorityBundleError(f'active {self.name} cannot carry inactive basis')
         elif self.lifecycle_state in {'inactive_not_yet_established', 'prohibited'}:
@@ -93,7 +100,7 @@ class RABComponent:
                 raise ReviewAuthorityBundleError(f'{self.name}.authority_domain must be sergeant-assurance while inactive/prohibited')
             if self.generation is not None or self.content_id is not None:
                 raise ReviewAuthorityBundleError(f'inactive/prohibited {self.name} cannot carry active identity')
-            raw_basis = str(self.basis or '')
+            raw_basis = _require_string(self.basis, f'{self.name}.basis')
             basis = raw_basis.strip()
             if not basis:
                 raise ReviewAuthorityBundleError(f'{self.name}.basis must be non-empty')
@@ -107,14 +114,14 @@ class RABComponent:
         _expect_keys(payload, {'name', 'lifecycle_state', 'generation', 'content_id', 'basis', 'authority_domain'}, 'RABComponent')
         state = str(payload['lifecycle_state'])
         name = str(payload['name'])
-        domain = str(payload['authority_domain'])
-        basis = None if payload['basis'] is None else str(payload['basis'])
+        domain = payload['authority_domain']
+        basis = payload['basis']
         if state == 'active':
-            obj = cls.active(name=name, generation=str(payload['generation']), content_id=str(payload['content_id']), authority_domain=domain)
+            obj = cls.active(name=name, generation=payload['generation'], content_id=payload['content_id'], authority_domain=domain)
         elif state == 'inactive_not_yet_established':
-            obj = cls.inactive(name=name, basis=str(basis or ''))
+            obj = cls.inactive(name=name, basis=basis)
         elif state == 'prohibited':
-            obj = cls.prohibited(name=name, basis=str(basis or ''))
+            obj = cls.prohibited(name=name, basis=basis)
         else:
             raise ReviewAuthorityBundleError(f'invalid lifecycle state for {name}')
         if obj.authority_domain != domain:
@@ -277,6 +284,9 @@ class RABAuthorizationSet:
             record.validate()
         if len({item.rab_id for item in self.records}) != len(self.records):
             raise ReviewAuthorityBundleError('duplicate RAB authorization record')
+        canonical_order = tuple(sorted(self.records, key=lambda item: item.rab_id))
+        if tuple(self.records) != canonical_order:
+            raise ReviewAuthorityBundleError('RAB authorization records are not in canonical rab_id order')
         return sha256_id(self.to_payload(include_id=False))
 
     def find(self, rab_id: str) -> RABAuthorization | None:

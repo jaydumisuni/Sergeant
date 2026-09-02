@@ -82,3 +82,11 @@ def test_direct_forged_diff_identity_cannot_seed_review_world():
     )
     with pytest.raises(rw.ReviewWorldError, match='diff'):
         rw.GitHubReviewWorld.create(repository='o/r', pr_number=1, diff=forged, scope=scope, review_mode='head', rab_id=R, review_generation='g')
+
+
+def test_scope_payload_rejects_unsorted_paths_even_with_canonical_scope_id():
+    scope = rw.ReviewScope.selected_paths(['src/a.py', 'src/b.py'])
+    payload = scope.to_payload()
+    payload['paths'] = ['src/b.py', 'src/a.py']
+    with pytest.raises(rw.ReviewWorldError, match='order|sorted|non-canonical'):
+        rw.ReviewScope.from_payload(payload)

@@ -157,6 +157,8 @@ class ReviewScope:
         normalized_paths = [_normalize_repo_path(path) for path in paths]
         if len(set(normalized_paths)) != len(normalized_paths):
             raise ReviewWorldError('ReviewScope paths are non-canonical after normalization')
+        if normalized_paths != sorted(normalized_paths):
+            raise ReviewWorldError('ReviewScope paths are not in canonical sorted order')
         obj = cls._create(kind=str(payload['kind']), paths=normalized_paths, generated_artifacts=str(payload['generated_artifacts']), submodules=str(payload['submodules']), untracked=str(payload['untracked']), generation=str(payload['generation']))
         if require_full_sha256(str(payload['scope_id']), 'scope_id') != obj.scope_id:
             raise ReviewWorldError('scope_id mismatch')

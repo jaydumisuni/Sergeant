@@ -161,8 +161,9 @@ class LocalPathState:
 @dataclass(frozen=True)
 class LocalSnapshot:
     schema_version: str
-    head_commit: str
-    head_tree: str
+    head_state: Literal['attached', 'detached', 'unborn']
+    head_commit: str | None
+    head_tree: str | None
     scope: ReviewScope
     policy: LocalSnapshotPolicy
     entries: tuple[LocalPathState, ...]
@@ -170,7 +171,7 @@ class LocalSnapshot:
     local_snapshot_id: str
 
     def to_payload(self, *, include_id: bool=True) -> dict[str, object]:
-        p = {'schema_version': self.schema_version, 'head_commit': self.head_commit, 'head_tree': self.head_tree, 'scope': self.scope.to_payload(), 'policy': self.policy.to_payload(), 'entries': [e.to_payload() for e in self.entries], 'selected_scope_digest': self.selected_scope_digest}
+        p = {'schema_version': self.schema_version, 'head_state': self.head_state, 'head_commit': self.head_commit, 'head_tree': self.head_tree, 'scope': self.scope.to_payload(), 'policy': self.policy.to_payload(), 'entries': [e.to_payload() for e in self.entries], 'selected_scope_digest': self.selected_scope_digest}
         if include_id:
             p['local_snapshot_id'] = self.local_snapshot_id
         return p
@@ -243,15 +244,36 @@ def _submodule_state(root: Path, path: str, index_oid: str, policy: LocalSnapsho
         raise GitCommandError(f'submodule material unresolved/dirty for {path}')
     return LocalPathState(path, 'submodule', '160000', index_oid, None, 'unchanged', submodule_commit=commit)
 
+def _resolve_local_head(resolver: GitObjectResolver) -> tuple[Literal['attached', 'detached', 'unborn'], str | None, str | None]:
+    try:
+        raw_head = resolver._run('rev-parse', '--verify', 'HEAD')
+    except GitCommandError as head_error:
+        try:
+            symbolic_head = resolver._run('symbolic-ref', '-q', 'HEAD')
+        except GitCommandError:
+            raise head_error
+        if not symbolic_head.startswith('refs/heads/'):
+            raise head_error
+        return ('unborn', None, None)
+    head_commit = require_git_object_id(raw_head, 'head_commit')
+    head_tree = resolver.tree_for_commit(head_commit)
+    try:
+        resolver._run('symbolic-ref', '-q', 'HEAD')
+    except GitCommandError:
+        return ('detached', head_commit, head_tree)
+    return ('attached', head_commit, head_tree)
+
 def build_local_snapshot(root: str | Path, *, scope: ReviewScope, policy: LocalSnapshotPolicy) -> LocalSnapshot:
     root = Path(root)
     resolver = GitObjectResolver(root)
     if policy.generated_state == 'material_unbound':
         raise GitCommandError('generated material is declared but has no exact binding')
-    head_commit = require_git_object_id(resolver._run('rev-parse', '--verify', 'HEAD'), 'head_commit')
-    head_tree = resolver.tree_for_commit(head_commit)
+    head_state, head_commit, head_tree = _resolve_local_head(resolver)
     modified = _parse_nul_paths(resolver._run_bytes('diff-files', '--name-only', '-z'))
-    staged = _parse_nul_paths(resolver._run_bytes('diff-index', '--cached', '--name-only', '-z', 'HEAD', '--'))
+    if head_state == 'unborn':
+        staged = _parse_nul_paths(resolver._run_bytes('diff', '--cached', '--name-only', '-z', '--'))
+    else:
+        staged = _parse_nul_paths(resolver._run_bytes('diff-index', '--cached', '--name-only', '-z', 'HEAD', '--'))
     states = []
     for mode, oid, path in _index_entries(resolver, scope):
         absolute = root / path
@@ -295,8 +317,8 @@ def build_local_snapshot(root: str | Path, *, scope: ReviewScope, policy: LocalS
     states.sort(key=lambda x: x.path)
     scope_payload = {'scope_id': scope.scope_id, 'policy': policy.to_payload(), 'entries': [e.to_payload() for e in states]}
     selected_scope_digest = sha256_id(scope_payload)
-    body = {'schema_version': 'sergeant.local-snapshot.v1', 'head_commit': head_commit, 'head_tree': head_tree, 'scope': scope.to_payload(), 'policy': policy.to_payload(), 'entries': [e.to_payload() for e in states], 'selected_scope_digest': selected_scope_digest}
-    return LocalSnapshot('sergeant.local-snapshot.v1', head_commit, head_tree, scope, policy, tuple(states), selected_scope_digest, sha256_id(body))
+    body = {'schema_version': 'sergeant.local-snapshot.v1', 'head_state': head_state, 'head_commit': head_commit, 'head_tree': head_tree, 'scope': scope.to_payload(), 'policy': policy.to_payload(), 'entries': [e.to_payload() for e in states], 'selected_scope_digest': selected_scope_digest}
+    return LocalSnapshot('sergeant.local-snapshot.v1', head_state, head_commit, head_tree, scope, policy, tuple(states), selected_scope_digest, sha256_id(body))
 
 def build_local_review_world(root: str | Path, *, repository: str | None, scope: ReviewScope, policy: LocalSnapshotPolicy, rab_id: str, review_generation: str) -> tuple[LocalSnapshot, LocalReviewWorld]:
     snapshot = build_local_snapshot(root, scope=scope, policy=policy)
