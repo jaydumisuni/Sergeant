@@ -1,62 +1,66 @@
 # SAE-10 — Review World + Review Authority Bundle candidate contract
 
-Date: 2026-09-02
-Lifecycle state: **CANDIDATE**
-Roadmap node: `SAE-10`
-Proof dependency: PROVEN `SAE-00`
-Produces if later lifecycle-proven: `QUALIFIED_REVIEW_WORLD_CONTRACT`, `QUALIFIED_RAB_CONTRACT`
+Date: 2026-09-02  
+Lifecycle state: **CANDIDATE**  
+Roadmap node: `SAE-10`  
+Proof dependency: PROVEN `SAE-00`  
+Produces if later lifecycle-proven: `QUALIFIED_REVIEW_WORLD_CONTRACT`, `QUALIFIED_RAB_CONTRACT`  
 Normal Sergeant verdict authority gained by this candidate: **none**
 
 ## Construction authority
 
 Canonical construction base is `b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5`.
-The GitHub construction checkpoint imported into the local Tenfold workspace was `17c4240af1969e0fc999379c5243696347820def` on PR #176.
-All work after that checkpoint was executed in the isolated local Tenfold Gen 1 workspace and is pushed only at the frozen milestone boundary.
+The imported GitHub checkpoint remains `17c4240af1969e0fc999379c5243696347820def` on PR #176.
+Construction and hostile repair work is isolated from canonical `main`; no SAE-20/30+ authority is fabricated here.
 
 ## Implemented contract
 
-The candidate establishes four isolated authority components:
+SAE-10 establishes four authority components:
 
-- `main_review/review_world.py` — canonical JSON, full SHA-256 authority identity, exact scope/diff/Review World identity, and strict persisted-object decode with tamper rejection;
-- `main_review/review_authority_bundle.py` — exact ten-slot immutable RAB, explicit future inactive slots, verifier-trusted whole-RAB authorization, revocation/suspension, and no mutable authority aliases;
-- `main_review/review_world_git.py` — exact Git commit/tree and synthetic merge-tree derivation plus content-addressed local HEAD/index/worktree/untracked/submodule/LFS/generated-state snapshots;
-- `main_review/review_world_currentness.py` — immutable historical world truth plus separate `CURRENT / STALE / UNKNOWN_CURRENTNESS` derivation and explicit invalidation reasons.
+- `main_review/review_world.py` — canonical JSON, exact ReviewScope/diff/world identity, strict decode, and canonical in-memory validation;
+- `main_review/review_authority_bundle.py` — immutable ten-slot RAB construction, strict typed authority fields, whole-RAB authorization, revocation/suspension, and canonical authorization-set ordering;
+- `main_review/review_world_git.py` — exact Git/GitHub tree derivation plus content-addressed local snapshots with explicit `attached`, `detached`, and `unborn` HEAD state;
+- `main_review/review_world_currentness.py` — immutable historical world truth with separate fail-closed `CURRENT / STALE / UNKNOWN_CURRENTNESS` derivation.
 
-The existing GitHub fetch, battle-review transport, Cpl/officers/Judge, and normal verdict path are not replaced and do not gain SAE-10 authority from this candidate.
+Candidate content has **zero effect** on verifier-trusted authorization unless separately authorized. GitHub Actions are supplementary only and are not assumed available.
 
 ## Required hostile attacks
 
-The frozen SAE-10 attacks are mechanically represented and pass in the workspace:
+The frozen roadmap attacks remain mechanically represented:
 
 1. same head / different base cannot reuse a positive world;
-2. wrong synthetic merge tree invalidates merge-readiness identity;
-3. local mutation after snapshot is stale and does not rewrite historical identity;
-4. scope downgrade cannot satisfy repository-wide identity;
-5. an unauthorized RAB combination fails even when component generations are individually known;
-6. candidate changes to future RAB authority have zero effect on the verifier-trusted active authorization set.
+2. wrong merge tree invalidates merge-readiness identity;
+3. local mutation after snapshot becomes stale without rewriting history;
+4. scope downgrade cannot satisfy repository scope;
+5. an unauthorized RAB combination fails even when component generations are known;
+6. candidate authority changes cannot self-activate.
 
-Additional falsifiers cover persisted-object tamper, unknown fields, truncated authority IDs, mutable `latest` aliases, repository substitution, selected-untracked policy, symlink identity, generated-state binding, LFS ambiguity, revocation/suspension, Git SHA-1/SHA-256 object formats, path traversal, deterministic identity repetition, and workspace non-mutation.
+Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, and authority-manifest completeness.
 
-## Tenfold Gen 1 proof
+## Hostile-review history
 
-The local candidate was reviewed through twenty distinct evidence lanes rather than using GitHub as the development surface. Before GitHub review, the exact candidate result was `63 passed, 0 failed`. GitHub hostile review of milestone `c977449177eb9c9f3d6034265ad97cc32180c069` exposed one valid cross-generation proof-infrastructure defect: the immutable SPIKE-SEM 14,439-relation historical measurement was still being asserted as a current-tree invariant after SAE-10 added four `main_review/` modules. The obsolete current-tree interpretation was superseded externally with an exact-node strict XFAIL, matching the existing SAE-00 historical-snapshot precedent. The first repaired candidate result was `66 passed, 1 intentional historical XFAIL, 0 failed`, and GitHub full-repository CI on replacement head `bf368b46cd0120736645d87e8dc7fec4904a046a` proved `1181 passed, 2 intentional historical XFAILs, 0 failed` plus a green clean-clone proof chain.
+The candidate preserves prior review generations rather than rewriting them.
 
-A second exact-head CodeRabbit review of `bf368b46cd0120736645d87e8dc7fec4904a046a` (review `5089723949`) produced seven valid findings. All seven were brought back into the Tenfold workspace: verifier-trusted RAB records now reject forged authorization states; Git subprocesses discard inherited Git metadata such as `GIT_DIR` and `GIT_INDEX_FILE`; strict ReviewScope decode rejects duplicate normalized paths; candidate-manifest proof requires an exact repository-confined content roster; the historical SPIKE-SEM fixture is mechanically byte-bound to Git blob `b2bf08d7103e490dc816a1a195c05c34b0d0d97d`; the exact historical node is mechanically proven to receive `strict=True`; and the implementation-plan RAB example now uses the frozen `epistemic_constitution` slot. The isolated replacement candidate suite is `71 passed, 0 failed`; the frozen historical SPIKE fixture is byte-preserved locally and is executed only by the complete GitHub repository proof because this reconstruction workspace intentionally contains only the SAE-10 dependency surface.
+- Initial review of `c977449177eb9c9f3d6034265ad97cc32180c069` exposed the historical SPIKE-SEM current-tree invariant defect; the exact historical node was externally superseded with strict XFAIL semantics while preserving the fixture bytes.
+- Review of `bf368b46cd0120736645d87e8dc7fec4904a046a` produced seven valid findings covering exact manifest roster/path confinement, historical fixture binding, plan slot-name drift, authorization-state validation, Git environment isolation, duplicate decoded-scope rejection, and strict historical-node binding. All were repaired.
+- Exact-head review of `323b6f33223231b5d603a3a36ee5c07ef687a96a` produced three actionable findings. Two authority defects were repaired; the historical design-status suggestion was dispositioned without rewriting the frozen design blob.
+- Owner/Root exact-head review of `97055f975c2fe76f77b7483df885f1aa9064c560` exposed direct in-memory canonical-authority bypass. Direct RAB/ReviewScope/diff/world objects now validate before they can become authority-bearing.
+- Fresh exact-head review of `f20d83a7620622e3f2e96ffc26960f40a6a2df92` exposed four remaining canonicality/proof classes: RAB authority-field type/order coercion, persisted ReviewScope path-order acceptance, incomplete mechanical enforcement of the external-authority roster, and inability to represent detached/unborn local HEAD state as required by the frozen design. Seven regressions were written RED first and failed for the reviewed reasons. The root-cause repairs make RAB authority fields type-strict, reject non-canonical direct authorization-set order, reject non-canonical persisted scope ordering, bind the exact eight-member external-authority roster, and encode local HEAD state explicitly without inventing a fake SHA.
 
-A third exact-head CodeRabbit review of `323b6f33223231b5d603a3a36ee5c07ef687a96a` produced three actionable findings. Two authority defects were accepted and repaired with regressions first: direct `RABComponent` construction now rejects empty or non-canonical `authority_domain` values across every lifecycle state, and `UNKNOWN_CURRENTNESS` now preserves all independently knowable world-mismatch reasons alongside `rab_authorization_unknown`. The design-status suggestion was dispositioned without mutating the historical design-freeze blob because `docs/79` binds that exact spec under `external_authority_blobs`; current lifecycle truth belongs to the candidate and separate closeout generations rather than rewriting the original design-state snapshot. After these accepted repairs, the isolated replacement candidate suite is `77 passed, 0 failed`.
+The fifth repair was published atomically as intermediate head `4b4cc9264d1db769566b5d5defea75b72c94532b`. On that exact intermediate head, complete-repository CI executed `1213` tests: `1210 passed`, `2` intentional historical XFAILs, and exactly `1` failure. The sole failure was the intentionally stale candidate `content_blobs` binding, proving no second code regression was hidden behind the manifest transition.
 
-A fourth exact-head Owner/Root hostile review of published head `97055f975c2fe76f77b7483df885f1aa9064c560` found one canonical-authority class that the prior persisted-object tests did not exercise: directly constructed in-memory authority objects could bypass factory normalization and then fail their own canonical persisted round-trip. The repair closes that class rather than one symptom: active RAB generations and inactive/prohibited RAB basis/domain values must already be canonical; a non-canonical direct `ReviewScope` cannot seed a diff identity; a forged direct `GitHubDiffIdentity` cannot seed a Review World; and currentness rejects forged direct GitHub/local Review World identities before comparison. Regressions were written RED first. After this repair, the isolated replacement candidate suite is `86 passed, 0 failed`.
+## Current proof boundary
 
-The twenty lanes cover syntax, identity/persistence, RAB, Git/local state, currentness, hostile matrix, static security, repeated determinism, tamper mutation, workspace non-mutation, strict decode, Git object formats, path attacks, RAB roster, revocation/suspension, symlink identity, generated binding, selected-untracked scope, historical-proof supersession, and full-suite reconciliation.
+The exact focused command from the implementation plan collects **96 tests** across eight files. In the reconstructed Tenfold dependency surface, the six fully materialized authority/code suites execute **84 passed, 0 failed**. The remaining 12 focused nodes are repository-only in this runtime: two historical supersession nodes require frozen SPIKE authority documents and ten manifest nodes require the complete bound repository authority roster. Their source files are byte-verified against the published Git objects; their execution is closed by complete-repository proof on the exact candidate tree rather than by fabricating missing local authority files.
 
-GitHub Actions are supplementary only and are not assumed available.
+The eight external authority paths previously bound by `docs/79` were independently re-read from exact head `f20d83a7620622e3f2e96ffc26960f40a6a2df92`; all **8/8** Git blob SHAs match their declared authority objects.
+
+The twenty Tenfold lanes remain syntax, identity/persistence, RAB, Git/local state, currentness, hostile matrix, static security, repeated determinism, tamper mutation, workspace non-mutation, strict decode, Git object formats, path attacks, RAB roster, revocation/suspension, symlink identity, generated binding, selected-untracked scope, historical-proof supersession, and full-suite reconciliation.
 
 ## Pre-SAE-30 lifecycle boundary
 
-SAE-10 depends only on PROVEN SAE-00. General SAE-30 Qualification Authority machinery does not yet exist and is not fabricated here. Candidate construction/lifecycle review remains bounded by PROVEN SAE-00 roadmap execution authority plus the frozen Owner/Root constitutional TCB.
-
-That bootstrap cannot issue a general Qualification Attestation, create external independence, satisfy Genesis, activate a partial Assurance Evolution generation, authorize candidate self-activation, or turn Owner risk acceptance into engineering PASS.
+General SAE-30 Qualification Authority machinery does not yet exist and is **not fabricated here**. The pre-SAE-30 bootstrap cannot issue general Qualification Attestations, create external independence, satisfy Genesis, activate a partial Assurance Evolution generation, authorize candidate self-activation, or turn Owner risk acceptance into engineering PASS.
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Four pushed review generations have been dispositioned: the first historical-proof defect, the second review's seven valid findings, the third exact-head review's two accepted authority defects plus one preservation-based design-status disposition, and the fourth exact-head Owner/Root review's in-memory canonical-authority finding class. SAE-10 is not lifecycle-PROVEN until the repaired replacement milestone is pushed and reviewed cleanly, reconciled against current `main`, and a separate immutable SAE-10 PROVEN closeout generation is recreated and proved against the final reviewed head.
+This is still **CANDIDATE**. SAE-10 is not lifecycle-PROVEN until the final candidate manifest is rebound to the repaired bytes, the exact published candidate survives complete-tree proof and fresh exact-head hostile review, current `main` is reconciled, and a separate immutable SAE-10 PROVEN closeout generation is created and proved. No SAE-20 work may advance across that boundary.

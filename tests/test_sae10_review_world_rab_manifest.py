@@ -115,12 +115,14 @@ def test_external_authority_binding_guard_rejects_extra_member_and_hash_mismatch
         _assert_exact_blob_bindings(bindings, EXPECTED_EXTERNAL_AUTHORITY_BLOBS, blob_fn=lambda path: bad[str(path)])
 
 
-def test_tenfold_formation_and_local_proof_are_bound():
+def test_tenfold_formation_and_focused_proof_are_bound():
     manifest = _load()
     assert manifest['tenfold_proof'] == {
         'actions_required': False,
         'formation_lanes': 20,
-        'local_test_result': {'failed': 0, 'passed': 86, 'xfailed': 0},
+        'focused_collection': 96,
+        'local_dependency_surface_result': {'failed': 0, 'passed': 84, 'xfailed': 0},
+        'repository_only_focused_tests': 12,
     }
 
 
@@ -178,5 +180,25 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
         'currentness_rejects_forged_review_world_identity',
     }
     assert owner_root['replacement_local_reproof'] == {'failed': 0, 'passed': 86, 'xfailed': 0}
+    canonical = review['canonical_decode_exact_head_review']
+    assert canonical['reviewed_head'] == 'f20d83a7620622e3f2e96ffc26960f40a6a2df92'
+    assert canonical['actionable_findings'] == 4
+    assert set(canonical['valid_findings']) == {
+        'rab_authority_field_type_and_record_order_canonicality',
+        'review_scope_persisted_path_order_canonicality',
+        'external_authority_exact_roster_binding',
+        'local_head_state_unborn_detached_representation',
+    }
+    assert canonical['red_regressions'] == {'failed_as_expected': 7}
+    assert canonical['local_compatibility_reproof'] == {'failed': 0, 'passed': 70, 'xfailed': 0}
+    assert canonical['local_dependency_surface_reproof'] == {'failed': 0, 'passed': 84, 'xfailed': 0}
+    assert canonical['focused_collection'] == 96
+    assert canonical['intermediate_repair_head'] == '4b4cc9264d1db769566b5d5defea75b72c94532b'
+    assert canonical['intermediate_repository_reproof'] == {
+        'failed': 1,
+        'passed': 1210,
+        'xfailed': 2,
+        'sole_failure': 'candidate_content_blob_bindings_stale',
+    }
     expected = review['historical_fixture_blob_preserved']
     assert expected == manifest['external_authority_blobs'][str(HISTORICAL_SPIKE_FIXTURE)]
