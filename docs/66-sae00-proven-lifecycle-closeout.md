@@ -38,6 +38,22 @@ The advancement is justified by the combination of:
 4. canonical merge of the exact reviewed head into `main`;
 5. this separate closeout generation preserving the original candidate record unchanged.
 
+### Root bootstrap authority
+
+`SAE-00` is the dependency-DAG root and `SAE-30` — the programme that later creates the general Qualification Authority Registry and Qualification Attestation substrate — itself depends on `SAE-00`. Requiring SAE-30 qualification machinery to qualify SAE-00 would therefore create a circular bootstrap dependency that the frozen roadmap does not define.
+
+The founding architecture explicitly permits **Owner/Root constitutional authority** inside the finite trusted-computing boundary (`docs/58`, section 26). SAE-00 therefore uses that already-frozen Owner/Root constitutional TCB as its one-time root bootstrap authority. The bootstrap is bounded to the exact SAE-00 generation identified above and to SAE-00's declared construction-authority outputs.
+
+This bootstrap authority:
+
+- is **not** a substitute for SAE-30's future Qualification Authority Registry;
+- cannot qualify or prove any dependent node;
+- cannot satisfy Genesis independent/external qualification requirements;
+- cannot convert business-risk acceptance into engineering PASS;
+- creates no normal Sergeant verdict authority and no partial-generation activation right.
+
+Once SAE-30 exists, descendants that require its qualification/provenance substrate must use that substrate according to the roadmap. SAE-00's root bootstrap is not precedent for bypassing downstream qualification law.
+
 No normal Sergeant verdict authority transfers as a result. `SAE-00` only produces the construction authorities declared by the roadmap: `SERGEANT_PRESERVATION_REFERENCE`, `FOUNDING_ARCHITECTURE_AUTHORITY`, and `ROADMAP_EXECUTION_AUTHORITY`.
 
 ## Dependency effect
