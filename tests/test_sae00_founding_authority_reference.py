@@ -93,8 +93,13 @@ def test_sae00_manifest_binds_authority_documents_by_real_git_blob_sha() -> None
 
     assert manifest["schema_version"] == "sergeant.sae00-founding-authority-reference-manifest.v1"
     assert manifest["node"] == "SAE-00"
-    assert manifest["authority_state"] == "sae00_candidate_reviewed_proof_attached"
+    assert manifest["authority_state"] == "sae00_candidate_proof_attached_awaiting_owner_review"
     assert manifest["lifecycle_state"] in {"AUTHORIZED", "CANDIDATE", "REVIEWED", "QUALIFIED", "PROVEN"}
+    # Forbidden equivalence (docs/59 sec.3): TESTS GREEN != QUALIFIED. This PR is
+    # self-reviewed and CI-green but not yet Owner-reviewed/merged, so it must not
+    # self-declare QUALIFIED or PROVEN.
+    assert manifest["lifecycle_state"] == "CANDIDATE"
+    assert manifest["lifecycle_note"]
 
     documents = manifest["documents"]
     assert len(documents) >= 20
@@ -151,16 +156,25 @@ def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -
     assert benchmark["fabricated"] is False
     assert "passed" in benchmark["result"]
 
-    # 6: current security boundary.
+    # 6: current security boundary. The actual detector lives in
+    # main_review/evidence.py (SECRET_PATTERNS / SecretEvidenceProvider);
+    # main_review/officer_council.py only routes an already-produced finding
+    # to the Medic officer label and must not be mistaken for the detector.
     security = bindings["current_security_boundary"]
     assert (ROOT / security["specification_path"]).is_file()
     assert (ROOT / security["implementation_path"]).is_file()
+    assert security["implementation_path"] == "main_review/evidence.py"
+    impl_source = (ROOT / security["implementation_path"]).read_text(encoding="utf-8")
+    assert "SECRET_PATTERNS" in impl_source
+    assert "class SecretEvidenceProvider" in impl_source
+    assert (ROOT / security["routing_path"]).is_file()
     assert (ROOT / security["proof_test_path"]).is_file()
     assert security["fabricated"] is False
     test_source = (ROOT / security["proof_test_path"]).read_text(encoding="utf-8")
     assert f"def {security['proof_test_name']}(" in test_source
 
-    # 7: existing learning state.
+    # 7: existing learning state -- all six accepted lessons hash-bound and
+    # verified accepted, not only the two PICKUP.md names by path in prose.
     learning = bindings["existing_learning_state"]
     assert (ROOT / learning["path"]).is_file()
     for lesson_path in learning["verified_accepted_lesson_paths"]:
@@ -171,6 +185,12 @@ def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -
     assert lessons_dir.is_dir()
     actual_lesson_files = sorted(p.name for p in lessons_dir.glob("*.json"))
     assert len(actual_lesson_files) == learning["lessons_directory_file_count"]
+    all_bound = learning["all_hash_bound_accepted_lesson_paths"]
+    assert len(all_bound) == learning["lessons_directory_file_count"]
+    assert sorted(Path(p).name for p in all_bound) == actual_lesson_files
+    for lesson_path in all_bound:
+        lesson = json.loads((ROOT / lesson_path).read_text(encoding="utf-8"))
+        assert lesson.get("status") == "accepted", lesson_path
 
     # 8: existing Cpl/officer hierarchy.
     hierarchy = bindings["existing_cpl_officer_hierarchy"]
@@ -309,7 +329,10 @@ def test_sae00_produces_exactly_the_three_required_authority_artifacts() -> None
     assert manifest["authority_gain"] == "isolated_assurance_evolution_construction_only_no_normal_verdict_authority"
 
 
-def test_sae00_is_the_true_dependency_root_and_unblocks_only_its_direct_dependents() -> None:
+def test_sae00_is_the_true_dependency_root_and_lists_only_direct_dependents() -> None:
+    """direct_dependent_nodes_in_dag is a structural DAG fact, not an
+    authority grant -- see lifecycle_note. This test only re-derives the DAG
+    topology independently and checks the manifest's list matches it."""
     dependencies = _dependency_registry()
     assert dependencies["SAE-00"] == []
 
@@ -318,7 +341,11 @@ def test_sae00_is_the_true_dependency_root_and_unblocks_only_its_direct_dependen
     )
 
     manifest = _load_manifest()
-    assert sorted(manifest["unblocks_roadmap_nodes"]) == direct_dependents
+    assert sorted(manifest["direct_dependent_nodes_in_dag"]) == direct_dependents
+    # The manifest must not claim a stronger lifecycle state than CANDIDATE
+    # while simultaneously listing dependents -- that would let a reader
+    # mistake DAG topology for granted downstream proof authority.
+    assert manifest["lifecycle_state"] == "CANDIDATE"
 
 
 def test_sae00_record_document_states_five_required_assurances() -> None:

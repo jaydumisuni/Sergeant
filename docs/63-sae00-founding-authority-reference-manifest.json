@@ -14,8 +14,9 @@
     "method": "git fetch origin; git rev-parse origin/main",
     "note": "independently re-derived fresh during this construction session, not copied from docs/59's stale planning-base SHA 4a277cc5950aa08a98157b950c96fb88f2178c79"
   },
-  "authority_state": "sae00_candidate_reviewed_proof_attached",
-  "lifecycle_state": "REVIEWED",
+  "authority_state": "sae00_candidate_proof_attached_awaiting_owner_review",
+  "lifecycle_state": "CANDIDATE",
+  "lifecycle_note": "docs/59 section 3 universal lifecycle is AUTHORIZED -> CANDIDATE -> REVIEWED -> QUALIFIED -> PROVEN. This node is self-reviewed and CI-green but not yet Owner-reviewed or merged, so it remains CANDIDATE. direct_dependent_nodes_in_dag below is a structural DAG fact only (docs/59 section 15), not an authority grant: those nodes may not freeze/qualify/prove against SAE-00 as resolved upstream truth until SAE-00 itself advances past CANDIDATE.",
   "documents": [
     {
       "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
@@ -59,7 +60,7 @@
     },
     {
       "path": "PICKUP.md",
-      "blob_sha": "83e003df27f189114076abd3abc40e18a72c191c",
+      "blob_sha": "4f5e43679a34ca550ffd29418f45ed4cdceceae3",
       "role": "existing_learning_state"
     },
     {
@@ -93,6 +94,11 @@
       "role": "existing_cpl_officer_hierarchy_implementation"
     },
     {
+      "path": "main_review/evidence.py",
+      "blob_sha": "c1b8f4752ced5ef1b4dca06413bdd79093ca360c",
+      "role": "current_security_boundary_implementation"
+    },
+    {
       "path": "tests/test_model_free_product_contract.py",
       "blob_sha": "99326b4ecfcf13ff50c3ca13f6e80ee48552c64e",
       "role": "current_model_free_benchmark"
@@ -113,6 +119,26 @@
       "role": "accepted_lesson_record"
     },
     {
+      "path": ".github/self-learning/lessons/cpl-adjudication-noise-20260724.json",
+      "blob_sha": "d35d73e9926fe7b852c4c384ef032f17218e7b55",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/preserve-before-delete-20260724.json",
+      "blob_sha": "c9dfaf637562cb3f25ac3823680a163f95078350",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/product-identity-runtime-consistency-20260727.json",
+      "blob_sha": "7c033bf54af97b49ca1b4e0af1ada5dec301068c",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/review-evidence-integrity-20260724.json",
+      "blob_sha": "b060b9c48c622dc5d19c289e5334132d4b168987",
+      "role": "accepted_lesson_record"
+    },
+    {
       "path": ".github/self-learning/results/project-oracle-oidc-workflow-20260818.json",
       "blob_sha": "146522adee40854f8f8fcf57b41c01ff96dfe74d",
       "role": "rejected_candidate_disposition_record"
@@ -129,7 +155,7 @@
     },
     {
       "path": "docs/62-sae00-founding-authority-and-preservation-reference.md",
-      "blob_sha": "ddf2f206be48bba23e009d0c152073b46fa236dd",
+      "blob_sha": "8db2b83de5e509ce9f09ea3b2ef3ca4bb51931e8",
       "role": "sae00_human_readable_binding_record"
     }
   ],
@@ -177,8 +203,10 @@
     },
     "current_security_boundary": {
       "specification_path": "docs/05-security-model.md",
-      "implementation_path": "main_review/officer_council.py",
-      "implementation_detail": "OFFICER_BY_CAPABILITY maps 'security' and 'security_taint' to 'Medic'",
+      "implementation_path": "main_review/evidence.py",
+      "implementation_detail": "SECRET_PATTERNS tuple and SecretEvidenceProvider class perform the actual detection",
+      "routing_path": "main_review/officer_council.py",
+      "routing_detail": "OFFICER_BY_CAPABILITY maps 'security' and 'security_taint' to 'Medic' -- routes an already-produced finding to its officer label; performs no detection itself",
       "proof_test_path": "tests/test_live_pr_ingestion_and_secret_detection.py",
       "proof_test_name": "test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test",
       "invocation": "python -m pytest -q tests/test_live_pr_ingestion_and_secret_detection.py::test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test",
@@ -190,6 +218,14 @@
       "verified_accepted_lesson_paths": [
         ".github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json",
         ".github/self-learning/lessons/lumi-token-origin-20260723.json"
+      ],
+      "all_hash_bound_accepted_lesson_paths": [
+        ".github/self-learning/lessons/cpl-adjudication-noise-20260724.json",
+        ".github/self-learning/lessons/lumi-token-origin-20260723.json",
+        ".github/self-learning/lessons/preserve-before-delete-20260724.json",
+        ".github/self-learning/lessons/product-identity-runtime-consistency-20260727.json",
+        ".github/self-learning/lessons/review-evidence-integrity-20260724.json",
+        ".github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json"
       ],
       "lessons_directory": ".github/self-learning/lessons",
       "lessons_directory_file_count": 6
@@ -263,7 +299,7 @@
     "ROADMAP_EXECUTION_AUTHORITY"
   ],
   "authority_gain": "isolated_assurance_evolution_construction_only_no_normal_verdict_authority",
-  "unblocks_roadmap_nodes": [
+  "direct_dependent_nodes_in_dag": [
     "SAE-10",
     "SAE-20",
     "SPIKE-ID",
@@ -273,7 +309,8 @@
   "residual_gaps": [
     "preservation_constitution_is_a_joint_binding_not_a_single_named_file",
     "pre_existing_crlf_sensitive_blob_hash_helper_in_tests/test_assurance_evolution_roadmap_freeze.py_not_modified_here_out_of_scope",
-    "current_model_free_benchmark_is_the_closest_genuine_mechanical_benchmark_not_a_dedicated_named_benchmark_artifact"
+    "current_model_free_benchmark_is_the_closest_genuine_mechanical_benchmark_not_a_dedicated_named_benchmark_artifact",
+    "canonical_zero_context_entrypoint_ASSURANCE_EVOLUTION_START_HERE.md_not_updated_to_list_docs/62-63_because_it_and_docs/61_are_frozen_freeze-event_proof_artifacts_pointer_added_to_PICKUP.md_instead"
   ],
   "prohibitions": [
     "do_not_treat_this_node_as_implementation_of_any_assurance_evolution_mechanism",

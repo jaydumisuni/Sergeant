@@ -2,7 +2,7 @@
 
 Date: 2026-09-02
 
-Status: **SAE-00 CANDIDATE, REVIEWED, PROOF ATTACHED** — isolated Assurance Evolution construction authority only. No normal Sergeant verdict authority transfers.
+Status: **SAE-00 CANDIDATE, PROOF ATTACHED, AWAITING OWNER/HUMAN REVIEW** — isolated Assurance Evolution construction authority only. No normal Sergeant verdict authority transfers. Per `docs/59` section 3's universal lifecycle (`AUTHORIZED → CANDIDATE → REVIEWED → QUALIFIED → PROVEN`), this node has not yet advanced past `CANDIDATE`: it is self-reviewed and CI-green, but not yet Owner-reviewed or merged.
 
 This record is the founding node of the Sergeant Assurance Evolution roadmap (`docs/59-sergeant-assurance-evolution-roadmap.md`, section 7, `SAE-00 — Founding authority and preservation reference`). Its proof requirement is `none`; it is the DAG root every other programme (`SAE-10` through `SAE-180`, and the three feasibility spikes) depends on directly or transitively.
 
@@ -55,7 +55,7 @@ python -m pytest -q tests/test_model_free_product_contract.py
 
 ### 3.6 Current security boundary
 
-Binds to `docs/05-security-model.md` (the trust-zone specification: collector/analyzer/reasoner/poster separation, token model, sandbox model, verdict triggers including "Detected secret → block"), operationalized in code by `main_review/officer_council.py`'s `security`/`security_taint` → `Medic` capability mapping, and proved executable by `tests/test_live_pr_ingestion_and_secret_detection.py::test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test`.
+Binds to `docs/05-security-model.md` (the trust-zone specification: collector/analyzer/reasoner/poster separation, token model, sandbox model, verdict triggers including "Detected secret → block"). The actual detection mechanism is `main_review/evidence.py`'s `SECRET_PATTERNS` tuple and `SecretEvidenceProvider` class — not `main_review/officer_council.py`, which only routes an already-produced `security`/`security_taint` finding to the `Medic` officer label and performs no detection itself. Both are hash-bound in `docs/63`, and proved executable by `tests/test_live_pr_ingestion_and_secret_detection.py::test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test`.
 
 Run fresh during this construction session:
 
@@ -66,12 +66,12 @@ python -m pytest -q tests/test_live_pr_ingestion_and_secret_detection.py::test_s
 
 ### 3.7 Existing learning state
 
-Binds to `PICKUP.md`'s "Current learning state" section, hash-bound in `docs/63`. The specific accepted-lesson record paths it names were verified to actually exist:
+Binds to `PICKUP.md`'s "Current learning state" section, hash-bound in `docs/63`. The two accepted-lesson record paths it names by name were verified to actually exist:
 
 - `.github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json` — exists, `status: "accepted"`.
 - `.github/self-learning/lessons/lumi-token-origin-20260723.json` — exists (the Lumi credential destination/origin lesson PICKUP.md describes as integrated before PR #159).
 
-Both are hash-bound in `docs/63`. The full `lessons/` directory contains exactly six accepted-lesson files (`cpl-adjudication-noise-20260724.json`, `lumi-token-origin-20260723.json`, `preserve-before-delete-20260724.json`, `product-identity-runtime-consistency-20260727.json`, `review-evidence-integrity-20260724.json`, `tgcheckm8-checksum-path-namespace-20260723.json`).
+The full `lessons/` directory contains exactly six accepted-lesson files. All six — not only the two PICKUP.md names explicitly — are individually git-blob-SHA-hash-bound in `docs/63`, each verified `status: "accepted"`: `cpl-adjudication-noise-20260724.json`, `lumi-token-origin-20260723.json`, `preserve-before-delete-20260724.json`, `product-identity-runtime-consistency-20260727.json`, `review-evidence-integrity-20260724.json`, `tgcheckm8-checksum-path-namespace-20260723.json`. This closes the full accepted-learning-state collection, not only the two records PICKUP.md happens to name in prose — modifying or replacing any of the other four would now change a recorded hash and fail `tests/test_sae00_founding_authority_reference.py`.
 
 ### 3.8 Existing Cpl/officer hierarchy
 
@@ -175,6 +175,7 @@ This test is also included in, and passed as part of, the full 1024-passing run 
 2. **Pre-existing CRLF-sensitive blob-hash test fragility.** `tests/test_assurance_evolution_roadmap_freeze.py`'s `_git_blob_sha` helper hashes raw working-tree bytes rather than git's canonical blob content, which is fragile on any Windows checkout with `core.autocrlf=true`. This is a genuine, currently-reproducing gap in the already-frozen roadmap generation's own proof fixture (see section 4.4). SAE-00 documents it honestly but does not modify that file, since it belongs to prior frozen authority (`docs/59`/`docs/60`/`docs/61`) and altering it is outside SAE-00's binding/recovery mandate. `tests/test_sae00_founding_authority_reference.py`, written fresh for this node, deliberately computes blob SHAs via `git hash-object` (subprocess) rather than raw-byte hashing, specifically to avoid reproducing this class of platform-dependent false failure.
 3. **No dedicated "current model-free benchmark" existed as a single named artifact before this recovery; `tests/test_model_free_product_contract.py` is the closest genuine mechanical benchmark** and is bound as such. If a future SAE node wants a benchmark with a more explicit "benchmark" identity/name, that is new work, not something SAE-00 invents.
 4. **PR #167's base SHA (`4a277cc5950aa08a98157b950c96fb88f2178c79`) is now behind current `main`.** This is expected and does not require action from SAE-00: PR #167 is fenced from Assurance Evolution requirements entirely, and its own eventual rebase/merge/close is governed by its original pre-existing authority, not this roadmap.
+5. **Canonical zero-context entrypoint discoverability.** `ASSURANCE_EVOLUTION_START_HERE.md` is the file a zero-context agent actually reads to recover "Assurance Evolution authority in this order," and today that numbered list still ends at `docs/60`. Ideally it would also point at `docs/62`/`docs/63`. It was deliberately **not edited here**: that file, together with `AI_START_HERE.md`, is one of the five documents `docs/61`'s freeze manifest git-blob-SHA-binds as immutable historical proof of the roadmap freeze event, and `tests/test_assurance_evolution_roadmap_freeze.py` mechanically enforces that binding. Editing its content — even to add a purely navigational pointer — would either break that already-merged, currently-green proof test, or require also rewriting `docs/61`'s recorded hash, which would make a manifest whose entire purpose is proving "what was true at the freeze" instead describe a later state, corrupting its function as an immutable point-in-time proof (the same immutable-Review-World principle `docs/58` section 4 states generally). SAE-00 has no Owner-approved mandate to reopen that freeze generation over a navigation-only concern. Instead, `PICKUP.md` (not frozen, already read earlier in the same zero-context recovery order per `AI_START_HERE.md`) now carries an explicit pointer explaining this exact tension and directing a recovering agent to check `docs/` past `docs/61` for newer SAE binding records. A future roadmap amendment, or `SAE-180`'s own canonical-recovery-update mandate (`docs/59` section 14), is the appropriate place to fold newly landed node pointers back into the frozen entrypoint itself, if the Owner chooses to open a new freeze generation for that purpose.
 
 ## 6. Authority produced
 
@@ -186,7 +187,9 @@ This node produces exactly the three authority artifacts `docs/59` section 7 spe
 
 ## 7. Authority gain and boundary
 
-Per `docs/59` section 7: **authority gain is isolated Assurance Evolution construction only; no normal verdict authority.** Current canonical Sergeant (`main_review/verdict.py`, `main_review/final_proof.py`) remains the active, final, normal engineering-review authority. Nothing in this document, `docs/63`, or `tests/test_sae00_founding_authority_reference.py` changes `PASS`/`NEEDS WORK`/`BLOCK` behavior, the Cpl/officer/Judge hierarchy, model-free defaults, or any existing verdict path. This node unblocks `SAE-10`, `SAE-20`, `SPIKE-ID`, `SPIKE-EXT`, and `SPIKE-SEM` (the only roadmap nodes whose sole proof dependency is `SAE-00`) and, transitively, every other node in the 28-node DAG. It does not itself implement any Assurance Evolution mechanism (no ACR, no Rust kernel, no qualification registry) — SAE-00 is recovery/binding/proof only.
+Per `docs/59` section 7: **authority gain is isolated Assurance Evolution construction only; no normal verdict authority.** Current canonical Sergeant (`main_review/verdict.py`, `main_review/final_proof.py`) remains the active, final, normal engineering-review authority. Nothing in this document, `docs/63`, or `tests/test_sae00_founding_authority_reference.py` changes `PASS`/`NEEDS WORK`/`BLOCK` behavior, the Cpl/officer/Judge hierarchy, model-free defaults, or any existing verdict path.
+
+`SAE-10`, `SAE-20`, `SPIKE-ID`, `SPIKE-EXT`, and `SPIKE-SEM` are the only roadmap nodes whose entire proof-dependency list is `[SAE-00]` (`docs/59` section 15) — `docs/63` records this as a **structural DAG fact**, not an authority grant. Per `docs/59` section 3's universal lifecycle and forbidden equivalences (`TESTS GREEN != QUALIFIED`, `QUALIFIED != INTEGRATED`), those direct dependents may not freeze, qualify, or prove their own obligations against SAE-00 as unresolved upstream truth while SAE-00 itself remains short of a completion state sufficient to ground that trust — this PR's own manifest records SAE-00 at `lifecycle_state: "CANDIDATE"` (self-reviewed, CI-green, not yet Owner-reviewed or merged), not `QUALIFIED` or `PROVEN`. Safe preparatory work on those five nodes was already permitted independently of SAE-00 under the existing dependency-frontier doctrine (`docs/59` section 2), and remains the only thing this binding enables until SAE-00 itself advances further through the lifecycle. This node does not itself implement any Assurance Evolution mechanism (no ACR, no Rust kernel, no qualification registry) — SAE-00 is recovery/binding/proof only.
 
 ## 8. Recovery statement for a future zero-context agent
 

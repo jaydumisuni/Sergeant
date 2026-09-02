@@ -128,6 +128,12 @@ Relevant authority:
 - `docs/12-external-review-learning-loop.md`
 - `docs/51-cross-repository-learning-intake.md`
 
+## Sergeant Assurance Evolution roadmap state
+
+The Assurance Evolution founding architecture and roadmap (`docs/58` through `docs/61`) are frozen, isolated-authority documentation on `main`. `ASSURANCE_EVOLUTION_START_HERE.md` is the canonical Assurance Evolution recovery entrypoint; both it and `docs/61`'s freeze manifest are themselves git-blob-SHA-hash-bound historical proof of the freeze event, and must not be edited to enumerate later roadmap nodes without a new owner-approved freeze generation. Because of that, later roadmap-node binding records are not automatically added to that frozen numbered list.
+
+Before treating Assurance Evolution recovery as complete, also check current `docs/` for any binding record numbered after `docs/61` (for example `docs/62`/`docs/63`, the `SAE-00 — Founding authority and preservation reference` binding, if merged) and any open or merged roadmap-node pull requests. `SAE-00` is the roadmap's dependency-DAG root (`docs/59` section 15: `SAE-00: []`); no other roadmap node may be treated as unblocked until `SAE-00`'s own binding record is verified current.
+
 ## Live-state recovery rule
 
 Before claiming the repository is ready, blocked, mergeable, releasable, or has no active work, query GitHub live. At minimum verify:
