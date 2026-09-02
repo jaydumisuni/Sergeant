@@ -188,6 +188,15 @@ def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -
     assert security["fabricated"] is False
     test_source = (ROOT / security["proof_test_path"]).read_text(encoding="utf-8")
     assert f"def {security['proof_test_name']}(" in test_source
+    # This binding is honestly PARTIAL (docs/58 sec.8 vocabulary), not
+    # EXACT, for docs/05's full security architecture -- verify the
+    # disclosed-but-unbound broader boundary genuinely exists on disk too,
+    # so the PARTIAL label points at something real rather than hand-waving.
+    assert security["closure_grade"] == "PARTIAL"
+    assert (ROOT / security["unbound_broader_boundary_path"]).is_file()
+    hardening_source = (ROOT / security["unbound_broader_boundary_path"]).read_text(encoding="utf-8")
+    assert "def assess_token_scopes(" in hardening_source
+    assert "def enforce_mission_permissions(" in hardening_source
 
     # 7: existing learning state -- all six accepted lessons hash-bound and
     # verified accepted, not only the two PICKUP.md names by path in prose.
@@ -208,11 +217,20 @@ def test_sae00_ten_required_bindings_are_present_and_point_to_real_artifacts() -
         lesson = json.loads((ROOT / lesson_path).read_text(encoding="utf-8"))
         assert lesson.get("status") == "accepted", lesson_path
 
-    # 8: existing Cpl/officer hierarchy.
+    # 8: existing Cpl/officer hierarchy -- also honestly PARTIAL: the
+    # formation structure/constants are EXACT-bound, but the actual
+    # investigation runtime (offline_investigation.py, cpl_campaign.py)
+    # is disclosed as unbound rather than silently omitted.
     hierarchy = bindings["existing_cpl_officer_hierarchy"]
     for doctrine_path in hierarchy["doctrine_paths"]:
         assert (ROOT / doctrine_path).is_file(), doctrine_path
     assert (ROOT / hierarchy["implementation_path"]).is_file()
+    assert hierarchy["closure_grade"] == "PARTIAL"
+    officer_council_source = (ROOT / hierarchy["implementation_path"]).read_text(encoding="utf-8")
+    for unbound_path in hierarchy["unbound_runtime_paths"]:
+        assert (ROOT / unbound_path).is_file(), unbound_path
+        module_name = Path(unbound_path).stem
+        assert f"from .{module_name} import" in officer_council_source, unbound_path
 
     # 9: existing proof behavior -- including the verification/scanner
     # dependency chain final_proof.py actually delegates to, not just the
@@ -332,19 +350,33 @@ def test_sae00_required_proofs_are_recorded_with_real_methodology_not_fabricated
     assert len(no_revival["rejected_candidates_checked"]) == 2
 
     baseline = proofs["normal_sergeant_baseline_reproducible"]
-    assert isinstance(baseline["total_collected"], int) and baseline["total_collected"] > 0
-    assert isinstance(baseline["passed"], int) and baseline["passed"] > 0
-    assert isinstance(baseline["failed"], int) and baseline["failed"] >= 0
-    assert baseline["total_collected"] == baseline["passed"] + baseline["failed"]
     assert baseline["invocation"] == "python -m pytest -q -ra"
     assert baseline["matches_ci_invocation"] == "repository continuous-integration test job (pytest -q -ra)"
     assert baseline["fabricated"] is False
-    if baseline["failed"] > 0:
+
+    # Two distinct, honestly-labeled snapshots, not one number a reader has
+    # to guess the provenance of -- a review round correctly flagged that a
+    # single static count goes stale as soon as SAE-00's own tests are added.
+    pre = baseline["pre_construction_baseline"]
+    assert isinstance(pre["total_collected"], int) and pre["total_collected"] > 0
+    assert isinstance(pre["passed"], int) and pre["passed"] > 0
+    assert isinstance(pre["failed"], int) and pre["failed"] >= 0
+    assert pre["total_collected"] == pre["passed"] + pre["failed"]
+    if pre["failed"] > 0:
         # A non-zero failure count must be honestly explained, not hidden.
-        assert baseline["failure_is_pre_existing_and_explained"] is True
-        assert baseline["failing_test"]
-        assert baseline["failure_root_cause"]
-        assert baseline["failure_confirmed_not_a_content_divergence"] is True
+        assert pre["failure_is_pre_existing_and_explained"] is True
+        assert pre["failing_test"]
+        assert pre["failure_root_cause"]
+        assert pre["failure_confirmed_not_a_content_divergence"] is True
+
+    exact = baseline["exact_candidate_tree_full_suite"]
+    assert isinstance(exact["total_collected"], int) and exact["total_collected"] > 0
+    assert isinstance(exact["passed"], int) and exact["passed"] > 0
+    assert isinstance(exact["failed"], int) and exact["failed"] >= 0
+    assert exact["total_collected"] == exact["passed"] + exact["failed"]
+    # The final candidate tree must include SAE-00's own additions, not just
+    # reflect the pre-construction snapshot renamed.
+    assert exact["total_collected"] > pre["total_collected"]
 
     security_proof = proofs["security_baseline_reproducible"]
     assert security_proof["result"] == "1 passed"
@@ -451,3 +483,61 @@ def test_sae00_prohibitions_preserve_no_normal_verdict_authority_transfer() -> N
     assert "do_not_retrofit_pr_167" in prohibitions
     assert "do_not_activate_partial_assurance_evolution" in prohibitions
     assert "do_not_revive_a_terminally_rejected_lesson_from_the_same_evidence" in prohibitions
+
+
+def test_sae00_roadmap_freeze_fixture_hash_matches_docs61() -> None:
+    """docs/61 (already-frozen, already-merged) names a blob_sha for its own
+    proof fixture, tests/test_assurance_evolution_roadmap_freeze.py, but
+    docs/61's own test never verifies it -- a review round correctly showed
+    this means a later edit to that fixture could weaken the roadmap-freeze
+    graph assertions without invalidating anything. This node does not edit
+    that frozen file or its frozen manifest, but independently cross-checks
+    it from outside that generation: this test asserts docs/63's own
+    recorded hash for the fixture, docs/61's recorded hash for the same
+    path, and the fixture's actual current git-blob-SHA all agree."""
+    manifest = _load_manifest()
+    freeze_manifest = json.loads(FREEZE_MANIFEST_PATH.read_text(encoding="utf-8"))
+
+    sae00_entry = next(
+        document for document in manifest["documents"]
+        if document["path"] == "tests/test_assurance_evolution_roadmap_freeze.py"
+    )
+    docs61_entry = next(
+        fixture for fixture in freeze_manifest["proof_fixtures"]
+        if fixture["path"] == "tests/test_assurance_evolution_roadmap_freeze.py"
+    )
+
+    assert sae00_entry["blob_sha"] == docs61_entry["blob_sha"]
+    assert _git_blob_sha(ROOT / sae00_entry["path"]) == sae00_entry["blob_sha"]
+
+
+def test_sae00_exact_candidate_tree_collection_count_is_current() -> None:
+    """A review round correctly showed the pre_construction_baseline count
+    goes stale as soon as SAE-00's own tests are added, and that nothing
+    previously re-verified the recorded exact_candidate_tree_full_suite
+    number against the actual final tree. This test closes that gap live:
+    it runs `pytest --collect-only -q` as a real subprocess against the
+    current tree and asserts the manifest's recorded total_collected still
+    matches -- so a future test added anywhere in the suite without a
+    matching manifest update fails this assertion immediately, rather than
+    silently leaving stale evidence behind."""
+    manifest = _load_manifest()
+    exact = manifest["proofs"]["normal_sergeant_baseline_reproducible"]["exact_candidate_tree_full_suite"]
+
+    result = subprocess.run(
+        ["python", "-m", "pytest", "--collect-only", "-q"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    match = re.search(r"(\d+) tests? collected", result.stdout)
+    assert match, result.stdout[-500:]
+    live_count = int(match.group(1))
+
+    assert live_count == exact["total_collected"], (
+        f"live pytest --collect-only reports {live_count} tests, but docs/63 "
+        f"records exact_candidate_tree_full_suite.total_collected="
+        f"{exact['total_collected']} -- update the manifest to match the "
+        "current candidate tree"
+    )

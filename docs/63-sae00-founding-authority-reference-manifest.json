@@ -39,6 +39,12 @@
       "role": "freeze_manifest"
     },
     {
+      "path": "tests/test_assurance_evolution_roadmap_freeze.py",
+      "blob_sha": "bc304713c2830f0d55ba6d2d8336e9dbf4687e96",
+      "role": "freeze_proof_fixture",
+      "cross_check_detail": "this blob_sha must equal docs/61's own recorded proof_fixtures[0].blob_sha for the same path -- verified by test_sae00_roadmap_freeze_fixture_hash_matches_docs61"
+    },
+    {
       "path": "ASSURANCE_EVOLUTION_START_HERE.md",
       "blob_sha": "75d462b5989c4bbfacae4e991a61a24ae6e7fb8d",
       "role": "zero_context_entrypoint"
@@ -60,7 +66,7 @@
     },
     {
       "path": "PICKUP.md",
-      "blob_sha": "8365e220b36be64740c06756ad78a4c2db23bb18",
+      "blob_sha": "db7be10d26c59278d42a871ca31bfca9f685df77",
       "role": "existing_learning_state"
     },
     {
@@ -175,14 +181,14 @@
     },
     {
       "path": "docs/62-sae00-founding-authority-and-preservation-reference.md",
-      "blob_sha": "c2f23a197723fb3e6e23bdf151b4d770144f7e6b",
+      "blob_sha": "c85a1a7288591da7f0f76e4d33637ba61cee9a06",
       "role": "sae00_human_readable_binding_record"
     }
   ],
   "proof_fixtures": [
     {
       "path": "tests/test_sae00_founding_authority_reference.py",
-      "blob_sha": "64d600eec2290c2505e8dfc71072f0f06e6e1510",
+      "blob_sha": "97b09a8652ebcb535b26136782404c0a6db89121",
       "role": "sae00_manifest_and_binding_proof",
       "assurance_evolution_runtime_implementation": false,
       "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures",
@@ -224,11 +230,15 @@
       "fabricated": false
     },
     "current_security_boundary": {
+      "closure_grade": "PARTIAL",
+      "closure_grade_note": "docs/58 sec.8 vocabulary applied honestly to this binding: docs/05-security-model.md specifies a broader boundary than secret detection alone -- read-only token enforcement, sandbox isolation, stage separation, and trusted-policy provenance, live-implemented in main_review/production_hardening.py (assess_token_scopes, enforce_mission_permissions among others), which is NOT hash-bound here. This binding is EXACT for the secret-detection sub-mechanism specifically (specification + real implementation + passing executable proof, all hash-bound) and explicitly PARTIAL, not EXACT, for docs/05's full security architecture. Chasing full behavioral closure over the whole security boundary is out of scope for a recovery/binding node; a future SAE node (SAE-20 ACR / SAE-80 Evidence-Proof-World) is the appropriate place to qualify the complete boundary if required.",
       "specification_path": "docs/05-security-model.md",
       "implementation_path": "main_review/evidence.py",
       "implementation_detail": "SECRET_PATTERNS tuple and SecretEvidenceProvider class perform the actual detection",
       "routing_path": "main_review/officer_council.py",
       "routing_detail": "OFFICER_BY_CAPABILITY maps 'security' and 'security_taint' to 'Medic' -- routes an already-produced finding to its officer label; performs no detection itself",
+      "unbound_broader_boundary_path": "main_review/production_hardening.py",
+      "unbound_broader_boundary_detail": "assess_token_scopes and enforce_mission_permissions implement docs/05's read-only/token-enforcement and mission-permission controls; deliberately not hash-bound by this PARTIAL binding",
       "proof_test_path": "tests/test_live_pr_ingestion_and_secret_detection.py",
       "proof_test_name": "test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test",
       "invocation": "python -m pytest -q tests/test_live_pr_ingestion_and_secret_detection.py::test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test",
@@ -253,12 +263,19 @@
       "lessons_directory_file_count": 6
     },
     "existing_cpl_officer_hierarchy": {
+      "closure_grade": "PARTIAL",
+      "closure_grade_note": "EXACT for the declared formation structure specifically: OFFICER_ORDER/OFFICER_BY_CAPABILITY are real, hash-bound constants matching docs/44/docs/34 exactly, and run_officer_council is a real, callable, non-stub function -- this is genuinely implemented, not misclassified as missing. PARTIAL, not EXACT, for the full officer-investigation runtime: run_officer_council directly executes run_offline_investigations (main_review/offline_investigation.py) and build_cpl_campaign (main_review/cpl_campaign.py), neither of which is hash-bound here, so their behavior is not frozen by this binding. Full behavioral closure over the entire investigation pipeline is out of scope for a recovery/binding node.",
       "doctrine_paths": [
         "docs/44-deterministic-permanent-officer-formation.md",
         "docs/34-cpl-officer-amplification.md"
       ],
       "implementation_path": "main_review/officer_council.py",
-      "implementation_detail": "OFFICER_ORDER == (Quartermaster, Scout, Engineer, Medic, Mechanic, Analyst, Challenger, Archivist, Judge, Hermes), matching docs/44's table exactly"
+      "implementation_detail": "OFFICER_ORDER == (Quartermaster, Scout, Engineer, Medic, Mechanic, Analyst, Challenger, Archivist, Judge, Hermes), matching docs/44's table exactly",
+      "unbound_runtime_paths": [
+        "main_review/offline_investigation.py",
+        "main_review/cpl_campaign.py"
+      ],
+      "unbound_runtime_detail": "run_officer_council calls run_offline_investigations and build_cpl_campaign from these files; deliberately not hash-bound by this PARTIAL binding"
     },
     "existing_proof_behavior": {
       "verdict_engine_path": "main_review/verdict.py",
@@ -305,15 +322,26 @@
     "normal_sergeant_baseline_reproducible": {
       "invocation": "python -m pytest -q -ra",
       "matches_ci_invocation": "repository continuous-integration test job (pytest -q -ra)",
-      "total_collected": 1025,
-      "passed": 1024,
-      "failed": 1,
-      "failure_is_pre_existing_and_explained": true,
-      "failing_test": "tests/test_assurance_evolution_roadmap_freeze.py::test_assurance_evolution_freeze_manifest_binds_authority_documents",
-      "failure_root_cause": "local Windows core.autocrlf=true checkout converts ASSURANCE_EVOLUTION_START_HERE.md to CRLF in the working tree; the pre-existing test hashes raw working-tree bytes instead of the canonical git blob, producing a false mismatch",
-      "failure_confirmed_not_a_content_divergence": true,
-      "confirmation_method": "git hash-object and git show HEAD:<path> both reproduce the manifest-recorded blob_sha 75d462b5989c4bbfacae4e991a61a24ae6e7fb8d exactly",
-      "reproduces_on_unmodified_main": true,
+      "pre_construction_baseline": {
+        "note": "captured once, fresh, immediately after creating this branch off main and BEFORE adding any SAE-00 files -- isolates whether the PRE-EXISTING Sergeant suite reproduces independent of this construction's own new tests. Deliberately not re-run every edit round; it answers a different question (does normal Sergeant reproduce) than exact_candidate_tree_full_suite below (is the final PR's own tree collection count live-verified).",
+        "total_collected": 1025,
+        "passed": 1024,
+        "failed": 1,
+        "failure_is_pre_existing_and_explained": true,
+        "failing_test": "tests/test_assurance_evolution_roadmap_freeze.py::test_assurance_evolution_freeze_manifest_binds_authority_documents",
+        "failure_root_cause": "local Windows core.autocrlf=true checkout converts ASSURANCE_EVOLUTION_START_HERE.md to CRLF in the working tree; the pre-existing test hashes raw working-tree bytes instead of the canonical git blob, producing a false mismatch",
+        "failure_confirmed_not_a_content_divergence": true,
+        "confirmation_method": "git hash-object and git show HEAD:<path> both reproduce the manifest-recorded blob_sha 75d462b5989c4bbfacae4e991a61a24ae6e7fb8d exactly",
+        "reproduces_on_unmodified_main": true
+      },
+      "exact_candidate_tree_full_suite": {
+        "note": "the exact reviewed tree at final commit, including SAE-00's own test additions. total_collected specifically is live-reverified on every test run by test_sae00_exact_candidate_tree_collection_count_is_current via a `pytest --collect-only -q` subprocess -- not a static recorded number a reader has to trust.",
+        "total_collected": 1040,
+        "passed": 1039,
+        "failed": 1,
+        "failing_test": "tests/test_assurance_evolution_roadmap_freeze.py::test_assurance_evolution_freeze_manifest_binds_authority_documents",
+        "captured_at": "final commit before push, after all SAE-00 review-round fixes"
+      },
       "fabricated": false
     },
     "security_baseline_reproducible": {
@@ -340,7 +368,10 @@
     "preservation_constitution_is_a_joint_binding_not_a_single_named_file",
     "pre_existing_crlf_sensitive_blob_hash_helper_in_tests/test_assurance_evolution_roadmap_freeze.py_not_modified_here_out_of_scope",
     "current_model_free_benchmark_is_the_closest_genuine_mechanical_benchmark_not_a_dedicated_named_benchmark_artifact",
-    "canonical_zero_context_entrypoint_ASSURANCE_EVOLUTION_START_HERE.md_not_updated_to_list_docs/62-63_because_it_and_docs/61_are_frozen_freeze-event_proof_artifacts_pointer_added_to_PICKUP.md_instead"
+    "canonical_zero_context_entrypoint_ASSURANCE_EVOLUTION_START_HERE.md_not_updated_to_list_docs/62-63_because_it_and_docs/61_are_frozen_freeze-event_proof_artifacts_pointer_added_to_PICKUP.md_instead",
+    "current_security_boundary_binding_is_PARTIAL_covers_secret_detection_specifically_not_docs/05s_full_architecture_main_review/production_hardening.py_token_and_mission_permission_controls_not_hash-bound",
+    "existing_cpl_officer_hierarchy_binding_is_PARTIAL_covers_declared_formation_structure_and_constants_specifically_not_the_full_investigation_runtime_main_review/offline_investigation.py_and_cpl_campaign.py_not_hash-bound",
+    "exact_candidate_tree_full_suite_pass/fail_breakdown_is_a_recorded_snapshot_reconciled_by_the_author_at_final_commit_only_total_collected_count_specifically_is_live_mechanically_reverified_by_test_sae00_exact_candidate_tree_collection_count_is_current_via_pytest_--collect-only_subprocess"
   ],
   "prohibitions": [
     "do_not_treat_this_node_as_implementation_of_any_assurance_evolution_mechanism",
