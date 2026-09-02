@@ -121,3 +121,87 @@ def test_real_resolver_produces_synthetic_merge_tree_without_checkout_mutation(t
     assert len(merge_tree) in {40, 64}
     assert _git(tmp_path, "rev-parse", "HEAD") == before_head
     assert _git(tmp_path, "status", "--porcelain=v1") == before_status
+
+
+def _init_local_repo(root: Path) -> None:
+    _git(root, "init", "-q")
+    _git(root, "config", "user.name", "SAE10 Test")
+    _git(root, "config", "user.email", "sae10@example.invalid")
+    (root / "src").mkdir(exist_ok=True)
+    (root / "src" / "a.txt").write_text("alpha\n", encoding="utf-8")
+    _git(root, "add", "src/a.txt")
+    _git(root, "commit", "-qm", "baseline")
+
+
+def test_local_selected_file_mutation_changes_snapshot_id(tmp_path: Path) -> None:
+    if __import__("shutil").which("git") is None:
+        pytest.skip("git unavailable")
+    _init_local_repo(tmp_path)
+    scope = rw.ReviewScope.selected_paths(["src/a.txt"])
+    policy = rwg.LocalSnapshotPolicy.exclude_untracked()
+    first = rwg.build_local_snapshot(tmp_path, scope=scope, policy=policy)
+    (tmp_path / "src" / "a.txt").write_text("beta\n", encoding="utf-8")
+    second = rwg.build_local_snapshot(tmp_path, scope=scope, policy=policy)
+    assert first.local_snapshot_id != second.local_snapshot_id
+    assert first.selected_scope_digest != second.selected_scope_digest
+
+
+def test_untracked_policy_changes_snapshot_identity(tmp_path: Path) -> None:
+    if __import__("shutil").which("git") is None:
+        pytest.skip("git unavailable")
+    _init_local_repo(tmp_path)
+    (tmp_path / "extra.txt").write_text("extra\n", encoding="utf-8")
+    scope = rw.ReviewScope.repository()
+    excluded = rwg.build_local_snapshot(tmp_path, scope=scope, policy=rwg.LocalSnapshotPolicy.exclude_untracked())
+    included = rwg.build_local_snapshot(tmp_path, scope=scope, policy=rwg.LocalSnapshotPolicy.include_all_untracked_in_scope())
+    assert excluded.local_snapshot_id != included.local_snapshot_id
+    assert not any(entry.path == "extra.txt" for entry in excluded.entries)
+    assert any(entry.path == "extra.txt" and entry.state == "untracked" for entry in included.entries)
+
+
+def test_local_review_world_binds_snapshot_id_and_rab(tmp_path: Path) -> None:
+    if __import__("shutil").which("git") is None:
+        pytest.skip("git unavailable")
+    _init_local_repo(tmp_path)
+    snapshot, world = rwg.build_local_review_world(
+        tmp_path, repository="owner/repo", scope=rw.ReviewScope.repository(),
+        policy=rwg.LocalSnapshotPolicy.exclude_untracked(), rab_id=RAB,
+        review_generation="sae10-v1",
+    )
+    assert world.local_snapshot_id == snapshot.local_snapshot_id
+    assert world.rab_id == RAB
+    assert len(world.review_world_id) == 64
+
+
+def test_material_lfs_pointer_without_materialized_object_fails_closed(tmp_path: Path) -> None:
+    if __import__("shutil").which("git") is None:
+        pytest.skip("git unavailable")
+    _git(tmp_path, "init", "-q")
+    _git(tmp_path, "config", "user.name", "SAE10 Test")
+    _git(tmp_path, "config", "user.email", "sae10@example.invalid")
+    pointer = "version https://git-lfs.github.com/spec/v1\noid sha256:" + "a" * 64 + "\nsize 123\n"
+    (tmp_path / "asset.bin").write_text(pointer, encoding="utf-8")
+    _git(tmp_path, "add", "asset.bin")
+    _git(tmp_path, "commit", "-qm", "lfs pointer")
+    with pytest.raises(rwg.GitCommandError, match="LFS"):
+        rwg.build_local_snapshot(
+            tmp_path, scope=rw.ReviewScope.repository(),
+            policy=rwg.LocalSnapshotPolicy(
+                untracked_policy="exclude_untracked", lfs_state="material_required",
+                generated_state="not_material",
+            ),
+        )
+
+
+def test_material_generated_state_without_binding_fails_closed(tmp_path: Path) -> None:
+    if __import__("shutil").which("git") is None:
+        pytest.skip("git unavailable")
+    _init_local_repo(tmp_path)
+    with pytest.raises(rwg.GitCommandError, match="generated"):
+        rwg.build_local_snapshot(
+            tmp_path, scope=rw.ReviewScope.repository(),
+            policy=rwg.LocalSnapshotPolicy(
+                untracked_policy="exclude_untracked", lfs_state="pointer_identity_only",
+                generated_state="material_unbound",
+            ),
+        )
