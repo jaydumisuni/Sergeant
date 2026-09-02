@@ -1,0 +1,111 @@
+{
+  "schema_version": "sergeant.spike-id-feasibility-manifest.v1",
+  "node": "SPIKE-ID",
+  "node_title": "Identity / authenticated provenance feasibility",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "branch": "roadmap/spike-id-identity-feasibility",
+  "proof_requires": ["SAE-00"],
+  "authority_gain": "none",
+  "recovered_live_main": {
+    "sha": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757",
+    "method": "git fetch origin; git rev-parse origin/main"
+  },
+  "sae00_state_at_construction": {
+    "pr": 170,
+    "state": "open",
+    "note": "SAE-00 not yet merged; this spike proceeded as permitted early isolated preparation per docs/59 section 2 and does not itself claim SAE-00-dependent authority"
+  },
+  "disposition": {
+    "outcome": "selected_initial_mechanism",
+    "selected_mechanism": "sshsig-owner-held-ed25519-keypair-with-explicit-revocation-list",
+    "no_safe_mechanism": false
+  },
+  "documents": [
+    {
+      "path": "docs/64-spike-id-identity-provenance-feasibility.md",
+      "blob_sha": "59a14b980eb284de35f132e553a9971a00463a6e",
+      "role": "spike_analysis_and_threat_model"
+    },
+    {
+      "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
+      "blob_sha": "b7d7ea0cec987046ece2aecb554cc29d86aa447b",
+      "role": "founding_architecture_definitions_anchor"
+    },
+    {
+      "path": "docs/59-sergeant-assurance-evolution-roadmap.md",
+      "blob_sha": "f54dd414da2c01284c94a3f7349030da0cda4457",
+      "role": "spike_requirement_source"
+    }
+  ],
+  "proof_fixtures": [
+    {
+      "path": "tests/spike_id/qualification_attestation_fixture.py",
+      "blob_sha": "0985068327c021929731c745fd235a6c99f81c21",
+      "role": "reference_sshsig_attestation_library",
+      "assurance_evolution_runtime_implementation": false
+    },
+    {
+      "path": "tests/spike_id/conftest.py",
+      "blob_sha": "59a40300b80715ad401e20e7a66defc65aec6ce2",
+      "role": "shared_identity_environment_fixture",
+      "assurance_evolution_runtime_implementation": false
+    },
+    {
+      "path": "tests/spike_id/test_valid_attestation_verifies.py",
+      "blob_sha": "5c1caba9118dc0bc60b347b8c318216fc54cfdb1",
+      "role": "positive_control_and_tamper_detection_proof",
+      "assurance_evolution_runtime_implementation": false
+    },
+    {
+      "path": "tests/spike_id/test_replay_and_staleness_rejected.py",
+      "blob_sha": "94a42c8b9450e18bc4ce6fb7ec3cf771a6ddf3c1",
+      "role": "replay_and_currentness_proof",
+      "assurance_evolution_runtime_implementation": false
+    },
+    {
+      "path": "tests/spike_id/test_revoked_attestation_rejected.py",
+      "blob_sha": "b782c91bc51e9744b1c17cc94da6f2bc54ea246e",
+      "role": "revocation_proof",
+      "assurance_evolution_runtime_implementation": false
+    },
+    {
+      "path": "tests/spike_id/test_negative_proof_candidate_cannot_sign_as_issuer.py",
+      "blob_sha": "97c36477a52bdc0ee51c7e01225d3e482d720449",
+      "role": "negative_proof_candidate_automation_cannot_acquire_issuer_authority",
+      "assurance_evolution_runtime_implementation": false
+    }
+  ],
+  "negative_proof": {
+    "path": "tests/spike_id/test_negative_proof_candidate_cannot_sign_as_issuer.py",
+    "test_names": [
+      "test_registry_structurally_excludes_the_candidate_public_key",
+      "test_candidate_signed_attestation_fails_verification_against_issuer_registry",
+      "test_candidate_cannot_launder_authority_by_shipping_its_own_registry",
+      "test_candidate_key_under_its_own_honest_identity_is_not_qualification_authority"
+    ],
+    "claim": "candidate-controlled automation (modeled as a separate ed25519 keypair the candidate identity holds) cannot produce a signature that verifies against the issuer-only allowed_signers registry, even when it signs honestly under its own identity, attempts to impersonate the issuer identity string, or ships its own replacement registry",
+    "mechanism": "real subprocess calls to ssh-keygen -Y sign / ssh-keygen -Y verify; assertions on real process exit codes, not mocked or asserted-in-prose results"
+  },
+  "mechanism_field_summary": {
+    "signature_format": "SSHSIG (ssh-keygen -Y sign / ssh-keygen -Y verify), ed25519",
+    "domain_separation_namespace": "sergeant-qualification-attestation-v1",
+    "registry_shape": "OpenSSH allowed_signers file binding one identity string to one public key and namespace",
+    "revocation_granularity": ["attestation_id", "issuer_generation"],
+    "currentness_checks": ["expires_at_freshness", "attestation_id_replay_tracking"]
+  },
+  "known_gaps": [
+    "registry_and_revocation_list_distribution_custody_not_solved",
+    "no_public_transparency_log",
+    "key_holder_loss_succession_procedure_undesigned",
+    "fixture_attestation_schema_is_bounded_illustrative_subset_of_docs58_section12",
+    "eepr_external_source_authentication_only_partially_addressed_remainder_is_spike_ext_territory"
+  ],
+  "prohibitions": [
+    "do_not_treat_this_spike_as_sae30_implementation",
+    "do_not_treat_this_spike_as_qualified_mechanism",
+    "do_not_grant_normal_sergeant_verdict_authority_from_this_spike",
+    "do_not_retrofit_pr_167",
+    "do_not_change_roadmap_semantics_without_new_review_and_owner_approval"
+  ]
+}
