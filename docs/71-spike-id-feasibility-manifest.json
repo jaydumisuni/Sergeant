@@ -25,64 +25,66 @@
   },
   "current_document": {
     "path": "docs/70-spike-id-identity-provenance-feasibility.md",
-    "blob_sha": "1ec963e9f0008d8593bd26be8e494fc6d5172ddf"
+    "blob_sha": "128076a35a0ec9a5569ab1cc1956287b5648d587"
   },
   "manifest_proof_fixture": {
     "path": "tests/test_spike_id_feasibility_manifest.py",
-    "blob_sha": "d1a57330e0657611d21050d060b9bb6e89a8339d"
+    "blob_sha": "022662e3a50d5094f74f68e25df6e44c4a4d8703"
   },
   "disposition": {
     "outcome": "selected_initial_mechanism",
-    "selected_mechanism": "sshsig-owner-held-dedicated-ed25519-keypair-with-verifier-trusted-registry-and-explicit-revocation",
+    "selected_mechanism": "sshsig-owner-held-dedicated-ed25519-keypair-with-verifier-trusted-identity-key-generation-registry-and-explicit-revocation",
     "no_safe_mechanism": false,
     "qualified_for_sae30": false
   },
   "proof_fixtures": [
     {
       "path": "tests/spike_id/qualification_attestation_fixture.py",
-      "blob_sha": "55ad3b576850eb701e927646be9a44305987a46a",
+      "blob_sha": "89d157d88f5eb62a1523a4f81cc1e56f0c7eac94",
       "role": "reference_sshsig_attestation_library",
       "assurance_evolution_runtime_implementation": false,
       "changed_from_historical_candidate": true,
-      "change_reason": "expiry equality is fail-closed; future issued_at is rejected; payload issuer_identity must equal authenticated verifier identity"
+      "change_reason": "fail-closed expiry and issued_at; authenticated identity coherence; issuer generation derived from verifier-trusted registry and used for revocation"
     },
     {
       "path": "tests/spike_id/conftest.py",
-      "blob_sha": "59a40300b80715ad401e20e7a66defc65aec6ce2",
-      "role": "shared_identity_environment_fixture",
+      "blob_sha": "01da35068396aaf2c90593697c992bce1adc8811",
+      "role": "shared_identity_environment_and_trusted_issuer_generation_fixture",
       "assurance_evolution_runtime_implementation": false,
-      "changed_from_historical_candidate": false
+      "changed_from_historical_candidate": true,
+      "change_reason": "models issuer identity key and generation as verifier-trusted registry state"
     },
     {
       "path": "tests/spike_id/test_valid_attestation_verifies.py",
-      "blob_sha": "e3966003aac23adaaf626815a51821f0de976737",
+      "blob_sha": "71dc7dd26885b63ff42cd7b58238e419321c8977",
       "role": "positive_control_tamper_and_authenticated_issuer_coherence_proof",
       "assurance_evolution_runtime_implementation": false,
       "changed_from_historical_candidate": true,
-      "change_reason": "adds signed-payload issuer_identity versus authenticated signer identity falsifier"
+      "change_reason": "uses trusted registry and adds signed issuer identity versus authenticated signer identity falsifier"
     },
     {
       "path": "tests/spike_id/test_replay_and_staleness_rejected.py",
-      "blob_sha": "d6f67dd791e0557960b69de875da8ecfdde32d1e",
+      "blob_sha": "e3fee44a57e1551886f94188a03a1800dd2625ab",
       "role": "expiry_boundary_future_issue_replay_and_currentness_proof",
       "assurance_evolution_runtime_implementation": false,
       "changed_from_historical_candidate": true,
-      "change_reason": "adds exact-expiry equality and future-issued falsifiers"
+      "change_reason": "uses trusted registry and adds exact-expiry equality and future-issued falsifiers"
     },
     {
       "path": "tests/spike_id/test_revoked_attestation_rejected.py",
-      "blob_sha": "b782c91bc51e9744b1c17cc94da6f2bc54ea246e",
-      "role": "revocation_proof",
+      "blob_sha": "6359747d158a13310ce108eabe8913a57bf6ce42",
+      "role": "authenticated_generation_revocation_and_self_relabel_bypass_proof",
       "assurance_evolution_runtime_implementation": false,
-      "changed_from_historical_candidate": false
+      "changed_from_historical_candidate": true,
+      "change_reason": "generation revocation is based on verifier-trusted authenticated generation and includes compromised-key generation relabel attack"
     },
     {
       "path": "tests/spike_id/test_negative_proof_candidate_cannot_sign_as_issuer.py",
-      "blob_sha": "79e5a35b7d6c82b8c27f6fb2681094562a9df4ba",
+      "blob_sha": "5f41f17217578b5514edff057f912e353ddaa80e",
       "role": "negative_proof_candidate_automation_cannot_acquire_issuer_authority",
       "assurance_evolution_runtime_implementation": false,
       "changed_from_historical_candidate": true,
-      "change_reason": "normalizes illustrative subject digests to sha256 plus 64 hex characters without changing authority semantics"
+      "change_reason": "uses trusted registry authority state and normalizes illustrative subject digests"
     }
   ],
   "required_outputs": {
@@ -93,18 +95,19 @@
     "negative_proof_candidate_automation_cannot_acquire_issuer_authority": true
   },
   "current_fixture_suite": {
-    "test_case_count_by_static_structure": 13,
+    "test_case_count_by_static_structure": 14,
     "fresh_execution_claimed_in_this_reconciliation": false,
     "historical_execution_result": "10 passed before current-review falsifiers were added"
   },
   "mechanism": {
     "signature_format": "SSHSIG via ssh-keygen -Y sign / -Y verify with ed25519",
     "domain_separation_namespace": "sergeant-qualification-attestation-v1",
-    "registry_shape": "OpenSSH allowed_signers binding issuer identity to public key and namespace",
+    "registry_shape": "verifier-trusted issuer identity plus public key plus namespace plus issuer generation, with OpenSSH allowed_signers as the SSHSIG projection",
     "authenticated_issuer_binding": "payload_issuer_identity_must_equal_verified_identity",
+    "authenticated_generation_binding": "issuer_generation_comes_from_verifier_trusted_registry_not_payload",
     "issued_at_semantics": "future_issued_attestation_is_not_yet_valid",
     "expires_at_semantics": "exclusive_upper_bound_now_greater_than_or_equal_is_expired",
-    "revocation_granularity": ["attestation_id", "issuer_generation"],
+    "revocation_granularity": ["attestation_id", "authenticated_issuer_generation"],
     "replay_control": "verifier-side consumed attestation_id set"
   },
   "negative_proof": {
@@ -115,7 +118,7 @@
       "test_candidate_cannot_launder_authority_by_shipping_its_own_registry",
       "test_candidate_key_under_its_own_honest_identity_is_not_qualification_authority"
     ],
-    "load_bearing_boundary": "verifier-trusted registry and issuer key custody must remain outside candidate control"
+    "load_bearing_boundary": "verifier-trusted identity key generation registry and issuer private-key custody must remain outside candidate control"
   },
   "known_gaps": [
     "registry_and_revocation_list_distribution_custody_not_solved",
@@ -125,7 +128,6 @@
     "no_real_qualification_authority_registry_exists",
     "no_real_qualification_issuer_key_is_created_or_stored_by_this_spike",
     "signature_authenticity_does_not_establish_external_independence",
-    "issuer_generation_authorization_binding_not_modeled_outside_revocation",
     "attestation_subject_domain_generation_and_ceiling_match_checks_not_modeled",
     "malformed_or_timezone_naive_timestamp_schema_validation_not_modeled_by_spike_fixture"
   ],
