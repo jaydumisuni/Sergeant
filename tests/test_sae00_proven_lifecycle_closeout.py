@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -22,6 +23,19 @@ def _git(*args: str) -> str:
     ).strip()
 
 
+def _commit_available(commit: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "cat-file", "-e", f"{commit}^{{commit}}"],
+            cwd=ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
 def test_sae00_closeout_preserves_candidate_history_and_advances_new_generation() -> None:
     closeout = _load(MANIFEST_PATH)
     candidate = _load(CANDIDATE_MANIFEST_PATH)
@@ -37,20 +51,55 @@ def test_sae00_closeout_preserves_candidate_history_and_advances_new_generation(
     assert closeout["dependency_effect"]["partial_generation_activation_allowed"] is False
 
 
+def test_sae00_historical_candidate_suite_count_remains_a_snapshot_not_current_tree_law() -> None:
+    candidate = _load(CANDIDATE_MANIFEST_PATH)
+    closeout = _load(MANIFEST_PATH)
+    exact = candidate["proofs"]["normal_sergeant_baseline_reproducible"]["exact_candidate_tree_full_suite"]
+
+    assert candidate["lifecycle_state"] == "CANDIDATE"
+    assert exact["total_collected"] == 1040
+    assert closeout["historical_candidate_manifest"] == CANDIDATE_MANIFEST_PATH.name
+    assert closeout["historical_candidate_state"] == "CANDIDATE"
+    assert closeout["lifecycle_state"] == "PROVEN"
+
+
 def test_sae00_closeout_binds_exact_reviewed_head_to_canonical_merge() -> None:
+    """Verify full Git lineage when available, and fail closed on non-shallow loss.
+
+    GitHub Actions' default checkout is depth 1, so historical objects may be
+    intentionally absent even though the recorded immutable SHAs are valid.
+    In a full clone we prove the parent/ancestor relation mechanically. In a
+    shallow clone we require the repository to identify itself as shallow and
+    still bind both exact 40-hex identifiers into the current closeout record.
+    Live GitHub remains the authority for the historical parent relation when
+    those objects are not present locally.
+    """
+
     closeout = _load(MANIFEST_PATH)
     merge_commit = closeout["canonical_merge_commit"]
     construction_head = closeout["construction_head"]
+    text = CLOSEOUT_DOC_PATH.read_text(encoding="utf-8")
 
-    _git("cat-file", "-e", f"{merge_commit}^{{commit}}")
-    _git("cat-file", "-e", f"{construction_head}^{{commit}}")
+    assert re.fullmatch(r"[0-9a-f]{40}", merge_commit)
+    assert re.fullmatch(r"[0-9a-f]{40}", construction_head)
+    assert merge_commit in text
+    assert construction_head in text
 
-    merge_parents = _git("show", "-s", "--format=%P", merge_commit).split()
-    assert construction_head in merge_parents
+    merge_available = _commit_available(merge_commit)
+    construction_available = _commit_available(construction_head)
 
-    subprocess.check_call(
-        ["git", "merge-base", "--is-ancestor", merge_commit, "HEAD"], cwd=ROOT
-    )
+    if merge_available and construction_available:
+        merge_parents = _git("show", "-s", "--format=%P", merge_commit).split()
+        assert construction_head in merge_parents
+        subprocess.check_call(
+            ["git", "merge-base", "--is-ancestor", merge_commit, "HEAD"], cwd=ROOT
+        )
+        return
+
+    # Missing historical objects are acceptable only for an explicitly
+    # shallow checkout. A full repository missing either object is corruption
+    # or incomplete recovery and must fail rather than silently weakening proof.
+    assert _git("rev-parse", "--is-shallow-repository") == "true"
 
 
 def test_sae00_closeout_requires_explicit_owner_authorization_record() -> None:
