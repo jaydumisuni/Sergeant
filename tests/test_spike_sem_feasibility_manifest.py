@@ -54,7 +54,7 @@ def test_spike_sem_dependency_and_required_construct_charter_match_frozen_roadma
 
     assert sae00["node"] == "SAE-00"
     assert sae00["lifecycle_state"] == "PROVEN"
-    assert "### SPIKE-SEM — Semantic-analysis feasibility and UNKNOWN-rate study" in roadmap
+    assert "### SPIKE-SEM — Real semantic qualification / false-UNKNOWN feasibility" in roadmap
     assert "Probe at least ordinary direct calls" in roadmap
     assert "Measure EXACT cases" in roadmap
     assert "SPIKE-SEM: [SAE-00]" in roadmap
