@@ -120,6 +120,6 @@
   },
   "proof_fixture": {
     "path": "tests/test_spike_id_proven_lifecycle_closeout.py",
-    "blob_sha": "PENDING_BIND_AFTER_FIXTURE_CREATION"
+    "blob_sha": "36105188aae9d602a8ba98d7dde6bc5d70ac3a7d"
   }
 }
