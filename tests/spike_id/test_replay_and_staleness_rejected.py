@@ -34,7 +34,7 @@ def _signed_disposition(
     verify_result = verify_signature(
         payload_bytes,
         signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem=filename_stem,
@@ -59,7 +59,7 @@ def test_expired_attestation_is_rejected_despite_valid_signature(
         attestation_id="attest-stale-0001",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=(now - timedelta(days=60)).isoformat(),
         expires_at=(now - timedelta(days=30)).isoformat(),
     )
@@ -84,7 +84,7 @@ def test_attestation_is_rejected_at_exact_expiry_instant(
         attestation_id="attest-expiry-boundary-0001",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=(now - timedelta(minutes=5)).isoformat(),
         expires_at=now.isoformat(),
     )
@@ -109,7 +109,7 @@ def test_future_issued_attestation_is_not_yet_valid(
         attestation_id="attest-future-issued-0001",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=(now + timedelta(minutes=5)).isoformat(),
         expires_at=(now + timedelta(days=30)).isoformat(),
     )
@@ -134,7 +134,7 @@ def test_replayed_attestation_id_is_rejected_on_second_submission(
         attestation_id="attest-replay-0001",
         sequence=1,
         issuer_identity=identity_environment.issuer_key.identity,
-        issuer_generation="qa-issuer-gen-1",
+        issuer_generation=identity_environment.issuer_generation,
         issued_at=now.isoformat(),
         expires_at=(now + timedelta(days=30)).isoformat(),
     )
@@ -150,7 +150,7 @@ def test_replayed_attestation_id_is_rejected_on_second_submission(
     first_verify = verify_signature(
         payload_bytes,
         signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem="replay-attestation-first",
@@ -169,7 +169,7 @@ def test_replayed_attestation_id_is_rejected_on_second_submission(
     second_verify = verify_signature(
         payload_bytes,
         signature,
-        identity_environment.allowed_signers_path,
+        identity_environment.trusted_registry,
         identity_environment.issuer_key.identity,
         tmp_path,
         filename_stem="replay-attestation-second",
