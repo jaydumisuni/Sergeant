@@ -1,15 +1,16 @@
 """SPIKE-SEM-only semantic feasibility probe.
 
-This module is deliberately located under ``tests/spike_sem`` and is NOT
-Sergeant production capability.  It exists to measure a bounded semantic
-domain against the frozen Assurance Evolution SPIKE-SEM charter without
-silently upgrading the current lightweight capability engine.
+This module is deliberately under ``tests/spike_sem`` and is NOT Sergeant
+production capability.  It measures a bounded semantic domain against the
+frozen Assurance Evolution SPIKE-SEM charter without silently upgrading the
+current lightweight capability engine.
 
 The probe is intentionally conservative:
 - explicit, statically closed bindings may be EXACT;
 - receiver-name candidate sets are CONSERVATIVE_SUPERSET;
 - callback identity without framework invocation semantics is PARTIAL;
-- dynamic dispatch/configuration and exhausted analysis budget are UNKNOWN.
+- dynamic dispatch/configuration, lexical shadowing ambiguity, module-level
+  rebinding ambiguity, and exhausted analysis budget are UNKNOWN.
 
 Nothing here grants verdict or ACR authority.  A later programme may use the
 findings to define a qualified domain, but must independently implement and
@@ -118,29 +119,123 @@ def _target_exists(target: str, module_symbols: dict[str, set[str]]) -> bool:
     return bool(dot and module in module_symbols and symbol in module_symbols[module])
 
 
-def _resolve_symbol_expr(expr: ast.AST, bindings: dict[str, Binding]) -> str | None:
+def _grade_bound_target(target: str, module_symbols: dict[str, set[str]]) -> SemanticGrade:
+    return "EXACT" if _target_exists(target, module_symbols) else "PARTIAL"
+
+
+def _resolve_symbol_expr(
+    expr: ast.AST,
+    bindings: dict[str, Binding],
+    unsafe_names: set[str] | frozenset[str] = frozenset(),
+) -> str | None:
     if isinstance(expr, ast.Name):
+        if expr.id in unsafe_names:
+            return None
         binding = bindings.get(expr.id)
         if binding and binding.kind != "module":
             return binding.target
         return None
     if isinstance(expr, ast.Attribute) and isinstance(expr.value, ast.Name):
+        if expr.value.id in unsafe_names:
+            return None
         base = bindings.get(expr.value.id)
         if base and base.kind == "module":
             return f"{base.target}.{expr.attr}"
     return None
 
 
-def _module_from_expr(expr: ast.AST, bindings: dict[str, Binding]) -> str | None:
-    if isinstance(expr, ast.Name):
+def _module_from_expr(
+    expr: ast.AST,
+    bindings: dict[str, Binding],
+    unsafe_names: set[str] | frozenset[str] = frozenset(),
+) -> str | None:
+    if isinstance(expr, ast.Name) and expr.id not in unsafe_names:
         binding = bindings.get(expr.id)
         if binding and binding.kind == "module":
             return binding.target
     return None
 
 
-def _grade_bound_target(target: str, module_symbols: dict[str, set[str]]) -> SemanticGrade:
-    return "EXACT" if _target_exists(target, module_symbols) else "PARTIAL"
+def _argument_names(arguments: ast.arguments) -> set[str]:
+    names = {argument.arg for argument in arguments.posonlyargs}
+    names.update(argument.arg for argument in arguments.args)
+    names.update(argument.arg for argument in arguments.kwonlyargs)
+    if arguments.vararg:
+        names.add(arguments.vararg.arg)
+    if arguments.kwarg:
+        names.add(arguments.kwarg.arg)
+    return names
+
+
+def _function_lexically_bound_names(tree: ast.Module) -> set[str]:
+    """Conservative module-wide census of names that can shadow globals.
+
+    The spike does not yet implement precise per-node lexical environments.
+    If a module-level/imported name is also locally bindable anywhere inside a
+    function/lambda, calls through that spelling are downgraded to UNKNOWN
+    rather than risking a false EXACT.  This intentionally creates some false
+    UNKNOWN pressure; production qualification may later recover precision
+    with a real lexical-scope model.
+    """
+
+    names: set[str] = set()
+    for scope in ast.walk(tree):
+        if not isinstance(scope, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        names.update(_argument_names(scope.args))
+        for node in ast.walk(scope):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+                names.add(node.id)
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and node is not scope:
+                names.add(node.name)
+            elif isinstance(node, ast.Import):
+                for alias in node.names:
+                    names.add(alias.asname or alias.name.split(".")[0])
+            elif isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    if alias.name != "*":
+                        names.add(alias.asname or alias.name)
+    return names
+
+
+def _assignment_target_names(node: ast.AST) -> set[str]:
+    targets: list[ast.AST] = []
+    if isinstance(node, ast.Assign):
+        targets.extend(node.targets)
+    elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+        targets.append(node.target)
+    names: set[str] = set()
+    for target in targets:
+        for child in ast.walk(target):
+            if isinstance(child, ast.Name):
+                names.add(child.id)
+    return names
+
+
+def _module_binding_counts(tree: ast.Module) -> Counter[str]:
+    """Count top-level bindings so multiply-rebound spellings fail closed."""
+
+    counts: Counter[str] = Counter()
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            counts[node.name] += 1
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                counts[alias.asname or alias.name.split(".")[0]] += 1
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name != "*":
+                    counts[alias.asname or alias.name] += 1
+        else:
+            for name in _assignment_target_names(node):
+                counts[name] += 1
+    return counts
+
+
+def _unsafe_direct_binding_names(tree: ast.Module) -> set[str]:
+    lexical = _function_lexically_bound_names(tree)
+    rebound = {name for name, count in _module_binding_counts(tree).items() if count > 1}
+    return lexical | rebound
 
 
 def analyze_python_tree(
@@ -208,6 +303,10 @@ def analyze_python_tree(
             for symbol in module_symbols.get(module, set())
         }
         dict_bindings: dict[str, dict[str, str]] = {}
+        unsafe_direct_names = _unsafe_direct_binding_names(tree)
+        ambiguous_module_names = {
+            name for name, count in _module_binding_counts(tree).items() if count > 1
+        }
 
         for node in tree.body:
             if isinstance(node, ast.Import):
@@ -244,7 +343,7 @@ def analyze_python_tree(
                 targets = node.targets if isinstance(node, ast.Assign) else [node.target]
                 if value is None:
                     continue
-                resolved = _resolve_symbol_expr(value, bindings)
+                resolved = _resolve_symbol_expr(value, bindings, ambiguous_module_names)
                 if resolved:
                     for target_node in targets:
                         if isinstance(target_node, ast.Name) and target_node.id not in bindings:
@@ -258,7 +357,7 @@ def analyze_python_tree(
                         for key, item in zip(value.keys, value.values):
                             if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
                                 continue
-                            resolved_item = _resolve_symbol_expr(item, bindings)
+                            resolved_item = _resolve_symbol_expr(item, bindings, ambiguous_module_names)
                             if resolved_item:
                                 mapping[str(key.value)] = resolved_item
                         if mapping:
@@ -291,7 +390,7 @@ def analyze_python_tree(
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
                     expression = decorator.func if isinstance(decorator, ast.Call) else decorator
-                    target = _resolve_symbol_expr(expression, bindings)
+                    target = _resolve_symbol_expr(expression, bindings, ambiguous_module_names)
                     if target:
                         relations.append(
                             SemanticRelation(
@@ -314,7 +413,7 @@ def analyze_python_tree(
                 and len(node.func.args) >= 2
             ):
                 inner = node.func
-                imported_module = _module_from_expr(inner.args[0], bindings)
+                imported_module = _module_from_expr(inner.args[0], bindings, unsafe_direct_names)
                 attr = inner.args[1]
                 if imported_module and isinstance(attr, ast.Constant) and isinstance(attr.value, str):
                     target = f"{imported_module}.{attr.value}"
@@ -325,7 +424,7 @@ def analyze_python_tree(
                             "getattr_literal_call",
                             target,
                             _grade_bound_target(target, module_symbols),
-                            "literal getattr on an explicitly imported module is bounded",
+                            "literal getattr on an explicitly imported, non-shadowable module is bounded",
                         )
                     )
                 else:
@@ -336,15 +435,21 @@ def analyze_python_tree(
                             "getattr_dynamic_call",
                             None,
                             "UNKNOWN",
-                            "dynamic getattr receiver or attribute cannot be closed statically",
+                            "dynamic or lexically shadowable getattr receiver/attribute cannot be closed statically",
                         )
                     )
                 continue
 
             if isinstance(node.func, ast.Subscript) and isinstance(node.func.value, ast.Name):
-                table = dict_bindings.get(node.func.value.id)
+                table_name = node.func.value.id
+                table = dict_bindings.get(table_name)
                 key = node.func.slice
-                if table and isinstance(key, ast.Constant) and isinstance(key.value, str):
+                if (
+                    table
+                    and table_name not in unsafe_direct_names
+                    and isinstance(key, ast.Constant)
+                    and isinstance(key.value, str)
+                ):
                     target = table.get(str(key.value))
                     if target:
                         relations.append(
@@ -366,15 +471,18 @@ def analyze_python_tree(
                             "bounded_indirect_dispatch",
                             None,
                             "UNKNOWN",
-                            "dispatch table key is dynamic or outside the statically closed table",
+                            "dispatch table spelling/key is dynamic or lexically shadowable",
                         )
                     )
                     continue
 
             if isinstance(node.func, ast.Attribute) and node.func.attr in _REGISTER_METHODS:
-                callbacks = [_resolve_symbol_expr(arg, bindings) for arg in node.args]
+                callbacks = [
+                    _resolve_symbol_expr(arg, bindings, unsafe_direct_names) for arg in node.args
+                ]
                 callbacks.extend(
-                    _resolve_symbol_expr(keyword.value, bindings) for keyword in node.keywords
+                    _resolve_symbol_expr(keyword.value, bindings, unsafe_direct_names)
+                    for keyword in node.keywords
                 )
                 callback_targets = [target for target in callbacks if target]
                 for target in callback_targets:
@@ -391,7 +499,29 @@ def analyze_python_tree(
                 if callback_targets:
                     continue
 
-            target = _resolve_symbol_expr(node.func, bindings)
+            direct_spelling: str | None = None
+            if isinstance(node.func, ast.Name) and node.func.id in bindings:
+                direct_spelling = node.func.id
+            elif (
+                isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in bindings
+            ):
+                direct_spelling = node.func.value.id
+            if direct_spelling and direct_spelling in unsafe_direct_names:
+                relations.append(
+                    SemanticRelation(
+                        relative,
+                        node.lineno,
+                        "lexical_shadowing",
+                        None,
+                        "UNKNOWN",
+                        "module binding spelling is locally shadowable or multiply rebound; exact target is not claimed",
+                    )
+                )
+                continue
+
+            target = _resolve_symbol_expr(node.func, bindings, unsafe_direct_names)
             if target:
                 relations.append(
                     SemanticRelation(
@@ -400,7 +530,7 @@ def analyze_python_tree(
                         "direct_call" if isinstance(node.func, (ast.Name, ast.Attribute)) else "call",
                         target,
                         _grade_bound_target(target, module_symbols),
-                        "call target is statically bound by local/import/module identity",
+                        "call target is statically bound by non-shadowable local/import/module identity",
                     )
                 )
                 continue
