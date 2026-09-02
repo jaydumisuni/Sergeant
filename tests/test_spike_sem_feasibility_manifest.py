@@ -19,18 +19,15 @@ def _load(path: Path) -> dict:
 def _tracked_blob(path: Path) -> str:
     relative = path.relative_to(ROOT).as_posix()
     return subprocess.check_output(
-        ["git", "rev-parse", f"HEAD:{relative}"],
-        cwd=ROOT,
-        text=True,
-        stderr=subprocess.STDOUT,
+        ["git", "rev-parse", f"HEAD:{relative}"], cwd=ROOT, text=True, stderr=subprocess.STDOUT
     ).strip()
 
 
 def test_spike_sem_manifest_is_bounded_candidate_with_no_authority_gain() -> None:
     manifest = _load(MANIFEST_PATH)
-
     assert manifest["schema_version"] == "sergeant.spike-sem-feasibility-manifest.v2"
     assert manifest["node"] == "SPIKE-SEM"
+    assert manifest["node_title"] == "Real semantic qualification / false-UNKNOWN feasibility"
     assert manifest["lifecycle_state"] == "CANDIDATE"
     assert manifest["proof_requires"] == ["SAE-00"]
     assert manifest["authority_gain"] == "none"
@@ -51,7 +48,6 @@ def test_spike_sem_dependency_and_required_construct_charter_match_frozen_roadma
     manifest = _load(MANIFEST_PATH)
     sae00 = _load(SAE00_MANIFEST_PATH)
     roadmap = ROADMAP_PATH.read_text(encoding="utf-8")
-
     assert sae00["node"] == "SAE-00"
     assert sae00["lifecycle_state"] == "PROVEN"
     assert "### SPIKE-SEM — Real semantic qualification / false-UNKNOWN feasibility" in roadmap
@@ -63,7 +59,6 @@ def test_spike_sem_dependency_and_required_construct_charter_match_frozen_roadma
 
 def test_spike_sem_review_hardened_synthetic_matrix_is_frozen() -> None:
     matrix = _load(MANIFEST_PATH)["synthetic_required_matrix"]
-
     assert matrix["total_relations"] == 12
     assert matrix["grades"] == {
         "EXACT": 6,
@@ -81,7 +76,7 @@ def test_spike_sem_review_hardened_synthetic_matrix_is_frozen() -> None:
     assert matrix["parse_error_count"] == 0
 
 
-def test_spike_sem_invalidates_first_real_measurement_instead_of_reusing_it() -> None:
+def test_spike_sem_withdraws_first_measurement_and_binds_corrected_discovery() -> None:
     manifest = _load(MANIFEST_PATH)
     invalid = manifest["invalidated_measurement"]
     corrected = manifest["corrected_real_sergeant_measurement"]
@@ -92,36 +87,56 @@ def test_spike_sem_invalidates_first_real_measurement_instead_of_reusing_it() ->
     assert invalid["grades"]["UNKNOWN"] == 0
     assert "unresolved calls were omitted" in invalid["reason"]
 
-    assert corrected["status"] == "DISCOVERY_PENDING_AFTER_REVIEW_HARDENING"
-    assert corrected["max_operations"] == 2000000
-    assert corrected["require_unknown_greater_than_zero"] is True
-    assert corrected["require_parse_error_count"] == 0
-    assert corrected["require_budget_exceeded"] is False
+    assert corrected["status"] == "FROZEN_FROM_SINGLE_SENTINEL_DISCOVERY"
+    assert corrected["discovery_head"] == "6f47c742ffae3bf624e4147a15c0271ea435d3a9"
+    assert corrected["discovery_github_actions_run_id"] == 33619547519
+    assert corrected["discovery_test_result"] == {
+        "passed": 1107,
+        "failed": 1,
+        "xfailed": 1,
+        "sole_failure": "test_real_sergeant_main_review_semantic_metrics_are_frozen_from_observation",
+    }
+    assert corrected["files_parsed"] == 136
+    assert corrected["operations_used"] == 924042
+    assert corrected["total_relations"] == 14439
+    assert corrected["grades"] == {
+        "EXACT": 2528,
+        "CONSERVATIVE_SUPERSET": 3,
+        "PARTIAL": 2008,
+        "UNKNOWN": 9900,
+    }
+    assert corrected["parse_error_count"] == 0
+    assert corrected["budget_exceeded"] is False
 
 
-def test_spike_sem_hostile_review_controls_are_implemented_pending_reproof() -> None:
+def test_spike_sem_hostile_review_controls_have_execution_reproof() -> None:
     manifest = _load(MANIFEST_PATH)
-    findings = manifest["hostile_review"]["findings"]
+    hostile = manifest["hostile_review"]
+    findings = hostile["findings"]
     probe = manifest["probe"]
     resource = manifest["resource_behavior"]
 
+    assert hostile["execution_reproof_head"] == "6f47c742ffae3bf624e4147a15c0271ea435d3a9"
+    assert hostile["execution_reproof_github_actions_run_id"] == 33619547519
+    assert hostile["candidate_green_reproof_pending"] is True
     assert findings["unresolved_calls_omitted_from_denominator"]["severity"] == "P1"
     assert findings["lexical_shadowing_false_exact"]["severity"] == "P2"
     assert findings["candidate_expansion_not_budgeted"]["severity"] == "P2"
     assert all(item["valid"] is True for item in findings.values())
     assert all(item["implemented"] is True for item in findings.values())
-    assert all(item["execution_reproof_pending"] is True for item in findings.values())
+    assert all(item["execution_reproof_pending"] is False for item in findings.values())
 
     assert probe["every_python_call_classified"] is True
     assert probe["candidate_expansion_charged_to_budget"] is True
     assert probe["lexical_shadowing_fails_closed"] is True
     assert probe["ambiguous_module_rebinding_fails_closed"] is True
     assert resource["candidate_expansion_exhaustion_fixture_emits_unknown"] is True
+    assert resource["main_review_operations_used"] == 924042
+    assert resource["main_review_budget_exceeded"] is False
 
 
 def test_spike_sem_false_positive_pressure_remains_bounded_microcase() -> None:
     pressure = _load(MANIFEST_PATH)["false_positive_pressure"]
-
     assert pressure["production_baseline_reported_callers"] == 2
     assert pressure["ground_truth_callers"] == 1
     assert pressure["false_positive_callers"] == 1
@@ -146,7 +161,6 @@ def test_spike_sem_recommendation_keeps_unclosed_constructs_non_exact() -> None:
         "resource_budget_exhaustion",
     ):
         assert value in non_exact["UNKNOWN"]
-
     assert "framework_callback_registration_without_qualified_framework_invocation_semantics" in non_exact["PARTIAL"]
     assert "unresolved_receiver_attribute_name_candidate_sets" in non_exact["CONSERVATIVE_SUPERSET"]
     assert "do_not_omit_unresolved_calls_to_improve_unknown_rate" in prohibitions
