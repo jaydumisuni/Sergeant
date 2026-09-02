@@ -28,6 +28,15 @@ def _require_generation(value: str, field: str) -> str:
         raise ReviewAuthorityBundleError(f'{field} uses mutable authority alias {candidate!r}')
     return candidate
 
+def _require_authority_domain(value: str, field: str) -> str:
+    raw = str(value or '')
+    candidate = raw.strip()
+    if not candidate:
+        raise ReviewAuthorityBundleError(f'{field} must be non-empty')
+    if raw != candidate:
+        raise ReviewAuthorityBundleError(f'{field} must be canonical without surrounding whitespace')
+    return candidate
+
 @dataclass(frozen=True)
 class RABComponent:
     name: str
@@ -43,9 +52,7 @@ class RABComponent:
             raise ReviewAuthorityBundleError(f'unknown RAB component slot: {name!r}')
         generation = _require_generation(generation, f'{name}.generation')
         content_id = require_full_sha256(content_id, f'{name}.content_id')
-        domain = str(authority_domain or '').strip()
-        if not domain:
-            raise ReviewAuthorityBundleError(f'{name}.authority_domain must be non-empty')
+        domain = _require_authority_domain(authority_domain, f'{name}.authority_domain')
         return cls(name, 'active', generation, content_id, None, domain)
 
     @classmethod
@@ -72,6 +79,7 @@ class RABComponent:
     def validate(self) -> None:
         if self.name not in RAB_SLOTS:
             raise ReviewAuthorityBundleError(f'unknown RAB component slot: {self.name!r}')
+        _require_authority_domain(self.authority_domain, f'{self.name}.authority_domain')
         if self.lifecycle_state == 'active':
             _require_generation(str(self.generation or ''), f'{self.name}.generation')
             require_full_sha256(str(self.content_id or ''), f'{self.name}.content_id')

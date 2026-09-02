@@ -41,3 +41,20 @@ def test_local_mutation():
     a = rw.LocalReviewWorld.create(repository='o/r', local_snapshot_id='2' * 64, scope=s, rab_id=R, review_generation='g')
     b = rw.LocalReviewWorld.create(repository='o/r', local_snapshot_id='3' * 64, scope=s, rab_id=R, review_generation='g')
     assert c.check_local_currentness(a, b, rab_authorized=True).reasons == ('local_snapshot_mutation',)
+
+
+def test_unknown_rab_authorization_preserves_github_world_mismatch_reasons():
+    result = c.check_github_currentness(world(), world(base='e' * 40), rab_authorized=None)
+    assert result.state == 'UNKNOWN_CURRENTNESS'
+    assert 'rab_authorization_unknown' in result.reasons
+    assert 'base_identity_mismatch' in result.reasons
+
+
+def test_unknown_rab_authorization_preserves_local_world_mismatch_reasons():
+    s = rw.ReviewScope.repository()
+    frozen = rw.LocalReviewWorld.create(repository='o/r', local_snapshot_id='2' * 64, scope=s, rab_id=R, review_generation='g')
+    current = rw.LocalReviewWorld.create(repository='o/r', local_snapshot_id='3' * 64, scope=s, rab_id=R, review_generation='g')
+    result = c.check_local_currentness(frozen, current, rab_authorized=None)
+    assert result.state == 'UNKNOWN_CURRENTNESS'
+    assert 'rab_authorization_unknown' in result.reasons
+    assert 'local_snapshot_mutation' in result.reasons

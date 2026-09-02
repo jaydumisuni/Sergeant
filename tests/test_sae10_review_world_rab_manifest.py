@@ -87,7 +87,7 @@ def test_tenfold_formation_and_local_proof_are_bound():
     assert manifest['tenfold_proof'] == {
         'actions_required': False,
         'formation_lanes': 20,
-        'local_test_result': {'failed': 0, 'passed': 71, 'xfailed': 0},
+        'local_test_result': {'failed': 0, 'passed': 77, 'xfailed': 0},
     }
 
 
@@ -133,6 +133,17 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
         'historical_xfail_exact_node_strict_binding',
     }
     assert followup['replacement_local_reproof'] == {'failed': 0, 'passed': 71, 'xfailed': 0}
+    exact = review['exact_head_review']
+    assert exact['reviewed_head'] == '323b6f33223231b5d603a3a36ee5c07ef687a96a'
+    assert exact['actionable_findings'] == 3
+    assert set(exact['accepted_repairs']) == {
+        'rab_component_authority_domain_validation',
+        'unknown_rab_authorization_preserves_world_mismatch_reasons',
+    }
+    assert exact['dispositioned_without_mutation'] == [
+        'historical_design_freeze_status_preserved',
+    ]
+    assert exact['replacement_local_reproof'] == {'failed': 0, 'passed': 77, 'xfailed': 0}
     expected = review['historical_fixture_blob_preserved']
     assert expected == manifest['external_authority_blobs'][str(HISTORICAL_SPIKE_FIXTURE)]
     assert blob(HISTORICAL_SPIKE_FIXTURE) == expected

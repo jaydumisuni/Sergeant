@@ -51,3 +51,33 @@ def test_forged_unknown_authorization_state_is_never_accepted():
     )
     with pytest.raises(r.ReviewAuthorityBundleError, match='invalid RAB authorization state'):
         r.RABAuthorizationSet.create([forged])
+
+@pytest.mark.parametrize('state,generation,content_id,basis', [
+    ('active', 'g1', 'a' * 64, None),
+    ('inactive_not_yet_established', None, None, 'not established'),
+    ('prohibited', None, None, 'prohibited by authority'),
+])
+def test_direct_component_construction_rejects_empty_authority_domain(state, generation, content_id, basis):
+    forged = r.RABComponent(
+        name='root_authority',
+        lifecycle_state=state,
+        generation=generation,
+        content_id=content_id,
+        basis=basis,
+        authority_domain='',
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='authority_domain'):
+        r.ReviewAuthorityBundle.create(root_authority=forged)
+
+
+def test_direct_component_construction_rejects_noncanonical_authority_domain():
+    forged = r.RABComponent(
+        name='root_authority',
+        lifecycle_state='active',
+        generation='g1',
+        content_id='a' * 64,
+        basis=None,
+        authority_domain=' sergeant ',
+    )
+    with pytest.raises(r.ReviewAuthorityBundleError, match='authority_domain'):
+        r.ReviewAuthorityBundle.create(root_authority=forged)

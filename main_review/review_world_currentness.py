@@ -21,8 +21,6 @@ def _finish(reasons: list[str], *, unknown: bool=False) -> CurrentnessResult:
 def check_github_currentness(frozen: GitHubReviewWorld, current: GitHubReviewWorld | None, *, rab_authorized: bool | None) -> CurrentnessResult:
     if current is None:
         return CurrentnessResult('UNKNOWN_CURRENTNESS', ('comparison_facts_unavailable',))
-    if rab_authorized is None:
-        return CurrentnessResult('UNKNOWN_CURRENTNESS', ('rab_authorization_unknown',))
     reasons = []
     if frozen.repository != current.repository:
         reasons.append('repository_mismatch')
@@ -38,19 +36,19 @@ def check_github_currentness(frozen: GitHubReviewWorld, current: GitHubReviewWor
         reasons.append('merge_result_mismatch')
     if frozen.rab_id != current.rab_id:
         reasons.append('rab_mismatch')
-    if not rab_authorized:
+    if rab_authorized is None:
+        reasons.append('rab_authorization_unknown')
+    elif not rab_authorized:
         reasons.append('rab_unauthorized_or_revoked')
     if frozen.review_generation != current.review_generation:
         reasons.append('review_generation_mismatch')
     if current.unresolved_state:
         reasons.append('unresolved_material_state')
-    return _finish(reasons)
+    return _finish(reasons, unknown=rab_authorized is None)
 
 def check_local_currentness(frozen: LocalReviewWorld, current: LocalReviewWorld | None, *, rab_authorized: bool | None) -> CurrentnessResult:
     if current is None:
         return CurrentnessResult('UNKNOWN_CURRENTNESS', ('comparison_facts_unavailable',))
-    if rab_authorized is None:
-        return CurrentnessResult('UNKNOWN_CURRENTNESS', ('rab_authorization_unknown',))
     reasons = []
     if frozen.repository != current.repository:
         reasons.append('repository_mismatch')
@@ -60,8 +58,10 @@ def check_local_currentness(frozen: LocalReviewWorld, current: LocalReviewWorld 
         reasons.append('scope_mismatch')
     if frozen.rab_id != current.rab_id:
         reasons.append('rab_mismatch')
-    if not rab_authorized:
+    if rab_authorized is None:
+        reasons.append('rab_authorization_unknown')
+    elif not rab_authorized:
         reasons.append('rab_unauthorized_or_revoked')
     if frozen.review_generation != current.review_generation:
         reasons.append('review_generation_mismatch')
-    return _finish(reasons)
+    return _finish(reasons, unknown=rab_authorized is None)
