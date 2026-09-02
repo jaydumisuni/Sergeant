@@ -1,0 +1,165 @@
+{
+  "schema_version": "sergeant.spike-sem-proven-lifecycle-closeout.v1",
+  "node": "SPIKE-SEM",
+  "node_title": "Real semantic qualification / false-UNKNOWN feasibility",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "authority_gain": "none",
+  "proof_requires": ["SAE-00"],
+  "sae00_proven_authority": {
+    "merge_commit": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+    "closeout_document": "docs/66-sae00-proven-lifecycle-closeout.md",
+    "closeout_manifest": "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
+    "required_output": "ROADMAP_EXECUTION_AUTHORITY"
+  },
+  "candidate_generation": {
+    "pull_request": 175,
+    "head": "6c213a29bcc78ba80d2107ee28692faad931a58f",
+    "candidate_document": {
+      "path": "docs/74-spike-sem-semantic-feasibility.md",
+      "blob_sha": "706e3f15d7f676431eb46022733bdd4104cbfae5"
+    },
+    "candidate_manifest": {
+      "path": "docs/75-spike-sem-feasibility-manifest.json",
+      "blob_sha": "b3bc6d2687ea465ff3c8959e2495d89a8d77f912"
+    },
+    "probe": {
+      "path": "tests/spike_sem/semantic_feasibility_probe.py",
+      "blob_sha": "37002781449c63d4022161487b80defc8f468cd9"
+    },
+    "probe_proof": {
+      "path": "tests/spike_sem/test_semantic_feasibility_probe.py",
+      "blob_sha": "b2bf08d7103e490dc816a1a195c05c34b0d0d97d"
+    },
+    "candidate_manifest_proof": {
+      "path": "tests/test_spike_sem_feasibility_manifest.py",
+      "blob_sha": "9335bf35cf3e62bd3f0cf7ec90764a12e9bd9f46"
+    },
+    "historical_candidate_preserved_not_rewritten": true,
+    "production_main_review_modified": false,
+    "probe_production_authority": false
+  },
+  "measurement_history": {
+    "withdrawn_first_measurement": {
+      "head": "3667561baf731482d76be10a38c7cfa1ef54f2b5",
+      "github_actions_run_id": 33615685272,
+      "total_relations": 4539,
+      "unknown": 0,
+      "authority_status": "WITHDRAWN",
+      "reason": "unresolved calls were omitted, lexical shadowing could false-grade EXACT, and candidate expansion was outside the resource counter"
+    },
+    "corrected_measurement": {
+      "discovery_head": "6f47c742ffae3bf624e4147a15c0271ea435d3a9",
+      "discovery_github_actions_run_id": 33619547519,
+      "files_parsed": 136,
+      "operations_used": 924042,
+      "operation_ceiling": 2000000,
+      "total_relations": 14439,
+      "grades": {
+        "EXACT": 2528,
+        "CONSERVATIVE_SUPERSET": 3,
+        "PARTIAL": 2008,
+        "UNKNOWN": 9900
+      },
+      "rates": {
+        "EXACT": 0.17508137682665004,
+        "CONSERVATIVE_SUPERSET": 0.00020777062123415748,
+        "PARTIAL": 0.13906780247939607,
+        "UNKNOWN": 0.6856430500727198
+      },
+      "parse_error_count": 0,
+      "budget_exceeded": false,
+      "single_discovery_sentinel_failure": true
+    }
+  },
+  "hostile_review_disposition": {
+    "all_threads_resolved": true,
+    "unresolved_calls_explicit_unknown": true,
+    "lexical_shadowing_prevents_false_exact": true,
+    "candidate_expansion_charged_to_operation_budget": true,
+    "first_measurement_withdrawn": true,
+    "production_name_only_call_graph_not_eligible_for_exact_authority": true
+  },
+  "candidate_execution_confirmation": {
+    "exact_head": "6c213a29bcc78ba80d2107ee28692faad931a58f",
+    "github_actions_run_id": 33619792730,
+    "full_suite": {
+      "passed": 1108,
+      "xfailed": 1,
+      "failed": 0,
+      "historical_xfail_only": true
+    },
+    "clean_clone_proof": "success",
+    "sergeant_cli_gates": [
+      "scan",
+      "evidence",
+      "review",
+      "app_bridge_contract",
+      "ide_bench_contract",
+      "battle_test_fixtures",
+      "live_battle_outputs",
+      "verification_standard",
+      "final_gate",
+      "end_to_end_review_suite",
+      "independent_reviewer_module",
+      "mocked_live_github_integration"
+    ],
+    "actions_required_for_authority": false
+  },
+  "bootstrap_authority": {
+    "kind": "SAE00_ROADMAP_EXECUTION_PLUS_OWNER_ROOT_CONSTITUTIONAL_TCB",
+    "necessity": "the frozen roadmap gives SPIKE-SEM only SAE-00 as a proof dependency; later SAE-30 qualification machinery and SAE-60 semantic qualification cannot be retroactively required without inverting the frozen dependency graph",
+    "scope": "determine only whether the bounded SPIKE-SEM feasibility charter is satisfied",
+    "not_general_qualification_authority": true,
+    "cannot_qualify_other_nodes": true,
+    "cannot_activate_acr_domain": true,
+    "cannot_create_capability_passport": true,
+    "cannot_create_semantic_verdict_authority": true,
+    "cannot_convert_unknown_to_pass": true,
+    "cannot_satisfy_genesis": true,
+    "cannot_convert_business_risk_to_pass": true,
+    "partial_generation_activation_allowed": false
+  },
+  "semantic_authority_boundary": {
+    "production_semantic_analyzer_created": false,
+    "acr_domain_activated": false,
+    "capability_passport_created": false,
+    "current_sergeant_verdict_authority_changed": false,
+    "initial_domain_recommendation_is_activation": false,
+    "unknown_rate_may_be_weakened_for_coverage": false
+  },
+  "known_future_obligations": [
+    "production_semantic_analyzer_architecture",
+    "qualified_python_import_package_and_lexical_scope_semantics",
+    "dispatch_table_mutation_alias_and_escape_analysis",
+    "framework_specific_invocation_semantics",
+    "cross_language_semantic_relations",
+    "native_and_reflection_boundaries",
+    "generated_code_and_configuration_provenance",
+    "external_dependency_semantic_closure",
+    "production_resource_ceiling_calibration",
+    "independent_qualification_corpus_and_holdouts",
+    "acr_language_and_runtime_assumptions",
+    "capability_passports_and_semantic_qualification_generations"
+  ],
+  "dependency_effect": {
+    "spike_sem_proof_dependency_resolved": true,
+    "sae60_spike_sem_prerequisite_available": true,
+    "sae60_remaining_proof_requires": ["SAE-20", "SAE-30", "SAE-50"],
+    "sae60_auto_qualified": false,
+    "sae60_auto_proven": false,
+    "sae20_auto_qualified": false,
+    "sae20_auto_proven": false,
+    "genesis_auto_unblocked": false,
+    "partial_generation_activation_allowed": false
+  },
+  "closeout_document": {
+    "path": "docs/76-spike-sem-proven-lifecycle-closeout.md",
+    "blob_sha": "77d410f690c3a1accbaa3ab8a077342939749220"
+  },
+  "proof_fixture": {
+    "path": "tests/test_spike_sem_proven_lifecycle_closeout.py",
+    "blob_sha": "32539cd6358a82ac374ca6ae5dca889f10a5ac2b"
+  }
+}
