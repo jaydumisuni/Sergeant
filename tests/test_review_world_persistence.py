@@ -103,3 +103,76 @@ def test_scope_payload_duplicate_paths_rejected_even_with_canonical_deduplicated
     payload['paths'] = ['src/a.py', 'src/a.py', 'src/b.py']
     with pytest.raises(rw.ReviewWorldError, match='non-canonical'):
         rw.ReviewScope.from_payload(payload)
+
+# SAE-10 v6 persisted Review World canonical decode hostile regressions.
+
+def test_scope_decode_rejects_numeric_generation_with_canonical_id():
+    canonical = rw.ReviewScope._create(kind='selected_paths', paths=['src/a.py'], generation='1')
+    payload = canonical.to_payload(); payload['generation'] = 1
+    with pytest.raises(rw.ReviewWorldError): rw.ReviewScope.from_payload(payload)
+
+def _scope():
+    return rw.ReviewScope.selected_paths(['src/a.py'])
+
+def _diff(*, repository='owner/repo', base_commit=A, algorithm_generation='git-tree-transition-v1'):
+    s = _scope()
+    return rw.GitHubDiffIdentity.create(repository=repository, base_commit=base_commit, base_tree=C, head_commit=B, head_tree=D, scope=s, algorithm_generation=algorithm_generation)
+
+def _world(*, repository='owner/repo', pr_number=7, rab_id=R, review_generation='sae10-v1'):
+    s = _scope(); d = rw.GitHubDiffIdentity.create(repository='owner/repo', base_commit=A, base_tree=C, head_commit=B, head_tree=D, scope=s)
+    return rw.GitHubReviewWorld.create(repository=repository, pr_number=pr_number, diff=d, scope=s, review_mode='head', rab_id=rab_id, review_generation=review_generation)
+
+def _local(*, repository='owner/repo', local_snapshot_id=R, rab_id=R, review_generation='sae10-v1'):
+    return rw.LocalReviewWorld.create(repository=repository, local_snapshot_id=local_snapshot_id, scope=_scope(), rab_id=rab_id, review_generation=review_generation)
+
+def test_diff_decode_rejects_repository_case_normalization_with_canonical_id():
+    canonical=_diff(); payload=canonical.to_payload(); payload['repository']='Owner/Repo'
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubDiffIdentity.from_payload(payload, scope=_scope())
+
+def test_diff_decode_rejects_numeric_git_id_with_canonical_id():
+    digits='1'*40; canonical=_diff(base_commit=digits); payload=canonical.to_payload(); payload['base_commit']=int(digits)
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubDiffIdentity.from_payload(payload, scope=_scope())
+
+def test_diff_decode_rejects_numeric_algorithm_generation_with_canonical_id():
+    canonical=_diff(algorithm_generation='1'); payload=canonical.to_payload(); payload['algorithm_generation']=1
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubDiffIdentity.from_payload(payload, scope=_scope())
+
+def test_github_world_decode_rejects_repository_case_normalization_with_canonical_id():
+    canonical=_world(); payload=canonical.to_payload(); payload['repository']='Owner/Repo'
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubReviewWorld.from_payload(payload)
+
+def test_github_world_decode_rejects_string_pr_number_with_canonical_id():
+    canonical=_world(); payload=canonical.to_payload(); payload['pr_number']='7'
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubReviewWorld.from_payload(payload)
+
+def test_github_world_decode_rejects_numeric_rab_id_with_canonical_id():
+    canonical=_world(); payload=canonical.to_payload(); payload['rab_id']=int(R)
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubReviewWorld.from_payload(payload)
+
+def test_github_world_decode_rejects_numeric_review_generation_with_canonical_id():
+    canonical=_world(review_generation='1'); payload=canonical.to_payload(); payload['review_generation']=1
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubReviewWorld.from_payload(payload)
+
+def test_github_world_decode_rejects_empty_unresolved_entry_that_would_disappear():
+    canonical=_world(); payload=canonical.to_payload(); payload['unresolved_state']=['']
+    with pytest.raises(rw.ReviewWorldError): rw.GitHubReviewWorld.from_payload(payload)
+
+def test_local_world_decode_rejects_empty_repository_becoming_none():
+    canonical=_local(repository=None); payload=canonical.to_payload(); payload['repository']=''
+    with pytest.raises(rw.ReviewWorldError): rw.LocalReviewWorld.from_payload(payload)
+
+def test_local_world_decode_rejects_repository_case_normalization_with_canonical_id():
+    canonical=_local(); payload=canonical.to_payload(); payload['repository']='Owner/Repo'
+    with pytest.raises(rw.ReviewWorldError): rw.LocalReviewWorld.from_payload(payload)
+
+def test_local_world_decode_rejects_numeric_snapshot_id_with_canonical_id():
+    canonical=_local(); payload=canonical.to_payload(); payload['local_snapshot_id']=int(R)
+    with pytest.raises(rw.ReviewWorldError): rw.LocalReviewWorld.from_payload(payload)
+
+def test_local_world_decode_rejects_numeric_rab_id_with_canonical_id():
+    canonical=_local(); payload=canonical.to_payload(); payload['rab_id']=int(R)
+    with pytest.raises(rw.ReviewWorldError): rw.LocalReviewWorld.from_payload(payload)
+
+def test_local_world_decode_rejects_numeric_review_generation_with_canonical_id():
+    canonical=_local(review_generation='1'); payload=canonical.to_payload(); payload['review_generation']=1
+    with pytest.raises(rw.ReviewWorldError): rw.LocalReviewWorld.from_payload(payload)

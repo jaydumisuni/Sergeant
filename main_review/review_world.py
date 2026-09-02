@@ -15,6 +15,11 @@ _REVIEW_MODES = {'head', 'merge_result'}
 class ReviewWorldError(ValueError):
     pass
 
+def _require_string(value: object, field: str) -> str:
+    if not isinstance(value, str):
+        raise ReviewWorldError(f'{field} must be a string')
+    return value
+
 def _validate_json_value(value: object, *, path: str='$') -> None:
     if value is None or isinstance(value, (str, bool, int)):
         return
@@ -48,19 +53,20 @@ def sha256_id(value: Mapping[str, object]) -> str:
     return hashlib.sha256(canonical_json_bytes(value)).hexdigest()
 
 def require_full_sha256(value: str, field: str) -> str:
-    candidate = str(value or '')
+    candidate = _require_string(value, field)
     if not _AUTH_SHA256_RE.fullmatch(candidate):
         raise ReviewWorldError(f'{field} must be a full lowercase 64-hex SHA-256 digest')
     return candidate
 
 def require_git_object_id(value: str, field: str) -> str:
-    candidate = str(value or '')
+    candidate = _require_string(value, field)
     if not _GIT_OID_RE.fullmatch(candidate):
         raise ReviewWorldError(f'{field} must be a full lowercase 40-hex or 64-hex Git object id')
     return candidate
 
 def normalize_repository_identity(repository: str) -> str:
-    candidate = str(repository or '').strip()
+    raw = _require_string(repository, 'repository')
+    candidate = raw.strip()
     if not _REPOSITORY_RE.fullmatch(candidate):
         raise ReviewWorldError('repository identity must be owner/name')
     return candidate.lower()
@@ -75,7 +81,7 @@ def _expect_keys(payload: Mapping[str, object], required: set[str], *, optional:
         raise ReviewWorldError(f'{label} has unexpected fields: {sorted(extra)!r}')
 
 def _normalize_repo_path(path: str) -> str:
-    candidate = str(path or '')
+    candidate = _require_string(path, 'path')
     if not candidate or '\x00' in candidate or '\\' in candidate or candidate.startswith('/'):
         raise ReviewWorldError(f'path must be normalized repository-relative: {candidate!r}')
     parts = candidate.split('/')
@@ -159,9 +165,17 @@ class ReviewScope:
             raise ReviewWorldError('ReviewScope paths are non-canonical after normalization')
         if normalized_paths != sorted(normalized_paths):
             raise ReviewWorldError('ReviewScope paths are not in canonical sorted order')
-        obj = cls._create(kind=str(payload['kind']), paths=normalized_paths, generated_artifacts=str(payload['generated_artifacts']), submodules=str(payload['submodules']), untracked=str(payload['untracked']), generation=str(payload['generation']))
-        if require_full_sha256(str(payload['scope_id']), 'scope_id') != obj.scope_id:
+        kind = _require_string(payload['kind'], 'kind')
+        generated_artifacts = _require_string(payload['generated_artifacts'], 'generated_artifacts')
+        submodules = _require_string(payload['submodules'], 'submodules')
+        untracked = _require_string(payload['untracked'], 'untracked')
+        generation = _require_string(payload['generation'], 'generation')
+        scope_id = require_full_sha256(payload['scope_id'], 'scope_id')
+        obj = cls._create(kind=kind, paths=normalized_paths, generated_artifacts=generated_artifacts, submodules=submodules, untracked=untracked, generation=generation)
+        if scope_id != obj.scope_id:
             raise ReviewWorldError('scope_id mismatch')
+        if obj.to_payload() != payload:
+            raise ReviewWorldError('ReviewScope persisted payload is not canonical')
         return obj
 
 @dataclass(frozen=True)
@@ -225,11 +239,21 @@ class GitHubDiffIdentity:
         _expect_keys(payload, {'schema_version', 'repository', 'base_commit', 'base_tree', 'head_commit', 'head_tree', 'algorithm_generation', 'scope_id', 'diff_id'}, label='GitHubDiffIdentity')
         if payload['schema_version'] != 'sergeant.github-diff-identity.v1':
             raise ReviewWorldError('unknown GitHubDiffIdentity schema version')
-        if str(payload['scope_id']) != scope.scope_id:
+        scope_id = require_full_sha256(payload['scope_id'], 'scope_id')
+        if scope_id != scope.scope_id:
             raise ReviewWorldError('diff scope_id does not match decoded ReviewScope')
-        obj = cls.create(repository=str(payload['repository']), base_commit=str(payload['base_commit']), base_tree=str(payload['base_tree']), head_commit=str(payload['head_commit']), head_tree=str(payload['head_tree']), scope=scope, algorithm_generation=str(payload['algorithm_generation']))
-        if require_full_sha256(str(payload['diff_id']), 'diff_id') != obj.diff_id:
+        repository = _require_string(payload['repository'], 'repository')
+        base_commit = require_git_object_id(payload['base_commit'], 'base_commit')
+        base_tree = require_git_object_id(payload['base_tree'], 'base_tree')
+        head_commit = require_git_object_id(payload['head_commit'], 'head_commit')
+        head_tree = require_git_object_id(payload['head_tree'], 'head_tree')
+        algorithm_generation = _require_string(payload['algorithm_generation'], 'algorithm_generation')
+        diff_id = require_full_sha256(payload['diff_id'], 'diff_id')
+        obj = cls.create(repository=repository, base_commit=base_commit, base_tree=base_tree, head_commit=head_commit, head_tree=head_tree, scope=scope, algorithm_generation=algorithm_generation)
+        if diff_id != obj.diff_id:
             raise ReviewWorldError('diff_id mismatch')
+        if obj.to_payload() != payload:
+            raise ReviewWorldError('GitHubDiffIdentity persisted payload is not canonical')
         return obj
 
 @dataclass(frozen=True)
@@ -253,8 +277,8 @@ class GitHubReviewWorld:
         scope.validate()
         diff.validate()
         repository_id = normalize_repository_identity(repository)
-        if pr_number <= 0:
-            raise ReviewWorldError('pr_number must be positive')
+        if not isinstance(pr_number, int) or isinstance(pr_number, bool) or pr_number <= 0:
+            raise ReviewWorldError('pr_number must be a positive integer')
         if diff.repository != repository_id:
             raise ReviewWorldError('diff repository identity does not match Review World repository')
         if diff.scope_id != scope.scope_id:
@@ -316,9 +340,23 @@ class GitHubReviewWorld:
         unresolved = payload['unresolved_state']
         if not isinstance(unresolved, list) or not all((isinstance(x, str) for x in unresolved)):
             raise ReviewWorldError('unresolved_state must be a string array')
-        obj = cls.create(repository=str(payload['repository']), pr_number=int(payload['pr_number']), diff=diff, scope=scope, review_mode=str(payload['review_mode']), rab_id=str(payload['rab_id']), review_generation=str(payload['review_generation']), merge_commit=None if payload['merge_commit'] is None else str(payload['merge_commit']), merge_tree=None if payload['merge_tree'] is None else str(payload['merge_tree']), unresolved_state=unresolved)
-        if require_full_sha256(str(payload['review_world_id']), 'review_world_id') != obj.review_world_id:
+        if any((not item.strip()) or item != item.strip() for item in unresolved):
+            raise ReviewWorldError('unresolved_state entries must already be canonical non-empty strings')
+        repository = _require_string(payload['repository'], 'repository')
+        pr_number = payload['pr_number']
+        if not isinstance(pr_number, int) or isinstance(pr_number, bool) or pr_number <= 0:
+            raise ReviewWorldError('pr_number must be a positive integer')
+        review_mode = _require_string(payload['review_mode'], 'review_mode')
+        rab_id = require_full_sha256(payload['rab_id'], 'rab_id')
+        review_generation = _require_string(payload['review_generation'], 'review_generation')
+        merge_commit = None if payload['merge_commit'] is None else require_git_object_id(payload['merge_commit'], 'merge_commit')
+        merge_tree = None if payload['merge_tree'] is None else require_git_object_id(payload['merge_tree'], 'merge_tree')
+        review_world_id = require_full_sha256(payload['review_world_id'], 'review_world_id')
+        obj = cls.create(repository=repository, pr_number=pr_number, diff=diff, scope=scope, review_mode=review_mode, rab_id=rab_id, review_generation=review_generation, merge_commit=merge_commit, merge_tree=merge_tree, unresolved_state=unresolved)
+        if review_world_id != obj.review_world_id:
             raise ReviewWorldError('review_world_id mismatch')
+        if obj.to_payload() != payload:
+            raise ReviewWorldError('GitHubReviewWorld persisted payload is not canonical')
         return obj
 
 @dataclass(frozen=True)
@@ -335,7 +373,7 @@ class LocalReviewWorld:
     @classmethod
     def create(cls, *, repository: str | None, local_snapshot_id: str, scope: ReviewScope, rab_id: str, review_generation: str) -> 'LocalReviewWorld':
         scope.validate()
-        repository_id = normalize_repository_identity(repository) if repository else None
+        repository_id = normalize_repository_identity(repository) if repository is not None else None
         local_snapshot_id = require_full_sha256(local_snapshot_id, 'local_snapshot_id')
         rab_id = require_full_sha256(rab_id, 'rab_id')
         if not review_generation:
@@ -371,7 +409,14 @@ class LocalReviewWorld:
         if not isinstance(scope_payload, Mapping):
             raise ReviewWorldError('Local Review World scope must be an object')
         scope = ReviewScope.from_payload(scope_payload)
-        obj = cls.create(repository=None if payload['repository'] is None else str(payload['repository']), local_snapshot_id=str(payload['local_snapshot_id']), scope=scope, rab_id=str(payload['rab_id']), review_generation=str(payload['review_generation']))
-        if require_full_sha256(str(payload['review_world_id']), 'review_world_id') != obj.review_world_id:
+        repository = None if payload['repository'] is None else _require_string(payload['repository'], 'repository')
+        local_snapshot_id = require_full_sha256(payload['local_snapshot_id'], 'local_snapshot_id')
+        rab_id = require_full_sha256(payload['rab_id'], 'rab_id')
+        review_generation = _require_string(payload['review_generation'], 'review_generation')
+        review_world_id = require_full_sha256(payload['review_world_id'], 'review_world_id')
+        obj = cls.create(repository=repository, local_snapshot_id=local_snapshot_id, scope=scope, rab_id=rab_id, review_generation=review_generation)
+        if review_world_id != obj.review_world_id:
             raise ReviewWorldError('review_world_id mismatch')
+        if obj.to_payload() != payload:
+            raise ReviewWorldError('LocalReviewWorld persisted payload is not canonical')
         return obj
