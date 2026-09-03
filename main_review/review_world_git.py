@@ -134,7 +134,9 @@ class LocalSnapshotPolicy:
         if self.untracked_policy != 'include_selected_untracked' and normalized:
             raise GitCommandError('selected_untracked paths require include_selected_untracked policy')
         if self.generated_state == 'bound':
-            object.__setattr__(self, 'generated_binding_id', require_full_sha256(str(self.generated_binding_id or ''), 'generated_binding_id'))
+            if not isinstance(self.generated_binding_id, str):
+                raise GitCommandError('generated_binding_id must be a string')
+            object.__setattr__(self, 'generated_binding_id', require_full_sha256(self.generated_binding_id, 'generated_binding_id'))
         elif self.generated_binding_id is not None:
             raise GitCommandError('generated_binding_id is only valid for bound generated state')
 
