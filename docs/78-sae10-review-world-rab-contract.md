@@ -52,6 +52,7 @@ The candidate preserves prior review generations rather than rewriting them.
 - Fresh external exact-head review of `8939f93eba730c3519f3ffe84c5e3793b6c15a90` (CodeRabbit run `7c0b86f6-b27e-4b33-9641-62d2868b366c`) exposed a construction/persistence asymmetry: truthy non-string generation values could be hashed into Review World authority objects that their own persisted decoders would later reject. Five regressions reproduced the class before the v7 repair.
 - Fresh external exact-head review of v7 head `64f420aaea40594c4165ad64601b4db5547e275f` (CodeRabbit run `83e3c959-0d29-414a-b2ab-78f7b76aa411`) exposed three additional authority-boundary defects: coercible PR transport facts, dangling/nested symbolic local HEAD collapsing into `unborn`, and invalid/blank unresolved-state entries collapsing before exact-world rejection. All three findings reproduced before repair. The final regression surface binds 13 hostile cases into three repository test nodes.
 - Fresh external exact-head review of corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73` (CodeRabbit run `d33a4848-57e5-4cc8-bb65-d8715c6f987f`) exposed one additional authority-boundary defect: a bound `LocalSnapshotPolicy.generated_binding_id` was coerced through `str(...)`, allowing non-string values with SHA-256-shaped string representations to enter snapshot identity. A RED regression demonstrated the coercion before the v9 repair.
+- Owner/Root authority audit of exact v9 head `940fd609ebc18a62bd678a09518f43ed35b04a68` found one documentation-level roadmap error before merge: the residual boundary incorrectly stated that SAE-20 could not advance until SAE-10 closed. The frozen roadmap gives SAE-20 its own proof dependency of SAE-00 and separately permits safe downstream preparation before unresolved dependencies. The in-progress external review run `2c410bcc-a73a-4929-b8de-e8c5b601cba1` is therefore superseded as candidate authority by this v10 correction.
 
 ## v8 root repair
 
@@ -81,13 +82,22 @@ The minimal production repair head is `5e8e34d4b2c8d342264bde9510a6900ce4e828b1`
 
 Main Review run `33753103819` passed. Complete-repository CI run `33753103838` produced **1243 passed, 2 intentional historical XFAILs, and exactly 1 failure**. The sole failure is the deliberately stale v8 candidate content binding for `main_review/review_world_git.py`; the new generated-binding regression is GREEN and no production test failed.
 
+## v10 roadmap dependency correction
+
+The v10 correction changes no Review World/RAB production behavior and adds no test node. It narrows lifecycle prose back to the frozen DAG:
+
+- SAE-10 closure controls only SAE-10's own PROVEN state and the availability of `QUALIFIED_REVIEW_WORLD_CONTRACT` / `QUALIFIED_RAB_CONTRACT` to nodes that explicitly depend on SAE-10;
+- SAE-20 remains an independent frontier programme whose frozen proof dependency is SAE-00;
+- safe downstream preparation remains allowed under the roadmap's dependency-frontier doctrine;
+- no downstream node is auto-qualified or auto-proven by SAE-10 closeout.
+
 ## Current proof boundary
 
-The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. The v9 repair adds exactly **1** repository regression node and does not create a new manifest-history test node, producing a v9 focused collection of **129 tests** and reconciled production dependency surface of **116 passed / 0 failed**.
+The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. The v9 repair adds exactly **1** repository regression node and does not create a new manifest-history test node, producing a v9/v10 focused collection of **129 tests** and reconciled production dependency surface of **116 passed / 0 failed**.
 
-The existing manifest-history proof node is extended rather than replaced: all v1–v8 assertions remain present and the v9 review/repair generation is added to the same mechanical history check. This avoids both silently dropping prior authority evidence and inflating collection counts merely because the candidate was rebound.
+The existing manifest-history proof node is extended rather than replaced: all v1–v9 assertions remain present and the v10 authority-wording correction is added to the same mechanical history check. This avoids both silently dropping prior authority evidence and inflating collection counts merely because the candidate was rebound.
 
-The first v8 rebound head proved **1243 passed / 2 intentional historical XFAILs / 0 failed** in exact-head CI `33741506139`, with clean-clone supplementary proof and Main Review `33741506299` passing. That run exposed only the proof-accounting fact that the new manifest-history binding itself was an additional focused test node; the corrected v8 head then underwent the fresh external review that discovered the v9 generated-binding defect recorded above.
+The exact v9 rebound head `940fd609ebc18a62bd678a09518f43ed35b04a68` proved **1244 passed / 2 intentional historical XFAILs / 0 failed** in CI `33753660492`, with the complete clean-clone supplementary chain passing and Main Review `33753660693` passing. That proof remains valid evidence for unchanged production behavior but cannot authorize a different candidate head after the v10 content correction.
 
 The eight external authority paths remain byte-stable and must continue to match their exact Git blob bindings.
 
@@ -99,4 +109,4 @@ General SAE-30 Qualification Authority machinery does not yet exist and is **not
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe`, `b3c4e409bfb7e0fd498d7790bef3b391f9595755`, `ece5ae76b2d76763524d5be46be8bd619af300b2`, `8939f93eba730c3519f3ffe84c5e3793b6c15a90`, `64f420aaea40594c4165ad64601b4db5547e275f`, proof-accounting rebound `9886531ececc71b52f4a666e5a14596027d1747d`, corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73`, RED head `d81f740e6e97d0882168f0475899d3ca8c945fab`, and repair intermediate `5e8e34d4b2c8d342264bde9510a6900ce4e828b1` are superseded or non-freezeable by later v9 evidence. SAE-10 is not lifecycle-PROVEN until the rebound v9 candidate survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. No SAE-20 work may advance across that boundary.
+This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe`, `b3c4e409bfb7e0fd498d7790bef3b391f9595755`, `ece5ae76b2d76763524d5be46be8bd619af300b2`, `8939f93eba730c3519f3ffe84c5e3793b6c15a90`, `64f420aaea40594c4165ad64601b4db5547e275f`, proof-accounting rebound `9886531ececc71b52f4a666e5a14596027d1747d`, corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73`, RED head `d81f740e6e97d0882168f0475899d3ca8c945fab`, repair intermediate `5e8e34d4b2c8d342264bde9510a6900ce4e828b1`, and v9 rebound `940fd609ebc18a62bd678a09518f43ed35b04a68` are superseded or non-freezeable by later evidence. SAE-10 is not lifecycle-PROVEN until the rebound v10 candidate survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. SAE-20 remains governed by its own frozen SAE-00 proof dependency; SAE-10 closeout neither blocks safe SAE-20 preparation nor auto-qualifies or auto-proves SAE-20.
