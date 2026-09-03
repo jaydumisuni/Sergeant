@@ -7,20 +7,20 @@
   ],
   "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
   "content_blobs": {
-    "docs/78-sae10-review-world-rab-contract.md": "ebfe8f5347cae0dafb65e11d7a66c3df2571ad9d",
+    "docs/78-sae10-review-world-rab-contract.md": "da6b8965cad2a8f3aa619c3a17eb6032e94e0a2c",
     "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "f23a88cff7e77eef6e8fd814a0b76b9366b36c00",
     "main_review/review_authority_bundle.py": "633ac2013140a45c67df7c34d55380c52d1ab183",
     "main_review/review_world.py": "af4a32de1717f706d07377dcfaf65b2558f2d617",
     "main_review/review_world_currentness.py": "6593bb3721cdcd3e188523dd79c0bd2448fc9a78",
-    "main_review/review_world_git.py": "5f194b67cdceafb4b7098c5b3a8cfaa4015f3a51",
+    "main_review/review_world_git.py": "a0a30a410dd1478e9ed354b20c1b9e8886b3fecd",
     "tests/conftest.py": "c9d4e3ceb940bd97ec2a851ae56f705aafb54365",
     "tests/test_review_authority_bundle.py": "3a177f90daea1ea6b6943d8ab23254113bf9cb29",
     "tests/test_review_world_currentness.py": "58045ae2cba3d08e57f6668c6d8166c014ae3231",
-    "tests/test_review_world_git.py": "8a6e77ff54ed030184769129d186621b19423026",
+    "tests/test_review_world_git.py": "8e860e21b988be4a6cfde0ccb6a233056a8a5f61",
     "tests/test_review_world_identity.py": "4dafb2f433d855e81f957513e47056e91dcecd12",
     "tests/test_review_world_persistence.py": "8e8258ef7285eef59e34a2e9bd7d7f7eda7ee65e",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_sae10_review_world_rab_manifest.py": "25d5c8c9d7f07af52a253ae56d08f6c6be849593",
+    "tests/test_sae10_review_world_rab_manifest.py": "7e7ad48ee88564d13cf2464317417c24e63748ed",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
@@ -328,6 +328,49 @@
         "tests/test_review_world_git.py": "8a6e77ff54ed030184769129d186621b19423026",
         "tests/test_review_world_persistence.py": "8e8258ef7285eef59e34a2e9bd7d7f7eda7ee65e"
       }
+    },
+    "exact_v8_generated_binding_hostile_review": {
+      "reviewed_head": "16c623935549d7b87ae0b96eef58c8630d252c73",
+      "review_run_id": "d33a4848-57e5-4cc8-bb65-d8715c6f987f",
+      "review_basis": "external_exact_head_plus_owner_root_red_green_reproduction",
+      "finding_class": "local_generated_binding_identity_type_coercion",
+      "actionable_findings": 1,
+      "valid_findings": [
+        "generated_binding_id_non_string_coercion"
+      ],
+      "red_regressions": {
+        "failed_as_expected": 1
+      },
+      "red_test_head": "d81f740e6e97d0882168f0475899d3ca8c945fab",
+      "red_repository_reproof": {
+        "ci_run_id": 33752751547,
+        "failed": 2,
+        "passed": 1242,
+        "xfailed": 2,
+        "failures": [
+          "generated_binding_id_non_string_coercion_regression",
+          "candidate_content_blob_bindings_stale"
+        ]
+      },
+      "accepted_repairs": [
+        "generated_binding_id_requires_string_before_sha256_validation"
+      ],
+      "intermediate_repair_head": "5e8e34d4b2c8d342264bde9510a6900ce4e828b1",
+      "intermediate_repository_reproof": {
+        "ci_run_id": 33753103838,
+        "failed": 1,
+        "passed": 1243,
+        "xfailed": 2,
+        "sole_failure": "candidate_content_blob_bindings_stale",
+        "main_review_run_id": 33753103819,
+        "main_review": "pass",
+        "clean_clone_proof": "blocked_by_same_stale_candidate_binding_before_supplementary_steps"
+      },
+      "focused_collection": 129,
+      "replacement_content_blobs": {
+        "main_review/review_world_git.py": "a0a30a410dd1478e9ed354b20c1b9e8886b3fecd",
+        "tests/test_review_world_git.py": "8e860e21b988be4a6cfde0ccb6a233056a8a5f61"
+      }
     }
   },
   "imported_github_checkpoint": "17c4240af1969e0fc999379c5243696347820def",
@@ -349,16 +392,16 @@
     "unauthorized_rab_combination",
     "candidate_self_activation"
   ],
-  "schema_version": "sergeant.sae10-review-world-rab-candidate.v8",
+  "schema_version": "sergeant.sae10-review-world-rab-candidate.v9",
   "tenfold_proof": {
     "actions_required": false,
     "formation_lanes": 20,
-    "focused_collection": 128,
+    "focused_collection": 129,
     "local_dependency_surface_reconciliation": {
       "failed": 0,
-      "passed": 115,
+      "passed": 116,
       "xfailed": 0,
-      "basis": "v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_regression_nodes"
+      "basis": "v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_plus_1_v9_generated_binding_regression_node"
     },
     "repository_only_focused_tests": 12
   }
