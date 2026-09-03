@@ -7,10 +7,10 @@
   ],
   "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
   "content_blobs": {
-    "docs/78-sae10-review-world-rab-contract.md": "cd2bef9d51a1c02b448de3bec6b1c5a76afd8470",
+    "docs/78-sae10-review-world-rab-contract.md": "0875129263e6756e44ad5fa54593f2f440777fcb",
     "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "f23a88cff7e77eef6e8fd814a0b76b9366b36c00",
     "main_review/review_authority_bundle.py": "633ac2013140a45c67df7c34d55380c52d1ab183",
-    "main_review/review_world.py": "9d6081641506bcdb205271b9a6aa5e3e60c3bc65",
+    "main_review/review_world.py": "34692d55c3944d4188c49d6546800374d9258da7",
     "main_review/review_world_currentness.py": "6593bb3721cdcd3e188523dd79c0bd2448fc9a78",
     "main_review/review_world_git.py": "051bbe22b6a53eb2efec2722abd1712788f15563",
     "tests/conftest.py": "c9d4e3ceb940bd97ec2a851ae56f705aafb54365",
@@ -18,9 +18,9 @@
     "tests/test_review_world_currentness.py": "58045ae2cba3d08e57f6668c6d8166c014ae3231",
     "tests/test_review_world_git.py": "5bdbdb57e146fe9302459aea5f8f4af151e18803",
     "tests/test_review_world_identity.py": "4dafb2f433d855e81f957513e47056e91dcecd12",
-    "tests/test_review_world_persistence.py": "46422a3ab99311fc4cf4b991c64de70d8e25b96b",
+    "tests/test_review_world_persistence.py": "99b3f1146588fc6fd79e5dca8426fde7f672abf6",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_sae10_review_world_rab_manifest.py": "95a7c8023ba8f0fbb4302dc4b9143d33108527be",
+    "tests/test_sae10_review_world_rab_manifest.py": "fe35c3da93e035b783b42857e2bc51bc8135f57d",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
@@ -226,6 +226,52 @@
       "focused_collection_after_repair": 119,
       "disposition": "superseded_for_freeze_by_owner_root_finding",
       "replacement_manifest_test_blob": "95a7c8023ba8f0fbb4302dc4b9143d33108527be"
+    },
+    "exact_generation_type_hostile_review": {
+      "reviewed_head": "8939f93eba730c3519f3ffe84c5e3793b6c15a90",
+      "review_run_id": "7c0b86f6-b27e-4b33-9641-62d2868b366c",
+      "review_basis": "external_exact_head_plus_owner_root_reproduction",
+      "finding_class": "review_world_generation_construction_persistence_asymmetry",
+      "actionable_findings": 1,
+      "valid_findings": [
+        "non_string_generation_can_be_hashed_into_unreloadable_review_world_authority"
+      ],
+      "reviewed_head_repository_reproof": {
+        "ci_run_id": 33724258241,
+        "failed": 0,
+        "passed": 1234,
+        "xfailed": 2,
+        "clean_clone_proof": "pass",
+        "main_review": "pass"
+      },
+      "red_regressions": {
+        "failed_as_expected": 5
+      },
+      "accepted_repairs": [
+        "review_scope_generation_requires_string_before_hashing",
+        "github_diff_algorithm_generation_requires_string_before_hashing_and_validation",
+        "github_review_world_generation_requires_string_before_hashing",
+        "local_review_world_generation_requires_string_before_hashing"
+      ],
+      "intermediate_repair_head": "8c43caa0ea897e5d17bb6574dea1960d9a6af846",
+      "intermediate_repository_reproof": {
+        "ci_run_id": 33727961009,
+        "failed": 1,
+        "passed": 1238,
+        "xfailed": 2,
+        "sole_failure": "candidate_content_blob_bindings_stale",
+        "main_review": "pass"
+      },
+      "local_generation_reproof": {
+        "failed": 0,
+        "passed": 5,
+        "xfailed": 0
+      },
+      "focused_collection": 124,
+      "replacement_content_blobs": {
+        "main_review/review_world.py": "34692d55c3944d4188c49d6546800374d9258da7",
+        "tests/test_review_world_persistence.py": "99b3f1146588fc6fd79e5dca8426fde7f672abf6"
+      }
     }
   },
   "imported_github_checkpoint": "17c4240af1969e0fc999379c5243696347820def",
@@ -247,16 +293,16 @@
     "unauthorized_rab_combination",
     "candidate_self_activation"
   ],
-  "schema_version": "sergeant.sae10-review-world-rab-candidate.v6",
+  "schema_version": "sergeant.sae10-review-world-rab-candidate.v7",
   "tenfold_proof": {
     "actions_required": false,
     "formation_lanes": 20,
-    "focused_collection": 119,
+    "focused_collection": 124,
     "local_dependency_surface_reconciliation": {
       "failed": 0,
-      "passed": 107,
+      "passed": 112,
       "xfailed": 0,
-      "basis": "v5_frozen_93_plus_14_fresh_red_green_nodes"
+      "basis": "v5_frozen_93_plus_14_v6_red_green_plus_5_generation_strict_red_green"
     },
     "repository_only_focused_tests": 12
   }
