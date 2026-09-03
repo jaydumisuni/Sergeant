@@ -26,6 +26,8 @@ def check_github_currentness(frozen: GitHubReviewWorld, current: GitHubReviewWor
     reasons = []
     if frozen.repository != current.repository:
         reasons.append('repository_mismatch')
+    if frozen.pr_number != current.pr_number:
+        reasons.append('pr_number_mismatch')
     if frozen.diff.base_commit != current.diff.base_commit or frozen.diff.base_tree != current.diff.base_tree:
         reasons.append('base_identity_mismatch')
     if frozen.diff.head_commit != current.diff.head_commit or frozen.diff.head_tree != current.diff.head_tree:
