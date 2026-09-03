@@ -286,6 +286,7 @@ def _resolve_local_head(resolver: GitObjectResolver) -> tuple[Literal['attached'
 def build_local_snapshot(root: str | Path, *, scope: ReviewScope, policy: LocalSnapshotPolicy) -> LocalSnapshot:
     root = Path(root)
     resolver = GitObjectResolver(root)
+    scope.validate()
     if policy.generated_state == 'material_unbound':
         raise GitCommandError('generated material is declared but has no exact binding')
     head_state, head_commit, head_tree = _resolve_local_head(resolver)
