@@ -212,3 +212,28 @@ def test_direct_diff_validation_rejects_numeric_algorithm_generation():
     forged = rw.GitHubDiffIdentity('sergeant.github-diff-identity.v1', 'owner/repo', A, C, B, D, 1, s.scope_id, rw.sha256_id(body))
     with pytest.raises(rw.ReviewWorldError, match='algorithm_generation must be a string'):
         forged.validate()
+
+
+class _BlankStringableUnresolved:
+
+    def __str__(self):
+        return ''
+
+
+def test_github_world_create_rejects_invalid_unresolved_entries_before_collapse():
+    s = _scope()
+    d = rw.GitHubDiffIdentity.create(repository='owner/repo', base_commit=A, base_tree=C, head_commit=B, head_tree=D, scope=s)
+    bad_entries = ('', '   ', None, 7, False, _BlankStringableUnresolved())
+    for bad_entry in bad_entries:
+        expected = 'unresolved_state entries must be non-empty' if isinstance(bad_entry, str) else 'unresolved_state entries must be strings'
+        with pytest.raises(rw.ReviewWorldError, match=expected):
+            rw.GitHubReviewWorld.create(
+                repository='owner/repo',
+                pr_number=7,
+                diff=d,
+                scope=s,
+                review_mode='head',
+                rab_id=R,
+                review_generation='sae10-v1',
+                unresolved_state=[bad_entry],
+            )

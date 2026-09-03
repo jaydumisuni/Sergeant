@@ -61,6 +61,13 @@ class GitObjectResolver:
             raise GitCommandError(f"git {' '.join(args)} failed with exit {c.returncode}: {detail or 'no diagnostic'}")
         return c.stdout
 
+    def _returncode(self, *args: str) -> int:
+        try:
+            c = subprocess.run(['git', *args], cwd=self.root, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False, env=_git_subprocess_env())
+        except OSError as e:
+            raise GitCommandError(f'git command unavailable: {e}') from e
+        return c.returncode
+
     def tree_for_commit(self, commit: str) -> str:
         commit = require_git_object_id(commit, 'commit')
         out = self._run('rev-parse', f'{commit}^{{tree}}')
@@ -89,12 +96,14 @@ def build_github_review_world(*, repository: str, pr_number: int, base_sha: str,
 
 def build_github_review_world_from_diff(pull_request_diff: object, *, scope: ReviewScope, review_mode: str, rab_id: str, review_generation: str, resolver: GitObjectResolverProtocol) -> GitHubReviewWorld:
     try:
-        repository = str(getattr(pull_request_diff, 'repository'))
-        pr_number = int(getattr(pull_request_diff, 'pr_number'))
-        base_sha = str(getattr(pull_request_diff, 'base_sha'))
-        head_sha = str(getattr(pull_request_diff, 'head_sha'))
-    except (AttributeError, TypeError, ValueError) as e:
+        repository = getattr(pull_request_diff, 'repository')
+        pr_number = getattr(pull_request_diff, 'pr_number')
+        base_sha = getattr(pull_request_diff, 'base_sha')
+        head_sha = getattr(pull_request_diff, 'head_sha')
+    except AttributeError as e:
         raise GitCommandError('pull-request diff transport facts are incomplete') from e
+    if not isinstance(repository, str) or type(pr_number) is not int or not isinstance(base_sha, str) or not isinstance(head_sha, str):
+        raise GitCommandError('pull-request diff transport facts are noncanonical')
     return build_github_review_world(repository=repository, pr_number=pr_number, base_sha=base_sha, head_sha=head_sha, scope=scope, review_mode=review_mode, rab_id=rab_id, review_generation=review_generation, resolver=resolver)
 
 def _normalize_policy_paths(paths: Sequence[str]) -> tuple[str, ...]:
@@ -249,12 +258,21 @@ def _resolve_local_head(resolver: GitObjectResolver) -> tuple[Literal['attached'
         raw_head = resolver._run('rev-parse', '--verify', 'HEAD')
     except GitCommandError as head_error:
         try:
-            symbolic_head = resolver._run('symbolic-ref', '-q', 'HEAD')
+            symbolic_head = resolver._run('symbolic-ref', '-q', '--no-recurse', 'HEAD')
         except GitCommandError:
             raise head_error
         if not symbolic_head.startswith('refs/heads/'):
             raise head_error
-        return ('unborn', None, None)
+        try:
+            resolver._run('symbolic-ref', '-q', '--no-recurse', symbolic_head)
+        except GitCommandError:
+            pass
+        else:
+            raise head_error
+        ref_status = resolver._returncode('show-ref', '--verify', '--quiet', symbolic_head)
+        if ref_status == 1:
+            return ('unborn', None, None)
+        raise head_error
     head_commit = require_git_object_id(raw_head, 'head_commit')
     head_tree = resolver.tree_for_commit(head_commit)
     try:

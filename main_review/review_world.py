@@ -292,7 +292,15 @@ class GitHubReviewWorld:
         review_generation = _require_string(review_generation, 'review_generation')
         if not review_generation:
             raise ReviewWorldError('review generation must be non-empty')
-        unresolved = tuple(sorted({str(item).strip() for item in unresolved_state if str(item).strip()}))
+        normalized_unresolved = []
+        for item in unresolved_state:
+            if not isinstance(item, str):
+                raise ReviewWorldError('unresolved_state entries must be strings')
+            canonical_item = item.strip()
+            if not canonical_item:
+                raise ReviewWorldError('unresolved_state entries must be non-empty')
+            normalized_unresolved.append(canonical_item)
+        unresolved = tuple(sorted(set(normalized_unresolved)))
         if unresolved:
             raise ReviewWorldError('exact positive Review World cannot contain unresolved state')
         if review_mode == 'merge_result':

@@ -146,3 +146,52 @@ def test_detached_repository_preserves_commit_tree_with_explicit_head_state(tmp_
     assert snapshot.head_state == 'detached'
     assert snapshot.head_commit == head
     assert snapshot.head_tree == tree
+
+
+class _StringableTransportFact:
+
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return self.value
+
+
+def test_pull_request_diff_transport_rejects_noncanonical_fact_types_before_construction():
+    bad_cases = (
+        ('repository', _StringableTransportFact('o/r')),
+        ('pr_number', '1'),
+        ('pr_number', True),
+        ('base_sha', _StringableTransportFact(A)),
+        ('head_sha', _StringableTransportFact(B)),
+    )
+    for field, bad_value in bad_cases:
+        facts = {'repository': 'o/r', 'pr_number': 1, 'base_sha': A, 'head_sha': B}
+        facts[field] = bad_value
+        transport = type('TransportDiff', (), facts)()
+        with pytest.raises(g.GitCommandError, match='transport facts are noncanonical'):
+            g.build_github_review_world_from_diff(
+                transport,
+                scope=rw.ReviewScope.repository(),
+                review_mode='head',
+                rab_id=R,
+                review_generation='g',
+                resolver=Fake(),
+            )
+
+
+@pytest.mark.skipif(shutil.which('git') is None, reason='git unavailable')
+def test_unborn_head_requires_absent_branch_ref_not_dangling_or_nested_symbolic_ref(tmp_path):
+    for kind in ('nested_symbolic', 'dangling_object'):
+        repo = tmp_path / kind
+        repo.mkdir()
+        git(repo, 'init', '-q')
+        branch = git(repo, 'symbolic-ref', '--short', 'HEAD')
+        ref_path = repo / '.git' / 'refs' / 'heads' / branch
+        ref_path.parent.mkdir(parents=True, exist_ok=True)
+        if kind == 'nested_symbolic':
+            ref_path.write_text('ref: refs/heads/missing-target\n')
+        else:
+            ref_path.write_text('0' * 39 + '1\n')
+        with pytest.raises(g.GitCommandError):
+            g._resolve_local_head(g.GitObjectResolver(repo))
