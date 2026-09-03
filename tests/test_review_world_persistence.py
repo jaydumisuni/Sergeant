@@ -176,3 +176,39 @@ def test_local_world_decode_rejects_numeric_rab_id_with_canonical_id():
 def test_local_world_decode_rejects_numeric_review_generation_with_canonical_id():
     canonical=_local(review_generation='1'); payload=canonical.to_payload(); payload['review_generation']=1
     with pytest.raises(rw.ReviewWorldError): rw.LocalReviewWorld.from_payload(payload)
+
+# SAE-10 v7 construction/persistence symmetry hostile regressions.
+
+def test_scope_create_rejects_numeric_generation_before_hashing():
+    with pytest.raises(rw.ReviewWorldError, match='generation must be a string'):
+        rw.ReviewScope._create(kind='selected_paths', paths=['src/a.py'], generation=1)
+
+def test_diff_create_rejects_numeric_algorithm_generation_before_hashing():
+    with pytest.raises(rw.ReviewWorldError, match='algorithm_generation must be a string'):
+        rw.GitHubDiffIdentity.create(repository='owner/repo', base_commit=A, base_tree=C, head_commit=B, head_tree=D, scope=_scope(), algorithm_generation=1)
+
+def test_github_world_create_rejects_numeric_review_generation_before_hashing():
+    s = _scope()
+    d = rw.GitHubDiffIdentity.create(repository='owner/repo', base_commit=A, base_tree=C, head_commit=B, head_tree=D, scope=s)
+    with pytest.raises(rw.ReviewWorldError, match='review_generation must be a string'):
+        rw.GitHubReviewWorld.create(repository='owner/repo', pr_number=7, diff=d, scope=s, review_mode='head', rab_id=R, review_generation=1)
+
+def test_local_world_create_rejects_numeric_review_generation_before_hashing():
+    with pytest.raises(rw.ReviewWorldError, match='review_generation must be a string'):
+        rw.LocalReviewWorld.create(repository='owner/repo', local_snapshot_id=R, scope=_scope(), rab_id=R, review_generation=1)
+
+def test_direct_diff_validation_rejects_numeric_algorithm_generation():
+    s = _scope()
+    body = {
+        'schema_version': 'sergeant.github-diff-identity.v1',
+        'repository': 'owner/repo',
+        'base_commit': A,
+        'base_tree': C,
+        'head_commit': B,
+        'head_tree': D,
+        'algorithm_generation': 1,
+        'scope_id': s.scope_id,
+    }
+    forged = rw.GitHubDiffIdentity('sergeant.github-diff-identity.v1', 'owner/repo', A, C, B, D, 1, s.scope_id, rw.sha256_id(body))
+    with pytest.raises(rw.ReviewWorldError, match='algorithm_generation must be a string'):
+        forged.validate()

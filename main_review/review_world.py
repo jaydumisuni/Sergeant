@@ -115,6 +115,7 @@ class ReviewScope:
             raise ReviewWorldError('invalid submodule scope policy')
         if untracked not in {'excluded', 'selected', 'all_in_scope', 'unresolved'}:
             raise ReviewWorldError('invalid untracked scope policy')
+        generation = _require_string(generation, 'generation')
         if not generation:
             raise ReviewWorldError('scope generation must be non-empty')
         body = {'schema_version': 'sergeant.review-scope.v1', 'kind': kind, 'paths': list(normalized), 'generated_artifacts': generated_artifacts, 'submodules': submodules, 'untracked': untracked, 'generation': generation}
@@ -198,6 +199,7 @@ class GitHubDiffIdentity:
         base_tree = require_git_object_id(base_tree, 'base_tree')
         head_commit = require_git_object_id(head_commit, 'head_commit')
         head_tree = require_git_object_id(head_tree, 'head_tree')
+        algorithm_generation = _require_string(algorithm_generation, 'algorithm_generation')
         if not algorithm_generation:
             raise ReviewWorldError('diff identity algorithm generation must be non-empty')
         require_full_sha256(scope.scope_id, 'scope_id')
@@ -219,7 +221,8 @@ class GitHubDiffIdentity:
         head_commit = require_git_object_id(self.head_commit, 'head_commit')
         head_tree = require_git_object_id(self.head_tree, 'head_tree')
         scope_id = require_full_sha256(self.scope_id, 'scope_id')
-        if not self.algorithm_generation:
+        algorithm_generation = _require_string(self.algorithm_generation, 'algorithm_generation')
+        if not algorithm_generation:
             raise ReviewWorldError('diff identity algorithm generation must be non-empty')
         body = {
             'schema_version': 'sergeant.github-diff-identity.v1',
@@ -286,6 +289,7 @@ class GitHubReviewWorld:
         if review_mode not in _REVIEW_MODES:
             raise ReviewWorldError(f'unknown review mode: {review_mode!r}')
         rab_id = require_full_sha256(rab_id, 'rab_id')
+        review_generation = _require_string(review_generation, 'review_generation')
         if not review_generation:
             raise ReviewWorldError('review generation must be non-empty')
         unresolved = tuple(sorted({str(item).strip() for item in unresolved_state if str(item).strip()}))
@@ -376,6 +380,7 @@ class LocalReviewWorld:
         repository_id = normalize_repository_identity(repository) if repository is not None else None
         local_snapshot_id = require_full_sha256(local_snapshot_id, 'local_snapshot_id')
         rab_id = require_full_sha256(rab_id, 'rab_id')
+        review_generation = _require_string(review_generation, 'review_generation')
         if not review_generation:
             raise ReviewWorldError('review generation must be non-empty')
         body = {'schema_version': 'sergeant.review-world.local.v1', 'kind': 'local', 'repository': repository_id, 'local_snapshot_id': local_snapshot_id, 'scope': scope.to_payload(), 'rab_id': rab_id, 'review_generation': review_generation}
