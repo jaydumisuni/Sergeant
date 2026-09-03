@@ -11,7 +11,7 @@ EXPECTED_CONTENT_BLOBS={
 'main_review/review_authority_bundle.py','main_review/review_world.py','main_review/review_world_currentness.py',
 'main_review/review_world_git.py','tests/conftest.py','tests/test_review_authority_bundle.py',
 'tests/test_review_world_currentness.py','tests/test_review_world_git.py','tests/test_review_world_identity.py',
-'tests/test_review_world_persistence.py','tests/test_sae10_hostile_matrix.py',
+'tests/test_review_world_persistence.py','tests/test_sae10_hostile_matrix.py','tests/test_sae10_v10_hostile_review_regressions.py',
 'tests/test_spike_sem_historical_metric_supersession.py','tests/test_sae10_review_world_rab_manifest.py'}
 EXPECTED_EXTERNAL_AUTHORITY_BLOBS={
 'docs/58-sergeant-assurance-evolution-founding-architecture.md','docs/59-sergeant-assurance-evolution-roadmap.md',
@@ -32,7 +32,7 @@ def _assert_exact_blob_bindings(bindings, expected_paths, *, blob_fn=blob):
 
 def test_candidate_manifest_lifecycle_and_dependency():
     m=_load(); assert (m['schema_version'],m['lifecycle_state'],m['proof_dependency'],m['normal_verdict_authority'])==(
-    'sergeant.sae10-review-world-rab-candidate.v10','CANDIDATE',['SAE-00'],False)
+    'sergeant.sae10-review-world-rab-candidate.v11','CANDIDATE',['SAE-00'],False)
 def test_candidate_manifest_outputs_are_exact():
     assert _load()['produces']==['QUALIFIED_REVIEW_WORLD_CONTRACT','QUALIFIED_RAB_CONTRACT']
 def test_manifest_paths_are_repository_confined():
@@ -53,9 +53,9 @@ def test_external_authority_binding_guard_rejects_extra_member_and_hash_mismatch
     with pytest.raises(AssertionError):
         _assert_exact_blob_bindings(b,EXPECTED_EXTERNAL_AUTHORITY_BLOBS,blob_fn=lambda p:bad[str(p)])
 def test_tenfold_formation_and_focused_proof_are_bound():
-    assert _load()['tenfold_proof']=={'actions_required':False,'formation_lanes':20,'focused_collection':129,
-    'local_dependency_surface_reconciliation':{'failed':0,'passed':116,'xfailed':0,
-    'basis':'v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_plus_1_v9_generated_binding_regression_node'},
+    assert _load()['tenfold_proof']=={'actions_required':False,'formation_lanes':20,'focused_collection':132,
+    'local_dependency_surface_reconciliation':{'failed':0,'passed':118,'xfailed':0,
+    'basis':'v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_plus_1_v9_generated_binding_plus_2_v11_production_boundary_regressions'},
     'repository_only_focused_tests':12}
 def test_required_hostile_attacks_are_bound():
     assert set(_load()['required_hostile_attacks'])=={'same_head_different_base','wrong_merge_tree','local_mutation_after_snapshot',
@@ -136,7 +136,7 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
     'tests/test_review_world_persistence.py':'99b3f1146588fc6fd79e5dca8426fde7f672abf6'}
     assert r['historical_fixture_blob_preserved']==m['external_authority_blobs'][str(HISTORICAL_SPIKE_FIXTURE)]
 
-def test_v8_v9_and_v10_exact_head_review_history_and_intermediate_proof_are_bound():
+def test_v8_v9_v10_and_v11_exact_head_review_history_and_intermediate_proof_are_bound():
     reviews=_load()['github_hostile_review']
     v=reviews['exact_v7_completion_hostile_review']
     assert (v['reviewed_head'],v['review_run_id'],v['finding_class'],v['actionable_findings'])==(
@@ -184,9 +184,9 @@ def test_v8_v9_and_v10_exact_head_review_history_and_intermediate_proof_are_boun
     'main_review/review_world_git.py':'a0a30a410dd1478e9ed354b20c1b9e8886b3fecd',
     'tests/test_review_world_git.py':'8e860e21b988be4a6cfde0ccb6a233056a8a5f61'}
     a=reviews['owner_root_v9_dependency_wording_audit']
-    assert (a['reviewed_head'],a['finding_class'],a['actionable_findings'],a['superseded_external_review_run'])==(
+    assert (a['reviewed_head'],a['finding_class'],a['actionable_findings'],a['external_review_run_disposition'])==(
     '940fd609ebc18a62bd678a09518f43ed35b04a68','roadmap_dependency_boundary_overstatement',1,
-    '2c410bcc-a73a-4929-b8de-e8c5b601cba1')
+    'completed_with_three_additional_findings_preserved_separately')
     assert a['valid_findings']==['sae20_incorrectly_blocked_by_sae10_closeout']
     assert a['accepted_repairs']==[
     'restore_sae20_independent_sae00_dependency',
@@ -194,3 +194,23 @@ def test_v8_v9_and_v10_exact_head_review_history_and_intermediate_proof_are_boun
     'limit_sae10_dependency_effect_to_explicit_sae10_dependents']
     assert a['production_behavior_changed'] is False
     assert a['focused_collection_after_correction']==129
+    h=reviews['exact_v9_completion_hostile_review']
+    assert (h['reviewed_head'],h['review_run_id'],h['finding_class'],h['actionable_findings'])==(
+    '940fd609ebc18a62bd678a09518f43ed35b04a68','2c410bcc-a73a-4929-b8de-e8c5b601cba1',
+    'pr_identity_local_scope_and_review_history_completeness',3)
+    assert set(h['valid_findings'])=={
+    'github_currentness_pr_number_identity_omission',
+    'local_snapshot_forged_scope_not_validated_before_hashing',
+    'v9_completion_review_generation_not_mechanically_bound'}
+    assert h['red_regressions']=={
+    'red_test_head':'14984cc377878d74802d7a4ec27ee6fa29732ddd','ci_run_id':33761255366,
+    'failed':3,'passed':1244,'xfailed':2}
+    assert set(h['accepted_repairs'])=={
+    'github_currentness_compares_pr_number',
+    'local_snapshot_validates_scope_before_path_selection_or_hashing',
+    'bind_v9_completion_review_generation_and_reproof'}
+    assert h['intermediate_repair_head']=='6903ba3caee39d86a397e45e270830651435253a'
+    assert h['intermediate_repository_reproof']=={
+    'ci_run_id':33761724692,'failed':2,'passed':1245,'xfailed':2,
+    'failures':['candidate_content_blob_bindings_stale','v9_completion_review_generation_missing'],
+    'main_review_run_id':33761724596,'main_review':'pass'}
