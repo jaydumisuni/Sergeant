@@ -109,5 +109,23 @@ def test_v9_completion_hostile_review_generation_is_mechanically_bound():
         'local_snapshot_validates_scope_before_path_selection_or_hashing',
         'bind_v9_completion_review_generation_and_reproof',
     }
-    assert review['red_regressions'] == {'failed_as_expected': 3}
-    assert review['replacement_local_reproof'] == {'failed': 0, 'passed': 3, 'xfailed': 0}
+    assert review['red_regressions'] == {
+        'red_test_head': '14984cc377878d74802d7a4ec27ee6fa29732ddd',
+        'ci_run_id': 33761255366,
+        'failed': 3,
+        'passed': 1244,
+        'xfailed': 2,
+    }
+    assert review['intermediate_repair_head'] == '6903ba3caee39d86a397e45e270830651435253a'
+    assert review['intermediate_repository_reproof'] == {
+        'ci_run_id': 33761724692,
+        'failed': 2,
+        'passed': 1245,
+        'xfailed': 2,
+        'failures': [
+            'candidate_content_blob_bindings_stale',
+            'v9_completion_review_generation_missing',
+        ],
+        'main_review_run_id': 33761724596,
+        'main_review': 'pass',
+    }
