@@ -129,3 +129,37 @@ def test_v9_completion_hostile_review_generation_is_mechanically_bound():
         'main_review_run_id': 33761724596,
         'main_review': 'pass',
     }
+
+
+def test_git_subprocess_env_disables_replace_objects():
+    assert git_world._git_subprocess_env()['GIT_NO_REPLACE_OBJECTS'] == '1'
+
+
+@pytest.mark.parametrize('bad_paths', ['a', b'a'])
+def test_selected_paths_rejects_string_like_container_before_iteration(bad_paths):
+    with pytest.raises(rw.ReviewWorldError, match='paths must be a non-string sequence'):
+        rw.ReviewScope.selected_paths(bad_paths)
+
+
+@pytest.mark.parametrize('bad_state', ['', b''])
+def test_unresolved_state_rejects_string_like_container_before_iteration(bad_state):
+    scope = rw.ReviewScope.repository()
+    diff = rw.GitHubDiffIdentity.create(
+        repository='o/r',
+        base_commit=A,
+        base_tree=C,
+        head_commit=B,
+        head_tree=D,
+        scope=scope,
+    )
+    with pytest.raises(rw.ReviewWorldError, match='unresolved_state must be a non-string sequence'):
+        rw.GitHubReviewWorld.create(
+            repository='o/r',
+            pr_number=1,
+            diff=diff,
+            scope=scope,
+            review_mode='head',
+            rab_id=R,
+            review_generation='g',
+            unresolved_state=bad_state,
+        )
