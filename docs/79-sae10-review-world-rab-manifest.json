@@ -20,7 +20,7 @@
     "tests/test_review_world_identity.py": "4dafb2f433d855e81f957513e47056e91dcecd12",
     "tests/test_review_world_persistence.py": "46422a3ab99311fc4cf4b991c64de70d8e25b96b",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_sae10_review_world_rab_manifest.py": "81342ecd84f308e6fdb2452a9497d9f6140ba2d3",
+    "tests/test_sae10_review_world_rab_manifest.py": "95a7c8023ba8f0fbb4302dc4b9143d33108527be",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
@@ -203,6 +203,29 @@
         "main_review/review_world.py": "9d6081641506bcdb205271b9a6aa5e3e60c3bc65",
         "tests/test_review_world_persistence.py": "46422a3ab99311fc4cf4b991c64de70d8e25b96b"
       }
+    },
+    "exact_v6_rebound_hostile_review": {
+      "reviewed_head": "ece5ae76b2d76763524d5be46be8bd619af300b2",
+      "review_basis": "proven_sae00_plus_owner_root_pre_sae30_bootstrap",
+      "finding_class": "manifest_historical_proof_coverage_regression",
+      "actionable_findings": 1,
+      "valid_findings": [
+        "manifest_test_dropped_historical_review_assertions"
+      ],
+      "reviewed_head_repository_reproof": {
+        "ci_run_id": 33723267712,
+        "failed": 0,
+        "passed": 1234,
+        "xfailed": 2,
+        "clean_clone_proof": "pass",
+        "main_review": "pass"
+      },
+      "accepted_repairs": [
+        "restore_v5_historical_review_assertions_without_new_test_node"
+      ],
+      "focused_collection_after_repair": 119,
+      "disposition": "superseded_for_freeze_by_owner_root_finding",
+      "replacement_manifest_test_blob": "95a7c8023ba8f0fbb4302dc4b9143d33108527be"
     }
   },
   "imported_github_checkpoint": "17c4240af1969e0fc999379c5243696347820def",
