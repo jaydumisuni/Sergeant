@@ -1,6 +1,6 @@
 # SAE-10 — Review World + Review Authority Bundle candidate contract
 
-Date: 2026-09-02  
+Date: 2026-09-03  
 Lifecycle state: **CANDIDATE**  
 Roadmap node: `SAE-10`  
 Proof dependency: PROVEN `SAE-00`  
@@ -17,7 +17,7 @@ Construction and hostile repair work is isolated from canonical `main`; no SAE-2
 
 SAE-10 establishes four authority components:
 
-- `main_review/review_world.py` — canonical JSON, exact ReviewScope/diff/world identity, strict decode, and canonical in-memory validation;
+- `main_review/review_world.py` — canonical JSON, exact ReviewScope/diff/world identity, strict pre-canonical persisted decode, and canonical in-memory validation;
 - `main_review/review_authority_bundle.py` — immutable ten-slot RAB construction, strict typed authority fields, pre-canonical persisted decode, whole-RAB authorization, revocation/suspension, and canonical authorization-set ordering;
 - `main_review/review_world_git.py` — exact Git/GitHub tree derivation plus content-addressed local snapshots with explicit `attached`, `detached`, and `unborn` HEAD state;
 - `main_review/review_world_currentness.py` — immutable historical world truth with separate fail-closed `CURRENT / STALE / UNKNOWN_CURRENTNESS` derivation.
@@ -35,7 +35,7 @@ The frozen roadmap attacks remain mechanically represented:
 5. an unauthorized RAB combination fails even when component generations are known;
 6. candidate authority changes cannot self-activate.
 
-Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, and authority-manifest completeness.
+Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, authority-manifest completeness, persisted primitive types, repository normalization, unresolved-state normalization, and local repository-null identity.
 
 ## Hostile-review history
 
@@ -45,18 +45,21 @@ The candidate preserves prior review generations rather than rewriting them.
 - Review of `bf368b46cd0120736645d87e8dc7fec4904a046a` produced seven valid findings covering exact manifest roster/path confinement, historical fixture binding, plan slot-name drift, authorization-state validation, Git environment isolation, duplicate decoded-scope rejection, and strict historical-node binding. All were repaired.
 - Exact-head review of `323b6f33223231b5d603a3a36ee5c07ef687a96a` produced three actionable findings. Two authority defects were repaired; the historical design-status suggestion was dispositioned without rewriting the frozen design blob.
 - Owner/Root exact-head review of `97055f975c2fe76f77b7483df885f1aa9064c560` exposed direct in-memory canonical-authority bypass. Direct RAB/ReviewScope/diff/world objects now validate before they can become authority-bearing.
-- Fresh exact-head review of `f20d83a7620622e3f2e96ffc26960f40a6a2df92` exposed four remaining canonicality/proof classes: RAB authority-field type/order coercion, persisted ReviewScope path-order acceptance, incomplete mechanical enforcement of the external-authority roster, and inability to represent detached/unborn local HEAD state as required by the frozen design. Seven regressions were written RED first and failed for the reviewed reasons. The root-cause repairs make RAB authority fields type-strict, reject non-canonical direct authorization-set order, reject non-canonical persisted scope ordering, bind the exact eight-member external-authority roster, and encode local HEAD state explicitly without inventing a fake SHA.
+- Fresh exact-head review of `f20d83a7620622e3f2e96ffc26960f40a6a2df92` exposed four canonicality/proof classes: RAB authority-field type/order coercion, persisted ReviewScope path-order acceptance, incomplete mechanical enforcement of the external-authority roster, and inability to represent detached/unborn local HEAD state as required by the frozen design. Seven RED regressions demonstrated the class before repair.
+- Owner/Root exact-head review of `924d33aa188dff673a9ca7eb7c843b6222e798fe` exposed persisted RAB decode normalization/coercion. Nine RED regressions demonstrated the class. `b3c4e409bfb7e0fd498d7790bef3b391f9595755` repaired RAB component/authorization payload canonicality and authorization-set order, and its complete-repository proof was `1220 passed`, `2` intentional historical XFAILs, `0 failed` with clean-clone and Main Review PASS.
+- A subsequent Owner/Root hostile audit of exact v5 head `b3c4e409bfb7e0fd498d7790bef3b391f9595755` found the sibling persisted Review World decode class: `ReviewScope`, `GitHubDiffIdentity`, `GitHubReviewWorld`, and `LocalReviewWorld` still admitted `str(...)`/`int(...)` coercion or normalization. Fourteen regressions were constructed with canonical normalized identities so ordinary ID-mismatch checks could not hide the defect. All 14 failed on v5 for the predicted reasons, then passed after the shared root repair.
 
-The fifth repair was published atomically as intermediate head `4b4cc9264d1db769566b5d5defea75b72c94532b`. On that exact intermediate head, complete-repository CI executed `1213` tests: `1210 passed`, `2` intentional historical XFAILs, and exactly `1` failure. The sole failure was the intentionally stale candidate `content_blobs` binding, proving no second code regression was hidden behind the manifest transition.
-- Owner/Root exact-head hostile review of `924d33aa188dff673a9ca7eb7c843b6222e798fe`, performed while fresh CodeRabbit run `a9274c9c-c2a1-4e31-9379-f4daa8d24c5b` was processing that same head, exposed one further persisted-authority decode class. `RABComponent.from_payload()` could normalize padded generation/basis fields; `RABAuthorization.from_payload()` could coerce non-string authority fields and normalize padded generation/root-basis/reason values; and `RABAuthorizationSet.from_payload()` could silently sort a non-canonical persisted record sequence. Nine RED regressions demonstrated the class. Decode now requires incoming authority payloads to already be type-correct and canonical, and persisted authorization-set order must already match canonical `rab_id` order.
+The v6 root repair makes persisted authority primitives type-strict, requires PR numbers to be actual positive integers rather than bool/float/string coercions, prevents repository case/whitespace normalization from silently changing evidence, prevents empty or noncanonical unresolved-state entries from disappearing, prevents local `""` repository identity from collapsing to `None`, and requires each decoded Review World structure to reproduce the exact incoming canonical payload.
 
-The rebound `924d33aa188dff673a9ca7eb7c843b6222e798fe` candidate had complete-repository CI `1211 passed`, `2` intentional historical XFAILs, `0 failed`, plus green clean-clone and Main Review proof. Those green results are preserved as historical evidence but do not override the later Owner/Root hostile finding; `924d33aa...` is therefore superseded and is not freezeable or mergeable.
+The two-file v6 intermediate was published atomically as `0e67e3116e9d7a6a3945550eef3fdf485f25f634`. Its production blob is `9d6081641506bcdb205271b9a6aa5e3e60c3bc65`. Main Review passed. Complete-repository CI run `33693267282` executed `1236` outcomes: `1232 passed`, `2` intentional historical XFAILs, and exactly `2` failures. One was the intentionally stale candidate content binding. The other was a stale test-message regex: production correctly rejected `7.0` immediately with `pr_number must be a positive integer`, while the old test accepted only `mismatch|non-canonical` wording. The assertion was corrected without changing production behavior and the affected decoder selection then passed `15/15` locally.
 
 ## Current proof boundary
 
-The exact focused command from the implementation plan now collects **105 tests** across eight files. In the reconstructed Tenfold dependency surface, the six fully materialized authority/code suites execute **93 passed, 0 failed**. The remaining 12 focused nodes are repository-only in this runtime: two historical supersession nodes require frozen SPIKE authority documents and ten manifest nodes require the complete bound repository authority roster. Their source files are byte-verified against the published Git objects; their execution is closed by complete-repository proof on the exact candidate tree rather than by fabricating missing local authority files.
+The exact v5 focused command collected **105 tests** across eight files. Exact v5→v6 comparison changes only `main_review/review_world.py` and `tests/test_review_world_persistence.py`, and the persistence suite adds **14** test nodes. Complete-repository outcome cardinality independently increased by the same 14 nodes. The v6 focused collection is therefore mechanically reconciled to **119 tests**.
 
-The eight external authority paths bound by `docs/79` remain byte-stable; all **8/8** Git blob SHAs match their declared authority objects.
+The prior v5 local dependency surface was **93 passed, 0 failed**. All unchanged dependency-surface files remain byte-identical, and the 14 new v6 hostile nodes are freshly RED→GREEN. The v6 local dependency surface is mechanically reconciled to **107 passed, 0 failed**. This is explicitly a reconciliation of the frozen 93-test proof plus the 14 new executed nodes, not a claim that unavailable unchanged modules were rerun in the reduced scratch workspace.
+
+The eight external authority paths bound by `docs/79` remain byte-stable; all **8/8** Git blob SHAs remain bound by the candidate manifest.
 
 The twenty Tenfold lanes remain syntax, identity/persistence, RAB, Git/local state, currentness, hostile matrix, static security, repeated determinism, tamper mutation, workspace non-mutation, strict decode, Git object formats, path attacks, RAB roster, revocation/suspension, symlink identity, generated binding, selected-untracked scope, historical-proof supersession, and full-suite reconciliation.
 
@@ -66,4 +69,4 @@ General SAE-30 Qualification Authority machinery does not yet exist and is **not
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Head `924d33aa188dff673a9ca7eb7c843b6222e798fe` is explicitly superseded by the persisted-decode hostile finding. SAE-10 is not lifecycle-PROVEN until the v5 replacement candidate is rebound to the repaired bytes, published atomically, survives complete-tree proof and a fresh exact-head hostile review, current `main` is reconciled, and the exact reviewed candidate is merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. No later authority may treat the superseded head as qualified or proven.
+This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe` and `b3c4e409bfb7e0fd498d7790bef3b391f9595755` are explicitly superseded by later hostile findings. Intermediate `0e67e3116e9d7a6a3945550eef3fdf485f25f634` is not freezeable because its candidate bindings are intentionally stale and its stale regex assertion was corrected after complete-tree proof. SAE-10 is not lifecycle-PROVEN until the rebound v6 candidate is published atomically, survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. No SAE-20 work may advance across that boundary.

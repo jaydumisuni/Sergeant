@@ -78,7 +78,7 @@ def test_world_numeric_type_coercion_is_rejected_even_with_recomputed_id():
     payload['pr_number'] = 7.0
     body = {k: v for k, v in payload.items() if k != 'review_world_id'}
     payload['review_world_id'] = rw.sha256_id(body)
-    with pytest.raises(rw.ReviewWorldError, match='(?:mismatch|non-canonical)'):
+    with pytest.raises(rw.ReviewWorldError, match='(?:positive integer|mismatch|non-canonical)'):
         rw.GitHubReviewWorld.from_payload(payload)
 
 def test_authorized_record_with_reason_is_rejected_not_normalized():
