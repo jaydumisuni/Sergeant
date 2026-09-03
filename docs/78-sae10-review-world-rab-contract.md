@@ -101,9 +101,29 @@ The test-only RED head `14984cc377878d74802d7a4ec27ee6fa29732ddd`, CI `337612553
 
 The minimal production repair reached intermediate head `6903ba3caee39d86a397e45e270830651435253a`. CI `33761724692` produced **1245 passed / 2 historical XFAIL / exactly 2 failures**. Both production regressions were GREEN; the only remaining failures were the deliberately stale candidate content binding and missing v9 review-generation evidence. Main Review `33761724596` passed. The production diff from RED to intermediate is exactly **3 added lines across 2 files**: two lines for PR-number currentness and one `scope.validate()` call.
 
+## v12 exact-head hostile repair
+
+Fresh CodeRabbit completion review of exact v11 head `2d29b29c1f528ab5e792b9350efc27e61663809b` (run `1195252f-db18-4078-ac00-0a45ac1cac46`) completed with three actionable findings:
+
+- Git subprocesses used for authority-bearing commit/tree/snapshot facts did not force replacement objects off, so repository-local `refs/replace/*` state could alter resolved Git identity.
+- Public collection boundaries accepted `str`/`bytes` containers for selected paths and unresolved state, permitting scalar string-like values to be iterated or collapsed rather than rejected as noncanonical containers.
+- The completed v9 review generation recorded replacement blobs and final counts in `docs/79`, but the mechanical manifest proof did not bind those fields back to current `content_blobs` and `tenfold_proof`.
+
+The runtime findings were reproduced RED-first on test-only head `91c534bc4539604ec6509186f4d49155d11556f0`. CI `33812521132` produced **1246 passed / 2 historical XFAIL / 6 failed**: five hostile runtime cases failed exactly as designed and one additional failure was the deliberately stale candidate content binding. Main Review `33812521092` passed.
+
+The minimal production repair head is `3cbda77bcca89f1066b09fc6f00a64540c2c3710`. It:
+
+- injects `GIT_NO_REPLACE_OBJECTS=1` into the allowlisted Git subprocess environment used by Review World Git fact derivation;
+- rejects `str` and `bytes` containers at `ReviewScope.selected_paths(...)` before path iteration;
+- rejects `str` and `bytes` containers for `GitHubReviewWorld.create(... unresolved_state=...)` before member iteration/normalization.
+
+The local bound hostile fixture re-proved **5 passed / 0 failed** and the broader Review World/RAB dependency surface executed **126 passed / 0 failed** in the isolated Tenfold worktree. Complete-repository intermediate CI `33813167874` produced **1251 passed / 2 historical XFAIL / exactly 1 failed**, solely the intentionally stale candidate content binding; Main Review `33813167919` passed.
+
+The proof-only finding is repaired in-place in the existing manifest-history test: the v9 `production_replacement_content_blobs`, `focused_collection_after_repair`, and `production_dependency_surface_after_repair` fields are now asserted against the current manifest bindings/counts, adding no new test node.
+
 ## Current proof boundary
 
-The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. v9 added one production regression node, yielding **129 / 116**. v10 added no test node. v11 adds **3 focused nodes**, two of which exercise production authority boundaries and one of which binds review evidence, yielding a focused collection of **132 tests** and a reconciled production dependency surface of **118 passed / 0 failed**.
+The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. v9 added one production regression node, yielding **129 / 116**. v10 added no test node. v11 added **3 focused nodes**, two of which exercise production authority boundaries and one of which binds review evidence, yielding **132 / 118**. v12 adds **5 hostile runtime cases** in the existing bound regression fixture and no new manifest-proof node, yielding a measured focused collection of **137 tests** and a frozen reconciliation of **123 passed / 0 failed**.
 
 The manifest-history proof is extended rather than replaced: all prior review assertions remain present and the completed v9 external review is now mechanically bound. Historical review evidence is not reclassified merely because a later owner/root audit occurred against the same candidate head.
 
@@ -119,4 +139,4 @@ General SAE-30 Qualification Authority machinery does not yet exist and is **not
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Earlier candidate/rebound/repair heads, including v9 `940fd609ebc18a62bd678a09518f43ed35b04a68`, v10 `9eb3dcfe0368847def72911d5e622c1adb48c624`, RED `14984cc377878d74802d7a4ec27ee6fa29732ddd`, and intermediate repair `6903ba3caee39d86a397e45e270830651435253a`, are historical or non-freezeable once the v11 evidence rebound exists. SAE-10 is not lifecycle-PROVEN until the exact v11 rebound survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. SAE-20 remains governed by its own frozen SAE-00 proof dependency; SAE-10 closeout neither blocks safe SAE-20 preparation nor auto-qualifies or auto-proves SAE-20.
+This is still **CANDIDATE**. Earlier candidate/rebound/repair heads, including v9 `940fd609ebc18a62bd678a09518f43ed35b04a68`, v10 `9eb3dcfe0368847def72911d5e622c1adb48c624`, RED `14984cc377878d74802d7a4ec27ee6fa29732ddd`, and intermediate repair `6903ba3caee39d86a397e45e270830651435253a`, are historical or non-freezeable once the v11 evidence rebound exists. SAE-10 is not lifecycle-PROVEN until the exact v12 rebound survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. SAE-20 remains governed by its own frozen SAE-00 proof dependency; SAE-10 closeout neither blocks safe SAE-20 preparation nor auto-qualifies or auto-proves SAE-20.
