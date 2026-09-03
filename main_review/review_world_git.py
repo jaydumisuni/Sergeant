@@ -26,7 +26,9 @@ _GIT_ENV_ALLOWLIST = (
 )
 
 def _git_subprocess_env() -> dict[str, str]:
-    return {name: os.environ[name] for name in _GIT_ENV_ALLOWLIST if name in os.environ}
+    env = {name: os.environ[name] for name in _GIT_ENV_ALLOWLIST if name in os.environ}
+    env['GIT_NO_REPLACE_OBJECTS'] = '1'
+    return env
 
 class GitObjectResolverProtocol(Protocol):
 

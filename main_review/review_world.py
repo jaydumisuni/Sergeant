@@ -131,6 +131,8 @@ class ReviewScope:
 
     @classmethod
     def selected_paths(cls, paths: Sequence[str]) -> 'ReviewScope':
+        if isinstance(paths, (str, bytes)):
+            raise ReviewWorldError('paths must be a non-string sequence')
         return cls._create(kind='selected_paths', paths=paths)
 
     def to_payload(self, *, include_id: bool=True) -> dict[str, object]:
@@ -292,6 +294,8 @@ class GitHubReviewWorld:
         review_generation = _require_string(review_generation, 'review_generation')
         if not review_generation:
             raise ReviewWorldError('review generation must be non-empty')
+        if isinstance(unresolved_state, (str, bytes)):
+            raise ReviewWorldError('unresolved_state must be a non-string sequence')
         normalized_unresolved = []
         for item in unresolved_state:
             if not isinstance(item, str):
