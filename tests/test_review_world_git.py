@@ -195,3 +195,19 @@ def test_unborn_head_requires_absent_branch_ref_not_dangling_or_nested_symbolic_
             ref_path.write_text('0' * 39 + '1\n')
         with pytest.raises(g.GitCommandError):
             g._resolve_local_head(g.GitObjectResolver(repo))
+
+
+class _StringableGeneratedBinding:
+
+    def __str__(self):
+        return 'a' * 64
+
+
+def test_bound_generated_binding_rejects_non_string_digest_before_hash_validation():
+    for bad_binding in (int('1' * 64), _StringableGeneratedBinding()):
+        with pytest.raises(g.GitCommandError, match='generated_binding_id must be a string'):
+            g.LocalSnapshotPolicy(
+                untracked_policy='exclude_untracked',
+                generated_state='bound',
+                generated_binding_id=bad_binding,
+            )
