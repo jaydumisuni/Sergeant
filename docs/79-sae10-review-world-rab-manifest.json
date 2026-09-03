@@ -7,12 +7,12 @@
   ],
   "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
   "content_blobs": {
-    "docs/78-sae10-review-world-rab-contract.md": "4ed454900c8f654445b62123c1ff1a42986a749f",
+    "docs/78-sae10-review-world-rab-contract.md": "dac4fa71e0a4098feb764e0e123718c4935233fb",
     "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "f23a88cff7e77eef6e8fd814a0b76b9366b36c00",
     "main_review/review_authority_bundle.py": "633ac2013140a45c67df7c34d55380c52d1ab183",
     "main_review/review_world.py": "af4a32de1717f706d07377dcfaf65b2558f2d617",
-    "main_review/review_world_currentness.py": "6593bb3721cdcd3e188523dd79c0bd2448fc9a78",
-    "main_review/review_world_git.py": "a0a30a410dd1478e9ed354b20c1b9e8886b3fecd",
+    "main_review/review_world_currentness.py": "e2b623e0d1d34d6202cf2fc1c5f60c1691b249db",
+    "main_review/review_world_git.py": "391a5baa1b3d8ff5883ad4957918cd06ab66a17c",
     "tests/conftest.py": "c9d4e3ceb940bd97ec2a851ae56f705aafb54365",
     "tests/test_review_authority_bundle.py": "3a177f90daea1ea6b6943d8ab23254113bf9cb29",
     "tests/test_review_world_currentness.py": "58045ae2cba3d08e57f6668c6d8166c014ae3231",
@@ -20,7 +20,8 @@
     "tests/test_review_world_identity.py": "4dafb2f433d855e81f957513e47056e91dcecd12",
     "tests/test_review_world_persistence.py": "8e8258ef7285eef59e34a2e9bd7d7f7eda7ee65e",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_sae10_review_world_rab_manifest.py": "65fa3e1c151cc87ececfa8a6e046fb3f0e215ddc",
+    "tests/test_sae10_review_world_rab_manifest.py": "0b28c0d7e6502a2d03d1f0a216de5620612b3c22",
+    "tests/test_sae10_v10_hostile_review_regressions.py": "029c3cdf11f2fb758ab619228ada2630a738aabb",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
@@ -394,9 +395,62 @@
         "main_review_run_id": 33753660693,
         "main_review": "pass"
       },
-      "superseded_external_review_run": "2c410bcc-a73a-4929-b8de-e8c5b601cba1",
+      "external_review_run_disposition": "completed_with_three_additional_findings_preserved_separately",
+      "v10_rebound_repository_reproof": {
+        "candidate_head": "9eb3dcfe0368847def72911d5e622c1adb48c624",
+        "ci_run_id": 33755080985,
+        "failed": 0,
+        "passed": 1244,
+        "xfailed": 2,
+        "clean_clone_proof": "pass",
+        "main_review_run_id": 33755080831,
+        "main_review": "pass"
+      },
       "production_behavior_changed": false,
       "focused_collection_after_correction": 129
+    },
+    "exact_v9_completion_hostile_review": {
+      "reviewed_head": "940fd609ebc18a62bd678a09518f43ed35b04a68",
+      "review_run_id": "2c410bcc-a73a-4929-b8de-e8c5b601cba1",
+      "review_basis": "external_exact_head_plus_owner_root_red_green_reproduction",
+      "finding_class": "pr_identity_local_scope_and_review_history_completeness",
+      "actionable_findings": 3,
+      "valid_findings": [
+        "github_currentness_pr_number_identity_omission",
+        "local_snapshot_forged_scope_not_validated_before_hashing",
+        "v9_completion_review_generation_not_mechanically_bound"
+      ],
+      "red_regressions": {
+        "red_test_head": "14984cc377878d74802d7a4ec27ee6fa29732ddd",
+        "ci_run_id": 33761255366,
+        "failed": 3,
+        "passed": 1244,
+        "xfailed": 2
+      },
+      "accepted_repairs": [
+        "github_currentness_compares_pr_number",
+        "local_snapshot_validates_scope_before_path_selection_or_hashing",
+        "bind_v9_completion_review_generation_and_reproof"
+      ],
+      "intermediate_repair_head": "6903ba3caee39d86a397e45e270830651435253a",
+      "intermediate_repository_reproof": {
+        "ci_run_id": 33761724692,
+        "failed": 2,
+        "passed": 1245,
+        "xfailed": 2,
+        "failures": [
+          "candidate_content_blob_bindings_stale",
+          "v9_completion_review_generation_missing"
+        ],
+        "main_review_run_id": 33761724596,
+        "main_review": "pass"
+      },
+      "production_replacement_content_blobs": {
+        "main_review/review_world_currentness.py": "e2b623e0d1d34d6202cf2fc1c5f60c1691b249db",
+        "main_review/review_world_git.py": "391a5baa1b3d8ff5883ad4957918cd06ab66a17c"
+      },
+      "focused_collection_after_repair": 132,
+      "production_dependency_surface_after_repair": 118
     }
   },
   "imported_github_checkpoint": "17c4240af1969e0fc999379c5243696347820def",
@@ -418,16 +472,16 @@
     "unauthorized_rab_combination",
     "candidate_self_activation"
   ],
-  "schema_version": "sergeant.sae10-review-world-rab-candidate.v10",
+  "schema_version": "sergeant.sae10-review-world-rab-candidate.v11",
   "tenfold_proof": {
     "actions_required": false,
     "formation_lanes": 20,
-    "focused_collection": 129,
+    "focused_collection": 132,
     "local_dependency_surface_reconciliation": {
       "failed": 0,
-      "passed": 116,
+      "passed": 118,
       "xfailed": 0,
-      "basis": "v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_plus_1_v9_generated_binding_regression_node"
+      "basis": "v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_plus_1_v9_generated_binding_plus_2_v11_production_boundary_regressions"
     },
     "repository_only_focused_tests": 12
   }
