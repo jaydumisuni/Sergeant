@@ -32,7 +32,7 @@ def _assert_exact_blob_bindings(bindings, expected_paths, *, blob_fn=blob):
 
 def test_candidate_manifest_lifecycle_and_dependency():
     m=_load(); assert (m['schema_version'],m['lifecycle_state'],m['proof_dependency'],m['normal_verdict_authority'])==(
-    'sergeant.sae10-review-world-rab-candidate.v9','CANDIDATE',['SAE-00'],False)
+    'sergeant.sae10-review-world-rab-candidate.v10','CANDIDATE',['SAE-00'],False)
 def test_candidate_manifest_outputs_are_exact():
     assert _load()['produces']==['QUALIFIED_REVIEW_WORLD_CONTRACT','QUALIFIED_RAB_CONTRACT']
 def test_manifest_paths_are_repository_confined():
@@ -136,7 +136,7 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
     'tests/test_review_world_persistence.py':'99b3f1146588fc6fd79e5dca8426fde7f672abf6'}
     assert r['historical_fixture_blob_preserved']==m['external_authority_blobs'][str(HISTORICAL_SPIKE_FIXTURE)]
 
-def test_v8_and_v9_exact_head_review_history_and_intermediate_proof_are_bound():
+def test_v8_v9_and_v10_exact_head_review_history_and_intermediate_proof_are_bound():
     reviews=_load()['github_hostile_review']
     v=reviews['exact_v7_completion_hostile_review']
     assert (v['reviewed_head'],v['review_run_id'],v['finding_class'],v['actionable_findings'])==(
@@ -183,3 +183,14 @@ def test_v8_and_v9_exact_head_review_history_and_intermediate_proof_are_bound():
     assert n['replacement_content_blobs']=={
     'main_review/review_world_git.py':'a0a30a410dd1478e9ed354b20c1b9e8886b3fecd',
     'tests/test_review_world_git.py':'8e860e21b988be4a6cfde0ccb6a233056a8a5f61'}
+    a=reviews['owner_root_v9_dependency_wording_audit']
+    assert (a['reviewed_head'],a['finding_class'],a['actionable_findings'],a['superseded_external_review_run'])==(
+    '940fd609ebc18a62bd678a09518f43ed35b04a68','roadmap_dependency_boundary_overstatement',1,
+    '2c410bcc-a73a-4929-b8de-e8c5b601cba1')
+    assert a['valid_findings']==['sae20_incorrectly_blocked_by_sae10_closeout']
+    assert a['accepted_repairs']==[
+    'restore_sae20_independent_sae00_dependency',
+    'preserve_dependency_frontier_safe_preparation',
+    'limit_sae10_dependency_effect_to_explicit_sae10_dependents']
+    assert a['production_behavior_changed'] is False
+    assert a['focused_collection_after_correction']==129
