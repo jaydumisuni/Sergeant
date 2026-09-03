@@ -7,7 +7,7 @@
   ],
   "construction_base": "b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5",
   "content_blobs": {
-    "docs/78-sae10-review-world-rab-contract.md": "ed5098462f98beaebe866af7ec934c5ad27804e7",
+    "docs/78-sae10-review-world-rab-contract.md": "ebfe8f5347cae0dafb65e11d7a66c3df2571ad9d",
     "docs/superpowers/plans/2026-09-02-sae-10-review-world-rab.md": "f23a88cff7e77eef6e8fd814a0b76b9366b36c00",
     "main_review/review_authority_bundle.py": "633ac2013140a45c67df7c34d55380c52d1ab183",
     "main_review/review_world.py": "af4a32de1717f706d07377dcfaf65b2558f2d617",
@@ -20,7 +20,7 @@
     "tests/test_review_world_identity.py": "4dafb2f433d855e81f957513e47056e91dcecd12",
     "tests/test_review_world_persistence.py": "8e8258ef7285eef59e34a2e9bd7d7f7eda7ee65e",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
-    "tests/test_sae10_review_world_rab_manifest.py": "125a902919bd59ce9039514475c06aff09b44f66",
+    "tests/test_sae10_review_world_rab_manifest.py": "25d5c8c9d7f07af52a253ae56d08f6c6be849593",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
@@ -310,6 +310,18 @@
         "xfailed": 0
       },
       "focused_collection": 127,
+      "rebound_focused_collection": 128,
+      "first_rebound_repository_reproof": {
+        "candidate_head": "9886531ececc71b52f4a666e5a14596027d1747d",
+        "ci_run_id": 33741506139,
+        "failed": 0,
+        "passed": 1243,
+        "xfailed": 2,
+        "clean_clone_proof": "pass",
+        "main_review_run_id": 33741506299,
+        "main_review": "pass",
+        "disposition": "superseded_for_freeze_by_focused_collection_accounting_correction"
+      },
       "replacement_content_blobs": {
         "main_review/review_world.py": "af4a32de1717f706d07377dcfaf65b2558f2d617",
         "main_review/review_world_git.py": "5f194b67cdceafb4b7098c5b3a8cfaa4015f3a51",
@@ -341,7 +353,7 @@
   "tenfold_proof": {
     "actions_required": false,
     "formation_lanes": 20,
-    "focused_collection": 127,
+    "focused_collection": 128,
     "local_dependency_surface_reconciliation": {
       "failed": 0,
       "passed": 115,

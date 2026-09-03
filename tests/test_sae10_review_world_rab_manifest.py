@@ -53,7 +53,7 @@ def test_external_authority_binding_guard_rejects_extra_member_and_hash_mismatch
     with pytest.raises(AssertionError):
         _assert_exact_blob_bindings(b,EXPECTED_EXTERNAL_AUTHORITY_BLOBS,blob_fn=lambda p:bad[str(p)])
 def test_tenfold_formation_and_focused_proof_are_bound():
-    assert _load()['tenfold_proof']=={'actions_required':False,'formation_lanes':20,'focused_collection':127,
+    assert _load()['tenfold_proof']=={'actions_required':False,'formation_lanes':20,'focused_collection':128,
     'local_dependency_surface_reconciliation':{'failed':0,'passed':115,'xfailed':0,
     'basis':'v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_regression_nodes'},
     'repository_only_focused_tests':12}
@@ -156,6 +156,7 @@ def test_v8_exact_head_review_findings_and_intermediate_proof_are_bound():
     'clean_clone_proof':'blocked_by_same_stale_candidate_binding_before_supplementary_steps'}
     assert v['local_hostile_case_reproof']=={'failed':0,'passed':13,'xfailed':0}
     assert v['focused_collection']==127
+    assert v['rebound_focused_collection']==128
     assert v['replacement_content_blobs']=={
     'main_review/review_world.py':'af4a32de1717f706d07377dcfaf65b2558f2d617',
     'main_review/review_world_git.py':'5f194b67cdceafb4b7098c5b3a8cfaa4015f3a51',

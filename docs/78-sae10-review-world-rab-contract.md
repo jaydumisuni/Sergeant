@@ -60,13 +60,13 @@ The v8 repair:
 - classifies local HEAD as `unborn` only when HEAD is a direct `refs/heads/...` symbolic ref and that branch ref is actually absent; nested symbolic refs, malformed/dangling object refs, detached ambiguity, and other resolution failures fail closed;
 - validates every `unresolved_state` member as a string and rejects blank entries before any normalization/deduplication can erase evidence.
 
-The strengthened local hostile case proof is **13 passed / 0 failed**. The repository test layout represents those cases in exactly **3** added test nodes.
+The strengthened local hostile case proof is **13 passed / 0 failed**. The repository test layout represents those cases in exactly **3** added repair regression nodes.
 
 ## Current proof boundary
 
-The v7 focused SAE-10 collection was **124 tests**. The v8 repair adds exactly **3** repository regression nodes, producing a focused collection of **127 tests**.
+The v7 focused SAE-10 collection was **124 tests**. The v8 repair adds exactly **3** repository regression nodes, producing a repair-bearing focused collection of **127 tests**. The v8 rebound then adds one mechanical manifest-history binding test, producing the final candidate focused collection of **128 tests**.
 
-The prior conservative local dependency reconciliation was **112 passed / 0 failed**. Reconciliation with the three v8 regression nodes produces **115 passed / 0 failed**, backed by the fresh 13-case local hostile proof and the intermediate complete-repository run. This remains explicitly a reconciliation, not a claim that unavailable unchanged modules were rerun in the reduced scratch workspace.
+The prior conservative local dependency reconciliation was **112 passed / 0 failed**. Reconciliation with the three v8 repair regression nodes produces **115 passed / 0 failed**, backed by the fresh 13-case local hostile proof and the intermediate complete-repository run. The rebound manifest-history test is evidence-layer proof and is not counted as a production dependency-surface node. This remains explicitly a reconciliation, not a claim that unavailable unchanged modules were rerun in the reduced scratch workspace.
 
 The four-file v8 intermediate was published atomically as `30b1f922453c63f473e38a39a70e82a1e9914d11`. Its replacement blobs are:
 
@@ -75,7 +75,9 @@ The four-file v8 intermediate was published atomically as `30b1f922453c63f473e38
 - `tests/test_review_world_git.py` — `8a6e77ff54ed030184769129d186621b19423026`;
 - `tests/test_review_world_persistence.py` — `8e8258ef7285eef59e34a2e9bd7d7f7eda7ee65e`.
 
-Main Review run `33733303192` passed. Complete-repository CI run `33733303167` produced **1241 passed, 2 intentional historical XFAILs, and exactly 1 failure**. The sole failure was the deliberately stale v7 candidate content binding (`main_review/review_world.py` expected `34692d55...`, actual `af4a32de...`). No production or new regression node failed.
+Main Review run `33733303192` passed. Complete-repository CI run `33733303167` produced **1241 passed, 2 intentional historical XFAILs, and exactly 1 failure**. The sole failure was the deliberately stale v7 candidate content binding (`main_review/review_world.py` expected `34692d55...`, actual `af4a32de...`). No production or new repair regression node failed.
+
+The first v8 rebound head then proved **1243 passed / 2 intentional historical XFAILs / 0 failed** in exact-head CI `33741506139`, with clean-clone supplementary proof and Main Review `33741506299` passing. That run exposed only the proof-accounting fact that the new manifest-history binding itself is an additional focused test node; this contract corrects the declared final focused collection from 127 to 128 without altering production behavior.
 
 The eight external authority paths remain byte-stable and must continue to match their exact Git blob bindings.
 
@@ -87,4 +89,4 @@ General SAE-30 Qualification Authority machinery does not yet exist and is **not
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe`, `b3c4e409bfb7e0fd498d7790bef3b391f9595755`, `ece5ae76b2d76763524d5be46be8bd619af300b2`, `8939f93eba730c3519f3ffe84c5e3793b6c15a90`, and `64f420aaea40594c4165ad64601b4db5547e275f` are superseded by later hostile findings. Intermediate `30b1f922453c63f473e38a39a70e82a1e9914d11` is not freezeable because its candidate content bindings are deliberately stale. SAE-10 is not lifecycle-PROVEN until the rebound v8 candidate is published atomically, survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. No SAE-20 work may advance across that boundary.
+This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe`, `b3c4e409bfb7e0fd498d7790bef3b391f9595755`, `ece5ae76b2d76763524d5be46be8bd619af300b2`, `8939f93eba730c3519f3ffe84c5e3793b6c15a90`, `64f420aaea40594c4165ad64601b4db5547e275f`, and proof-accounting rebound `9886531ececc71b52f4a666e5a14596027d1747d` are superseded for freeze by later evidence. Intermediate `30b1f922453c63f473e38a39a70e82a1e9914d11` is not freezeable because its candidate content bindings are deliberately stale. SAE-10 is not lifecycle-PROVEN until the corrected rebound v8 candidate survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. No SAE-20 work may advance across that boundary.
