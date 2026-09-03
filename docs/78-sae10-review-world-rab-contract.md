@@ -35,7 +35,7 @@ The frozen roadmap attacks remain mechanically represented:
 5. an unauthorized RAB combination fails even when component generations are known;
 6. candidate authority changes cannot self-activate.
 
-Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, authority-manifest completeness, persisted primitive types, repository normalization, unresolved-state canonicality, local repository-null identity, construction/persistence generation-type symmetry, noncoercible GitHub transport identity, dangling symbolic/local HEAD discrimination, and noncoercible generated binding identity.
+Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, authority-manifest completeness, persisted primitive types, repository normalization, unresolved-state canonicality, local repository-null identity, construction/persistence generation-type symmetry, noncoercible GitHub transport identity, dangling symbolic/local HEAD discrimination, noncoercible generated binding identity, pull-request-number currentness, and direct local-snapshot scope validation.
 
 ## Hostile-review history
 
@@ -52,7 +52,8 @@ The candidate preserves prior review generations rather than rewriting them.
 - Fresh external exact-head review of `8939f93eba730c3519f3ffe84c5e3793b6c15a90` (CodeRabbit run `7c0b86f6-b27e-4b33-9641-62d2868b366c`) exposed a construction/persistence asymmetry: truthy non-string generation values could be hashed into Review World authority objects that their own persisted decoders would later reject. Five regressions reproduced the class before the v7 repair.
 - Fresh external exact-head review of v7 head `64f420aaea40594c4165ad64601b4db5547e275f` (CodeRabbit run `83e3c959-0d29-414a-b2ab-78f7b76aa411`) exposed three additional authority-boundary defects: coercible PR transport facts, dangling/nested symbolic local HEAD collapsing into `unborn`, and invalid/blank unresolved-state entries collapsing before exact-world rejection. All three findings reproduced before repair. The final regression surface binds 13 hostile cases into three repository test nodes.
 - Fresh external exact-head review of corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73` (CodeRabbit run `d33a4848-57e5-4cc8-bb65-d8715c6f987f`) exposed one additional authority-boundary defect: a bound `LocalSnapshotPolicy.generated_binding_id` was coerced through `str(...)`, allowing non-string values with SHA-256-shaped string representations to enter snapshot identity. A RED regression demonstrated the coercion before the v9 repair.
-- Owner/Root authority audit of exact v9 head `940fd609ebc18a62bd678a09518f43ed35b04a68` found one documentation-level roadmap error before merge: the residual boundary incorrectly stated that SAE-20 could not advance until SAE-10 closed. The frozen roadmap gives SAE-20 its own proof dependency of SAE-00 and separately permits safe downstream preparation before unresolved dependencies. The in-progress external review run `2c410bcc-a73a-4929-b8de-e8c5b601cba1` is therefore superseded as candidate authority by this v10 correction.
+- Owner/Root authority audit of exact v9 head `940fd609ebc18a62bd678a09518f43ed35b04a68` found one documentation-level roadmap error before merge: the residual boundary incorrectly stated that SAE-20 could not advance until SAE-10 closed. The frozen roadmap gives SAE-20 its own proof dependency of SAE-00 and separately permits safe downstream preparation before unresolved dependencies. v10 corrected that wording without changing production behavior.
+- The external exact-head completion review of the same v9 head did complete and is preserved rather than discarded: CodeRabbit run `2c410bcc-a73a-4929-b8de-e8c5b601cba1` reported three actionable findings—GitHub currentness omitted `pr_number`, local snapshot construction trusted a directly forged `ReviewScope` before validation, and the v9 completion review generation itself was not mechanically bound in the candidate history. Test-only head `14984cc377878d74802d7a4ec27ee6fa29732ddd` reproduced exactly all three failures before production changed.
 
 ## v8 root repair
 
@@ -75,12 +76,9 @@ The v9 repair removes the remaining coercion at the generated-material binding b
 
 The test-only RED head is `d81f740e6e97d0882168f0475899d3ca8c945fab`. CI run `33752751547` produced **1242 passed, 2 intentional historical XFAILs, and 2 failed**: the new coercion regression failed because `GitCommandError` was not raised, and the candidate content-binding test failed because the regression test blob was intentionally not yet rebound.
 
-The minimal production repair head is `5e8e34d4b2c8d342264bde9510a6900ce4e828b1`. Its replacement blobs are:
+The minimal production repair head is `5e8e34d4b2c8d342264bde9510a6900ce4e828b1`. Its replacement blobs were `main_review/review_world_git.py` `a0a30a410dd1478e9ed354b20c1b9e8886b3fecd` and `tests/test_review_world_git.py` `8e860e21b988be4a6cfde0ccb6a233056a8a5f61`.
 
-- `main_review/review_world_git.py` — `a0a30a410dd1478e9ed354b20c1b9e8886b3fecd`;
-- `tests/test_review_world_git.py` — `8e860e21b988be4a6cfde0ccb6a233056a8a5f61`.
-
-Main Review run `33753103819` passed. Complete-repository CI run `33753103838` produced **1243 passed, 2 intentional historical XFAILs, and exactly 1 failure**. The sole failure is the deliberately stale v8 candidate content binding for `main_review/review_world_git.py`; the new generated-binding regression is GREEN and no production test failed.
+Main Review run `33753103819` passed. Complete-repository CI run `33753103838` produced **1243 passed, 2 intentional historical XFAILs, and exactly 1 failure**, solely the deliberately stale candidate content binding.
 
 ## v10 roadmap dependency correction
 
@@ -91,13 +89,25 @@ The v10 correction changes no Review World/RAB production behavior and adds no t
 - safe downstream preparation remains allowed under the roadmap's dependency-frontier doctrine;
 - no downstream node is auto-qualified or auto-proven by SAE-10 closeout.
 
+## v11 completion-review repair
+
+The v11 repair responds to the completed v9 external review without rewriting earlier evidence:
+
+- GitHub currentness now compares `pr_number` as part of exact Review World identity and emits `pr_number_mismatch` when a different pull request is compared;
+- `build_local_snapshot(...)` validates the supplied `ReviewScope` before any Git path selection, hashing, or snapshot identity construction;
+- the completed v9 CodeRabbit run and its three findings are now an explicit mechanical review generation in the manifest proof.
+
+The test-only RED head `14984cc377878d74802d7a4ec27ee6fa29732ddd`, CI `33761255366`, produced **3 failed / 1244 passed / 2 historical XFAIL**. The failures were exactly the three review findings: cross-PR currentness returned `CURRENT`, forged local scope did not raise, and the v9 completion-review record was missing.
+
+The minimal production repair reached intermediate head `6903ba3caee39d86a397e45e270830651435253a`. CI `33761724692` produced **1245 passed / 2 historical XFAIL / exactly 2 failures**. Both production regressions were GREEN; the only remaining failures were the deliberately stale candidate content binding and missing v9 review-generation evidence. Main Review `33761724596` passed. The production diff from RED to intermediate is exactly **3 added lines across 2 files**: two lines for PR-number currentness and one `scope.validate()` call.
+
 ## Current proof boundary
 
-The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. The v9 repair adds exactly **1** repository regression node and does not create a new manifest-history test node, producing a v9/v10 focused collection of **129 tests** and reconciled production dependency surface of **116 passed / 0 failed**.
+The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. v9 added one production regression node, yielding **129 / 116**. v10 added no test node. v11 adds **3 focused nodes**, two of which exercise production authority boundaries and one of which binds review evidence, yielding a focused collection of **132 tests** and a reconciled production dependency surface of **118 passed / 0 failed**.
 
-The existing manifest-history proof node is extended rather than replaced: all v1–v9 assertions remain present and the v10 authority-wording correction is added to the same mechanical history check. This avoids both silently dropping prior authority evidence and inflating collection counts merely because the candidate was rebound.
+The manifest-history proof is extended rather than replaced: all prior review assertions remain present and the completed v9 external review is now mechanically bound. Historical review evidence is not reclassified merely because a later owner/root audit occurred against the same candidate head.
 
-The exact v9 rebound head `940fd609ebc18a62bd678a09518f43ed35b04a68` proved **1244 passed / 2 intentional historical XFAILs / 0 failed** in CI `33753660492`, with the complete clean-clone supplementary chain passing and Main Review `33753660693` passing. That proof remains valid evidence for unchanged production behavior but cannot authorize a different candidate head after the v10 content correction.
+The exact v9 rebound `940fd609ebc18a62bd678a09518f43ed35b04a68` proved **1244 passed / 2 historical XFAIL / 0 failed** in CI `33753660492`, clean-clone PASS, and Main Review `33753660693` PASS. v10 documentation head `9eb3dcfe0368847def72911d5e622c1adb48c624` independently proved the same **1244 / 2 / 0** in CI `33755080985` with clean-clone PASS and Main Review `33755080831` PASS. Both remain historical evidence only; neither authorizes v11.
 
 The eight external authority paths remain byte-stable and must continue to match their exact Git blob bindings.
 
@@ -109,4 +119,4 @@ General SAE-30 Qualification Authority machinery does not yet exist and is **not
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe`, `b3c4e409bfb7e0fd498d7790bef3b391f9595755`, `ece5ae76b2d76763524d5be46be8bd619af300b2`, `8939f93eba730c3519f3ffe84c5e3793b6c15a90`, `64f420aaea40594c4165ad64601b4db5547e275f`, proof-accounting rebound `9886531ececc71b52f4a666e5a14596027d1747d`, corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73`, RED head `d81f740e6e97d0882168f0475899d3ca8c945fab`, repair intermediate `5e8e34d4b2c8d342264bde9510a6900ce4e828b1`, and v9 rebound `940fd609ebc18a62bd678a09518f43ed35b04a68` are superseded or non-freezeable by later evidence. SAE-10 is not lifecycle-PROVEN until the rebound v10 candidate survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. SAE-20 remains governed by its own frozen SAE-00 proof dependency; SAE-10 closeout neither blocks safe SAE-20 preparation nor auto-qualifies or auto-proves SAE-20.
+This is still **CANDIDATE**. Earlier candidate/rebound/repair heads, including v9 `940fd609ebc18a62bd678a09518f43ed35b04a68`, v10 `9eb3dcfe0368847def72911d5e622c1adb48c624`, RED `14984cc377878d74802d7a4ec27ee6fa29732ddd`, and intermediate repair `6903ba3caee39d86a397e45e270830651435253a`, are historical or non-freezeable once the v11 evidence rebound exists. SAE-10 is not lifecycle-PROVEN until the exact v11 rebound survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. SAE-20 remains governed by its own frozen SAE-00 proof dependency; SAE-10 closeout neither blocks safe SAE-20 preparation nor auto-qualifies or auto-proves SAE-20.
