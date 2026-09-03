@@ -35,7 +35,7 @@ The frozen roadmap attacks remain mechanically represented:
 5. an unauthorized RAB combination fails even when component generations are known;
 6. candidate authority changes cannot self-activate.
 
-Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, authority-manifest completeness, persisted primitive types, repository normalization, unresolved-state canonicality, local repository-null identity, construction/persistence generation-type symmetry, noncoercible GitHub transport identity, and dangling symbolic/local HEAD discrimination.
+Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, authority-manifest completeness, persisted primitive types, repository normalization, unresolved-state canonicality, local repository-null identity, construction/persistence generation-type symmetry, noncoercible GitHub transport identity, dangling symbolic/local HEAD discrimination, and noncoercible generated binding identity.
 
 ## Hostile-review history
 
@@ -51,6 +51,7 @@ The candidate preserves prior review generations rather than rewriting them.
 - Exact v6 rebound `ece5ae76b2d76763524d5be46be8bd619af300b2` proved `1234 passed`, `2` intentional XFAILs, `0 failed`, but Owner/Root hostile review found the rebound manifest test had dropped historical-review assertions. `8939f93eba730c3519f3ffe84c5e3793b6c15a90` restored that mechanical history without adding a test node.
 - Fresh external exact-head review of `8939f93eba730c3519f3ffe84c5e3793b6c15a90` (CodeRabbit run `7c0b86f6-b27e-4b33-9641-62d2868b366c`) exposed a construction/persistence asymmetry: truthy non-string generation values could be hashed into Review World authority objects that their own persisted decoders would later reject. Five regressions reproduced the class before the v7 repair.
 - Fresh external exact-head review of v7 head `64f420aaea40594c4165ad64601b4db5547e275f` (CodeRabbit run `83e3c959-0d29-414a-b2ab-78f7b76aa411`) exposed three additional authority-boundary defects: coercible PR transport facts, dangling/nested symbolic local HEAD collapsing into `unborn`, and invalid/blank unresolved-state entries collapsing before exact-world rejection. All three findings reproduced before repair. The final regression surface binds 13 hostile cases into three repository test nodes.
+- Fresh external exact-head review of corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73` (CodeRabbit run `d33a4848-57e5-4cc8-bb65-d8715c6f987f`) exposed one additional authority-boundary defect: a bound `LocalSnapshotPolicy.generated_binding_id` was coerced through `str(...)`, allowing non-string values with SHA-256-shaped string representations to enter snapshot identity. A RED regression demonstrated the coercion before the v9 repair.
 
 ## v8 root repair
 
@@ -62,22 +63,31 @@ The v8 repair:
 
 The strengthened local hostile case proof is **13 passed / 0 failed**. The repository test layout represents those cases in exactly **3** added repair regression nodes.
 
+## v9 generated-binding repair
+
+The v9 repair removes the remaining coercion at the generated-material binding boundary:
+
+- `generated_state='bound'` now requires `generated_binding_id` to already be a string;
+- non-string values fail closed before digest validation;
+- the original string is passed directly to `require_full_sha256(...)` rather than reconstructed with `str(...)`;
+- the repair regression exercises both an integer digest-shaped value and a stringable object, while the observed RED failure mechanically demonstrated the integer coercion path before production changed.
+
+The test-only RED head is `d81f740e6e97d0882168f0475899d3ca8c945fab`. CI run `33752751547` produced **1242 passed, 2 intentional historical XFAILs, and 2 failed**: the new coercion regression failed because `GitCommandError` was not raised, and the candidate content-binding test failed because the regression test blob was intentionally not yet rebound.
+
+The minimal production repair head is `5e8e34d4b2c8d342264bde9510a6900ce4e828b1`. Its replacement blobs are:
+
+- `main_review/review_world_git.py` — `a0a30a410dd1478e9ed354b20c1b9e8886b3fecd`;
+- `tests/test_review_world_git.py` — `8e860e21b988be4a6cfde0ccb6a233056a8a5f61`.
+
+Main Review run `33753103819` passed. Complete-repository CI run `33753103838` produced **1243 passed, 2 intentional historical XFAILs, and exactly 1 failure**. The sole failure is the deliberately stale v8 candidate content binding for `main_review/review_world_git.py`; the new generated-binding regression is GREEN and no production test failed.
+
 ## Current proof boundary
 
-The v7 focused SAE-10 collection was **124 tests**. The v8 repair adds exactly **3** repository regression nodes, producing a repair-bearing focused collection of **127 tests**. The v8 rebound then adds one mechanical manifest-history binding test, producing the final candidate focused collection of **128 tests**.
+The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. The v9 repair adds exactly **1** repository regression node and does not create a new manifest-history test node, producing a v9 focused collection of **129 tests** and reconciled production dependency surface of **116 passed / 0 failed**.
 
-The prior conservative local dependency reconciliation was **112 passed / 0 failed**. Reconciliation with the three v8 repair regression nodes produces **115 passed / 0 failed**, backed by the fresh 13-case local hostile proof and the intermediate complete-repository run. The rebound manifest-history test is evidence-layer proof and is not counted as a production dependency-surface node. This remains explicitly a reconciliation, not a claim that unavailable unchanged modules were rerun in the reduced scratch workspace.
+The existing manifest-history proof node is extended rather than replaced: all v1–v8 assertions remain present and the v9 review/repair generation is added to the same mechanical history check. This avoids both silently dropping prior authority evidence and inflating collection counts merely because the candidate was rebound.
 
-The four-file v8 intermediate was published atomically as `30b1f922453c63f473e38a39a70e82a1e9914d11`. Its replacement blobs are:
-
-- `main_review/review_world.py` — `af4a32de1717f706d07377dcfaf65b2558f2d617`;
-- `main_review/review_world_git.py` — `5f194b67cdceafb4b7098c5b3a8cfaa4015f3a51`;
-- `tests/test_review_world_git.py` — `8a6e77ff54ed030184769129d186621b19423026`;
-- `tests/test_review_world_persistence.py` — `8e8258ef7285eef59e34a2e9bd7d7f7eda7ee65e`.
-
-Main Review run `33733303192` passed. Complete-repository CI run `33733303167` produced **1241 passed, 2 intentional historical XFAILs, and exactly 1 failure**. The sole failure was the deliberately stale v7 candidate content binding (`main_review/review_world.py` expected `34692d55...`, actual `af4a32de...`). No production or new repair regression node failed.
-
-The first v8 rebound head then proved **1243 passed / 2 intentional historical XFAILs / 0 failed** in exact-head CI `33741506139`, with clean-clone supplementary proof and Main Review `33741506299` passing. That run exposed only the proof-accounting fact that the new manifest-history binding itself is an additional focused test node; this contract corrects the declared final focused collection from 127 to 128 without altering production behavior.
+The first v8 rebound head proved **1243 passed / 2 intentional historical XFAILs / 0 failed** in exact-head CI `33741506139`, with clean-clone supplementary proof and Main Review `33741506299` passing. That run exposed only the proof-accounting fact that the new manifest-history binding itself was an additional focused test node; the corrected v8 head then underwent the fresh external review that discovered the v9 generated-binding defect recorded above.
 
 The eight external authority paths remain byte-stable and must continue to match their exact Git blob bindings.
 
@@ -89,4 +99,4 @@ General SAE-30 Qualification Authority machinery does not yet exist and is **not
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe`, `b3c4e409bfb7e0fd498d7790bef3b391f9595755`, `ece5ae76b2d76763524d5be46be8bd619af300b2`, `8939f93eba730c3519f3ffe84c5e3793b6c15a90`, `64f420aaea40594c4165ad64601b4db5547e275f`, and proof-accounting rebound `9886531ececc71b52f4a666e5a14596027d1747d` are superseded for freeze by later evidence. Intermediate `30b1f922453c63f473e38a39a70e82a1e9914d11` is not freezeable because its candidate content bindings are deliberately stale. SAE-10 is not lifecycle-PROVEN until the corrected rebound v8 candidate survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. No SAE-20 work may advance across that boundary.
+This is still **CANDIDATE**. Heads `924d33aa188dff673a9ca7eb7c843b6222e798fe`, `b3c4e409bfb7e0fd498d7790bef3b391f9595755`, `ece5ae76b2d76763524d5be46be8bd619af300b2`, `8939f93eba730c3519f3ffe84c5e3793b6c15a90`, `64f420aaea40594c4165ad64601b4db5547e275f`, proof-accounting rebound `9886531ececc71b52f4a666e5a14596027d1747d`, corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73`, RED head `d81f740e6e97d0882168f0475899d3ca8c945fab`, and repair intermediate `5e8e34d4b2c8d342264bde9510a6900ce4e828b1` are superseded or non-freezeable by later v9 evidence. SAE-10 is not lifecycle-PROVEN until the rebound v9 candidate survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. No SAE-20 work may advance across that boundary.
