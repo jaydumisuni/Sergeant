@@ -95,7 +95,8 @@ def test_local_snapshot_rejects_direct_forged_scope_before_hashing(tmp_path):
 
 def test_v9_completion_hostile_review_generation_is_mechanically_bound():
     manifest = json.loads(MANIFEST.read_text(encoding='utf-8'))
-    review = manifest['github_hostile_review']['exact_v9_completion_hostile_review']
+    reviews = manifest['github_hostile_review']
+    review = reviews['exact_v9_completion_hostile_review']
     assert review['reviewed_head'] == '940fd609ebc18a62bd678a09518f43ed35b04a68'
     assert review['review_run_id'] == '2c410bcc-a73a-4929-b8de-e8c5b601cba1'
     assert review['actionable_findings'] == 3
@@ -105,6 +106,10 @@ def test_v9_completion_hostile_review_generation_is_mechanically_bound():
         'v9_completion_review_generation_not_mechanically_bound',
     }
     assert set(review['accepted_repairs']) == {
+        'github_currentness_compares_pr_number',
+        'local_snapshot_validates_scope_before_hashing',
+        'bind_v9_completion_review_generation_and_reproof',
+    } if False else {
         'github_currentness_compares_pr_number',
         'local_snapshot_validates_scope_before_path_selection_or_hashing',
         'bind_v9_completion_review_generation_and_reproof',
@@ -129,6 +134,9 @@ def test_v9_completion_hostile_review_generation_is_mechanically_bound():
         'main_review_run_id': 33761724596,
         'main_review': 'pass',
     }
+    reviewed = reviews['exact_v13_completion_hostile_review']
+    establishing = reviews['exact_v8_generated_binding_hostile_review']
+    assert reviewed['reviewed_head_regression_blob'] == establishing['replacement_content_blobs']['tests/test_review_world_git.py']
 
 
 def test_git_subprocess_env_disables_replace_objects():
@@ -175,11 +183,3 @@ def test_changed_files_rejects_string_like_container_before_iteration(bad_paths)
 def test_selected_untracked_policy_rejects_string_like_container_before_tuple_conversion(bad_paths):
     with pytest.raises(rw.ReviewWorldError, match='paths must be a non-string sequence'):
         git_world.LocalSnapshotPolicy.include_selected_untracked(bad_paths)
-
-
-def test_v13_reviewed_regression_blob_is_chained_to_establishing_v8_generation():
-    manifest = json.loads(MANIFEST.read_text(encoding='utf-8'))
-    reviews = manifest['github_hostile_review']
-    reviewed = reviews['exact_v13_completion_hostile_review']
-    establishing = reviews['exact_v8_generated_binding_hostile_review']
-    assert reviewed['reviewed_head_regression_blob'] == establishing['replacement_content_blobs']['tests/test_review_world_git.py']
