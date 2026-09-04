@@ -20,6 +20,11 @@ def _require_string(value: object, field: str) -> str:
         raise ReviewWorldError(f'{field} must be a string')
     return value
 
+def require_non_string_sequence(value: Sequence[str], field: str) -> Sequence[str]:
+    if isinstance(value, (str, bytes)):
+        raise ReviewWorldError(f'{field} must be a non-string sequence')
+    return value
+
 def _validate_json_value(value: object, *, path: str='$') -> None:
     if value is None or isinstance(value, (str, bool, int)):
         return
@@ -104,6 +109,7 @@ class ReviewScope:
     def _create(cls, *, kind: str, paths: Sequence[str], generated_artifacts: str='excluded', submodules: str='excluded', untracked: str='excluded', generation: str='scope-v1') -> 'ReviewScope':
         if kind not in _SCOPE_KINDS:
             raise ReviewWorldError(f'unknown scope kind: {kind!r}')
+        paths = require_non_string_sequence(paths, 'paths')
         normalized = tuple(sorted({_normalize_repo_path(path) for path in paths}))
         if kind == 'repository' and normalized:
             raise ReviewWorldError('repository scope cannot carry selected paths')
@@ -131,8 +137,6 @@ class ReviewScope:
 
     @classmethod
     def selected_paths(cls, paths: Sequence[str]) -> 'ReviewScope':
-        if isinstance(paths, (str, bytes)):
-            raise ReviewWorldError('paths must be a non-string sequence')
         return cls._create(kind='selected_paths', paths=paths)
 
     def to_payload(self, *, include_id: bool=True) -> dict[str, object]:
