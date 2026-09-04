@@ -211,3 +211,19 @@ def test_bound_generated_binding_rejects_non_string_digest_before_hash_validatio
                 generated_state='bound',
                 generated_binding_id=bad_binding,
             )
+
+
+@pytest.mark.skipif(os.name != 'posix' or shutil.which('git') is None, reason='POSIX git required')
+@pytest.mark.parametrize('tracked', [True, False], ids=['tracked', 'untracked'])
+def test_local_snapshot_rejects_non_utf8_symlink_targets_as_git_command_error(tmp_path, tracked):
+    init(tmp_path)
+    link = tmp_path / ('tracked-bad-link' if tracked else 'untracked-bad-link')
+    os.symlink(b'\xff', os.fsencode(link))
+    if tracked:
+        git(tmp_path, 'add', link.name)
+        git(tmp_path, 'commit', '-qm', 'add malformed symlink target')
+        policy = g.LocalSnapshotPolicy.exclude_untracked()
+    else:
+        policy = g.LocalSnapshotPolicy.include_all_untracked_in_scope()
+    with pytest.raises(g.GitCommandError, match='symlink target'):
+        g.build_local_snapshot(tmp_path, scope=rw.ReviewScope.repository(), policy=policy)
