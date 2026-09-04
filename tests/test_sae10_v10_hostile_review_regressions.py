@@ -175,3 +175,11 @@ def test_changed_files_rejects_string_like_container_before_iteration(bad_paths)
 def test_selected_untracked_policy_rejects_string_like_container_before_tuple_conversion(bad_paths):
     with pytest.raises(rw.ReviewWorldError, match='paths must be a non-string sequence'):
         git_world.LocalSnapshotPolicy.include_selected_untracked(bad_paths)
+
+
+def test_v13_reviewed_regression_blob_is_chained_to_establishing_v8_generation():
+    manifest = json.loads(MANIFEST.read_text(encoding='utf-8'))
+    reviews = manifest['github_hostile_review']
+    reviewed = reviews['exact_v13_completion_hostile_review']
+    establishing = reviews['exact_v8_generated_binding_hostile_review']
+    assert reviewed['reviewed_head_regression_blob'] == establishing['replacement_content_blobs']['tests/test_review_world_git.py']
