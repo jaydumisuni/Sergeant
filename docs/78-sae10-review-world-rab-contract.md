@@ -1,6 +1,6 @@
 # SAE-10 — Review World + Review Authority Bundle candidate contract
 
-Date: 2026-09-03  
+Date: 2026-09-04  
 Lifecycle state: **CANDIDATE**  
 Roadmap node: `SAE-10`  
 Proof dependency: PROVEN `SAE-00`  
@@ -35,7 +35,7 @@ The frozen roadmap attacks remain mechanically represented:
 5. an unauthorized RAB combination fails even when component generations are known;
 6. candidate authority changes cannot self-activate.
 
-Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, authority-manifest completeness, persisted primitive types, repository normalization, unresolved-state canonicality, local repository-null identity, construction/persistence generation-type symmetry, noncoercible GitHub transport identity, dangling symbolic/local HEAD discrimination, noncoercible generated binding identity, pull-request-number currentness, and direct local-snapshot scope validation.
+Additional proof covers persisted tamper, unknown fields, truncated IDs, mutable aliases, repository substitution, Git environment isolation, selected/untracked policy, symlink identity, generated-state binding, LFS/submodule ambiguity, revoked/suspended authorization, strict path canonicality, authority-manifest completeness, persisted primitive types, repository normalization, unresolved-state canonicality, local repository-null identity, construction/persistence generation-type symmetry, noncoercible GitHub transport identity, dangling symbolic/local HEAD discrimination, noncoercible generated binding identity, pull-request-number currentness, direct local-snapshot scope validation, replacement-object isolation, and scalar string/bytes rejection across public path-collection APIs.
 
 ## Hostile-review history
 
@@ -54,6 +54,7 @@ The candidate preserves prior review generations rather than rewriting them.
 - Fresh external exact-head review of corrected v8 head `16c623935549d7b87ae0b96eef58c8630d252c73` (CodeRabbit run `d33a4848-57e5-4cc8-bb65-d8715c6f987f`) exposed one additional authority-boundary defect: a bound `LocalSnapshotPolicy.generated_binding_id` was coerced through `str(...)`, allowing non-string values with SHA-256-shaped string representations to enter snapshot identity. A RED regression demonstrated the coercion before the v9 repair.
 - Owner/Root authority audit of exact v9 head `940fd609ebc18a62bd678a09518f43ed35b04a68` found one documentation-level roadmap error before merge: the residual boundary incorrectly stated that SAE-20 could not advance until SAE-10 closed. The frozen roadmap gives SAE-20 its own proof dependency of SAE-00 and separately permits safe downstream preparation before unresolved dependencies. v10 corrected that wording without changing production behavior.
 - The external exact-head completion review of the same v9 head did complete and is preserved rather than discarded: CodeRabbit run `2c410bcc-a73a-4929-b8de-e8c5b601cba1` reported three actionable findings—GitHub currentness omitted `pr_number`, local snapshot construction trusted a directly forged `ReviewScope` before validation, and the v9 completion review generation itself was not mechanically bound in the candidate history. Test-only head `14984cc377878d74802d7a4ec27ee6fa29732ddd` reproduced exactly all three failures before production changed.
+- Fresh CodeRabbit exact-head review of v12 candidate `c3819455a32f93cbe6fddeccb6bffade69f33046` against canonical base `b5dd07b6a0d2cfed42a111750c0c2df6559a0fb5` (issue comment `5533028222`) verified the v12 replacement-object, blob-binding, UNKNOWN-currentness, nonactivation, and roadmap corrections, then exposed one remaining sibling canonicality defect: `ReviewScope.changed_files(...)` and `LocalSnapshotPolicy.include_selected_untracked(...)` still accepted scalar `str`/`bytes` path containers before iteration/tuple conversion.
 
 ## v8 root repair
 
@@ -119,15 +120,29 @@ The minimal production repair head is `3cbda77bcca89f1066b09fc6f00a64540c2c3710`
 
 The local bound hostile fixture re-proved **5 passed / 0 failed** and the broader Review World/RAB dependency surface executed **126 passed / 0 failed** in the isolated Tenfold worktree. Complete-repository intermediate CI `33813167874` produced **1251 passed / 2 historical XFAIL / exactly 1 failed**, solely the intentionally stale candidate content binding; Main Review `33813167919` passed.
 
-The proof-only finding is repaired in-place in the existing manifest-history test: the v9 `production_replacement_content_blobs`, `focused_collection_after_repair`, and `production_dependency_surface_after_repair` fields are now asserted against the current manifest bindings/counts, adding no new test node.
+The proof-only finding is repaired in-place in the existing manifest-history test: the v9 `production_replacement_content_blobs`, `focused_collection_after_repair`, and `production_dependency_surface_after_repair` fields are now bound to the exact reviewed-generation snapshot rather than silently drifting with later repair generations, adding no new test node.
+
+## v13 sibling path-collection repair
+
+The fresh exact-head CodeRabbit review of v12 head `c3819455a32f93cbe6fddeccb6bffade69f33046` found one remaining sibling of the v12 sequence-container class. `ReviewScope.changed_files(...)` iterated scalar strings, while `LocalSnapshotPolicy.include_selected_untracked(...)` converted a scalar string with `tuple(paths)` before validation. In both cases a value such as `"ab"` could become the canonical collection `("a", "b")` instead of failing closed.
+
+Four hostile cases were bound into the existing regression fixture and published RED-first on `572693665c8c5284d696a280f30485c3d4df4f04`: `str` and `bytes` inputs for each of the two public APIs. CI `33850508646` produced **1251 passed / 2 historical XFAIL / 5 failed**—exactly those four runtime failures plus the deliberately stale candidate content binding. Main Review `33850508701` passed.
+
+The production repair is shared rather than duplicated:
+
+- `require_non_string_sequence(...)` is now the common pre-iteration guard for all `ReviewScope` path construction;
+- `_normalize_policy_paths(...)` applies the same guard before truthiness, iteration, or tuple conversion;
+- `include_selected_untracked(...)` normalizes through that guarded path instead of calling `tuple(paths)` directly.
+
+The repair is frozen at intermediate head `8aeafca35f3c35fb5388e552f7bf469bfc7503ef`. From RED head to intermediate, production changed only **2 files / 13 lines** (`+9 / -4`). Exact replacement blobs are `main_review/review_world.py` `f795b5c9dce74c6ec69cad52d4d34e9ce6107120` and `main_review/review_world_git.py` `cc913b3538f8b101907791209dfafdb31049ba2c`. Complete-repository CI `33851019846` produced **1255 passed / 2 historical XFAIL / exactly 1 failed**, solely the intentionally stale candidate content binding; all four sibling regressions are GREEN. Main Review `33851020089` passed.
 
 ## Current proof boundary
 
-The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. v9 added one production regression node, yielding **129 / 116**. v10 added no test node. v11 added **3 focused nodes**, two of which exercise production authority boundaries and one of which binds review evidence, yielding **132 / 118**. v12 adds **5 hostile runtime cases** in the existing bound regression fixture and no new manifest-proof node, yielding a measured focused collection of **137 tests** and a frozen reconciliation of **123 passed / 0 failed**.
+The final v8 focused SAE-10 collection was **128 tests** with a reconciled production dependency surface of **115 passed / 0 failed**. v9 added one production regression node, yielding **129 / 116**. v10 added no test node. v11 added **3 focused nodes**, two of which exercise production authority boundaries and one of which binds review evidence, yielding **132 / 118**. v12 added **5 hostile runtime cases** in the existing bound regression fixture and no new manifest-proof node, yielding **137 / 123**. v13 adds exactly **4** newly collected hostile path-container cases in that same fixture and no new manifest-proof node, yielding structurally reconciled accounting of **141 focused tests / 127 production cases**. The final v13 full-repository CI remains the authoritative execution measurement.
 
-The manifest-history proof is extended rather than replaced: all prior review assertions remain present and the completed v9 external review is now mechanically bound. Historical review evidence is not reclassified merely because a later owner/root audit occurred against the same candidate head.
+The manifest-history proof is extended rather than replaced: all prior review assertions remain present, completed external reviews are mechanically bound to the generation they actually reviewed, and later legitimate repairs do not rewrite historical blob/count facts.
 
-The exact v9 rebound `940fd609ebc18a62bd678a09518f43ed35b04a68` proved **1244 passed / 2 historical XFAIL / 0 failed** in CI `33753660492`, clean-clone PASS, and Main Review `33753660693` PASS. v10 documentation head `9eb3dcfe0368847def72911d5e622c1adb48c624` independently proved the same **1244 / 2 / 0** in CI `33755080985` with clean-clone PASS and Main Review `33755080831` PASS. Both remain historical evidence only; neither authorizes v11.
+The exact v9 rebound `940fd609ebc18a62bd678a09518f43ed35b04a68` proved **1244 passed / 2 historical XFAIL / 0 failed** in CI `33753660492`, clean-clone PASS, and Main Review `33753660693` PASS. v10 documentation head `9eb3dcfe0368847def72911d5e622c1adb48c624` independently proved the same **1244 / 2 / 0** in CI `33755080985` with clean-clone PASS and Main Review `33755080831` PASS. Both remain historical evidence only.
 
 The eight external authority paths remain byte-stable and must continue to match their exact Git blob bindings.
 
@@ -139,4 +154,4 @@ General SAE-30 Qualification Authority machinery does not yet exist and is **not
 
 ## Residual boundary
 
-This is still **CANDIDATE**. Earlier candidate/rebound/repair heads, including v9 `940fd609ebc18a62bd678a09518f43ed35b04a68`, v10 `9eb3dcfe0368847def72911d5e622c1adb48c624`, RED `14984cc377878d74802d7a4ec27ee6fa29732ddd`, and intermediate repair `6903ba3caee39d86a397e45e270830651435253a`, are historical or non-freezeable once the v11 evidence rebound exists. SAE-10 is not lifecycle-PROVEN until the exact v12 rebound survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. SAE-20 remains governed by its own frozen SAE-00 proof dependency; SAE-10 closeout neither blocks safe SAE-20 preparation nor auto-qualifies or auto-proves SAE-20.
+This is still **CANDIDATE**. Earlier candidate/rebound/repair heads are historical or non-freezeable once a later evidence rebound exists. SAE-10 is not lifecycle-PROVEN until the exact v13 rebound survives complete-repository and clean-clone proof, survives a fresh exact-head hostile review, is reconciled against current `main`, and the exact reviewed candidate is guarded-merged before a separate immutable SAE-10 PROVEN closeout generation is created and proved. SAE-20 remains governed by its own frozen SAE-00 proof dependency; SAE-10 closeout neither blocks safe SAE-20 preparation nor auto-qualifies or auto-proves SAE-20.
