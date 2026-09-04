@@ -107,10 +107,6 @@ def test_v9_completion_hostile_review_generation_is_mechanically_bound():
     }
     assert set(review['accepted_repairs']) == {
         'github_currentness_compares_pr_number',
-        'local_snapshot_validates_scope_before_hashing',
-        'bind_v9_completion_review_generation_and_reproof',
-    } if False else {
-        'github_currentness_compares_pr_number',
         'local_snapshot_validates_scope_before_path_selection_or_hashing',
         'bind_v9_completion_review_generation_and_reproof',
     }
