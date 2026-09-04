@@ -118,6 +118,6 @@
   },
   "proof_fixture": {
     "path": "tests/test_sae10_proven_lifecycle_closeout.py",
-    "blob_sha": "a9743c026cea113b90aac8d070724ca3269c1db8"
+    "blob_sha": "867ee2c6b77a6405c70ad67e0fc3305712620a00"
   }
 }
