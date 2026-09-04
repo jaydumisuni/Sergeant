@@ -163,3 +163,15 @@ def test_unresolved_state_rejects_string_like_container_before_iteration(bad_sta
             review_generation='g',
             unresolved_state=bad_state,
         )
+
+
+@pytest.mark.parametrize('bad_paths', ['ab', b'ab'])
+def test_changed_files_rejects_string_like_container_before_iteration(bad_paths):
+    with pytest.raises(rw.ReviewWorldError, match='paths must be a non-string sequence'):
+        rw.ReviewScope.changed_files(bad_paths)
+
+
+@pytest.mark.parametrize('bad_paths', ['ab', b'ab'])
+def test_selected_untracked_policy_rejects_string_like_container_before_tuple_conversion(bad_paths):
+    with pytest.raises(rw.ReviewWorldError, match='paths must be a non-string sequence'):
+        git_world.LocalSnapshotPolicy.include_selected_untracked(bad_paths)
