@@ -1,0 +1,53 @@
+{
+  "schema_version": "sergeant.cross-repository-learning-signal.v1",
+  "case_id": "learn-oracle-extension-interrupted-install-recovery-20260818",
+  "repository": "jaydumisuni/Oracle-",
+  "event_kind": "repair",
+  "source_url": "https://github.com/jaydumisuni/Oracle-",
+  "source_event_url": "https://github.com/jaydumisuni/Oracle-/pull/158",
+  "source_pr": 158,
+  "defective_ref": "981ea4ad711a5aaa33c83bd0d3148c12ed562ec9",
+  "fixing_ref": "d9070187dea21fd91fb463801555930c9924fc16",
+  "language": "javascript",
+  "scored_paths": [
+    "browser/extension/update-background.js"
+  ],
+  "evidence_refs": [
+    "https://github.com/jaydumisuni/Oracle-/pull/158",
+    "https://github.com/jaydumisuni/Oracle-/commit/981ea4ad711a5aaa33c83bd0d3148c12ed562ec9",
+    "https://github.com/jaydumisuni/Oracle-/commit/d9070187dea21fd91fb463801555930c9924fc16",
+    "https://github.com/jaydumisuni/Oracle-/commit/61f9f10d9c297f5a3f369e101baeb0cba5529702",
+    "https://github.com/jaydumisuni/Oracle-/commit/5b58f0f3d8543ddc29a9a578e4ed84a70fdeaa2f",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148873944",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148873852",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148874086",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32148873820",
+    "https://github.com/jaydumisuni/Oracle-/pull/157",
+    "https://github.com/jaydumisuni/Oracle-/actions/runs/32139686124"
+  ],
+  "summary": "Inside Oracle PR #158's repo-backed updater repair, restart reconciliation treated both `ready_to_restart` and `installing` as pending success states only when the installed version had already reached the available version, but left an interrupted `installing` state unchanged when installation had not completed. Commit d9070187 converts that orphaned transient state into explicit `install_failed` recovery while preserving the successful post-restart reconciliation path. Subsequent behavior tests and the fixing PR head verify the updater state machine; the PR head's only red Native Browser check is the same pre-existing privacy-shield timeout reproduced on PR #157 before this lifecycle correction.",
+  "defect_confirmed": true,
+  "fix_verified": true,
+  "blind_review_possible": true,
+  "behavior_change": true,
+  "security_or_integrity": false,
+  "cross_component": false,
+  "concurrency_or_lifecycle": true,
+  "changed_files": 1,
+  "changed_lines": 26,
+  "package_count": 1,
+  "dependency_depth": 2,
+  "defect_novelty": 0.94,
+  "learning_objectives": [
+    "Transient mutation states such as installing must not survive process restart indefinitely; startup reconciliation must convert an unproven interrupted operation into a terminal recoverable failure.",
+    "Recovery logic must distinguish an operation that completed before the crash from one that merely started: observable installed state can prove success, otherwise the stale in-progress marker must fail closed.",
+    "State-machine recovery should preserve enough stable status and error information for a later retry instead of silently retrying or reporting success without proof."
+  ],
+  "learning_state": "collected",
+  "accepted_lesson": false,
+  "authority": {
+    "may_auto_promote": false,
+    "may_auto_merge": false,
+    "final_verdict": "Sergeant"
+  }
+}
