@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import hashlib, os, subprocess
 from pathlib import Path
 from typing import Literal, Protocol, Sequence
-from main_review.review_world import GitHubDiffIdentity, GitHubReviewWorld, LocalReviewWorld, ReviewScope, ReviewWorldError, require_full_sha256, require_git_object_id, sha256_id
+from main_review.review_world import GitHubDiffIdentity, GitHubReviewWorld, LocalReviewWorld, ReviewScope, ReviewWorldError, require_full_sha256, require_git_object_id, require_non_string_sequence, sha256_id
 
 class GitCommandError(ReviewWorldError):
     pass
@@ -109,6 +109,7 @@ def build_github_review_world_from_diff(pull_request_diff: object, *, scope: Rev
     return build_github_review_world(repository=repository, pr_number=pr_number, base_sha=base_sha, head_sha=head_sha, scope=scope, review_mode=review_mode, rab_id=rab_id, review_generation=review_generation, resolver=resolver)
 
 def _normalize_policy_paths(paths: Sequence[str]) -> tuple[str, ...]:
+    paths = require_non_string_sequence(paths, 'paths')
     return () if not paths else ReviewScope.selected_paths(paths).paths
 
 @dataclass(frozen=True)
@@ -152,7 +153,7 @@ class LocalSnapshotPolicy:
 
     @classmethod
     def include_selected_untracked(cls, paths: Sequence[str]):
-        return cls(untracked_policy='include_selected_untracked', selected_untracked=tuple(paths))
+        return cls(untracked_policy='include_selected_untracked', selected_untracked=_normalize_policy_paths(paths))
 
     def to_payload(self) -> dict[str, object]:
         return {'untracked_policy': self.untracked_policy, 'selected_untracked': list(self.selected_untracked), 'lfs_state': self.lfs_state, 'generated_state': self.generated_state, 'generated_binding_id': self.generated_binding_id, 'submodule_state': self.submodule_state}
