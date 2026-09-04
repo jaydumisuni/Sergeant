@@ -21,7 +21,7 @@
     "tests/test_review_world_persistence.py": "8e8258ef7285eef59e34a2e9bd7d7f7eda7ee65e",
     "tests/test_sae10_hostile_matrix.py": "3d2c2804e2b1cb6182c5981f3a89d6f180842c5d",
     "tests/test_sae10_review_world_rab_manifest.py": "05c45d166e56fedcf99f07b9e9dbe1c33e8735c0",
-    "tests/test_sae10_v10_hostile_review_regressions.py": "d2d490c52c379541a53aa793cfab133a4607f69c",
+    "tests/test_sae10_v10_hostile_review_regressions.py": "61cd1a98439b9ef90428883ac7e5f3e8dbb378e6",
     "tests/test_spike_sem_historical_metric_supersession.py": "846434677f6c1d76df35cf6fdf3603b4d054ece3"
   },
   "external_authority_blobs": {
