@@ -90,14 +90,18 @@ def test_sae10_candidate_execution_and_hostile_review_are_exact() -> None:
     assert execution["focused_collection"] == 143
     assert execution["production_dependency_surface"] == {"passed": 129, "failed": 0, "xfailed": 0}
 
+    assert review["reviewed_head"] == FINAL_CANDIDATE_HEAD
     assert review["owner_root_exact_head_review_id"] == 5111777001
     assert review["owner_root_review_kind"] == "COMMENT"
     assert review["owner_root_actionable_findings"] == 0
+    assert review["owner_root_review_is_self_approval"] is False
     assert review["coderabbit_targeted_verification_comment_id"] == 3933013210
     assert review["coderabbit_targeted_verification_disposition"] == "last_disputed_finding_does_not_apply"
     assert review["full_exact_head_coderabbit_review_submission"] is None
     assert review["full_exact_head_coderabbit_review_fabricated"] is False
+    assert review["full_exact_head_external_review_absence_treated_as_pass"] is False
     assert review["all_inline_review_threads_resolved"] is True
+    assert review["disposition"] == "bounded_owner_root_pre_sae30_completion_audit_with_targeted_external_verification"
 
 
 def test_sae10_closeout_binds_exact_candidate_head_to_canonical_merge() -> None:
@@ -108,6 +112,7 @@ def test_sae10_closeout_binds_exact_candidate_head_to_canonical_merge() -> None:
 
     assert merge_commit == CANDIDATE_MERGE
     assert candidate_head == FINAL_CANDIDATE_HEAD
+    assert closeout["canonical_candidate_merge"]["merge_method"] == "merge_commit"
     assert re.fullmatch(r"[0-9a-f]{40}", merge_commit)
     assert re.fullmatch(r"[0-9a-f]{40}", candidate_head)
     assert merge_commit in text
@@ -134,6 +139,14 @@ def test_sae10_closeout_requires_proven_sae00_roadmap_authority() -> None:
     assert authority["merge_commit"] == SAE00_PROVEN_MERGE
     assert authority["required_output"] == "ROADMAP_EXECUTION_AUTHORITY"
     assert authority["required_output"] in sae00["produces"]
+
+    if _commit_available(SAE00_PROVEN_MERGE):
+        subprocess.check_call(
+            ["git", "merge-base", "--is-ancestor", SAE00_PROVEN_MERGE, "HEAD"], cwd=ROOT
+        )
+        return
+
+    assert _git("rev-parse", "--is-shallow-repository") == "true"
 
 
 def test_sae10_bootstrap_and_outputs_are_bounded() -> None:
