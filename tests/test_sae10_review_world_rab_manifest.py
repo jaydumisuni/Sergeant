@@ -32,7 +32,7 @@ def _assert_exact_blob_bindings(bindings, expected_paths, *, blob_fn=blob):
 
 def test_candidate_manifest_lifecycle_and_dependency():
     m=_load(); assert (m['schema_version'],m['lifecycle_state'],m['proof_dependency'],m['normal_verdict_authority'])==(
-    'sergeant.sae10-review-world-rab-candidate.v12','CANDIDATE',['SAE-00'],False)
+    'sergeant.sae10-review-world-rab-candidate.v13','CANDIDATE',['SAE-00'],False)
 def test_candidate_manifest_outputs_are_exact():
     assert _load()['produces']==['QUALIFIED_REVIEW_WORLD_CONTRACT','QUALIFIED_RAB_CONTRACT']
 def test_manifest_paths_are_repository_confined():
@@ -53,9 +53,9 @@ def test_external_authority_binding_guard_rejects_extra_member_and_hash_mismatch
     with pytest.raises(AssertionError):
         _assert_exact_blob_bindings(b,EXPECTED_EXTERNAL_AUTHORITY_BLOBS,blob_fn=lambda p:bad[str(p)])
 def test_tenfold_formation_and_focused_proof_are_bound():
-    assert _load()['tenfold_proof']=={'actions_required':False,'formation_lanes':20,'focused_collection':137,
-    'local_dependency_surface_reconciliation':{'failed':0,'passed':123,'xfailed':0,
-    'basis':'v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_plus_1_v9_generated_binding_plus_2_v11_production_boundary_regressions_plus_5_v12_exact_head_runtime_cases'},
+    assert _load()['tenfold_proof']=={'actions_required':False,'formation_lanes':20,'focused_collection':141,
+    'local_dependency_surface_reconciliation':{'failed':0,'passed':127,'xfailed':0,
+    'basis':'v5_frozen_93_plus_14_v6_red_green_plus_5_v7_generation_strict_plus_3_v8_exact_head_plus_1_v9_generated_binding_plus_2_v11_production_boundary_regressions_plus_5_v12_exact_head_runtime_cases_plus_4_v13_sibling_public_path_collection_cases'},
     'repository_only_focused_tests':12}
 def test_required_hostile_attacks_are_bound():
     assert set(_load()['required_hostile_attacks'])=={'same_head_different_base','wrong_merge_tree','local_mutation_after_snapshot',
@@ -136,7 +136,7 @@ def test_github_hostile_review_finding_is_bound_and_repaired_locally():
     'tests/test_review_world_persistence.py':'99b3f1146588fc6fd79e5dca8426fde7f672abf6'}
     assert r['historical_fixture_blob_preserved']==m['external_authority_blobs'][str(HISTORICAL_SPIKE_FIXTURE)]
 
-def test_v8_v9_v10_v11_and_v12_exact_head_review_history_and_intermediate_proof_are_bound():
+def test_v8_v9_v10_v11_v12_and_v13_exact_head_review_history_and_intermediate_proof_are_bound():
     reviews=_load()['github_hostile_review']
     v=reviews['exact_v7_completion_hostile_review']
     assert (v['reviewed_head'],v['review_run_id'],v['finding_class'],v['actionable_findings'])==(
@@ -216,6 +216,7 @@ def test_v8_v9_v10_v11_and_v12_exact_head_review_history_and_intermediate_proof_
     'main_review_run_id':33761724596,'main_review':'pass'}
     m=_load()
     x=reviews['exact_v11_completion_hostile_review']
+    y=reviews['exact_v12_completion_hostile_review']
     assert h['production_replacement_content_blobs']==x['reviewed_head_content_blobs']
     assert h['focused_collection_after_repair']==x['reviewed_head_focused_collection']
     assert h['production_dependency_surface_after_repair']==x['reviewed_head_production_dependency_surface']
@@ -240,9 +241,38 @@ def test_v8_v9_v10_v11_and_v12_exact_head_review_history_and_intermediate_proof_
     'clean_clone_proof':'blocked_by_same_stale_candidate_binding_before_supplementary_steps'}
     assert x['local_hostile_reproof']=={'failed':0,'passed':5,'xfailed':0}
     assert x['local_broader_dependency_reproof']=={'failed':0,'passed':126,'xfailed':0}
-    assert x['focused_collection_after_repair']==m['tenfold_proof']['focused_collection']
-    assert x['production_dependency_surface_after_repair']==m['tenfold_proof']['local_dependency_surface_reconciliation']['passed']
-    assert x['replacement_content_blobs']=={
+    assert x['replacement_content_blobs']==y['reviewed_head_content_blobs']
+    assert x['focused_collection_after_repair']==y['reviewed_head_focused_collection']
+    assert x['production_dependency_surface_after_repair']==y['reviewed_head_production_dependency_surface']
+    assert (y['reviewed_head'],y['review_comment_id'],y['finding_class'],y['actionable_findings'])==(
+    'c3819455a32f93cbe6fddeccb6bffade69f33046',5533028222,
+    'remaining_public_path_collection_canonicality',1)
+    assert y['review_basis']=='coderabbit_exact_head_hostile_comment_plus_red_green_reproduction'
+    assert y['valid_findings']==['remaining_public_path_apis_accept_string_bytes_containers']
+    assert y['reviewed_head_repository_reproof']=={
+    'ci_run_id':33813707646,'failed':0,'passed':1252,'xfailed':2,'clean_clone_proof':'pass',
+    'main_review_run_id':33813707714,'main_review':'pass'}
+    assert y['red_regressions']=={
+    'red_test_head':'572693665c8c5284d696a280f30485c3d4df4f04','ci_run_id':33850508646,
+    'runtime_cases_failed_as_expected':4,'candidate_binding_failures':1,'passed':1251,'xfailed':2}
+    assert set(y['accepted_repairs'])=={
+    'centralize_non_string_sequence_guard_for_review_scope_path_construction',
+    'guard_selected_untracked_paths_before_truthiness_iteration_or_tuple_conversion'}
+    assert y['intermediate_repair_head']=='8aeafca35f3c35fb5388e552f7bf469bfc7503ef'
+    assert y['intermediate_repository_reproof']=={
+    'ci_run_id':33851019846,'failed':1,'passed':1255,'xfailed':2,
+    'sole_failure':'candidate_content_blob_bindings_stale','main_review_run_id':33851020089,'main_review':'pass',
+    'clean_clone_proof':'blocked_by_same_stale_candidate_binding_before_supplementary_steps'}
+    assert y['reviewed_head_content_blobs']=={
+    'main_review/review_world.py':'26aca28d1983cfea811d67da7ab047d87569cbce',
+    'main_review/review_world_git.py':'4acdb622a87b96c9219928001c14ad4f869bbf69',
+    'tests/test_sae10_v10_hostile_review_regressions.py':'92271b4846796e8827eb9de5a414ff31ee0e76a5',
+    'tests/test_sae10_review_world_rab_manifest.py':'35737089e4faf492ccb39344032523624d217d6e'}
+    assert y['reviewed_head_focused_collection']==137
+    assert y['reviewed_head_production_dependency_surface']==123
+    assert y['focused_collection_after_repair']==m['tenfold_proof']['focused_collection']
+    assert y['production_dependency_surface_after_repair']==m['tenfold_proof']['local_dependency_surface_reconciliation']['passed']
+    assert y['replacement_content_blobs']=={
     'main_review/review_world.py':m['content_blobs']['main_review/review_world.py'],
     'main_review/review_world_git.py':m['content_blobs']['main_review/review_world_git.py'],
     'tests/test_sae10_v10_hostile_review_regressions.py':m['content_blobs']['tests/test_sae10_v10_hostile_review_regressions.py'],
