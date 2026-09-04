@@ -209,6 +209,14 @@ def _sha256_file(path: Path) -> str:
             h.update(chunk)
     return h.hexdigest()
 
+def _read_symlink_target(path: Path) -> tuple[str, str]:
+    target = os.readlink(path)
+    try:
+        encoded = target.encode('utf-8')
+    except UnicodeEncodeError as e:
+        raise GitCommandError(f'local Review World cannot canonically encode non-UTF-8 symlink target: {path}') from e
+    return target, hashlib.sha256(encoded).hexdigest()
+
 def _is_lfs_pointer(path: Path) -> bool:
     if not path.is_file() or path.is_symlink():
         return False
@@ -309,8 +317,7 @@ def build_local_snapshot(root: str | Path, *, scope: ReviewScope, policy: LocalS
             continue
         state = 'modified' if path in modified or path in staged else 'unchanged'
         if absolute.is_symlink():
-            target = os.readlink(absolute)
-            digest = hashlib.sha256(target.encode('utf-8')).hexdigest()
+            target, digest = _read_symlink_target(absolute)
             states.append(LocalPathState(path, 'symlink', mode, oid, digest, state, symlink_target=target))
             continue
         if not absolute.is_file():
@@ -329,8 +336,7 @@ def build_local_snapshot(root: str | Path, *, scope: ReviewScope, policy: LocalS
             continue
         absolute = root / path
         if absolute.is_symlink():
-            target = os.readlink(absolute)
-            digest = hashlib.sha256(target.encode('utf-8')).hexdigest()
+            target, digest = _read_symlink_target(absolute)
             states.append(LocalPathState(path, 'symlink', None, None, digest, 'untracked', symlink_target=target))
         elif absolute.is_file():
             if policy.lfs_state == 'material_required' and _is_lfs_pointer(absolute):
