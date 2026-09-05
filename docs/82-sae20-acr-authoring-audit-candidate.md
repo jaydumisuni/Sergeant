@@ -8,54 +8,43 @@ Construction base: canonical Sergeant `main` at `e4cd5af49823a97451a998a3ae553a1
 
 ## Authority
 
-This candidate implements the SAE-20 foundation defined by:
-
-- `docs/58-sergeant-assurance-evolution-founding-architecture.md`;
-- `docs/59-sergeant-assurance-evolution-roadmap.md`;
-- PROVEN SAE-00 `ROADMAP_EXECUTION_AUTHORITY` from `docs/67-sae00-proven-lifecycle-closeout-manifest.json`.
+This candidate implements the SAE-20 foundation defined by `docs/58-sergeant-assurance-evolution-founding-architecture.md`, `docs/59-sergeant-assurance-evolution-roadmap.md`, and PROVEN SAE-00 `ROADMAP_EXECUTION_AUTHORITY` from `docs/67-sae00-proven-lifecycle-closeout-manifest.json`.
 
 SAE-20 has one proof dependency: SAE-00. SAE-10 is already PROVEN but is not fabricated as a proof dependency for SAE-20.
 
 ## Candidate foundation
 
-`main_review/assurance_contract_registry.py` defines finite bounded domains, immutable content-addressed contract/registry identity, declarative `TRUE / FALSE / UNKNOWN` applicability, `PROVEN_NO_MATCH`, `SET / MULTISET / ORDER`, explicit cardinality and closure, mandatory premises/obligations/material inputs, coherence/temporal/falsifier/independence rules, mandatory-v1 evaluation and UNKNOWN fallback. Applicability expected values are recursively frozen and serialization returns detached values so later caller mutation cannot alter semantics under an existing content ID.
+`main_review/assurance_contract_registry.py` defines bounded domains, immutable content-addressed contract/registry identity, declarative `TRUE / FALSE / UNKNOWN` applicability, `PROVEN_NO_MATCH`, `SET / MULTISET / ORDER`, explicit cardinality and closure, mandatory premises/obligations/material inputs, coherence/temporal/falsifier/independence rules, mandatory-v1 evaluation and UNKNOWN fallback.
 
-`main_review/acr_authoring_audit.py` defines a separately content-addressed Authoring Audit profile whose independent basis binds:
+Applicability expected JSON is immutable and detached from caller mutation. Frozen JSON maps are canonical only when keys are unique and sorted. Runtime facts that cannot be normalized as JSON become UNKNOWN rather than aborting mandatory evaluation. Equality is recursive and type-sensitive, so JSON boolean and number identities cannot collapse. One-shot authority-bearing iterables are materialized once before validation and sorting so validation cannot consume and silently erase them.
 
-- exact bounded-domain hash, not merely a reusable domain label;
-- exact applicability predicate semantics including operators, values and tree structure;
-- bound subject variables;
-- semantic carriers, consumer interpretation and affected relations;
-- collection semantics, cardinality and closure grades;
-- premise, obligation and material-input families **and their closure grades**;
-- admissible proof classes and permitted capabilities;
-- repeated authority premises, coherence, temporal, falsifier and independence rules;
-- mandatory external-review lane cardinality;
-- canonical negative-applicability burden and UNKNOWN fallback.
+`main_review/acr_authoring_audit.py` defines a separately content-addressed Authoring Audit profile. The profile binds the exact contract ID **and contract generation**, bounded-domain hash, applicability predicate semantics, bound subjects, semantic carriers, consumer interpretation, affected relations, collections/cardinality/closure, premises/obligations/material inputs and closure grades, proof classes, capabilities, repeated authority premises, coherence, temporal validity, falsifiers, independence and external-review lane cardinality.
 
-A malformed constructor-bypass contract fails closed as `contract_noncanonical_or_malformed`. `CLEAN` means only structurally eligible for later independent qualification; it never means `QUALIFIED`. ACR qualification escapes remain permanent qualification evidence, require suspension/revocation disposition and impact analysis, and cannot auto-promote a corrected contract.
+The profile itself must canonically round-trip and preserve its content hash before any of its requirements are trusted. A malformed/tampered profile therefore fails closed as `profile_noncanonical_or_malformed`; a malformed contract fails closed as `contract_noncanonical_or_malformed`. `CLEAN` means only structurally eligible for later independent qualification and never means `QUALIFIED`.
 
-## Hostile-review correction
+A later ACR qualification escape remains permanent qualification evidence, requires suspension/revocation plus impact analysis, and cannot auto-promote a corrected contract.
 
-Exact-head repository proof on predecessor candidate `f07bdef1e157d5dcf708f13ec9860ee5f4bf606f` established `1306 passed / 2 historical XFAIL / 0 failed`, clean-clone proof PASS and Main Review PASS. Hostile review then found valid authoring-audit and identity escapes, so that candidate was **not** merged.
+## Hostile-review lineage
 
-The corrected local construction harness preserves the prior SAE-20 tests and adds regression cases for every accepted finding:
+Predecessor candidate `f07bdef1e157d5dcf708f13ec9860ee5f4bf606f` was not merged after hostile review found valid ACR authoring/identity escapes.
 
-- exact-domain generation/dimension substitution;
-- applicability `any_of`, negation and expected-value substitution;
-- mutable expected-value aliasing through input or serialized payload;
-- premise/obligation/material-input closure downgrade;
-- malformed negative-applicability burden;
-- bound-subject, admissible-proof-class and permitted-capability drift;
-- arbitrary malformed constructor-bypass collection;
-- complete manifest local-proof assertions.
+First hardened head `61f82eaa14478c409d684017663edccf6ee311e8` independently earned repository CI and clean-clone proof. Exact CI evidence was **1324 passed / 2 historical XFAIL / 0 failed**. Main Review and the major proof workflows also passed. Fresh exact-head Codex review then found six additional valid issues, so that head is not treated as proof for this corrected generation.
 
-Corrected focused production/hostile suite: **52 passed / 0 failed**. Python compile proof passes. The production modules contain no `str(...)`, `int(...)` or `bool(...)` coercion sites.
+The second correction adds regressions for all six findings:
 
-The corrected pushed head must independently earn repository-wide CI, clean-clone proof, Main Review and hostile-review closure. No predecessor result is transferred as current-head proof.
+- canonical validation of the authority-bearing audit profile before use;
+- exact contract-generation binding;
+- duplicate/unsorted constructor-bypass frozen-map rejection;
+- unsupported runtime applicability values conserve UNKNOWN;
+- recursive type-sensitive JSON equality;
+- one-shot requirements/collections/external-review lanes cannot be consumed and dropped.
+
+Local reconstructed SAE-20 suite for this second correction: **64 passed / 0 failed**. Python compile proof passes. The production modules contain no `str(...)`, `int(...)`, or `bool(...)` coercion calls.
+
+These local and predecessor results are construction evidence only. The exact newly published head must independently earn repository CI, clean-clone proof, Main Review and fresh hostile-review closure.
 
 ## Authority boundary
 
-This candidate does **not** implement or claim SAE-30 qualification issuer authority, Judge Assurance Ledger integration, total contract-instance/obligation closure, Genesis activation, normal Sergeant verdict authority or automatic qualification of any contract/dependent programme.
+This candidate does **not** implement or claim SAE-30 qualification issuer authority, Judge Assurance Ledger integration, total contract-instance/obligation closure, Genesis activation, normal Sergeant verdict authority, or automatic qualification of any contract/dependent programme.
 
-Only a separately reviewed and proved SAE-20 lifecycle closeout may produce `QUALIFIED_ACR_FOUNDATION` for the exact merged candidate generation.
+Only a separately reviewed and PROVEN SAE-20 lifecycle closeout may produce `QUALIFIED_ACR_FOUNDATION` for the exact accepted generation.

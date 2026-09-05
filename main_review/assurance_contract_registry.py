@@ -5,7 +5,6 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import Enum
 import math
-from typing import Any
 
 from .review_world import ReviewWorldError, require_full_sha256, sha256_id
 
@@ -26,58 +25,91 @@ def _expect_keys(payload: Mapping[str, object], required: set[str], label: str) 
 
 def _identifiers(values: Sequence[str], field: str, *, allow_empty: bool=True) -> tuple[str,...]:
     if isinstance(values,(str,bytes)): raise RegistryError(f"{field} must be a non-string sequence")
-    out = tuple(sorted(_string(v,field) for v in values))
+    out=tuple(sorted(_string(v,field) for v in values))
     if not allow_empty and not out: raise RegistryError(f"{field} must not be empty")
-    if len(set(out)) != len(out): raise RegistryError(f"{field} contains duplicates")
+    if len(set(out))!=len(out): raise RegistryError(f"{field} contains duplicates")
     return out
 
 @dataclass(frozen=True)
 class _FrozenJSONMap(Mapping[str, object]):
     items_tuple: tuple[tuple[str, object], ...]
-    def __getitem__(self, key: str) -> object:
+    def __getitem__(self,key: str)->object:
         for k,v in self.items_tuple:
-            if k == key: return v
+            if k==key: return v
         raise KeyError(key)
     def __iter__(self): return (k for k,_ in self.items_tuple)
     def __len__(self): return len(self.items_tuple)
-    def __eq__(self, other: object) -> bool:
-        if isinstance(other, Mapping):
-            return dict(self.items()) == dict(other.items())
-        return False
+    def __eq__(self,other: object)->bool:
+        if not isinstance(other,Mapping): return False
+        try: return _json_equal(self,_freeze_json(other))
+        except RegistryError: return False
+
+def _validate_frozen_json(value: object, field: str="applicability expected") -> None:
+    if value is None or isinstance(value,(str,bool,int)): return
+    if isinstance(value,float):
+        if not math.isfinite(value): raise RegistryError(f"{field} rejects non-finite numbers")
+        return
+    if isinstance(value,_FrozenJSONMap):
+        keys=[]
+        for pair in value.items_tuple:
+            if not isinstance(pair,tuple) or len(pair)!=2 or not isinstance(pair[0],str):
+                raise RegistryError(f"{field} frozen object entries must be (string, value) pairs")
+            keys.append(pair[0]); _validate_frozen_json(pair[1],field)
+        if keys!=sorted(keys) or len(set(keys))!=len(keys):
+            raise RegistryError(f"{field} frozen object keys must be sorted and unique")
+        return
+    if isinstance(value,tuple):
+        for item in value: _validate_frozen_json(item,field)
+        return
+    raise RegistryError(f"{field} must be canonical immutable JSON")
 
 def _freeze_json(value: object, field: str="applicability expected") -> object:
+    if isinstance(value,_FrozenJSONMap):
+        _validate_frozen_json(value,field); return value
     if value is None or isinstance(value,(str,bool,int)): return value
     if isinstance(value,float):
         if not math.isfinite(value): raise RegistryError(f"{field} rejects non-finite numbers")
         return value
-    if isinstance(value, Mapping):
+    if isinstance(value,Mapping):
         pairs=[]
         for k,v in value.items():
             if not isinstance(k,str): raise RegistryError(f"{field} object keys must be strings")
             pairs.append((k,_freeze_json(v,field)))
-        pairs.sort(key=lambda item:item[0])
-        if len({k for k,_ in pairs}) != len(pairs): raise RegistryError(f"{field} contains duplicate object keys")
-        return _FrozenJSONMap(tuple(pairs))
+        pairs.sort(key=lambda x:x[0])
+        if len({k for k,_ in pairs})!=len(pairs): raise RegistryError(f"{field} contains duplicate object keys")
+        result=_FrozenJSONMap(tuple(pairs)); _validate_frozen_json(result,field); return result
     if isinstance(value,(list,tuple)):
-        return tuple(_freeze_json(v,field) for v in value)
+        result=tuple(_freeze_json(v,field) for v in value); _validate_frozen_json(result,field); return result
     raise RegistryError(f"{field} must be JSON-compatible")
 
-def _is_frozen_json(value: object) -> bool:
-    if value is None or isinstance(value,(str,bool,int)): return True
-    if isinstance(value,float): return math.isfinite(value)
-    if isinstance(value,_FrozenJSONMap): return all(_is_frozen_json(v) for _,v in value.items_tuple)
-    if isinstance(value,tuple): return all(_is_frozen_json(v) for v in value)
-    return False
+def _is_frozen_json(value: object)->bool:
+    try: _validate_frozen_json(value); return True
+    except RegistryError: return False
 
-def _thaw_json(value: object) -> object:
+def _thaw_json(value: object)->object:
+    _validate_frozen_json(value)
     if isinstance(value,_FrozenJSONMap): return {k:_thaw_json(v) for k,v in value.items_tuple}
     if isinstance(value,tuple): return [_thaw_json(v) for v in value]
     return value
 
-class ApplicabilityTruth(str, Enum): TRUE="TRUE"; FALSE="FALSE"; UNKNOWN="UNKNOWN"
-class ClosureGrade(str, Enum): EXACT="EXACT"; CONSERVATIVE_SUPERSET="CONSERVATIVE_SUPERSET"; PARTIAL="PARTIAL"; UNKNOWN="UNKNOWN"
-class CollectionSemantics(str, Enum): SET="SET"; MULTISET="MULTISET"; ORDER="ORDER"
-class CardinalityKind(str, Enum): ZERO_OR_ONE="ZERO_OR_ONE"; EXACTLY_ONE="EXACTLY_ONE"; FINITE="FINITE"; BOUNDED_N="BOUNDED_N"; OPEN="OPEN"
+def _json_equal(left: object,right: object)->bool:
+    """Type-sensitive equality over canonical frozen JSON values."""
+    _validate_frozen_json(left); _validate_frozen_json(right)
+    if type(left) is not type(right): return False
+    if isinstance(left,_FrozenJSONMap):
+        assert isinstance(right,_FrozenJSONMap)
+        return len(left.items_tuple)==len(right.items_tuple) and all(
+            lk==rk and _json_equal(lv,rv) for (lk,lv),(rk,rv) in zip(left.items_tuple,right.items_tuple)
+        )
+    if isinstance(left,tuple):
+        assert isinstance(right,tuple)
+        return len(left)==len(right) and all(_json_equal(a,b) for a,b in zip(left,right))
+    return left==right
+
+class ApplicabilityTruth(str,Enum): TRUE="TRUE"; FALSE="FALSE"; UNKNOWN="UNKNOWN"
+class ClosureGrade(str,Enum): EXACT="EXACT"; CONSERVATIVE_SUPERSET="CONSERVATIVE_SUPERSET"; PARTIAL="PARTIAL"; UNKNOWN="UNKNOWN"
+class CollectionSemantics(str,Enum): SET="SET"; MULTISET="MULTISET"; ORDER="ORDER"
+class CardinalityKind(str,Enum): ZERO_OR_ONE="ZERO_OR_ONE"; EXACTLY_ONE="EXACTLY_ONE"; FINITE="FINITE"; BOUNDED_N="BOUNDED_N"; OPEN="OPEN"
 
 @dataclass(frozen=True)
 class ApplicabilityResult:
@@ -104,8 +136,7 @@ class ApplicabilityPredicate:
     expected: object|None=None
     children: tuple['ApplicabilityPredicate',...]=()
     @classmethod
-    def fact_equals(cls,fact: str, expected: object):
-        return cls("fact_equals",_string(fact,"applicability fact"),_freeze_json(expected),())
+    def fact_equals(cls,fact: str,expected: object): return cls("fact_equals",_string(fact,"applicability fact"),_freeze_json(expected),())
     @classmethod
     def fact_absent(cls,fact: str): return cls("fact_absent",_string(fact,"applicability fact"),None,())
     @classmethod
@@ -119,11 +150,11 @@ class ApplicabilityPredicate:
     @classmethod
     def _composite(cls,op,children):
         if isinstance(children,(str,bytes)) or not children: raise RegistryError(f"{op} applicability requires at least one child")
-        children=tuple(children)
-        for c in children:
+        out=tuple(children)
+        for c in out:
             if not isinstance(c,ApplicabilityPredicate): raise RegistryError("applicability child must be an ApplicabilityPredicate")
             c.validate()
-        return cls(op,None,None,children)
+        return cls(op,None,None,out)
     def validate(self):
         if self.op=="fact_equals":
             _string(self.fact,"applicability fact")
@@ -135,7 +166,9 @@ class ApplicabilityPredicate:
             return
         if self.op in {"all","any"}:
             if self.fact is not None or self.expected is not None or not self.children: raise RegistryError(f"{self.op} predicate is malformed")
-            for c in self.children: c.validate()
+            for c in self.children:
+                if not isinstance(c,ApplicabilityPredicate): raise RegistryError("applicability child must be an ApplicabilityPredicate")
+                c.validate()
             return
         if self.op=="not":
             if self.fact is not None or self.expected is not None or len(self.children)!=1: raise RegistryError("not predicate is malformed")
@@ -151,7 +184,9 @@ class ApplicabilityPredicate:
         if self.op=="fact_equals":
             assert self.fact is not None
             if self.fact not in context.facts: return ApplicabilityResult(ApplicabilityTruth.UNKNOWN,(self.fact,))
-            return ApplicabilityResult(ApplicabilityTruth.TRUE if _freeze_json(context.facts[self.fact])==self.expected else ApplicabilityTruth.FALSE)
+            try: actual=_freeze_json(context.facts[self.fact],f"applicability fact {self.fact}")
+            except RegistryError: return ApplicabilityResult(ApplicabilityTruth.UNKNOWN,(self.fact,))
+            return ApplicabilityResult(ApplicabilityTruth.TRUE if _json_equal(actual,self.expected) else ApplicabilityTruth.FALSE)
         if self.op=="fact_absent":
             assert self.fact is not None
             if self.fact in context.facts: return ApplicabilityResult(ApplicabilityTruth.FALSE)
@@ -172,22 +207,19 @@ class ApplicabilityPredicate:
         if all(r.truth is ApplicabilityTruth.FALSE for r in results): return ApplicabilityResult(ApplicabilityTruth.FALSE)
         return ApplicabilityResult(ApplicabilityTruth.UNKNOWN,unresolved)
     def to_payload(self):
-        self.validate()
-        return {"op":self.op,"fact":self.fact,"expected":_thaw_json(self.expected),"children":[c.to_payload() for c in self.children]}
+        self.validate(); return {"op":self.op,"fact":self.fact,"expected":_thaw_json(self.expected),"children":[c.to_payload() for c in self.children]}
     @classmethod
-    def from_payload(cls,payload):
-        _expect_keys(payload,{"op","fact","expected","children"},"ApplicabilityPredicate")
-        op=_string(payload["op"],"applicability op")
-        ch=payload["children"]
+    def from_payload(cls,p):
+        _expect_keys(p,{"op","fact","expected","children"},"ApplicabilityPredicate")
+        op=_string(p["op"],"applicability op"); ch=p["children"]
         if not isinstance(ch,list): raise RegistryError("applicability children must be an array")
-        children=tuple(cls.from_payload(x) for x in ch)
-        fact=payload["fact"]
+        children=tuple(cls.from_payload(x) for x in ch); fact=p["fact"]
         if fact is not None and not isinstance(fact,str): raise RegistryError("applicability fact must be string or null")
         if op=="fact_equals":
             if fact is None or children: raise RegistryError("fact_equals malformed")
-            obj=cls.fact_equals(fact,payload["expected"])
+            obj=cls.fact_equals(fact,p["expected"])
         elif op=="fact_absent":
-            if fact is None or payload["expected"] is not None or children: raise RegistryError("fact_absent malformed")
+            if fact is None or p["expected"] is not None or children: raise RegistryError("fact_absent malformed")
             obj=cls.fact_absent(fact)
         elif op=="all": obj=cls.all_of(*children)
         elif op=="any": obj=cls.any_of(*children)
@@ -195,7 +227,7 @@ class ApplicabilityPredicate:
             if len(children)!=1: raise RegistryError("not predicate is malformed")
             obj=cls.negate(children[0])
         else: raise RegistryError(f"unknown applicability operation: {op!r}")
-        if obj.to_payload()!=payload: raise RegistryError("ApplicabilityPredicate persisted payload is not canonical")
+        if obj.to_payload()!=p: raise RegistryError("ApplicabilityPredicate persisted payload is not canonical")
         return obj
 
 @dataclass(frozen=True)
@@ -210,9 +242,7 @@ class BoundedDomain:
             k=_string(k,"domain dimension")
             if not isinstance(v,int) or isinstance(v,bool) or v<=0: raise RegistryError(f"domain dimension {k!r} must have a positive integer bound")
             out.append((k,v))
-        out.sort()
-        if len({k for k,_ in out})!=len(out): raise RegistryError("bounded domain contains duplicate dimensions")
-        body={"schema_version":"sergeant.acr-bounded-domain.v1","domain_id":domain_id,"generation":generation,"dimensions":{k:v for k,v in out}}
+        out.sort(); body={"schema_version":"sergeant.acr-bounded-domain.v1","domain_id":domain_id,"generation":generation,"dimensions":{k:v for k,v in out}}
         return cls(domain_id,generation,tuple(out),sha256_id(body))
     def to_payload(self): return {"schema_version":"sergeant.acr-bounded-domain.v1","domain_id":self.domain_id,"generation":self.generation,"dimensions":{k:v for k,v in self.dimensions},"domain_hash":self.domain_hash}
     @classmethod
@@ -334,7 +364,8 @@ class ExternalReviewLane:
         return obj
 
 def _requirements(values,field):
-    if isinstance(values,(str,bytes)): raise RegistryError(f"{field} must be a non-string sequence")
+    if isinstance(values,(str,bytes)): raise RegistryError(f"{field} must be a non-string iterable")
+    values=tuple(values)
     for x in values:
         if not isinstance(x,ContractRequirement): raise RegistryError(f"{field} contains invalid item")
     out=tuple(sorted(values,key=lambda x:x.family))
@@ -342,7 +373,8 @@ def _requirements(values,field):
     return out
 
 def _collections(values):
-    if isinstance(values,(str,bytes)): raise RegistryError("collections must be a non-string sequence")
+    if isinstance(values,(str,bytes)): raise RegistryError("collections must be a non-string iterable")
+    values=tuple(values)
     for x in values:
         if not isinstance(x,CollectionRequirement): raise RegistryError("collections contains invalid item")
     out=tuple(sorted(values,key=lambda x:x.family))
@@ -350,7 +382,8 @@ def _collections(values):
     return out
 
 def _external_lanes(values):
-    if isinstance(values,(str,bytes)): raise RegistryError("external_review_lanes must be a non-string sequence")
+    if isinstance(values,(str,bytes)): raise RegistryError("external_review_lanes must be a non-string iterable")
+    values=tuple(values)
     for x in values:
         if not isinstance(x,ExternalReviewLane): raise RegistryError("external_review_lanes contains invalid item")
     out=tuple(sorted(values,key=lambda x:x.lane_id))
@@ -376,25 +409,20 @@ class ACRContract:
         app.validate()
         neg=kw["negative_applicability"]
         if not isinstance(neg,NegativeApplicabilityBurden): raise RegistryError("negative applicability requires explicit PROVEN_NO_MATCH burden")
-        neg.validate()
-        fallback=_string(kw["unsupported_fallback"],"unsupported_fallback")
+        neg.validate(); fallback=_string(kw["unsupported_fallback"],"unsupported_fallback")
         if fallback!="UNKNOWN": raise RegistryError("unsupported fallback must be UNKNOWN")
         vals={
             "bound_subject_variables":_identifiers(kw["bound_subject_variables"],"bound_subject_variables",allow_empty=False),
             "semantic_carrier_families":_identifiers(kw["semantic_carrier_families"],"semantic_carrier_families",allow_empty=False),
             "consumer_interpretation_families":_identifiers(kw["consumer_interpretation_families"],"consumer_interpretation_families"),
             "affected_relation_families":_identifiers(kw["affected_relation_families"],"affected_relation_families"),
-            "collections":_collections(kw["collections"]),
-            "mandatory_premises":_requirements(kw["mandatory_premises"],"mandatory_premises"),
+            "collections":_collections(kw["collections"]),"mandatory_premises":_requirements(kw["mandatory_premises"],"mandatory_premises"),
             "repeated_authority_premise_families":_identifiers(kw["repeated_authority_premise_families"],"repeated_authority_premise_families"),
             "mandatory_obligations":_requirements(kw["mandatory_obligations"],"mandatory_obligations"),
             "admissible_proof_classes":_identifiers(kw["admissible_proof_classes"],"admissible_proof_classes",allow_empty=False),
-            "material_inputs":_requirements(kw["material_inputs"],"material_inputs"),
-            "coherence_rules":_identifiers(kw["coherence_rules"],"coherence_rules"),
-            "temporal_rules":_identifiers(kw["temporal_rules"],"temporal_rules"),
-            "mandatory_falsifier_families":_identifiers(kw["mandatory_falsifier_families"],"mandatory_falsifier_families"),
-            "required_independence":_identifiers(kw["required_independence"],"required_independence"),
-            "permitted_capabilities":_identifiers(kw["permitted_capabilities"],"permitted_capabilities"),
+            "material_inputs":_requirements(kw["material_inputs"],"material_inputs"),"coherence_rules":_identifiers(kw["coherence_rules"],"coherence_rules"),
+            "temporal_rules":_identifiers(kw["temporal_rules"],"temporal_rules"),"mandatory_falsifier_families":_identifiers(kw["mandatory_falsifier_families"],"mandatory_falsifier_families"),
+            "required_independence":_identifiers(kw["required_independence"],"required_independence"),"permitted_capabilities":_identifiers(kw["permitted_capabilities"],"permitted_capabilities"),
             "external_review_lanes":_external_lanes(kw["external_review_lanes"]),
         }
         body={"schema_version":"sergeant.acr-contract.v1","contract_id":contract_id,"generation":generation,"domain":domain.to_payload(),"applicability":app.to_payload(),
@@ -402,8 +430,7 @@ class ACRContract:
               "collections":[x.to_payload() for x in vals["collections"]],"mandatory_premises":[x.to_payload() for x in vals["mandatory_premises"]],"repeated_authority_premise_families":list(vals["repeated_authority_premise_families"]),"mandatory_obligations":[x.to_payload() for x in vals["mandatory_obligations"]],"admissible_proof_classes":list(vals["admissible_proof_classes"]),"material_inputs":[x.to_payload() for x in vals["material_inputs"]],"coherence_rules":list(vals["coherence_rules"]),"temporal_rules":list(vals["temporal_rules"]),"mandatory_falsifier_families":list(vals["mandatory_falsifier_families"]),"required_independence":list(vals["required_independence"]),"permitted_capabilities":list(vals["permitted_capabilities"]),"negative_applicability":neg.to_payload(),"external_review_lanes":[x.to_payload() for x in vals["external_review_lanes"]],"unsupported_fallback":fallback,"mandatory":True,"self_qualification_allowed":False}
         digest=sha256_id(body)
         return cls("sergeant.acr-contract.v1",contract_id,generation,domain,app,vals["bound_subject_variables"],vals["semantic_carrier_families"],vals["consumer_interpretation_families"],vals["affected_relation_families"],vals["collections"],vals["mandatory_premises"],vals["repeated_authority_premise_families"],vals["mandatory_obligations"],vals["admissible_proof_classes"],vals["material_inputs"],vals["coherence_rules"],vals["temporal_rules"],vals["mandatory_falsifier_families"],vals["required_independence"],vals["permitted_capabilities"],neg,vals["external_review_lanes"],fallback,True,False,digest)
-    def constructor_fields(self):
-        return {k:getattr(self,k) for k in ("contract_id","generation","domain","applicability","bound_subject_variables","semantic_carrier_families","consumer_interpretation_families","affected_relation_families","collections","mandatory_premises","repeated_authority_premise_families","mandatory_obligations","admissible_proof_classes","material_inputs","coherence_rules","temporal_rules","mandatory_falsifier_families","required_independence","permitted_capabilities","negative_applicability","external_review_lanes","unsupported_fallback")}
+    def constructor_fields(self): return {k:getattr(self,k) for k in ("contract_id","generation","domain","applicability","bound_subject_variables","semantic_carrier_families","consumer_interpretation_families","affected_relation_families","collections","mandatory_premises","repeated_authority_premise_families","mandatory_obligations","admissible_proof_classes","material_inputs","coherence_rules","temporal_rules","mandatory_falsifier_families","required_independence","permitted_capabilities","negative_applicability","external_review_lanes","unsupported_fallback")}
     def evaluate(self,context): return self.applicability.evaluate(context)
     def to_payload(self):
         self.applicability.validate(); self.negative_applicability.validate()
@@ -415,7 +442,7 @@ class ACRContract:
         if p["schema_version"]!="sergeant.acr-contract.v1": raise RegistryError("unknown ACRContract schema")
         if p["mandatory"] is not True: raise RegistryError("SAE-20 v1 ACR contract must remain mandatory")
         if p["self_qualification_allowed"] is not False: raise RegistryError("candidate ACR contract cannot self-qualify")
-        seqfields=req & {"bound_subject_variables","semantic_carrier_families","consumer_interpretation_families","affected_relation_families","collections","mandatory_premises","repeated_authority_premise_families","mandatory_obligations","admissible_proof_classes","material_inputs","coherence_rules","temporal_rules","mandatory_falsifier_families","required_independence","permitted_capabilities","external_review_lanes"}
+        seqfields={"bound_subject_variables","semantic_carrier_families","consumer_interpretation_families","affected_relation_families","collections","mandatory_premises","repeated_authority_premise_families","mandatory_obligations","admissible_proof_classes","material_inputs","coherence_rules","temporal_rules","mandatory_falsifier_families","required_independence","permitted_capabilities","external_review_lanes"}
         if any(not isinstance(p[f],list) for f in seqfields): raise RegistryError("ACRContract sequence fields must be arrays")
         obj=cls.create(contract_id=p["contract_id"],generation=p["generation"],domain=BoundedDomain.from_payload(p["domain"]),applicability=ApplicabilityPredicate.from_payload(p["applicability"]),bound_subject_variables=p["bound_subject_variables"],semantic_carrier_families=p["semantic_carrier_families"],consumer_interpretation_families=p["consumer_interpretation_families"],affected_relation_families=p["affected_relation_families"],collections=tuple(CollectionRequirement.from_payload(x) for x in p["collections"]),mandatory_premises=tuple(ContractRequirement.from_payload(x) for x in p["mandatory_premises"]),repeated_authority_premise_families=p["repeated_authority_premise_families"],mandatory_obligations=tuple(ContractRequirement.from_payload(x) for x in p["mandatory_obligations"]),admissible_proof_classes=p["admissible_proof_classes"],material_inputs=tuple(ContractRequirement.from_payload(x) for x in p["material_inputs"]),coherence_rules=p["coherence_rules"],temporal_rules=p["temporal_rules"],mandatory_falsifier_families=p["mandatory_falsifier_families"],required_independence=p["required_independence"],permitted_capabilities=p["permitted_capabilities"],negative_applicability=NegativeApplicabilityBurden.from_payload(p["negative_applicability"]),external_review_lanes=tuple(ExternalReviewLane.from_payload(x) for x in p["external_review_lanes"]),unsupported_fallback=p["unsupported_fallback"])
         if require_full_sha256(p["contract_id_hash"],"contract_id_hash")!=obj.contract_id_hash: raise RegistryError("contract_id_hash mismatch")
@@ -432,8 +459,8 @@ class ACRRegistry:
     @classmethod
     def create(cls,*,generation,contracts):
         generation=_string(generation,"registry generation")
-        if isinstance(contracts,(str,bytes)): raise RegistryError("contracts must be a non-string sequence")
-        normalized=tuple(sorted(contracts,key=lambda x:(x.contract_id,x.generation)))
+        if isinstance(contracts,(str,bytes)): raise RegistryError("contracts must be a non-string iterable")
+        contracts=tuple(contracts); normalized=tuple(sorted(contracts,key=lambda x:(x.contract_id,x.generation)))
         for c in normalized:
             if not isinstance(c,ACRContract): raise RegistryError("registry contains invalid contract type")
             ACRContract.from_payload(c.to_payload())
