@@ -8,7 +8,7 @@ ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "docs/83-sae20-acr-authoring-audit-candidate-manifest.json"
 BASE = "e4cd5af49823a97451a998a3ae553a1cefb2d97d"
 SAE00_CLOSEOUT = "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910"
-PREVIOUS_HEAD = "61f82eaa14478c409d684017663edccf6ee311e8"
+PREVIOUS_HEAD = "0fcb1141777c4309d8d4ed66f889870ab036f9ac"
 
 def _load() -> dict: return json.loads(MANIFEST.read_text(encoding="utf-8"))
 def _blob(path: str) -> str: return subprocess.check_output(["git", "hash-object", path], cwd=ROOT, text=True).strip()
@@ -34,13 +34,13 @@ def test_sae20_candidate_authoring_attack_roster_is_complete() -> None:
 
 def test_sae20_second_hostile_correction_semantics_are_explicit() -> None:
     s=_load()["foundation_semantics"]
-    for key in ("authoring_profile_canonically_validated_before_use","authoring_profile_binds_exact_contract_generation","frozen_json_maps_validate_sorted_unique_keys","runtime_unsupported_applicability_yields_unknown","applicability_json_equality_type_sensitive","one_shot_authority_iterables_materialized_once"):
+    for key in ("authoring_profile_canonically_validated_before_use","authoring_profile_binds_exact_contract_generation","frozen_json_maps_validate_sorted_unique_keys","runtime_unsupported_applicability_yields_unknown","applicability_json_equality_type_sensitive","one_shot_authority_iterables_materialized_once","unit_cardinality_requires_json_integer_one"):
         assert s[key] is True
 
 def test_sae20_candidate_local_proof_is_historical_construction_evidence_only() -> None:
     p=_load()["local_construction_proof"]
-    assert p["second_correction_tests_passed"]==64 and p["second_correction_tests_failed"]==0 and p["second_correction_fresh_regressions_added"]==6
-    assert p["second_correction_compile_proof"]=="pass" and p["coercive_persistence_scan"]=="no_str_int_bool_coercion_sites"
-    assert p["previous_exact_head"]==PREVIOUS_HEAD and p["previous_exact_head_ci_passed"]==1324 and p["previous_exact_head_ci_xfailed"]==2
+    assert p["current_correction_tests_passed"]==65 and p["current_correction_tests_failed"]==0 and p["current_correction_fresh_regressions_added"]==1
+    assert p["current_correction_compile_proof"]=="pass" and p["coercive_persistence_scan"]=="no_str_int_bool_coercion_sites"
+    assert p["previous_exact_head"]==PREVIOUS_HEAD and p["previous_exact_head_ci_passed"]==1337 and p["previous_exact_head_ci_xfailed"]==2
     assert p["previous_exact_head_clean_clone_proof"]=="pass" and p["previous_exact_head_main_review"]=="pass"
     assert p["repository_wide_proof_claimed_for_current_generation"] is False

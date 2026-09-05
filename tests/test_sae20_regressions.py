@@ -85,3 +85,11 @@ def test_one_shot_iterables_are_materialized_once_not_silently_deleted():
     assert rebuilt.material_inputs==c.material_inputs
     assert rebuilt.collections==c.collections
     assert rebuilt.external_review_lanes==c.external_review_lanes
+
+
+def test_unit_cardinality_requires_json_integer_one_not_python_equal_alias():
+    for kind in (CardinalityKind.ZERO_OR_ONE, CardinalityKind.EXACTLY_ONE):
+        assert CardinalitySpec(kind,1).to_payload()=={"kind":kind.value,"maximum":1}
+        for invalid in (True, 1.0):
+            with pytest.raises(RegistryError):
+                CardinalitySpec.from_payload({"kind":kind.value,"maximum":invalid})

@@ -272,7 +272,7 @@ class CardinalitySpec:
     def open(cls): return cls(CardinalityKind.OPEN,None)
     def validate(self):
         if not isinstance(self.kind,CardinalityKind): raise RegistryError("invalid cardinality kind")
-        if self.kind in {CardinalityKind.ZERO_OR_ONE,CardinalityKind.EXACTLY_ONE} and self.maximum!=1: raise RegistryError(f"{self.kind.value} must have maximum=1")
+        if self.kind in {CardinalityKind.ZERO_OR_ONE,CardinalityKind.EXACTLY_ONE} and (not isinstance(self.maximum,int) or isinstance(self.maximum,bool) or self.maximum!=1): raise RegistryError(f"{self.kind.value} must have integer maximum=1")
         if self.kind is CardinalityKind.BOUNDED_N and (not isinstance(self.maximum,int) or isinstance(self.maximum,bool) or self.maximum<=0): raise RegistryError("BOUNDED_N requires positive maximum")
         if self.kind in {CardinalityKind.FINITE,CardinalityKind.OPEN} and self.maximum is not None: raise RegistryError(f"{self.kind.value} cannot carry maximum")
     def to_payload(self): self.validate(); return {"kind":self.kind.value,"maximum":self.maximum}
