@@ -39,13 +39,13 @@
     ]
   },
   "content_blobs": {
-    "docs/86-sae40-judge-assurance-ledger-candidate.md": "a98ba3f9ec2c82ca5323d9b6a2c32984739e17fd",
+    "docs/86-sae40-judge-assurance-ledger-candidate.md": "c0120726b546c19a460c987aa640a1b29c9a5a02",
     "docs/superpowers/specs/2026-09-06-sae-40-assurance-ledger-design.md": "3dd66873a5779496cb46e5e0b04254eafcfc1569",
     "docs/superpowers/plans/2026-09-06-sae-40-assurance-ledger.md": "151aa71e534194c773588b6aa23baa74dcb05d94",
-    "main_review/assurance_ledger.py": "06be288694f8cdfcb5bb400ac8bb674d24ecf2c1",
-    "main_review/judge_assurance_adapter.py": "21a4b2b890ecfaab435d6d58798545e6e2ff0eb3",
-    "tests/test_assurance_ledger.py": "eb5435a709bed8751838bc8d990bd1c32ff30a42",
-    "tests/test_judge_assurance_adapter.py": "11c12cba43c9820648451a8daddb1ac301d83401",
+    "main_review/assurance_ledger.py": "93c9528f107679cd1c844937a925a461c8df07c8",
+    "main_review/judge_assurance_adapter.py": "349d2c00b46d1715abbc996761317937bdebd06a",
+    "tests/test_assurance_ledger.py": "23f8436bac94ff26f3ccbdda83b52bc78c432a1d",
+    "tests/test_judge_assurance_adapter.py": "10de7d0830a94855627586979dfbdc919dafa308",
     "tests/test_sae40_assurance_ledger_candidate_manifest.py": "1bafb2455cdceb8106c8c530b0eb47e472790a06"
   },
   "record_families": [
@@ -90,19 +90,43 @@
     "cross_rab_merge_rejected": true,
     "implicit_latest_authority_substitution_allowed": false,
     "parent_ledger_lineage_preserved": true,
-    "same_authority_record_may_only_union_presentation_aliases": true
+    "same_authority_record_may_only_union_presentation_aliases": true,
+    "merge_generation_must_be_new": true
   },
   "existing_judge_adapter": {
     "consumes_existing_judge_admission_ledger": true,
     "re_adjudicates_findings": false,
     "computes_sergeant_verdict": false,
     "raw_source_claim_occurrences_preserved": true,
+    "raw_finding_id_required": true,
+    "exact_raw_to_disposition_coverage_required": true,
+    "unknown_disposition_buckets_rejected": true,
+    "duplicate_dispositions_rejected": true,
     "canonical_admission_multiplied_by_duplicate_sources": false,
+    "required_assurance_collection_required": true,
     "unresolved_assurance_state": "UNKNOWN",
+    "noncanonical_assurance_state_rejected": true,
     "existing_result_recorded_as": "verdict_lineage"
   },
+  "hostile_review": {
+    "independence_under_future_sae30_eepr_claimed": false,
+    "original_published_candidate": "bee2928bd4537afda4e87e7e2595666839489966",
+    "red_generations": [
+      "e40bec3a92fef65cc84e9e46625fb73b47b125fc",
+      "7bb7d4bc29a0b693a497b56892acae365bcfc45f",
+      "3a572fd9f2b0e8fd05d16410ae525d2cb9473446"
+    ],
+    "green_correction_generations": [
+      "2995a51e55afd8cb2af383f972930ec2e1d73180",
+      "af6341a8c110f1f2f5665949f97e753c0aefde40",
+      "9b0cbc6a2236073b34ee34911b63f14227a48e6f"
+    ],
+    "final_pre_manifest_repository_tests_passed": 1382,
+    "final_pre_manifest_repository_tests_failed": 1,
+    "final_pre_manifest_failure_is_stale_candidate_manifest_only": true
+  },
   "local_construction_proof": {
-    "focused_tests_passed": 18,
+    "focused_tests_passed": 24,
     "focused_tests_failed": 0,
     "compile_proof": "pass",
     "repository_only_manifest_tests": 6,
