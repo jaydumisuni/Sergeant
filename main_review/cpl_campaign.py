@@ -21,6 +21,7 @@ from .operational_contracts import (
     stable_id,
     task_packet,
     validate_evidence_packet,
+    validate_task_status_packet,
     workspace_request,
 )
 
@@ -150,6 +151,9 @@ def _field_tasks(
     )
     tasks.append(scout)
 
+    # These field lanes already receive the exact changed scope.  Scout evidence may
+    # enrich them, but it is not an execution prerequisite, so Tenfold keeps them on
+    # the same initial dependency frontier instead of serializing human-style phases.
     tasks.append(task_packet(
         mission_id=mission_id,
         officer="Engineer",
@@ -159,7 +163,6 @@ def _field_tasks(
         required_evidence=("source-to-sink or call-chain trace", "contract comparison", "clean counterexample"),
         allowed_capabilities=("repository_reader", "call_graph", "contract_comparator", "test_inspector"),
         human_equivalent_workers=_work_size(changed_files, risk_boost=1 if findings else 0),
-        dependencies=(scout["task_id"],),
     ))
 
     if _contains_any_marker(text, _SECURITY_MARKERS) or any(item.get("gates_verdict") for item in assurances):
@@ -172,7 +175,6 @@ def _field_tasks(
             required_evidence=("trust-boundary trace", "reachable abuse path or falsifier", "repair and rollback proof"),
             allowed_capabilities=("security_scanner", "repository_reader", "runtime_reproducer", "test_runner"),
             human_equivalent_workers=_work_size(changed_files, risk_boost=2),
-            dependencies=(scout["task_id"],),
         ))
 
     if _contains_any_marker(text, _RUNTIME_MARKERS):
@@ -185,7 +187,6 @@ def _field_tasks(
             required_evidence=("temporal execution trace", "concurrency or retry counterexample", "resource/performance measurement"),
             allowed_capabilities=("runtime_tracer", "test_runner", "benchmark_runner", "repository_reader"),
             human_equivalent_workers=_work_size(changed_files, risk_boost=1),
-            dependencies=(scout["task_id"],),
         ))
 
     tasks.append(task_packet(
@@ -287,6 +288,176 @@ def _research_requests(mission_id: str, tasks: list[dict[str, Any]], changed_fil
     )]
 
 
+def _validate_task_graph(tasks: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    by_id: dict[str, dict[str, Any]] = {}
+    mission_ids: set[str] = set()
+    for task in tasks:
+        task_id = str(task.get("task_id") or "")
+        if not task_id:
+            raise ValueError("Tenfold task graph contains a task without task_id")
+        if task_id in by_id:
+            raise ValueError(f"Tenfold task graph contains duplicate task_id: {task_id}")
+        by_id[task_id] = task
+        mission_ids.add(str(task.get("mission_id") or ""))
+    if len(mission_ids) > 1:
+        raise ValueError("Tenfold task graph cannot mix missions")
+    for task_id, task in by_id.items():
+        for dependency in task.get("dependencies", []):
+            if dependency not in by_id:
+                raise ValueError(f"Tenfold task graph has unknown dependency: {dependency}")
+
+    visiting: set[str] = set()
+    visited: set[str] = set()
+    def visit(task_id: str) -> None:
+        if task_id in visiting:
+            raise ValueError("Tenfold task dependency cycle detected")
+        if task_id in visited:
+            return
+        visiting.add(task_id)
+        for dependency in by_id[task_id].get("dependencies", []):
+            visit(str(dependency))
+        visiting.remove(task_id)
+        visited.add(task_id)
+    for task_id in by_id:
+        visit(task_id)
+    return by_id
+
+
+def _frontier_snapshot(
+    tasks: list[dict[str, Any]],
+    task_status: dict[str, str],
+    completion_bindings: dict[str, dict[str, Any]],
+) -> dict[str, Any]:
+    by_id = _validate_task_graph(tasks)
+    frontier_task_ids: list[str] = []
+    blocked_tasks: list[dict[str, Any]] = []
+    dependency_bindings: dict[str, list[dict[str, Any]]] = {}
+    allocations: list[dict[str, Any]] = []
+
+    for task in tasks:
+        task_id = task["task_id"]
+        status = task_status.get(task_id, "authorized")
+        if status == "completed":
+            if task_id not in completion_bindings:
+                raise ValueError("completed Tenfold task is missing its frozen result binding")
+            continue
+        dependencies = [str(item) for item in task.get("dependencies", [])]
+        waiting_for = [
+            dependency
+            for dependency in dependencies
+            if task_status.get(dependency) != "completed" or dependency not in completion_bindings
+        ]
+        if status in {"blocked", "failed"} or waiting_for:
+            blocked_tasks.append({
+                "task_id": task_id,
+                "execution_status": status,
+                "waiting_for": waiting_for,
+            })
+            continue
+        if status not in {"authorized", "in_progress"}:
+            raise ValueError(f"unsupported Tenfold task state: {status}")
+        frontier_task_ids.append(task_id)
+        dependency_bindings[task_id] = [
+            {"task_id": dependency, **dict(completion_bindings[dependency])}
+            for dependency in dependencies
+        ]
+        if task.get("execution_mode") == "private_cell":
+            allocations.append({
+                "task_id": task_id,
+                "responsible_officer": task.get("responsible_officer"),
+                "private_count": int(task.get("budget", {}).get("private_count") or 0),
+            })
+
+    return {
+        "schema_version": "sergeant.tenfold-frontier.v1",
+        "task_status": {task_id: task_status.get(task_id, "authorized") for task_id in by_id},
+        "completion_bindings": {key: dict(value) for key, value in completion_bindings.items()},
+        "frontier_task_ids": frontier_task_ids,
+        "blocked_tasks": blocked_tasks,
+        "dependency_bindings": dependency_bindings,
+        "allocations": allocations,
+        "allocated_private_count": sum(item["private_count"] for item in allocations),
+        "authority_boundary": {
+            "sergeant": "final_verdict_only",
+            "cpl": "frontier_command",
+            "officers": "bounded_task_ownership",
+            "privates": "evidence_execution_only",
+            "models": "replaceable_evidence_support_no_rank",
+            "workspace": "replaceable_execution_facility_no_rank",
+        },
+        "transport": {
+            "hermes": "packet_transport_only",
+            "may_schedule": False,
+            "may_reallocate": False,
+            "may_issue_verdict": False,
+        },
+        "complete_unblocked_frontier": True,
+    }
+
+
+def build_tenfold_frontier(tasks: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    rows = [dict(item) for item in tasks]
+    _validate_task_graph(rows)
+    statuses = {item["task_id"]: "authorized" for item in rows}
+    state = _frontier_snapshot(rows, statuses, {})
+    state["reallocation"] = {
+        "completed_task_ids": [],
+        "newly_unblocked_task_ids": list(state["frontier_task_ids"]),
+        "released_private_count": 0,
+        "newly_allocated_private_count": state["allocated_private_count"],
+    }
+    return state
+
+
+def advance_tenfold_frontier(
+    tasks: Iterable[dict[str, Any]],
+    frontier: dict[str, Any],
+    status_packets: Iterable[dict[str, Any]],
+) -> dict[str, Any]:
+    rows = [dict(item) for item in tasks]
+    by_id = _validate_task_graph(rows)
+    statuses = {task_id: str(status) for task_id, status in dict(frontier.get("task_status", {})).items()}
+    for task_id in by_id:
+        statuses.setdefault(task_id, "authorized")
+    bindings = {task_id: dict(binding) for task_id, binding in dict(frontier.get("completion_bindings", {})).items()}
+    old_frontier = list(frontier.get("frontier_task_ids", []))
+    old_allocations = {item["task_id"]: int(item.get("private_count") or 0) for item in frontier.get("allocations", [])}
+    completed_now: list[str] = []
+
+    for raw in status_packets:
+        packet = dict(raw)
+        task_id = str(packet.get("task_id") or "")
+        task = by_id.get(task_id)
+        if task is None:
+            raise ValueError("task status references an unknown campaign task")
+        packet = validate_task_status_packet(packet, task)
+        previous = statuses.get(task_id, "authorized")
+        next_status = packet["status"]
+        if previous == "completed" and next_status != "completed":
+            raise ValueError("completed Tenfold task cannot regress to a non-completed state")
+        if next_status == "completed":
+            binding = dict(packet["result_binding"])
+            existing = bindings.get(task_id)
+            if existing is not None and existing != binding:
+                raise ValueError("completed Tenfold task cannot change its frozen result binding")
+            bindings[task_id] = binding
+            if previous != "completed":
+                completed_now.append(task_id)
+        statuses[task_id] = next_status
+
+    state = _frontier_snapshot(rows, statuses, bindings)
+    newly_unblocked = [task_id for task_id in state["frontier_task_ids"] if task_id not in old_frontier]
+    released = sum(old_allocations.get(task_id, 0) for task_id in old_frontier if task_id not in state["frontier_task_ids"])
+    new_allocations = {item["task_id"]: int(item.get("private_count") or 0) for item in state["allocations"]}
+    state["reallocation"] = {
+        "completed_task_ids": completed_now,
+        "newly_unblocked_task_ids": newly_unblocked,
+        "released_private_count": released,
+        "newly_allocated_private_count": sum(new_allocations.get(task_id, 0) for task_id in newly_unblocked),
+    }
+    return state
+
+
 def build_cpl_campaign(
     root: str | Path,
     changed_files: Iterable[str],
@@ -324,6 +495,7 @@ def build_cpl_campaign(
     tasks = [*field_tasks, *synthesis_tasks]
     workspace_requests = _workspace_requests(mission["mission_id"], tasks)
     research_requests = _research_requests(mission["mission_id"], tasks, changed, cpl)
+    tenfold_execution = build_tenfold_frontier(tasks)
     private_tasks = [item for item in tasks if item.get("execution_mode") == "private_cell"]
     private_total = sum(int(item.get("budget", {}).get("private_count") or 0) for item in private_tasks)
     unresolved_assurances = [item for item in assurances if item.get("gates_verdict") and item.get("status") != "satisfied"]
@@ -339,9 +511,12 @@ def build_cpl_campaign(
             "model_support_status": cpl.get("status", "not_deployed"),
             "model_passes": len(model_passes),
             "offline_investigation_complete": bool(offline.get("complete", True)),
+            "tenfold_frontier_tasks": len(tenfold_execution["frontier_task_ids"]),
+            "tenfold_allocated_privates": tenfold_execution["allocated_private_count"],
         },
         "decisions": [
             f"Authorize {len(private_tasks)} differentiated private-cell task(s) under permanent officers.",
+            "Occupy the complete currently unblocked Tenfold dependency frontier.",
             "Keep workspace and research requests awaiting a real governed adapter.",
             "Require new questions to return for officer/Cpl authorization before another cell is created.",
         ],
@@ -358,6 +533,14 @@ def build_cpl_campaign(
             "mission_id": mission["mission_id"],
             "task_count": len(tasks),
             "planned_private_count": private_total,
+        },
+        {
+            "transaction": "tenfold_frontier_occupied",
+            "sender": "Cpl",
+            "recipient": "authorized_frontier",
+            "mission_id": mission["mission_id"],
+            "frontier_task_ids": list(tenfold_execution["frontier_task_ids"]),
+            "allocated_private_count": tenfold_execution["allocated_private_count"],
         },
         *(
             {
@@ -400,6 +583,7 @@ def build_cpl_campaign(
         "tasks": tasks,
         "workspace_requests": workspace_requests,
         "research_requests": research_requests,
+        "tenfold_execution": tenfold_execution,
         "council_rounds": [council_round],
         "pending_authorizations": [],
         "evidence_packets": [],
@@ -425,12 +609,18 @@ def build_cpl_campaign(
     }
 
 
-def advance_campaign(campaign: dict[str, Any], evidence_packets: Iterable[dict[str, Any]]) -> dict[str, Any]:
+def advance_campaign(
+    campaign: dict[str, Any],
+    evidence_packets: Iterable[dict[str, Any]],
+    *,
+    status_packets: Iterable[dict[str, Any]] = (),
+) -> dict[str, Any]:
     """Create the next council round from validated evidence without auto-spawning work.
 
     New evidence cannot silently clear a prior required-assurance gate.  A gate
     must be explicitly adjudicated to ``satisfied`` in ``assurance_gates`` before
-    the campaign becomes report-ready.
+    the campaign becomes report-ready.  Tenfold status packets independently
+    advance the dependency frontier; they never alter verdict authority.
     """
 
     updated = dict(campaign)
@@ -467,6 +657,13 @@ def advance_campaign(campaign: dict[str, Any], evidence_packets: Iterable[dict[s
                 pending.append(request)
                 questions.append(str(question))
 
+    status_rows = [dict(item) for item in status_packets]
+    tenfold_execution = campaign.get("tenfold_execution")
+    if not isinstance(tenfold_execution, dict):
+        tenfold_execution = build_tenfold_frontier(tasks.values())
+    if status_rows:
+        tenfold_execution = advance_tenfold_frontier(tasks.values(), tenfold_execution, status_rows)
+
     unresolved_assurances = [
         item
         for item in campaign.get("assurance_gates", [])
@@ -481,21 +678,24 @@ def advance_campaign(campaign: dict[str, Any], evidence_packets: Iterable[dict[s
             "new_evidence_refs": sorted(set(evidence_refs)),
             "new_questions": questions,
             "unresolved_required_assurances": len(unresolved_assurances),
+            "tenfold_frontier_tasks": len(tenfold_execution["frontier_task_ids"]),
+            "tenfold_allocated_privates": tenfold_execution["allocated_private_count"],
         },
         "decisions": [
             "Route validated evidence to the responsible officers.",
+            "Reallocate Tenfold private lanes across the complete newly unblocked frontier.",
             "Keep discovered questions pending until officer relevance and Cpl priority are authorized.",
             "Preserve prior required-assurance gates until explicit adjudication marks them satisfied.",
         ],
-        "authorized_tasks": [],
+        "authorized_tasks": list(tenfold_execution["frontier_task_ids"]),
         "pending_authorizations": [item["authorization_id"] for item in pending],
         "evidence_saturation": report_ready,
         "report_ready_for_sergeant": report_ready,
     })
     updated["evidence_packets"] = accepted
     updated["pending_authorizations"] = pending
+    updated["tenfold_execution"] = tenfold_execution
     updated["council_rounds"] = rounds
     updated["report_ready_for_sergeant"] = report_ready
-    updated["status"] = "evidence_received" if accepted else campaign.get("status", "prepared")
+    updated["status"] = "evidence_received" if accepted or status_rows else campaign.get("status", "prepared")
     return updated
-

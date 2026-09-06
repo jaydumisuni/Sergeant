@@ -24,6 +24,8 @@ FORBIDDEN_EVIDENCE_KEYS = {
     "block",
     "sergeant_verdict",
 }
+_TASK_STATUS_VALUES = {"authorized", "in_progress", "blocked", "failed", "completed"}
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _SECRET_RE = re.compile(
     r"(?i)(?:api[_-]?key|authorization|bearer|password|passwd|secret|token)\s*[:=]\s*[^\s,;]+"
 )
@@ -129,6 +131,83 @@ def task_packet(
         "may_expand_scope": False,
         "reports_to": officer,
     }
+
+
+def task_status_packet(
+    *,
+    mission_id: str,
+    task_id: str,
+    worker_id: str,
+    status: str,
+    source_revision: str | None = None,
+    evidence_digest: str | None = None,
+    provenance: dict[str, Any] | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Return bounded execution status without transferring command or verdict authority.
+
+    A completed task may unblock dependent work only when its result is bound to an
+    exact source revision and a SHA-256 evidence digest.  Other states cannot carry
+    a completion binding.
+    """
+
+    normalized_status = str(status).strip()
+    if normalized_status not in _TASK_STATUS_VALUES:
+        raise ValueError(f"unsupported task execution status: {normalized_status}")
+    packet: dict[str, Any] = {
+        "schema_version": CONTRACT_VERSION,
+        "mission_id": str(mission_id),
+        "task_id": str(task_id),
+        "worker_id": str(worker_id),
+        "status": normalized_status,
+        "reason": str(reason or "").strip(),
+        "may_issue_verdict": False,
+        "may_schedule": False,
+    }
+    if normalized_status == "completed":
+        revision = str(source_revision or "").strip()
+        digest = str(evidence_digest or "").strip().lower()
+        proof_provenance = dict(provenance or {})
+        if not revision:
+            raise ValueError("completed task status requires an exact source revision")
+        if not _SHA256_RE.fullmatch(digest):
+            raise ValueError("completed task status requires a sha256 evidence digest")
+        if not proof_provenance:
+            raise ValueError("completed task status requires provenance")
+        packet["result_binding"] = {
+            "source_revision": revision,
+            "evidence_digest": digest,
+            "provenance": proof_provenance,
+        }
+    elif source_revision or evidence_digest:
+        raise ValueError("non-completed task status cannot claim a frozen result binding")
+    return packet
+
+
+def validate_task_status_packet(packet: dict[str, Any], task: dict[str, Any]) -> dict[str, Any]:
+    forbidden = FORBIDDEN_EVIDENCE_KEYS.intersection(packet)
+    if forbidden:
+        raise ValueError(f"task status cannot issue command verdict fields: {sorted(forbidden)}")
+    if packet.get("mission_id") != task.get("mission_id") or packet.get("task_id") != task.get("task_id"):
+        raise ValueError("task status does not belong to the authorized task")
+    if packet.get("may_issue_verdict") not in {None, False} or packet.get("may_schedule") not in {None, False}:
+        raise ValueError("task status cannot acquire command or verdict authority")
+    status = str(packet.get("status") or "")
+    if status not in _TASK_STATUS_VALUES:
+        raise ValueError(f"unsupported task execution status: {status}")
+    binding = packet.get("result_binding")
+    if status == "completed":
+        if not isinstance(binding, dict):
+            raise ValueError("completed task status requires a frozen result binding")
+        if not str(binding.get("source_revision") or "").strip():
+            raise ValueError("completed task binding requires an exact source revision")
+        if not _SHA256_RE.fullmatch(str(binding.get("evidence_digest") or "").lower()):
+            raise ValueError("completed task binding requires a sha256 evidence digest")
+        if not isinstance(binding.get("provenance"), dict) or not binding.get("provenance"):
+            raise ValueError("completed task binding requires provenance")
+    elif binding is not None:
+        raise ValueError("only completed task status may bind frozen upstream evidence")
+    return packet
 
 
 def workspace_request(

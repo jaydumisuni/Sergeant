@@ -14,7 +14,7 @@ from main_review.operational_contracts import task_packet, task_status_packet, v
 from main_review.workspace_interfaces import dispatch_authorized_requests
 
 
-def _tasks() -> tuple[list[dict], dict[str, dict]]:
+def _tasks() -> list[dict]:
     mission_id = "mission-tenfold"
     scout = task_packet(
         mission_id=mission_id,
@@ -58,8 +58,7 @@ def _tasks() -> tuple[list[dict], dict[str, dict]]:
         dependencies=(security["task_id"], downstream["task_id"]),
         execution_mode="officer",
     )
-    tasks = [scout, security, downstream, judge]
-    return tasks, {item["task_id"]: item for item in tasks}
+    return [scout, security, downstream, judge]
 
 
 def _completed(task: dict, suffix: str) -> dict:
@@ -75,7 +74,7 @@ def _completed(task: dict, suffix: str) -> dict:
 
 
 def test_tenfold_frontier_occupies_every_independent_unblocked_task() -> None:
-    tasks, by_id = _tasks()
+    tasks = _tasks()
     state = build_tenfold_frontier(tasks)
 
     scout = next(item for item in tasks if item["responsible_officer"] == "Scout")
@@ -94,7 +93,7 @@ def test_tenfold_frontier_occupies_every_independent_unblocked_task() -> None:
 
 
 def test_completed_upstream_unlocks_downstream_without_parking_independent_lane() -> None:
-    tasks, by_id = _tasks()
+    tasks = _tasks()
     initial = build_tenfold_frontier(tasks)
     scout = next(item for item in tasks if item["responsible_officer"] == "Scout")
     security = next(item for item in tasks if item["responsible_officer"] == "Medic")
@@ -115,7 +114,7 @@ def test_completed_upstream_unlocks_downstream_without_parking_independent_lane(
 
 
 def test_status_packets_fail_closed_and_cannot_acquire_command_authority() -> None:
-    tasks, by_id = _tasks()
+    tasks = _tasks()
     scout = next(item for item in tasks if item["responsible_officer"] == "Scout")
     packet = _completed(scout, "a")
     assert validate_task_status_packet(packet, scout) == packet
@@ -124,28 +123,20 @@ def test_status_packets_fail_closed_and_cannot_acquire_command_authority() -> No
         validate_task_status_packet({**packet, "verdict": "PASS"}, scout)
     with pytest.raises(ValueError):
         task_status_packet(
-            mission_id=scout["mission_id"],
-            task_id=scout["task_id"],
-            worker_id="Private-bad",
-            status="completed",
-            source_revision="",
-            evidence_digest="sha256:" + "a" * 64,
+            mission_id=scout["mission_id"], task_id=scout["task_id"], worker_id="Private-bad",
+            status="completed", source_revision="", evidence_digest="sha256:" + "a" * 64,
             provenance={"adapter": "repository"},
         )
     with pytest.raises(ValueError):
         task_status_packet(
-            mission_id=scout["mission_id"],
-            task_id=scout["task_id"],
-            worker_id="Private-bad",
-            status="completed",
-            source_revision="frozen-a",
-            evidence_digest="not-a-digest",
+            mission_id=scout["mission_id"], task_id=scout["task_id"], worker_id="Private-bad",
+            status="completed", source_revision="frozen-a", evidence_digest="not-a-digest",
             provenance={"adapter": "repository"},
         )
 
 
 def test_frontier_rejects_unknown_dependencies_and_cycles() -> None:
-    tasks, by_id = _tasks()
+    tasks = _tasks()
     broken = [dict(item) for item in tasks]
     broken[0]["dependencies"] = ["missing-task"]
     with pytest.raises(ValueError, match="unknown dependency"):
@@ -165,7 +156,7 @@ def test_frontier_rejects_unknown_dependencies_and_cycles() -> None:
         build_tenfold_frontier([left, right])
 
 
-def test_cpl_campaign_embeds_frontier_and_only_dispatches_current_frontier(tmp_path: Path) -> None:
+def test_cpl_campaign_saturates_independent_field_frontier_and_gates_adapters(tmp_path: Path) -> None:
     (tmp_path / "src").mkdir()
     (tmp_path / "src" / "auth.py").write_text("def refresh(token):\n    return token\n", encoding="utf-8")
     campaign = build_cpl_campaign(
@@ -174,10 +165,13 @@ def test_cpl_campaign_embeds_frontier_and_only_dispatches_current_frontier(tmp_p
         officer_reports=[], admitted=[], advisory=[], rejected=[], assurances=[],
         cpl={"status": "disabled", "passes": []}, offline={"complete": True},
     )
-    scout = next(item for item in campaign["tasks"] if item["responsible_officer"] == "Scout")
-    engineer = next(item for item in campaign["tasks"] if item["responsible_officer"] == "Engineer")
-
-    assert campaign["tenfold_execution"]["frontier_task_ids"] == [scout["task_id"]]
+    frontier_ids = set(campaign["tenfold_execution"]["frontier_task_ids"])
+    frontier_officers = {
+        item["responsible_officer"] for item in campaign["tasks"] if item["task_id"] in frontier_ids
+    }
+    assert frontier_officers == {"Scout", "Engineer", "Medic"}
+    challenger = next(item for item in campaign["tasks"] if item["responsible_officer"] == "Challenger")
+    assert challenger["task_id"] not in frontier_ids
 
     class RecordingWorkspace:
         name = "recording"
@@ -189,10 +183,23 @@ def test_cpl_campaign_embeds_frontier_and_only_dispatches_current_frontier(tmp_p
             return {"request_id": request["request_id"], "task_id": task["task_id"], "status": "completed"}
 
     adapter = RecordingWorkspace()
-    dispatched = dispatch_authorized_requests(campaign, workspace=adapter)
-    assert set(adapter.called) == {scout["task_id"]}
-    assert all(item.get("task_id") == scout["task_id"] or item.get("status") == "dependency_blocked" for item in dispatched["workspace_results"])
+    dispatch_authorized_requests(campaign, workspace=adapter)
+    expected_workspace_frontier = {
+        item["task_id"] for item in campaign["workspace_requests"] if item["task_id"] in frontier_ids
+    }
+    assert set(adapter.called) == expected_workspace_frontier
+    assert challenger["task_id"] not in adapter.called
 
-    updated = advance_campaign(campaign, [], status_packets=[_completed(scout, "a")])
-    assert engineer["task_id"] in updated["tenfold_execution"]["frontier_task_ids"]
-    assert updated["tenfold_execution"]["dependency_bindings"][engineer["task_id"]][0]["source_revision"] == "frozen-a"
+    field = [
+        next(item for item in campaign["tasks"] if item["responsible_officer"] == officer)
+        for officer in ("Scout", "Engineer", "Medic")
+    ]
+    updated = advance_campaign(
+        campaign,
+        [],
+        status_packets=[_completed(field[0], "a"), _completed(field[1], "b"), _completed(field[2], "c")],
+    )
+    assert challenger["task_id"] in updated["tenfold_execution"]["frontier_task_ids"]
+    bindings = updated["tenfold_execution"]["dependency_bindings"][challenger["task_id"]]
+    assert {item["task_id"] for item in bindings} == {item["task_id"] for item in field}
+    assert {item["source_revision"] for item in bindings} == {"frozen-a", "frozen-b", "frozen-c"}

@@ -144,13 +144,22 @@ def dispatch_authorized_requests(
     workspace: WorkspaceAdapter | None = None,
     research: ResearchAdapter | None = None,
 ) -> dict[str, Any]:
-    """Dispatch authorized requests while isolating each adapter failure."""
+    """Dispatch only the currently unblocked Tenfold frontier, isolating failures.
+
+    Legacy campaigns without a ``tenfold_execution`` packet retain their prior
+    all-authorized behavior.  Current campaigns bind execution to Cpl's frontier;
+    adapters cannot schedule blocked/dependent tasks themselves.
+    """
 
     workspace = workspace or UnavailableWorkspaceAdapter()
     research = research or UnavailableResearchAdapter()
     workspace_capabilities, workspace_capability_error = _safe_capabilities(workspace)
     research_capabilities, research_capability_error = _safe_capabilities(research)
     tasks = {item["task_id"]: item for item in campaign.get("tasks", [])}
+    tenfold = campaign.get("tenfold_execution")
+    frontier_task_ids: set[str] | None = None
+    if isinstance(tenfold, dict):
+        frontier_task_ids = {str(item) for item in tenfold.get("frontier_task_ids", []) if str(item)}
     workspace_results: list[dict[str, Any]] = []
     research_results: list[dict[str, Any]] = []
     evidence: list[dict[str, Any]] = []
@@ -159,6 +168,8 @@ def dispatch_authorized_requests(
         task = tasks.get(request.get("task_id"))
         if task is None or task.get("status") != "authorized":
             workspace_results.append({**request, "status": "rejected", "reason": "Task is not authorized."})
+            continue
+        if frontier_task_ids is not None and task["task_id"] not in frontier_task_ids:
             continue
         if not set(request.get("scope", [])).issubset(set(task.get("scope", []))):
             workspace_results.append({**request, "status": "rejected", "reason": "Request escaped task scope."})
@@ -195,6 +206,8 @@ def dispatch_authorized_requests(
         if task is None or task.get("status") != "authorized":
             research_results.append({**request, "status": "rejected", "reason": "Task is not authorized."})
             continue
+        if frontier_task_ids is not None and task["task_id"] not in frontier_task_ids:
+            continue
         if research_capability_error is not None:
             research_results.append(_bounded_failure(request, task, research.name, "adapter_capability_error", research_capability_error))
             continue
@@ -226,6 +239,8 @@ def dispatch_authorized_requests(
         "workspace_capabilities": sorted(workspace_capabilities),
         "research_adapter": research.name,
         "research_capabilities": sorted(research_capabilities),
+        "frontier_enforced": frontier_task_ids is not None,
+        "frontier_task_ids": sorted(frontier_task_ids or []),
         "workspace_results": workspace_results,
         "research_results": research_results,
         "evidence_packets": evidence,
