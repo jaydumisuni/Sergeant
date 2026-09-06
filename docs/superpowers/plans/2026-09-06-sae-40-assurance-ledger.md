@@ -21,7 +21,7 @@ Base exact canonical `main` at `2a1d16f9772997d993d0f0d41e1c5161f222f136`. Do no
 
 ## Local proof before publication
 
-- hostile focused tests: 26 passed / 0 failed;
+- hostile focused tests: 29 passed / 0 failed;
 - Python compile: PASS;
 - no change to `officer_council.py` or verdict implementation;
 - repository-wide proof is not claimed until the published exact head runs in the real repository.
