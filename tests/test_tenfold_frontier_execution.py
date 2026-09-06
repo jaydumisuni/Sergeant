@@ -135,6 +135,24 @@ def test_status_packets_fail_closed_and_cannot_acquire_command_authority() -> No
         )
 
 
+def test_blocked_downstream_cannot_self_complete_or_self_authorize() -> None:
+    tasks = _tasks()
+    initial = build_tenfold_frontier(tasks)
+    downstream = next(item for item in tasks if item["responsible_officer"] == "Engineer")
+
+    with pytest.raises(ValueError, match="current Cpl-authorized frontier"):
+        advance_tenfold_frontier(tasks, initial, [_completed(downstream, "d")])
+
+    unauthorized = task_status_packet(
+        mission_id=downstream["mission_id"],
+        task_id=downstream["task_id"],
+        worker_id="Private-d",
+        status="authorized",
+    )
+    with pytest.raises(ValueError, match="current Cpl-authorized frontier"):
+        advance_tenfold_frontier(tasks, initial, [unauthorized])
+
+
 def test_frontier_rejects_unknown_dependencies_and_cycles() -> None:
     tasks = _tasks()
     broken = [dict(item) for item in tasks]
