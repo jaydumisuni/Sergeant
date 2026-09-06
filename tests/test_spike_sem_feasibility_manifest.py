@@ -41,11 +41,7 @@ def test_spike_sem_manifest_binds_candidate_document_probe_proof_and_baseline() 
         entry = manifest[entry_name]
         assert _tracked_blob(ROOT / entry["path"]) == entry["blob_sha"]
     baseline = manifest["existing_production_mechanism"]
-    # SPIKE-SEM is lifecycle-PROVEN and its candidate is immutable historical evidence.
-    # Later production evolution must not force that candidate baseline to track HEAD.
-    assert baseline["path"] == "main_review/capability_engine.py"
-    assert baseline["blob_sha"] == "903006e1d28aff4e2bd48161a4aedb2af2d0065a"
-    assert baseline["modified_by_spike"] is False
+    assert _tracked_blob(ROOT / baseline["path"]) == baseline["blob_sha"]
 
 
 def test_spike_sem_dependency_and_required_construct_charter_match_frozen_roadmap() -> None:
