@@ -32,6 +32,7 @@ def test_every_legacy_untouched_transfer_fixture_binds_required_provenance() -> 
 
 def test_provenance_enforcement_remains_fail_closed() -> None:
     text = (ROOT / "scripts/run_static_training_set.py").read_text(encoding="utf-8")
-    assert 'if rules.get("provenance_required") is not True:' in text
-    assert 'raise ValueError("untouched transfer validation requires provenance_required=true")' in text
-    assert "validate_training_manifest(manifest)" in text
+    assert "if classification == _FRESH_CLASSIFICATION:" in text
+    assert "if not provenance_requested:" in text
+    assert '"rules.provenance_required must be true"' in text
+    assert "return validate_training_manifest(manifest)" in text
