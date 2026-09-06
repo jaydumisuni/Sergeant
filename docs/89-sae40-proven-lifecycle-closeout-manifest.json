@@ -1,0 +1,169 @@
+{
+  "schema_version": "sergeant.sae40-proven-lifecycle-closeout.v1",
+  "node": "SAE-40",
+  "node_title": "Judge Assurance Ledger + authority-bearing identity",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "normal_verdict_authority": false,
+  "proof_requires": [
+    "SAE-10",
+    "SAE-20"
+  ],
+  "dependency_authority": {
+    "sae10": {
+      "manifest_path": "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
+      "required_outputs": [
+        "QUALIFIED_REVIEW_WORLD_CONTRACT",
+        "QUALIFIED_RAB_CONTRACT"
+      ]
+    },
+    "sae20": {
+      "manifest_path": "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+      "required_outputs": [
+        "QUALIFIED_ACR_FOUNDATION"
+      ]
+    }
+  },
+  "candidate_generation": {
+    "pull_request": 180,
+    "head": "c910b7a08e7b33c5ec69cb115affc044aed4df8e",
+    "tree": "bd267e4fd1578f7df3d33befb1a4a18b2dcbcb9a",
+    "candidate_document": {
+      "path": "docs/86-sae40-judge-assurance-ledger-candidate.md",
+      "blob_sha": "e1cdb88cee381e9e94695f9207b12529a3032b75"
+    },
+    "candidate_manifest": {
+      "path": "docs/87-sae40-judge-assurance-ledger-candidate-manifest.json",
+      "blob_sha": "5a068f44432cd7784d8f97e3be0f1b849ac2bb96"
+    },
+    "authority_implementation_blobs": {
+      "main_review/assurance_ledger.py": "93c9528f107679cd1c844937a925a461c8df07c8",
+      "main_review/judge_assurance_adapter.py": "522b01881894e2acf5898a32964c04303b585307"
+    },
+    "historical_candidate_preserved_not_rewritten": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "ac88df42983274163e939ee0211ee0ab7b51b356",
+    "tree": "bd267e4fd1578f7df3d33befb1a4a18b2dcbcb9a",
+    "parents": [
+      "2a1d16f9772997d993d0f0d41e1c5161f222f136",
+      "c910b7a08e7b33c5ec69cb115affc044aed4df8e"
+    ],
+    "exact_head_guard": "c910b7a08e7b33c5ec69cb115affc044aed4df8e",
+    "merge_method": "merge_commit"
+  },
+  "candidate_execution_confirmation": {
+    "exact_head": "c910b7a08e7b33c5ec69cb115affc044aed4df8e",
+    "ci_run_id": 34035737232,
+    "full_suite": {
+      "passed": 1388,
+      "xfailed": 2,
+      "failed": 0,
+      "historical_xfails_only": true
+    },
+    "clean_clone_proof": "success",
+    "clean_clone_suite": {
+      "passed": 1388,
+      "xfailed": 2,
+      "failed": 0,
+      "historical_xfails_only": true
+    },
+    "pytest_artifact_digest": "sha256:0c2ed796220f21072753fb53d4ddcb6141bd6302d32befb20c028565939d23db",
+    "clean_clone_artifact_digest": "sha256:257a68c1ebb6994ebf606f4a4397df3e5ee2cfb8cb05b606f947470379b7e5c5",
+    "live_battle_artifact_digest": "sha256:a6162cc92eb368fb6656abcd555b0c013677cec61caef70051f7bc4e6ef3d97b",
+    "clean_clone_proof_steps": {
+      "repository_tests": true,
+      "cli_scan": true,
+      "cli_evidence": true,
+      "cli_review": true,
+      "app_bridge_contract": true,
+      "ide_bench_contract": true,
+      "battle_test_fixtures": true,
+      "live_battle_outputs": true,
+      "thetechguy_verification_standard": true,
+      "final_gate": true,
+      "end_to_end_review_suite": true,
+      "independent_reviewer_module": true,
+      "mocked_live_github_integration": true
+    },
+    "main_review_run_id": 34035737201,
+    "main_review": "success",
+    "main_review_artifact_digest": "sha256:ee747f2d9a84ab6b1e883a53e8ce5fd34a35f25f44045e469c140362114a4ccf"
+  },
+  "hostile_review_confirmation": {
+    "reviewed_head": "c910b7a08e7b33c5ec69cb115affc044aed4df8e",
+    "coderabbit_exact_head_status": "success",
+    "all_inline_review_threads_resolved_before_candidate_merge": true,
+    "historical_red_generations": [
+      "e40bec3a92fef65cc84e9e46625fb73b47b125fc",
+      "7bb7d4bc29a0b693a497b56892acae365bcfc45f",
+      "3a572fd9f2b0e8fd05d16410ae525d2cb9473446",
+      "5bae7edf7413b73e4770190ae9f066b98f8793ca",
+      "be0ff9ecac62ff94bb282b93dc2c7e53df521cee"
+    ],
+    "historical_green_correction_generations": [
+      "2995a51e55afd8cb2af383f972930ec2e1d73180",
+      "af6341a8c110f1f2f5665949f97e753c0aefde40",
+      "9b0cbc6a2236073b34ee34911b63f14227a48e6f",
+      "c8f4620bec9b8e870362994b81a45b9741b1f260",
+      "36058c1fc491adc7a5d83c78b5f869883aac4b48"
+    ],
+    "historical_external_findings_suppressed": false,
+    "external_independence_claimed": false
+  },
+  "assurance_ledger_qualification_campaign": {
+    "fixture_path": "tests/test_sae40_qualification_campaign.py",
+    "fixture_blob_sha": "8767f4439e5d0260d22eb6e5bfb6f6de9f915d6c",
+    "presentation_alias_non_authority_attack": true,
+    "claim_and_admission_occurrence_multiplicity_attack": true,
+    "unknown_conservation_attack": true,
+    "contradiction_conservation_attack": true,
+    "world_rab_scope_substitution_attack": true,
+    "cross_world_and_rab_merge_attack": true,
+    "persisted_tamper_and_dangling_link_attack": true,
+    "malformed_authority_input_attack": true,
+    "adapter_alias_reorder_attack": true,
+    "judge_metadata_leak_attack": true,
+    "orphan_disposition_attack": true,
+    "assurance_status_gate_mismatch_attack": true,
+    "project_authored_campaign_is_external_independence": false,
+    "universal_semantic_completeness_claimed": false,
+    "dependent_nodes_auto_qualified": false,
+    "qualified_scope": "exact accepted SAE-40 Judge Assurance Ledger and adapter generation"
+  },
+  "produces": [
+    "QUALIFIED_ASSURANCE_LEDGER"
+  ],
+  "dependency_effect": {
+    "sae40_proof_dependencies_resolved": true,
+    "qualified_assurance_ledger_available_after_canonical_closeout_merge": true,
+    "sae_r1_auto_qualified": false,
+    "sae50_auto_qualified": false,
+    "dependent_nodes_auto_qualified": false,
+    "dependent_nodes_auto_proven": false
+  },
+  "authority_boundary": {
+    "normal_sergeant_verdict_authority_changed": false,
+    "second_judge_created": false,
+    "sae30_general_qualification_authority_fabricated": false,
+    "eepr_independence_claimed": false,
+    "genesis_activated": false,
+    "partial_generation_activation_allowed": false,
+    "universal_semantic_completeness_claimed": false,
+    "model_free_transfer_failures_counted_as_sae40_pass": false
+  },
+  "separate_repository_debt": {
+    "issue": 181,
+    "scope": "inherited Model-Free Transfer workflow failures",
+    "resolved_by_sae40": false
+  },
+  "closeout_document": {
+    "path": "docs/88-sae40-proven-lifecycle-closeout.md",
+    "blob_sha": "cea75dab5541089392e26c3bd2e2a4b957ac5412"
+  },
+  "proof_fixture": {
+    "path": "tests/test_sae40_proven_lifecycle_closeout.py",
+    "blob_sha": "a357e2f3570df05451b19950ec2f5a7e33155614"
+  }
+}

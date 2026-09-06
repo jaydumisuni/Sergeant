@@ -88,6 +88,8 @@ jobs:
                   "case_id": "await-transfer-3-a",
                   "repository": "Suwayomi/Suwayomi-Tsumiru",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "aa9e33d79fd065ac4d7ea948137c837ea7a25e75",
                   "checkout_path": "await-transfer-3/tsumiru",
                   "changed_files": [
                       "lib/src/features/library/presentation/category/controller/edit_category_controller.dart"
@@ -97,6 +99,8 @@ jobs:
                   "case_id": "await-transfer-3-b",
                   "repository": "xkazm04/personas",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "782bbb8f7a6b1951d6eff303cfac8c066c5f5bf6",
                   "checkout_path": "await-transfer-3/personas",
                   "changed_files": [
                       "src/features/agents/components/allPersonas/PersonaConfigPanel.tsx"
@@ -106,6 +110,8 @@ jobs:
                   "case_id": "await-transfer-3-c",
                   "repository": "rocket-meals/rocket-meals",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "b66980b1a6e85a3cb9ce954fd4948b04c26e3f96",
                   "checkout_path": "await-transfer-3/rocket-meals",
                   "changed_files": ["apps/frontend/app/app/(app)/_layout.tsx"],
               },
@@ -127,6 +133,9 @@ jobs:
                   "expected_defects_visible_to_sergeant": False,
                   "runtime_is_confirmation_not_discovery": True,
                   "classification": "untouched_transfer_validation",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
+                  "reviewer_code_frozen_before_target_selection": "f5a13a1b7d4056d1643610a401e1eb637cf572c8",
               },
               "cases": cases,
           }

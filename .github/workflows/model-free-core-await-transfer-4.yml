@@ -88,6 +88,8 @@ jobs:
                   "case_id": "await-transfer-4-a",
                   "repository": "dniasoff/learning-tracker",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "f324dc394d04ac3b1a8576b0df87ea4dbfbac25a",
                   "checkout_path": "await-transfer-4/learning-tracker",
                   "changed_files": [
                       "learning_tracker/lib/features/sacred_time/presentation/providers/sacred_location_provider.dart"
@@ -97,6 +99,8 @@ jobs:
                   "case_id": "await-transfer-4-b",
                   "repository": "MayankKotla/SunSpot",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "2d9204c7fc0304c26c39721ee61812de0a39eae2",
                   "checkout_path": "await-transfer-4/sunspot",
                   "changed_files": ["frontend/src/components/MapView.tsx"],
               },
@@ -104,6 +108,8 @@ jobs:
                   "case_id": "await-transfer-4-c",
                   "repository": "themancalledzac/edens.zac",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "f6374cc2bdc9951d9651509879d2eeb6059563ea",
                   "checkout_path": "await-transfer-4/edens",
                   "changed_files": ["app/hooks/useFetchMe.ts", "app/lib/api/auth.ts"],
               },
@@ -125,6 +131,9 @@ jobs:
                   "expected_defects_visible_to_sergeant": False,
                   "runtime_is_confirmation_not_discovery": True,
                   "classification": "untouched_transfer_validation",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
+                  "reviewer_code_frozen_before_target_selection": "310891c8dd9cf165f32267aced8b06593597114a",
               },
               "cases": cases,
           }
