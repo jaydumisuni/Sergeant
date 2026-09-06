@@ -16,7 +16,7 @@ SAE20 = ROOT / "docs/85-sae20-proven-lifecycle-closeout-manifest.json"
 ROADMAP = ROOT / "docs/59-sergeant-assurance-evolution-roadmap.md"
 
 HEAD = "c910b7a08e7b33c5ec69cb115affc044aed4df8e"
-TREE = "c9850a8195eed884a4a3f419545532b698eb4c82"
+TREE = "bd267e4fd1578f7df3d33befb1a4a18b2dcbcb9a"
 MERGE = "ac88df42983274163e939ee0211ee0ab7b51b356"
 MERGE_TREE = "bd267e4fd1578f7df3d33befb1a4a18b2dcbcb9a"
 PREVIOUS_MAIN = "2a1d16f9772997d993d0f0d41e1c5161f222f136"
