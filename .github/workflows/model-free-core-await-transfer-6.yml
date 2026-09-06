@@ -35,7 +35,7 @@ jobs:
           ref: aadfc91386bbdef2a3b2a5dd2d0361ede950001a
           path: await-transfer-6/notie
           persist-credentials: false
-          fetch-depth: 4
+          fetch-depth: 0
 
       - name: Checkout Python worker fixing lineage
         uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
           ref: 3ece08466640d07c2b4775266cda589ae01849a3
           path: await-transfer-6/robotsix
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Freeze defective revisions
         shell: bash
