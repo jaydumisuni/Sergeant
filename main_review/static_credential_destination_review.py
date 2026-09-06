@@ -24,7 +24,7 @@ _CREDENTIAL_SINKS = (
         re.I,
     ),
     re.compile(
-        r"[\"']?Authorization[\"']?\s*:\s*[^,}\n]{0,400}(?:Bearer|token|api[_-]?key|credential|secret)",
+        r"(?<![\\w$])(?:[\"']Authorization[\"']|Authorization)\\s*:\\s*[^,}\\n]{0,400}(?:Bearer|token|api[_-]?key|credential|secret)",
         re.I,
     ),
     re.compile(
