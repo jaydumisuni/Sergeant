@@ -26,6 +26,12 @@ _ASSURANCE_STATES = {
     "unresolved": LedgerEpistemicState.UNKNOWN,
     "advisory": LedgerEpistemicState.UNKNOWN,
 }
+_ASSURANCE_GATES = {
+    "satisfied": False,
+    "unresolved": True,
+    "advisory": False,
+}
+_JUDGE_ONLY_RAW_FIELDS = frozenset({"finding_id", "admission", "gates_verdict"})
 
 
 def _judge_dispositions(council: Mapping[str, object]) -> dict[str, str]:
@@ -64,6 +70,13 @@ def _epistemic_for_assurance(assurance: Mapping[str, object]) -> LedgerEpistemic
         raise AssuranceLedgerError(
             "required assurance status must be satisfied / unresolved / advisory"
         )
+    gate = assurance.get("gates_verdict")
+    if not isinstance(gate, bool):
+        raise AssuranceLedgerError("required assurance gates_verdict must be a boolean")
+    if gate is not _ASSURANCE_GATES[status]:
+        raise AssuranceLedgerError(
+            f"required assurance status {status!r} has non-canonical gates_verdict={gate!r}"
+        )
     return _ASSURANCE_STATES[status]
 
 
@@ -100,7 +113,11 @@ def build_judge_assurance_ledger(
         if not isinstance(finding, Mapping):
             raise AssuranceLedgerError("raw_findings contains a non-object entry")
         finding_id = _string(finding.get("finding_id"), "finding_id")
-        finding_payload = {key: value for key, value in finding.items() if key != "finding_id"}
+        finding_payload = {
+            key: value
+            for key, value in finding.items()
+            if key not in _JUDGE_ONLY_RAW_FIELDS
+        }
         claim = LedgerRecord.create(
             kind=LedgerRecordKind.CLAIM,
             review_world_id=world,
@@ -134,9 +151,11 @@ def build_judge_assurance_ledger(
             f"{sorted(missing_dispositions)!r}"
         )
 
-    admission_occurrence = 0
-    for finding_id in sorted(claims_by_finding):
-        related_claims = claims_by_finding[finding_id]
+    admission_groups = sorted(
+        claims_by_finding.items(),
+        key=lambda item: min(claim.occurrence for claim in item[1]),
+    )
+    for admission_occurrence, (finding_id, related_claims) in enumerate(admission_groups):
         disposition = dispositions[finding_id]
         records.append(LedgerRecord.create(
             kind=LedgerRecordKind.ADMISSION,
@@ -150,7 +169,6 @@ def build_judge_assurance_ledger(
             payload={"disposition": disposition},
             presentation_ids=(finding_id,),
         ))
-        admission_occurrence += 1
 
     assurances = council.get("required_assurances")
     if not isinstance(assurances, list):
@@ -161,8 +179,7 @@ def build_judge_assurance_ledger(
         assurance_id = assurance.get("assurance_id")
         aliases = () if assurance_id is None else (_string(assurance_id, "assurance_id"),)
         _string(assurance.get("required_assurance"), "required_assurance")
-        if not isinstance(assurance.get("gates_verdict"), bool):
-            raise AssuranceLedgerError("required assurance gates_verdict must be a boolean")
+        epistemic_state = _epistemic_for_assurance(assurance)
         records.append(LedgerRecord.create(
             kind=LedgerRecordKind.OBLIGATION,
             review_world_id=world,
@@ -170,7 +187,7 @@ def build_judge_assurance_ledger(
             scope_id=scope,
             generation=record_generation,
             occurrence=index,
-            epistemic_state=_epistemic_for_assurance(assurance),
+            epistemic_state=epistemic_state,
             payload=dict(assurance),
             presentation_ids=aliases,
         ))
