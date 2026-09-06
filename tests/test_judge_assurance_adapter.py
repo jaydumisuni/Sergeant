@@ -68,6 +68,16 @@ def test_adapter_rejects_raw_claim_without_existing_canonical_disposition():
         build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=missing_id)
 
 
+def test_adapter_rejects_missing_required_assurances_collection():
+    council={
+        'raw_findings':[],
+        'reports':[{'officer':'Judge','admission_ledger':{'admitted':[],'advisory':[],'rejected':[]}}],
+        'verdict':'PASS',
+    }
+    with pytest.raises(AssuranceLedgerError):
+        build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
+
+
 def test_adapter_rejects_noncanonical_assurance_status():
     council={
         'raw_findings':[],
