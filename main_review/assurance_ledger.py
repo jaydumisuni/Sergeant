@@ -425,11 +425,14 @@ class JudgeAssuranceLedger:
             raise AssuranceLedgerError("cannot merge ledgers from different Review Worlds")
         if self.rab_id != other.rab_id:
             raise AssuranceLedgerError("cannot merge ledgers from different RABs")
+        new_generation = _generation(generation, "merged ledger generation")
+        if new_generation in {self.generation, other.generation}:
+            raise AssuranceLedgerError("merged ledger generation must be new and distinct from both parents")
         parents = set(self.parent_ledger_ids) | set(other.parent_ledger_ids) | {self.ledger_id, other.ledger_id}
         return type(self).create(
             review_world_id=self.review_world_id,
             rab_id=self.rab_id,
-            generation=generation,
+            generation=new_generation,
             records=(*self.records, *other.records),
             parent_ledger_ids=parents,
         )
