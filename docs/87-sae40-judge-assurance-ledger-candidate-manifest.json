@@ -39,13 +39,13 @@
     ]
   },
   "content_blobs": {
-    "docs/86-sae40-judge-assurance-ledger-candidate.md": "c0120726b546c19a460c987aa640a1b29c9a5a02",
-    "docs/superpowers/specs/2026-09-06-sae-40-assurance-ledger-design.md": "3dd66873a5779496cb46e5e0b04254eafcfc1569",
-    "docs/superpowers/plans/2026-09-06-sae-40-assurance-ledger.md": "151aa71e534194c773588b6aa23baa74dcb05d94",
+    "docs/86-sae40-judge-assurance-ledger-candidate.md": "e1cdb88cee381e9e94695f9207b12529a3032b75",
+    "docs/superpowers/specs/2026-09-06-sae-40-assurance-ledger-design.md": "7f4b2d18905dfe90188479c2e24b0113a6ca8a5a",
+    "docs/superpowers/plans/2026-09-06-sae-40-assurance-ledger.md": "710feff4f54fcea5e8bece99f7b4df2867d5dfef",
     "main_review/assurance_ledger.py": "93c9528f107679cd1c844937a925a461c8df07c8",
-    "main_review/judge_assurance_adapter.py": "349d2c00b46d1715abbc996761317937bdebd06a",
+    "main_review/judge_assurance_adapter.py": "522b01881894e2acf5898a32964c04303b585307",
     "tests/test_assurance_ledger.py": "23f8436bac94ff26f3ccbdda83b52bc78c432a1d",
-    "tests/test_judge_assurance_adapter.py": "10de7d0830a94855627586979dfbdc919dafa308",
+    "tests/test_judge_assurance_adapter.py": "b3bbc2762ce29119aae9a7ac298310bc13e14129",
     "tests/test_sae40_assurance_ledger_candidate_manifest.py": "1bafb2455cdceb8106c8c530b0eb47e472790a06"
   },
   "record_families": [
@@ -77,7 +77,9 @@
     "related_record_ids_bound": true,
     "canonical_payload_bound": true,
     "legacy_finding_id_in_record_id": false,
-    "legacy_finding_id_persisted_as_presentation_alias": true
+    "legacy_finding_id_in_claim_authority_payload": false,
+    "legacy_finding_id_persisted_as_presentation_alias": true,
+    "judge_stage_metadata_in_claim_authority_payload": false
   },
   "monotonic_laws": {
     "unknown_conserved": true,
@@ -85,6 +87,7 @@
     "required_multiplicity_conserved_by_occurrence": true,
     "scope_bound_to_record_identity": true,
     "legacy_finding_id_is_presentation_only": true,
+    "admission_occurrence_independent_of_legacy_alias_sort": true,
     "dangling_related_record_ids_rejected": true,
     "cross_review_world_merge_rejected": true,
     "cross_rab_merge_rejected": true,
@@ -99,11 +102,16 @@
     "computes_sergeant_verdict": false,
     "raw_source_claim_occurrences_preserved": true,
     "raw_finding_id_required": true,
+    "legacy_finding_id_excluded_from_claim_authority": true,
+    "judge_only_raw_adjudication_fields_excluded_from_claim_authority": true,
     "exact_raw_to_disposition_coverage_required": true,
     "unknown_disposition_buckets_rejected": true,
     "duplicate_dispositions_rejected": true,
     "canonical_admission_multiplied_by_duplicate_sources": false,
+    "admission_occurrence_uses_raw_occurrence_not_alias_sort": true,
     "required_assurance_collection_required": true,
+    "required_assurance_contract_fields_required": true,
+    "assurance_status_gate_pair_validated": true,
     "unresolved_assurance_state": "UNKNOWN",
     "noncanonical_assurance_state_rejected": true,
     "existing_result_recorded_as": "verdict_lineage"
@@ -114,19 +122,45 @@
     "red_generations": [
       "e40bec3a92fef65cc84e9e46625fb73b47b125fc",
       "7bb7d4bc29a0b693a497b56892acae365bcfc45f",
-      "3a572fd9f2b0e8fd05d16410ae525d2cb9473446"
+      "3a572fd9f2b0e8fd05d16410ae525d2cb9473446",
+      "5bae7edf7413b73e4770190ae9f066b98f8793ca",
+      "be0ff9ecac62ff94bb282b93dc2c7e53df521cee"
     ],
     "green_correction_generations": [
       "2995a51e55afd8cb2af383f972930ec2e1d73180",
       "af6341a8c110f1f2f5665949f97e753c0aefde40",
-      "9b0cbc6a2236073b34ee34911b63f14227a48e6f"
+      "9b0cbc6a2236073b34ee34911b63f14227a48e6f",
+      "c8f4620bec9b8e870362994b81a45b9741b1f260",
+      "36058c1fc491adc7a5d83c78b5f869883aac4b48"
     ],
-    "final_pre_manifest_repository_tests_passed": 1382,
+    "external_review": {
+      "reviewer": "CodeRabbit",
+      "reviewed_head": "ea96a0eb478f0f092edfcee25ea7581b3d4ef2f8",
+      "completed_status": "success",
+      "valid_findings_forced_successor_generation": true,
+      "finding_comment_ids": [
+        3943891623,
+        3943891629,
+        3943891636
+      ],
+      "independence_under_future_sae30_eepr_claimed": false
+    },
+    "red4_ci_run_id": 34032486358,
+    "red4_repository_tests_passed": 1382,
+    "red4_substantive_failures": 2,
+    "red5_ci_run_id": 34035383908,
+    "red5_repository_tests_passed": 1384,
+    "red5_substantive_failures": 3,
+    "final_pre_manifest_head": "1971877ade6b95ef4308ccb24013a6e11e60ef73",
+    "final_pre_manifest_ci_run_id": 34035469829,
+    "final_pre_manifest_repository_tests_passed": 1387,
     "final_pre_manifest_repository_tests_failed": 1,
+    "final_pre_manifest_clean_clone_tests_passed": 1387,
+    "final_pre_manifest_clean_clone_tests_failed": 1,
     "final_pre_manifest_failure_is_stale_candidate_manifest_only": true
   },
   "local_construction_proof": {
-    "focused_tests_passed": 24,
+    "focused_tests_passed": 29,
     "focused_tests_failed": 0,
     "compile_proof": "pass",
     "repository_only_manifest_tests": 6,
