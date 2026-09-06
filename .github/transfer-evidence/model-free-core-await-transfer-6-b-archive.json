@@ -1,0 +1,40 @@
+{
+  "schema_version": "sergeant.archived-transfer-evidence.v1",
+  "status": "archived_non_rerunnable_external_source",
+  "set_id": "model-free-core-await-transfer-6",
+  "case_id": "await-transfer-6-b",
+  "repository": "amoghmokshit-blip/Scale-Chat",
+  "defective_ref": "0eace8167c9b120954b0db4c929b969be23f6f07",
+  "historical_fixing_ref": "3d875ab139871cf44420d3133cd8041cf9123e9a",
+  "historical_fixing_ref_status": "checkout-proven by the original workflow before the external repository became unavailable",
+  "changed_files": [
+    "my-app/src/app/super-group/storage.tsx"
+  ],
+  "archive_reason": "The external repository now returns repository-not-found. The original frozen execution and its fixing-parent checkout are preserved as historical evidence, but this case can no longer be honestly rerun against the external source.",
+  "original_sergeant_head": "e881b1de7cf77c710b511030dc19ff566197feb7",
+  "reviewer_code_frozen_before_target_selection": "7a05ac4a20ba91ebb3f960454c91c7c3426aef76",
+  "workflow_run_id": 29691504958,
+  "workflow_run_number": 16,
+  "workflow_run_conclusion": "success",
+  "artifact_id": 8443714148,
+  "artifact_name": "model-free-core-await-transfer-6",
+  "artifact_digest": "sha256:a128d8300fb9b5b5b37a96c936997b7c08ffc678abc708e5027c307319781a47",
+  "artifact_file_hashes": {
+    "runtime-manifest.json": "sha256:f8658d822a58f29a882d1bdee216f34554660f3226fc61f90e7049684bea7a4a",
+    "frozen-summary.json": "sha256:4e5c6281d6de9557981b96cc7e2222adb3ff90978e03b0152b267e17a9e1e850",
+    "frozen-result.json": "sha256:7d4608d8f26d89d4c8e116128a447da04b728c805994b8cc4c5617265c35e0cc"
+  },
+  "frozen_summary": {
+    "admitted_finding_count": 1,
+    "advisory_finding_count": 1,
+    "model_calls": 0,
+    "model_status": "disabled",
+    "policy_profile": "external_static",
+    "review_mode": "snapshot",
+    "unavailable_requested_files": [],
+    "unresolved_assurance_count": 0,
+    "verdict": "REQUEST_CHANGES",
+    "workspace_policy": "static_first"
+  },
+  "provenance_nonclaim": "The historical fixing ref is preserved because the original workflow checked it out successfully before detaching to the defective parent. No claim is made that the external source remains available or rerunnable today."
+}

@@ -90,6 +90,8 @@ jobs:
                   "case_id": "await-transfer-2-a",
                   "repository": "Matronhq/matron-android",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "6dbd927557951f6d18ded0c4b9a34e9a555bbda8",
                   "checkout_path": "await-transfer-2/matron",
                   "changed_files": [
                       "app/src/main/java/chat/matron/android/viewmodels/DeviceLinkViewModel.kt"
@@ -99,6 +101,8 @@ jobs:
                   "case_id": "await-transfer-2-b",
                   "repository": "bluom7/post-app-frontend",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "b569158da12b996ee7007b75ea006c389c75c1e7",
                   "checkout_path": "await-transfer-2/post-app",
                   "changed_files": ["repos/post-app-frontend/index.html"],
               },
@@ -106,6 +110,8 @@ jobs:
                   "case_id": "await-transfer-2-c",
                   "repository": "nzilberberg/TomeRoam",
                   "source_pr": None,
+                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+                  "fixing_ref": "d513dc101d39fe874e30c3baa7ff65f0a4fac471",
                   "checkout_path": "await-transfer-2/tomeroam",
                   "changed_files": ["js/banking.js"],
               },
@@ -127,6 +133,9 @@ jobs:
                   "expected_defects_visible_to_sergeant": False,
                   "runtime_is_confirmation_not_discovery": True,
                   "classification": "untouched_transfer_validation",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
+                  "reviewer_code_frozen_before_target_selection": "883c4c31c923d318de190ae891a0a969a7fdb808",
               },
               "cases": cases,
           }
