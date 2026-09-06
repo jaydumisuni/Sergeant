@@ -1,0 +1,39 @@
+{
+  "schema_version": "sergeant.sae00-proven-lifecycle-closeout.v1",
+  "node": "SAE-00",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "historical_candidate_manifest": "docs/63-sae00-founding-authority-reference-manifest.json",
+  "historical_candidate_state": "CANDIDATE",
+  "construction_pr": 170,
+  "construction_head": "7d8b163ae1694f6b1fce4dccee97ba58ac3977c6",
+  "canonical_merge_commit": "7052f6da8252a06907ec2fc4d0bd59abf4a2144d",
+  "owner_authorization": {
+    "date": "2026-09-02",
+    "disposition": "finish Sergeant first using proven Tenfold Gen 1 execution and push after milestones",
+    "scope": "Assurance Evolution programme execution; no weakening of roadmap authority or proof dependencies"
+  },
+  "bootstrap_authority": {
+    "kind": "OWNER_ROOT_CONSTITUTIONAL_TCB",
+    "basis": "docs/58-sergeant-assurance-evolution-founding-architecture.md section 26 permits Owner/Root constitutional authority inside the finite TCB",
+    "necessity": "SAE-00 is the DAG root and SAE-30, which creates the general qualification substrate, depends on SAE-00; requiring SAE-30 to qualify SAE-00 would be circular",
+    "scope": "exact SAE-00 generation and its declared isolated construction-authority outputs only",
+    "not_general_qualification_authority": true,
+    "cannot_qualify_dependents": true,
+    "cannot_satisfy_genesis_external_lane": true,
+    "cannot_convert_business_risk_to_pass": true,
+    "partial_generation_activation_allowed": false
+  },
+  "produces": [
+    "SERGEANT_PRESERVATION_REFERENCE",
+    "FOUNDING_ARCHITECTURE_AUTHORITY",
+    "ROADMAP_EXECUTION_AUTHORITY"
+  ],
+  "dependency_effect": {
+    "sae00_proof_dependency_resolved": true,
+    "dependent_nodes_auto_qualified": false,
+    "dependent_nodes_auto_proven": false,
+    "partial_generation_activation_allowed": false
+  }
+}

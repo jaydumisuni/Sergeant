@@ -1,0 +1,229 @@
+{
+  "schema_version": "sergeant.spike-sem-feasibility-manifest.v2",
+  "node": "SPIKE-SEM",
+  "node_title": "Real semantic qualification / false-UNKNOWN feasibility",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "branch": "roadmap/spike-sem-semantic-feasibility-20260902",
+  "lifecycle_state": "CANDIDATE",
+  "proof_requires": ["SAE-00"],
+  "authority_gain": "none",
+  "construction_base": {
+    "main_sha": "9a42ceb4139f37e56e6a0725ae07f16bea58d48e",
+    "sae00_proven_merge": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+    "spike_id_proven_merge": "9a42ceb4139f37e56e6a0725ae07f16bea58d48e"
+  },
+  "existing_production_mechanism": {
+    "path": "main_review/capability_engine.py",
+    "blob_sha": "903006e1d28aff4e2bd48161a4aedb2af2d0065a",
+    "role": "existing_lightweight_static_repository_intelligence_baseline",
+    "modified_by_spike": false,
+    "current_call_graph_boundary": "exported symbol names are correlated with call-name sets; receiver/import identity is not required by the production call-graph finding"
+  },
+  "candidate_document": {
+    "path": "docs/74-spike-sem-semantic-feasibility.md",
+    "blob_sha": "706e3f15d7f676431eb46022733bdd4104cbfae5"
+  },
+  "probe": {
+    "path": "tests/spike_sem/semantic_feasibility_probe.py",
+    "blob_sha": "37002781449c63d4022161487b80defc8f468cd9",
+    "assurance_evolution_runtime_implementation": false,
+    "production_authority": false,
+    "default_max_operations": 2000000,
+    "default_max_alias_hops": 2,
+    "every_python_call_classified": true,
+    "candidate_expansion_charged_to_budget": true,
+    "lexical_shadowing_fails_closed": true,
+    "ambiguous_module_rebinding_fails_closed": true
+  },
+  "proof_fixture": {
+    "path": "tests/spike_sem/test_semantic_feasibility_probe.py",
+    "blob_sha": "b2bf08d7103e490dc816a1a195c05c34b0d0d97d",
+    "assurance_evolution_runtime_implementation": false
+  },
+  "required_constructs": {
+    "ordinary_direct_calls": true,
+    "bounded_indirect_dispatch": true,
+    "decorators": true,
+    "getattr_style_dispatch": true,
+    "framework_registration": true,
+    "plugin_entry_point_loading": true,
+    "generated_configuration": true,
+    "resource_explosion_behavior": true
+  },
+  "grade_law": {
+    "EXACT": "statically closed target inside the bounded corpus with no detected lexical shadowing or ambiguous module rebinding",
+    "CONSERVATIVE_SUPERSET": "finite over-approximation when exact receiver identity is unavailable",
+    "PARTIAL": "useful binding exists but required semantics are outside the bounded model",
+    "UNKNOWN": "safe closure is unavailable, an unresolved call remains, parsing fails, or finite resource bounds are exceeded"
+  },
+  "synthetic_required_matrix": {
+    "total_relations": 12,
+    "grades": {
+      "EXACT": 6,
+      "CONSERVATIVE_SUPERSET": 0,
+      "PARTIAL": 2,
+      "UNKNOWN": 4
+    },
+    "rates": {
+      "EXACT": 0.5,
+      "CONSERVATIVE_SUPERSET": 0.0,
+      "PARTIAL": 0.16666666666666666,
+      "UNKNOWN": 0.3333333333333333
+    },
+    "budget_exceeded": false,
+    "parse_error_count": 0
+  },
+  "hostile_review": {
+    "reviewed_initial_head": "3667561baf731482d76be10a38c7cfa1ef54f2b5",
+    "execution_reproof_head": "6f47c742ffae3bf624e4147a15c0271ea435d3a9",
+    "execution_reproof_github_actions_run_id": 33619547519,
+    "candidate_green_reproof_pending": true,
+    "findings": {
+      "unresolved_calls_omitted_from_denominator": {
+        "severity": "P1",
+        "valid": true,
+        "implemented": true,
+        "execution_reproof_pending": false
+      },
+      "lexical_shadowing_false_exact": {
+        "severity": "P2",
+        "valid": true,
+        "implemented": true,
+        "execution_reproof_pending": false
+      },
+      "candidate_expansion_not_budgeted": {
+        "severity": "P2",
+        "valid": true,
+        "implemented": true,
+        "execution_reproof_pending": false
+      }
+    }
+  },
+  "invalidated_measurement": {
+    "discovery_head": "3667561baf731482d76be10a38c7cfa1ef54f2b5",
+    "discovery_github_actions_run_id": 33615685272,
+    "files_parsed": 136,
+    "states_visited": 225231,
+    "total_relations": 4539,
+    "grades": {
+      "EXACT": 2528,
+      "CONSERVATIVE_SUPERSET": 3,
+      "PARTIAL": 2008,
+      "UNKNOWN": 0
+    },
+    "authority_status": "WITHDRAWN",
+    "reason": "review proved unresolved calls were omitted, lexical shadowing could false-grade EXACT, and later candidate expansion was outside the resource counter"
+  },
+  "corrected_real_sergeant_measurement": {
+    "scope": "main_review/ Python corpus",
+    "status": "FROZEN_FROM_SINGLE_SENTINEL_DISCOVERY",
+    "discovery_head": "6f47c742ffae3bf624e4147a15c0271ea435d3a9",
+    "discovery_github_actions_run_id": 33619547519,
+    "discovery_test_result": {
+      "passed": 1107,
+      "failed": 1,
+      "xfailed": 1,
+      "sole_failure": "test_real_sergeant_main_review_semantic_metrics_are_frozen_from_observation"
+    },
+    "max_operations": 2000000,
+    "files_parsed": 136,
+    "operations_used": 924042,
+    "total_relations": 14439,
+    "parse_error_count": 0,
+    "budget_exceeded": false,
+    "grades": {
+      "EXACT": 2528,
+      "CONSERVATIVE_SUPERSET": 3,
+      "PARTIAL": 2008,
+      "UNKNOWN": 9900
+    },
+    "rates": {
+      "EXACT": 0.17508137682665004,
+      "CONSERVATIVE_SUPERSET": 0.00020777062123415748,
+      "PARTIAL": 0.13906780247939607,
+      "UNKNOWN": 0.6856430500727198
+    },
+    "by_kind": {
+      "attribute_name_candidate": 3,
+      "decorator_binding": 70,
+      "direct_call": 4479,
+      "lexical_shadowing": 25,
+      "unresolved_call": 9862
+    },
+    "interpretation": "under the deliberately narrow review-hardened domain, current main_review is UNKNOWN-dominant; future precision must be earned rather than removing unresolved calls from the denominator"
+  },
+  "false_positive_pressure": {
+    "fixture": "duplicate exported/local handle symbol names",
+    "production_baseline_reported_callers": 2,
+    "ground_truth_callers": 1,
+    "false_positive_callers": 1,
+    "adversarial_reported_set_false_positive_rate": 0.5,
+    "universal_real_world_rate_claimed": false,
+    "result": "bare-name production call-graph correlation is not eligible for future EXACT semantic authority"
+  },
+  "resource_behavior": {
+    "probe_operation_budget": 2000000,
+    "main_review_operations_used": 924042,
+    "main_review_budget_fraction_used": 0.462021,
+    "main_review_budget_exceeded": false,
+    "alias_hop_limit": 2,
+    "explicit_exhaustion_fixture_emits_unknown": true,
+    "candidate_expansion_exhaustion_fixture_emits_unknown": true,
+    "universal_budget_sufficiency_claimed": false
+  },
+  "initial_exact_domain_recommendation": [
+    "non_shadowed_statically_bound_local_or_imported_direct_calls",
+    "non_shadowed_exactly_resolved_imported_module_attribute_calls",
+    "non_shadowed_constant_key_dispatch_tables_with_statically_bound_values",
+    "statically_bound_decorator_identity",
+    "literal_getattr_on_non_shadowed_exactly_resolved_imported_module",
+    "concrete_packaging_entry_points_with_target_present_in_exact_review_world"
+  ],
+  "non_exact_domain_recommendation": {
+    "CONSERVATIVE_SUPERSET": [
+      "unresolved_receiver_attribute_name_candidate_sets"
+    ],
+    "PARTIAL": [
+      "framework_callback_registration_without_qualified_framework_invocation_semantics",
+      "calls_whose_implementation_semantics_are_outside_the_bounded_review_world"
+    ],
+    "UNKNOWN": [
+      "unresolved_calls",
+      "lexical_shadowing",
+      "ambiguous_module_rebinding",
+      "dynamic_getattr",
+      "dynamic_dispatch_keys",
+      "runtime_generated_target_configuration",
+      "star_import_binding_ambiguity",
+      "parse_failure",
+      "resource_budget_exhaustion",
+      "otherwise_unclosed_semantics"
+    ]
+  },
+  "known_gaps": [
+    "production_semantic_analyzer_not_implemented",
+    "complete_python_import_and_packaging_resolution_not_qualified",
+    "precise_python_lexical_scope_model_not_qualified",
+    "dispatch_table_mutation_alias_and_escape_analysis_not_solved",
+    "framework_specific_invocation_semantics_not_qualified",
+    "cross_language_semantic_relations_not_solved",
+    "native_extension_and_reflection_boundaries_not_solved",
+    "generated_code_and_configuration_provenance_not_solved",
+    "external_dependency_semantic_closure_not_solved",
+    "production_resource_ceiling_not_calibrated",
+    "qualification_corpus_and_independence_not_constructed",
+    "acr_language_version_and_runtime_assumptions_not_frozen"
+  ],
+  "prohibitions": [
+    "do_not_treat_spike_probe_as_main_review_production_code",
+    "do_not_treat_grade_labels_as_current_sergeant_verdict_authority",
+    "do_not_promote_bare_name_call_graph_correlation_to_exact_semantics",
+    "do_not_omit_unresolved_calls_to_improve_unknown_rate",
+    "do_not_ignore_candidate_expansion_in_resource_accounting",
+    "do_not_lower_dynamic_or_unclosed_constructs_below_unknown_to_improve_coverage",
+    "do_not_reuse_invalidated_first_measurement",
+    "do_not_activate_partial_assurance_evolution_generation",
+    "do_not_retrofit_pr_167"
+  ]
+}

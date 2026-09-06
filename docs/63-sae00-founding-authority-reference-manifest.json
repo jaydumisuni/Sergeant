@@ -1,0 +1,384 @@
+{
+  "schema_version": "sergeant.sae00-founding-authority-reference-manifest.v1",
+  "node": "SAE-00",
+  "node_title": "Founding authority and preservation reference",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "branch": "roadmap/sae-00-founding-authority-reference",
+  "base": {
+    "ref": "main",
+    "sha": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757"
+  },
+  "recovered_live_main": {
+    "sha": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757",
+    "method": "git fetch origin; git rev-parse origin/main",
+    "note": "independently re-derived fresh during this construction session, not copied from docs/59's stale planning-base SHA 4a277cc5950aa08a98157b950c96fb88f2178c79"
+  },
+  "authority_state": "sae00_candidate_proof_attached_awaiting_owner_review",
+  "lifecycle_state": "CANDIDATE",
+  "lifecycle_note": "docs/59 section 3 universal lifecycle is AUTHORIZED -> CANDIDATE -> REVIEWED -> QUALIFIED -> PROVEN. This node is self-reviewed and CI-green but not yet Owner-reviewed or merged, so it remains CANDIDATE. direct_dependent_nodes_in_dag below is a structural DAG fact only (docs/59 section 15), not an authority grant: those nodes may not freeze/qualify/prove against SAE-00 as resolved upstream truth until SAE-00 itself advances past CANDIDATE.",
+  "documents": [
+    {
+      "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
+      "blob_sha": "b7d7ea0cec987046ece2aecb554cc29d86aa447b",
+      "role": "founding_architecture"
+    },
+    {
+      "path": "docs/59-sergeant-assurance-evolution-roadmap.md",
+      "blob_sha": "f54dd414da2c01284c94a3f7349030da0cda4457",
+      "role": "programme_dependency_dag_and_roadmap_v1.1"
+    },
+    {
+      "path": "docs/60-sergeant-assurance-evolution-freeze-record.md",
+      "blob_sha": "6b713bc8b3ecda9ee568b3c5d2b5d2057ae3277a",
+      "role": "freeze_and_recovery_record"
+    },
+    {
+      "path": "docs/61-sergeant-assurance-evolution-freeze-manifest.json",
+      "blob_sha": "e99fce593c7dc73bf2028af9c9868f47205ebf05",
+      "role": "freeze_manifest"
+    },
+    {
+      "path": "tests/test_assurance_evolution_roadmap_freeze.py",
+      "blob_sha": "bc304713c2830f0d55ba6d2d8336e9dbf4687e96",
+      "role": "freeze_proof_fixture",
+      "cross_check_detail": "this blob_sha must equal docs/61's own recorded proof_fixtures[0].blob_sha for the same path -- verified by test_sae00_roadmap_freeze_fixture_hash_matches_docs61"
+    },
+    {
+      "path": "ASSURANCE_EVOLUTION_START_HERE.md",
+      "blob_sha": "75d462b5989c4bbfacae4e991a61a24ae6e7fb8d",
+      "role": "zero_context_entrypoint"
+    },
+    {
+      "path": "AI_START_HERE.md",
+      "blob_sha": "f18c3829d991e87101bf6b1796fb2b4bba108be5",
+      "role": "normal_recovery_pointer"
+    },
+    {
+      "path": "README.md",
+      "blob_sha": "5210a7578a58ea6a52a6c9bbf9996b8e60c8e382",
+      "role": "preservation_constitution_component"
+    },
+    {
+      "path": "AGENTS.md",
+      "blob_sha": "7b8fa36f36200cb67e77cf955a3582677c614c93",
+      "role": "preservation_constitution_component"
+    },
+    {
+      "path": "PICKUP.md",
+      "blob_sha": "db7be10d26c59278d42a871ca31bfca9f685df77",
+      "role": "existing_learning_state"
+    },
+    {
+      "path": "docs/05-security-model.md",
+      "blob_sha": "9106bee5cd79fb9e540964fafcdf937fbdbf881b",
+      "role": "current_security_boundary"
+    },
+    {
+      "path": "docs/44-deterministic-permanent-officer-formation.md",
+      "blob_sha": "f576533f82d615b37a100d0360764c4809351d33",
+      "role": "existing_cpl_officer_hierarchy"
+    },
+    {
+      "path": "docs/34-cpl-officer-amplification.md",
+      "blob_sha": "7bf378fec237525a3165ece047b3e65d50b9b47e",
+      "role": "existing_cpl_officer_hierarchy"
+    },
+    {
+      "path": "main_review/final_proof.py",
+      "blob_sha": "8ee97495afabd7828a5fc8c37b44e5b802cbeded",
+      "role": "existing_proof_behavior"
+    },
+    {
+      "path": "main_review/verdict.py",
+      "blob_sha": "31ddefeafca8f083e6981e0aa8e0bdab4d8cc9ce",
+      "role": "existing_proof_behavior"
+    },
+    {
+      "path": "main_review/verification.py",
+      "blob_sha": "b56a50be5e86e4e26263864e3742093d8ee67b08",
+      "role": "existing_proof_behavior_dependency"
+    },
+    {
+      "path": "main_review/scanner.py",
+      "blob_sha": "d9b09047ed59d0c8d7c5c1cbb3b7eb4e8345431e",
+      "role": "existing_proof_behavior_dependency"
+    },
+    {
+      "path": "main_review/languages.py",
+      "blob_sha": "4a213cb399e4df8a20c74c5773d28d0874c43cde",
+      "role": "existing_proof_behavior_dependency"
+    },
+    {
+      "path": "main_review/models.py",
+      "blob_sha": "99aeb4d383b3b94f888d9523b0d1af220be02f2c",
+      "role": "existing_proof_behavior_dependency"
+    },
+    {
+      "path": "main_review/officer_council.py",
+      "blob_sha": "0089e55db3493501e85fba30f502b36f59fc5433",
+      "role": "existing_cpl_officer_hierarchy_implementation"
+    },
+    {
+      "path": "main_review/evidence.py",
+      "blob_sha": "c1b8f4752ced5ef1b4dca06413bdd79093ca360c",
+      "role": "current_security_boundary_implementation"
+    },
+    {
+      "path": "tests/test_model_free_product_contract.py",
+      "blob_sha": "99326b4ecfcf13ff50c3ca13f6e80ee48552c64e",
+      "role": "current_model_free_benchmark"
+    },
+    {
+      "path": "tests/test_live_pr_ingestion_and_secret_detection.py",
+      "blob_sha": "67a2044b03f27ad11cd7251d12aadbc8646732bd",
+      "role": "current_security_boundary_proof"
+    },
+    {
+      "path": ".github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json",
+      "blob_sha": "36355acec8dc37d9ae33f97cf25faf10debbd2c6",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/lumi-token-origin-20260723.json",
+      "blob_sha": "c8582b077906217e02be27e2baef9bf3520c2bde",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/cpl-adjudication-noise-20260724.json",
+      "blob_sha": "d35d73e9926fe7b852c4c384ef032f17218e7b55",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/preserve-before-delete-20260724.json",
+      "blob_sha": "c9dfaf637562cb3f25ac3823680a163f95078350",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/product-identity-runtime-consistency-20260727.json",
+      "blob_sha": "7c033bf54af97b49ca1b4e0af1ada5dec301068c",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/lessons/review-evidence-integrity-20260724.json",
+      "blob_sha": "b060b9c48c622dc5d19c289e5334132d4b168987",
+      "role": "accepted_lesson_record"
+    },
+    {
+      "path": ".github/self-learning/results/project-oracle-oidc-workflow-20260818.json",
+      "blob_sha": "146522adee40854f8f8fcf57b41c01ff96dfe74d",
+      "role": "rejected_candidate_disposition_record"
+    },
+    {
+      "path": ".github/self-learning/signals/tgcheckm8-checkout-credential-boundary-2026-07-23.json",
+      "blob_sha": "705c20b475e8c0fbae427c97b3a66c22025084e0",
+      "role": "rejected_candidate_evidence_record"
+    },
+    {
+      "path": ".github/self-learning/signals/oracle-oidc-workflow-identity-2026-08-17.json",
+      "blob_sha": "5129b3cf82a091a5e649a06ab70f2f771c02aa50",
+      "role": "rejected_candidate_evidence_record"
+    },
+    {
+      "path": "docs/62-sae00-founding-authority-and-preservation-reference.md",
+      "blob_sha": "c85a1a7288591da7f0f76e4d33637ba61cee9a06",
+      "role": "sae00_human_readable_binding_record"
+    }
+  ],
+  "proof_fixtures": [
+    {
+      "path": "tests/test_sae00_founding_authority_reference.py",
+      "blob_sha": "97b09a8652ebcb535b26136782404c0a6db89121",
+      "role": "sae00_manifest_and_binding_proof",
+      "assurance_evolution_runtime_implementation": false,
+      "blob_sha_method": "git hash-object (subprocess), not raw-byte hashing, to avoid platform CRLF false failures",
+      "self_hash_check": "test_sae00_proof_fixture_self_hash_matches_manifest asserts this file's own current git hash-object output equals blob_sha above"
+    }
+  ],
+  "bindings": {
+    "approved_founding_architecture": {
+      "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
+      "merged_via_pr": 168,
+      "merge_commit": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757"
+    },
+    "approved_roadmap_generation": {
+      "path": "docs/59-sergeant-assurance-evolution-roadmap.md",
+      "freeze_record": "docs/60-sergeant-assurance-evolution-freeze-record.md",
+      "freeze_manifest": "docs/61-sergeant-assurance-evolution-freeze-manifest.json",
+      "freeze_proof_test": "tests/test_assurance_evolution_roadmap_freeze.py",
+      "merged_via_pr": 168,
+      "merge_commit": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757"
+    },
+    "freshly_recovered_live_sergeant_main": {
+      "sha": "9976e43f0d4d318ee4ffd2c4389bd87f520a7757",
+      "recovery_method": "git fetch origin; git rev-parse origin/main",
+      "superseded_planning_sha": "4a277cc5950aa08a98157b950c96fb88f2178c79"
+    },
+    "preservation_constitution": {
+      "judgment_call": true,
+      "note": "no file is literally named 'constitution'; bound jointly as the frozen preservation-requirements list plus the two pre-existing operating-authority documents it preserves",
+      "paths": [
+        "docs/58-sergeant-assurance-evolution-founding-architecture.md#section-1-product-identity-and-preservation",
+        "README.md",
+        "AGENTS.md"
+      ]
+    },
+    "current_model_free_benchmark": {
+      "path": "tests/test_model_free_product_contract.py",
+      "invocation": "python -m pytest -q tests/test_model_free_product_contract.py",
+      "result": "6 passed",
+      "fabricated": false
+    },
+    "current_security_boundary": {
+      "closure_grade": "PARTIAL",
+      "closure_grade_note": "docs/58 sec.8 vocabulary applied honestly to this binding: docs/05-security-model.md specifies a broader boundary than secret detection alone -- read-only token enforcement, sandbox isolation, stage separation, and trusted-policy provenance, live-implemented in main_review/production_hardening.py (assess_token_scopes, enforce_mission_permissions among others), which is NOT hash-bound here. This binding is EXACT for the secret-detection sub-mechanism specifically (specification + real implementation + passing executable proof, all hash-bound) and explicitly PARTIAL, not EXACT, for docs/05's full security architecture. Chasing full behavioral closure over the whole security boundary is out of scope for a recovery/binding node; a future SAE node (SAE-20 ACR / SAE-80 Evidence-Proof-World) is the appropriate place to qualify the complete boundary if required.",
+      "specification_path": "docs/05-security-model.md",
+      "implementation_path": "main_review/evidence.py",
+      "implementation_detail": "SECRET_PATTERNS tuple and SecretEvidenceProvider class perform the actual detection",
+      "routing_path": "main_review/officer_council.py",
+      "routing_detail": "OFFICER_BY_CAPABILITY maps 'security' and 'security_taint' to 'Medic' -- routes an already-produced finding to its officer label; performs no detection itself",
+      "unbound_broader_boundary_path": "main_review/production_hardening.py",
+      "unbound_broader_boundary_detail": "assess_token_scopes and enforce_mission_permissions implement docs/05's read-only/token-enforcement and mission-permission controls; deliberately not hash-bound by this PARTIAL binding",
+      "proof_test_path": "tests/test_live_pr_ingestion_and_secret_detection.py",
+      "proof_test_name": "test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test",
+      "invocation": "python -m pytest -q tests/test_live_pr_ingestion_and_secret_detection.py::test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test",
+      "result": "1 passed",
+      "fabricated": false
+    },
+    "existing_learning_state": {
+      "path": "PICKUP.md",
+      "verified_accepted_lesson_paths": [
+        ".github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json",
+        ".github/self-learning/lessons/lumi-token-origin-20260723.json"
+      ],
+      "all_hash_bound_accepted_lesson_paths": [
+        ".github/self-learning/lessons/cpl-adjudication-noise-20260724.json",
+        ".github/self-learning/lessons/lumi-token-origin-20260723.json",
+        ".github/self-learning/lessons/preserve-before-delete-20260724.json",
+        ".github/self-learning/lessons/product-identity-runtime-consistency-20260727.json",
+        ".github/self-learning/lessons/review-evidence-integrity-20260724.json",
+        ".github/self-learning/lessons/tgcheckm8-checksum-path-namespace-20260723.json"
+      ],
+      "lessons_directory": ".github/self-learning/lessons",
+      "lessons_directory_file_count": 6
+    },
+    "existing_cpl_officer_hierarchy": {
+      "closure_grade": "PARTIAL",
+      "closure_grade_note": "EXACT for the declared formation structure specifically: OFFICER_ORDER/OFFICER_BY_CAPABILITY are real, hash-bound constants matching docs/44/docs/34 exactly, and run_officer_council is a real, callable, non-stub function -- this is genuinely implemented, not misclassified as missing. PARTIAL, not EXACT, for the full officer-investigation runtime: run_officer_council directly executes run_offline_investigations (main_review/offline_investigation.py) and build_cpl_campaign (main_review/cpl_campaign.py), neither of which is hash-bound here, so their behavior is not frozen by this binding. Full behavioral closure over the entire investigation pipeline is out of scope for a recovery/binding node.",
+      "doctrine_paths": [
+        "docs/44-deterministic-permanent-officer-formation.md",
+        "docs/34-cpl-officer-amplification.md"
+      ],
+      "implementation_path": "main_review/officer_council.py",
+      "implementation_detail": "OFFICER_ORDER == (Quartermaster, Scout, Engineer, Medic, Mechanic, Analyst, Challenger, Archivist, Judge, Hermes), matching docs/44's table exactly",
+      "unbound_runtime_paths": [
+        "main_review/offline_investigation.py",
+        "main_review/cpl_campaign.py"
+      ],
+      "unbound_runtime_detail": "run_officer_council calls run_offline_investigations and build_cpl_campaign from these files; deliberately not hash-bound by this PARTIAL binding"
+    },
+    "existing_proof_behavior": {
+      "verdict_engine_path": "main_review/verdict.py",
+      "final_proof_gate_path": "main_review/final_proof.py",
+      "verification_path": "main_review/verification.py",
+      "scanner_path": "main_review/scanner.py",
+      "scanner_dependency_paths": [
+        "main_review/languages.py",
+        "main_review/models.py"
+      ],
+      "security_boundary_shared_dependency_path": "main_review/evidence.py",
+      "dependency_chain_detail": "Complete transitive local-import closure of run_final_proof, traced and verified by direct grep of every module's own import lines rather than assumed one hop deep: final_proof.py imports verdict.review_repository and verification.verify_repository_standard; verdict.py imports evidence.collect_evidence (already separately hash-bound under current_security_boundary); verification.py and evidence.py both import scanner.scan_repository; scanner.py imports classify_role/detect_language/is_high_risk_path from languages.py and FileInsight/RepositoryInsight from models.py. languages.py and models.py have zero further local main_review.* imports, so the closure terminates there -- all 7 reachable local modules (final_proof, verdict, verification, scanner, evidence, languages, models) are hash-bound. This is asserted as an EXACT closure of run_final_proof's *local-module* import graph specifically (verified by test_sae00_final_proof_dependency_closure_is_exhaustive), not a claim of exhaustive whole-program closure over every stdlib/third-party import reachable from these files.",
+      "invocation": "python -c \"from main_review.final_proof import run_final_proof; print(run_final_proof('.'))\"",
+      "result": {
+        "passed": true,
+        "blockers": [],
+        "verdict": "PASS"
+      },
+      "fabricated": false
+    },
+    "pr_167_fence": {
+      "pr": 167,
+      "state": "OPEN",
+      "draft": true,
+      "merged": false,
+      "base_ref": "main",
+      "base_sha": "4a277cc5950aa08a98157b950c96fb88f2178c79",
+      "head_ref": "learning/oracle-browser-repairs-round-2",
+      "head_sha": "536dd6dcf99c4763a4b1ec9c86bcde7e03d5b13c",
+      "unchanged_since_freeze": true,
+      "retrofit_assurance_evolution": false,
+      "sae00_touched_pr_167": false
+    }
+  },
+  "proofs": {
+    "no_rejected_lesson_revived": {
+      "rejected_candidates_checked": [
+        "learn-tgcheckm8-checkout-credential-boundary-20260723",
+        "learn-oracle-oidc-workflow-identity-20260817"
+      ],
+      "accepted_lessons_directory_grep_result": "no_match",
+      "rejected_candidate_disposition_confirmed": true
+    },
+    "normal_sergeant_baseline_reproducible": {
+      "invocation": "python -m pytest -q -ra",
+      "matches_ci_invocation": "repository continuous-integration test job (pytest -q -ra)",
+      "pre_construction_baseline": {
+        "note": "captured once, fresh, immediately after creating this branch off main and BEFORE adding any SAE-00 files -- isolates whether the PRE-EXISTING Sergeant suite reproduces independent of this construction's own new tests. Deliberately not re-run every edit round; it answers a different question (does normal Sergeant reproduce) than exact_candidate_tree_full_suite below (is the final PR's own tree collection count live-verified).",
+        "total_collected": 1025,
+        "passed": 1024,
+        "failed": 1,
+        "failure_is_pre_existing_and_explained": true,
+        "failing_test": "tests/test_assurance_evolution_roadmap_freeze.py::test_assurance_evolution_freeze_manifest_binds_authority_documents",
+        "failure_root_cause": "local Windows core.autocrlf=true checkout converts ASSURANCE_EVOLUTION_START_HERE.md to CRLF in the working tree; the pre-existing test hashes raw working-tree bytes instead of the canonical git blob, producing a false mismatch",
+        "failure_confirmed_not_a_content_divergence": true,
+        "confirmation_method": "git hash-object and git show HEAD:<path> both reproduce the manifest-recorded blob_sha 75d462b5989c4bbfacae4e991a61a24ae6e7fb8d exactly",
+        "reproduces_on_unmodified_main": true
+      },
+      "exact_candidate_tree_full_suite": {
+        "note": "the exact reviewed tree at final commit, including SAE-00's own test additions. total_collected specifically is live-reverified on every test run by test_sae00_exact_candidate_tree_collection_count_is_current via a `pytest --collect-only -q` subprocess -- not a static recorded number a reader has to trust.",
+        "total_collected": 1040,
+        "passed": 1039,
+        "failed": 1,
+        "failing_test": "tests/test_assurance_evolution_roadmap_freeze.py::test_assurance_evolution_freeze_manifest_binds_authority_documents",
+        "captured_at": "final commit before push, after all SAE-00 review-round fixes"
+      },
+      "fabricated": false
+    },
+    "security_baseline_reproducible": {
+      "invocation": "python -m pytest -q tests/test_live_pr_ingestion_and_secret_detection.py::test_secret_detection_catches_planted_fake_secret_without_literal_secret_in_test",
+      "result": "1 passed",
+      "also_included_in_full_suite_run": true,
+      "fabricated": false
+    }
+  },
+  "produces": [
+    "SERGEANT_PRESERVATION_REFERENCE",
+    "FOUNDING_ARCHITECTURE_AUTHORITY",
+    "ROADMAP_EXECUTION_AUTHORITY"
+  ],
+  "authority_gain": "isolated_assurance_evolution_construction_only_no_normal_verdict_authority",
+  "direct_dependent_nodes_in_dag": [
+    "SAE-10",
+    "SAE-20",
+    "SPIKE-ID",
+    "SPIKE-EXT",
+    "SPIKE-SEM"
+  ],
+  "residual_gaps": [
+    "preservation_constitution_is_a_joint_binding_not_a_single_named_file",
+    "pre_existing_crlf_sensitive_blob_hash_helper_in_tests/test_assurance_evolution_roadmap_freeze.py_not_modified_here_out_of_scope",
+    "current_model_free_benchmark_is_the_closest_genuine_mechanical_benchmark_not_a_dedicated_named_benchmark_artifact",
+    "canonical_zero_context_entrypoint_ASSURANCE_EVOLUTION_START_HERE.md_not_updated_to_list_docs/62-63_because_it_and_docs/61_are_frozen_freeze-event_proof_artifacts_pointer_added_to_PICKUP.md_instead",
+    "current_security_boundary_binding_is_PARTIAL_covers_secret_detection_specifically_not_docs/05s_full_architecture_main_review/production_hardening.py_token_and_mission_permission_controls_not_hash-bound",
+    "existing_cpl_officer_hierarchy_binding_is_PARTIAL_covers_declared_formation_structure_and_constants_specifically_not_the_full_investigation_runtime_main_review/offline_investigation.py_and_cpl_campaign.py_not_hash-bound",
+    "exact_candidate_tree_full_suite_pass/fail_breakdown_is_a_recorded_snapshot_reconciled_by_the_author_at_final_commit_only_total_collected_count_specifically_is_live_mechanically_reverified_by_test_sae00_exact_candidate_tree_collection_count_is_current_via_pytest_--collect-only_subprocess"
+  ],
+  "prohibitions": [
+    "do_not_treat_this_node_as_implementation_of_any_assurance_evolution_mechanism",
+    "do_not_activate_partial_assurance_evolution",
+    "do_not_retrofit_pr_167",
+    "do_not_grant_normal_sergeant_verdict_authority_from_this_node",
+    "do_not_revive_a_terminally_rejected_lesson_from_the_same_evidence",
+    "do_not_change_roadmap_semantics_without_new_review_and_owner_approval"
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": "sergeant.archived-transfer-evidence.v1",
+  "status": "archived_non_rerunnable_external_source",
+  "set_id": "model-free-core-transfer-7",
+  "case_id": "transfer-7-c",
+  "repository": "Ithastobe1/Velesia-codex",
+  "defective_ref": "c81b3d80880a4181e5e0ec5bdef533fd5bad3807",
+  "changed_files": [
+    "glamcode-flutter-main/lib/data/api/api_helper.dart",
+    "AdminPanel-main/routes/api.php"
+  ],
+  "archive_reason": "The external repository is no longer available. The original frozen execution remains authoritative historical evidence, but no later fixing Git object can be recovered honestly under the current provenance-required law.",
+  "original_sergeant_head": "e881b1de7cf77c710b511030dc19ff566197feb7",
+  "reviewer_code_frozen_before_target_selection": "c06f9cd394488188ed1e458bbfcdbc0331ff0ec1",
+  "workflow_run_id": 29691505027,
+  "workflow_run_number": 1,
+  "workflow_run_conclusion": "success",
+  "artifact_id": 8443714087,
+  "artifact_name": "model-free-core-transfer-7",
+  "artifact_digest": "sha256:00407f5b9ed46283d3d79c876f4e972d352dde5475846f03bc4eb090a38b82a7",
+  "artifact_file_hashes": {
+    "runtime-manifest.json": "sha256:d2b3e49fc201ce68effc2d04d4a8069a95d330be6507aac37d68393bca867ce1",
+    "frozen-summary.json": "sha256:4c3b55ee5bf37df3bf70ffb353aa66ed185f559d9ff821926cda0c007b6d672b",
+    "frozen-result.json": "sha256:ed1ee53df004aa7790be27ef1b6ab06cee6f27c5b84f6349cc77d7715f1e1833"
+  },
+  "frozen_summary": {
+    "admitted_finding_count": 0,
+    "advisory_finding_count": 0,
+    "model_calls": 0,
+    "model_status": "disabled",
+    "policy_profile": "external_static",
+    "review_mode": "snapshot",
+    "unavailable_requested_files": [],
+    "unresolved_assurance_count": 0,
+    "verdict": "APPROVE",
+    "workspace_policy": "static_first"
+  },
+  "provenance_nonclaim": "No fixing_ref is asserted for this archived case. It is excluded from the live rerunnable manifest rather than weakening validation or inventing lineage."
+}

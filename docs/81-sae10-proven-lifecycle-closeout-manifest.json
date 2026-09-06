@@ -1,0 +1,123 @@
+{
+  "schema_version": "sergeant.sae10-proven-lifecycle-closeout.v1",
+  "node": "SAE-10",
+  "node_title": "Review World + Review Authority Bundle",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "normal_verdict_authority": false,
+  "proof_requires": [
+    "SAE-00"
+  ],
+  "sae00_proven_authority": {
+    "merge_commit": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+    "closeout_document": "docs/66-sae00-proven-lifecycle-closeout.md",
+    "closeout_manifest": "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
+    "required_output": "ROADMAP_EXECUTION_AUTHORITY"
+  },
+  "candidate_generation": {
+    "pull_request": 176,
+    "head": "d442013caf0c411362b54a2efcd339f4cc63ed9f",
+    "candidate_document": {
+      "path": "docs/78-sae10-review-world-rab-contract.md",
+      "blob_sha": "129d325ad97cdf11abed2a6f5cddd2df59fc276d"
+    },
+    "candidate_manifest": {
+      "path": "docs/79-sae10-review-world-rab-manifest.json",
+      "blob_sha": "1f8140857535bbc43fe9e79790bb2e7841ba2bf7"
+    },
+    "candidate_manifest_proof": {
+      "path": "tests/test_sae10_review_world_rab_manifest.py",
+      "blob_sha": "05c45d166e56fedcf99f07b9e9dbe1c33e8735c0"
+    },
+    "hostile_regression_proof": {
+      "path": "tests/test_sae10_v10_hostile_review_regressions.py",
+      "blob_sha": "61cd1a98439b9ef90428883ac7e5f3e8dbb378e6"
+    },
+    "authority_implementation_blobs": {
+      "main_review/review_authority_bundle.py": "633ac2013140a45c67df7c34d55380c52d1ab183",
+      "main_review/review_world.py": "f795b5c9dce74c6ec69cad52d4d34e9ce6107120",
+      "main_review/review_world_currentness.py": "e2b623e0d1d34d6202cf2fc1c5f60c1691b249db",
+      "main_review/review_world_git.py": "d8837668ad4704e4fbe6f43cdd569a93b4f00afc"
+    },
+    "historical_candidate_preserved_not_rewritten": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "65b5a34e23a42d5ade97ae7483ff1feae204e311",
+    "exact_head_guard": "d442013caf0c411362b54a2efcd339f4cc63ed9f",
+    "merge_method": "merge_commit"
+  },
+  "candidate_execution_confirmation": {
+    "exact_head": "d442013caf0c411362b54a2efcd339f4cc63ed9f",
+    "ci_run_id": 33861996272,
+    "full_suite": {
+      "passed": 1258,
+      "xfailed": 2,
+      "failed": 0,
+      "historical_xfails_only": true
+    },
+    "clean_clone_proof": "success",
+    "main_review_run_id": 33861996153,
+    "main_review": "pass",
+    "focused_collection": 143,
+    "production_dependency_surface": {
+      "passed": 129,
+      "failed": 0,
+      "xfailed": 0
+    },
+    "actions_required_for_authority": false
+  },
+  "hostile_review_confirmation": {
+    "reviewed_head": "d442013caf0c411362b54a2efcd339f4cc63ed9f",
+    "owner_root_exact_head_review_id": 5111777001,
+    "owner_root_review_kind": "COMMENT",
+    "owner_root_actionable_findings": 0,
+    "owner_root_review_is_self_approval": false,
+    "coderabbit_targeted_verification_comment_id": 3933013210,
+    "coderabbit_targeted_verification_disposition": "last_disputed_finding_does_not_apply",
+    "full_exact_head_coderabbit_review_submission": null,
+    "full_exact_head_coderabbit_review_fabricated": false,
+    "full_exact_head_external_review_absence_treated_as_pass": false,
+    "all_inline_review_threads_resolved": true,
+    "disposition": "bounded_owner_root_pre_sae30_completion_audit_with_targeted_external_verification"
+  },
+  "bootstrap_authority": {
+    "kind": "SAE00_ROADMAP_EXECUTION_PLUS_OWNER_ROOT_CONSTITUTIONAL_TCB",
+    "necessity": "the frozen roadmap gives SAE-10 only SAE-00 as a proof dependency; SAE-30 creates the later general qualification/provenance substrate and cannot be retroactively required without inverting the frozen dependency graph",
+    "scope": "determine only whether the exact SAE-10 Review World/RAB charter and hostile-proof obligations are satisfied",
+    "not_general_qualification_authority": true,
+    "cannot_qualify_dependents": true,
+    "cannot_satisfy_genesis_external_lane": true,
+    "cannot_convert_business_risk_to_pass": true,
+    "partial_generation_activation_allowed": false
+  },
+  "produces": [
+    "QUALIFIED_REVIEW_WORLD_CONTRACT",
+    "QUALIFIED_RAB_CONTRACT"
+  ],
+  "authority_boundary": {
+    "normal_sergeant_verdict_authority_changed": false,
+    "candidate_self_activation_allowed": false,
+    "sae30_general_qualification_authority_fabricated": false,
+    "genesis_activated": false,
+    "partial_generation_activation_allowed": false
+  },
+  "dependency_effect": {
+    "sae10_proof_dependency_resolved": true,
+    "qualified_review_world_contract_available": true,
+    "qualified_rab_contract_available": true,
+    "sae20_auto_qualified": false,
+    "sae20_auto_proven": false,
+    "dependent_nodes_auto_qualified": false,
+    "dependent_nodes_auto_proven": false,
+    "partial_generation_activation_allowed": false
+  },
+  "closeout_document": {
+    "path": "docs/80-sae10-proven-lifecycle-closeout.md",
+    "blob_sha": "8a8ab92a1c02305b0ae3000c27a75d98ef51ffa8"
+  },
+  "proof_fixture": {
+    "path": "tests/test_sae10_proven_lifecycle_closeout.py",
+    "blob_sha": "867ee2c6b77a6405c70ad67e0fc3305712620a00"
+  }
+}
