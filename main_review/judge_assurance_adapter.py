@@ -19,6 +19,15 @@ from .assurance_ledger import (
 )
 
 
+_JUDGE_DISPOSITION_STATES = ("admitted", "advisory", "rejected")
+_JUDGE_DISPOSITION_KEYS = frozenset(_JUDGE_DISPOSITION_STATES)
+_ASSURANCE_STATES = {
+    "satisfied": LedgerEpistemicState.TRUE,
+    "unresolved": LedgerEpistemicState.UNKNOWN,
+    "advisory": LedgerEpistemicState.UNKNOWN,
+}
+
+
 def _judge_dispositions(council: Mapping[str, object]) -> dict[str, str]:
     reports = council.get("reports")
     if not isinstance(reports, list):
@@ -29,27 +38,33 @@ def _judge_dispositions(council: Mapping[str, object]) -> dict[str, str]:
     admission_ledger = judges[0].get("admission_ledger")
     if not isinstance(admission_ledger, Mapping):
         raise AssuranceLedgerError("existing Judge report has no admission_ledger")
+    if set(admission_ledger) != _JUDGE_DISPOSITION_KEYS:
+        raise AssuranceLedgerError(
+            "existing Judge admission_ledger must contain exactly admitted / advisory / rejected"
+        )
     dispositions: dict[str, str] = {}
-    for state in ("admitted", "advisory", "rejected"):
+    for state in _JUDGE_DISPOSITION_STATES:
         values = admission_ledger.get(state)
         if not isinstance(values, list):
             raise AssuranceLedgerError(f"Judge admission_ledger.{state} must be an array")
         for value in values:
             finding_id = _string(value, "Judge finding_id")
             previous = dispositions.get(finding_id)
-            if previous is not None and previous != state:
-                raise AssuranceLedgerError(f"Judge finding {finding_id!r} has contradictory dispositions")
+            if previous is not None:
+                raise AssuranceLedgerError(
+                    f"Judge finding {finding_id!r} appears more than once in the admission ledger"
+                )
             dispositions[finding_id] = state
     return dispositions
 
 
 def _epistemic_for_assurance(assurance: Mapping[str, object]) -> LedgerEpistemicState:
     status = assurance.get("status")
-    if status == "satisfied":
-        return LedgerEpistemicState.TRUE
-    if status in {"unresolved", "advisory", None}:
-        return LedgerEpistemicState.UNKNOWN
-    return LedgerEpistemicState.ASSERTED
+    if not isinstance(status, str) or status not in _ASSURANCE_STATES:
+        raise AssuranceLedgerError(
+            "required assurance status must be satisfied / unresolved / advisory"
+        )
+    return _ASSURANCE_STATES[status]
 
 
 def build_judge_assurance_ledger(
@@ -107,6 +122,13 @@ def build_judge_assurance_ledger(
             untracked_claims.append(claim)
         else:
             claims_by_finding.setdefault(finding_id, []).append(claim)
+
+    orphaned_dispositions = set(dispositions) - set(claims_by_finding)
+    if orphaned_dispositions:
+        raise AssuranceLedgerError(
+            "Judge admission ledger references findings absent from raw_findings: "
+            f"{sorted(orphaned_dispositions)!r}"
+        )
 
     admission_occurrence = 0
     for finding_id in sorted(claims_by_finding):
