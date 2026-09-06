@@ -197,3 +197,24 @@ def test_hidden_holdout_broad_subdomain_allowlist_is_reported(tmp_path: Path) ->
         ''',
     )
     assert ROOT_CAUSE in _roots(result)
+
+
+def test_authorization_suffix_identifier_is_not_a_credential_header_sink(tmp_path: Path) -> None:
+    result = _review(
+        tmp_path,
+        "src/local-health.js",
+        r'''
+        const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
+        function isLoopbackHostname(value) {
+          return LOOPBACK_HOSTS.has(String(value || "").trim().toLowerCase());
+        }
+        export function health(expectedAdminTokenDigest) {
+          return {
+            adminSnapshotAuthorization: expectedAdminTokenDigest
+              ? "separate-owner-capability-required"
+              : "unavailable",
+          };
+        }
+        ''',
+    )
+    assert result["finding_count"] == 0
