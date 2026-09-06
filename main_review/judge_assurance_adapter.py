@@ -94,13 +94,12 @@ def build_judge_assurance_ledger(
         raise AssuranceLedgerError("existing officer council packet has no raw_findings array")
 
     records: list[LedgerRecord] = []
-    claim_by_occurrence: list[tuple[LedgerRecord, str | None]] = []
+    claim_by_occurrence: list[tuple[LedgerRecord, str]] = []
     record_generation = f"{generation}.record"
     for index, finding in enumerate(raw):
         if not isinstance(finding, Mapping):
             raise AssuranceLedgerError("raw_findings contains a non-object entry")
-        finding_id_raw = finding.get("finding_id")
-        finding_id = _string(finding_id_raw, "finding_id") if finding_id_raw is not None else None
+        finding_id = _string(finding.get("finding_id"), "finding_id")
         claim = LedgerRecord.create(
             kind=LedgerRecordKind.CLAIM,
             review_world_id=world,
@@ -110,31 +109,34 @@ def build_judge_assurance_ledger(
             occurrence=index,
             epistemic_state=LedgerEpistemicState.ASSERTED,
             payload=dict(finding),
-            presentation_ids=() if finding_id is None else (finding_id,),
+            presentation_ids=(finding_id,),
         )
         records.append(claim)
         claim_by_occurrence.append((claim, finding_id))
 
     claims_by_finding: dict[str, list[LedgerRecord]] = {}
-    untracked_claims: list[LedgerRecord] = []
     for claim, finding_id in claim_by_occurrence:
-        if finding_id is None:
-            untracked_claims.append(claim)
-        else:
-            claims_by_finding.setdefault(finding_id, []).append(claim)
+        claims_by_finding.setdefault(finding_id, []).append(claim)
 
-    orphaned_dispositions = set(dispositions) - set(claims_by_finding)
+    raw_ids = set(claims_by_finding)
+    disposition_ids = set(dispositions)
+    orphaned_dispositions = disposition_ids - raw_ids
     if orphaned_dispositions:
         raise AssuranceLedgerError(
             "Judge admission ledger references findings absent from raw_findings: "
             f"{sorted(orphaned_dispositions)!r}"
         )
+    missing_dispositions = raw_ids - disposition_ids
+    if missing_dispositions:
+        raise AssuranceLedgerError(
+            "raw_findings contain findings absent from the canonical Judge admission ledger: "
+            f"{sorted(missing_dispositions)!r}"
+        )
 
     admission_occurrence = 0
     for finding_id in sorted(claims_by_finding):
         related_claims = claims_by_finding[finding_id]
-        disposition = dispositions.get(finding_id, "untracked")
-        admission_state = LedgerEpistemicState.UNKNOWN if disposition == "untracked" else LedgerEpistemicState.ASSERTED
+        disposition = dispositions[finding_id]
         records.append(LedgerRecord.create(
             kind=LedgerRecordKind.ADMISSION,
             review_world_id=world,
@@ -142,24 +144,10 @@ def build_judge_assurance_ledger(
             scope_id=scope,
             generation=record_generation,
             occurrence=admission_occurrence,
-            epistemic_state=admission_state,
+            epistemic_state=LedgerEpistemicState.ASSERTED,
             related_record_ids=tuple(claim.record_id for claim in related_claims),
             payload={"disposition": disposition},
             presentation_ids=(finding_id,),
-        ))
-        admission_occurrence += 1
-
-    for claim in untracked_claims:
-        records.append(LedgerRecord.create(
-            kind=LedgerRecordKind.ADMISSION,
-            review_world_id=world,
-            rab_id=rab,
-            scope_id=scope,
-            generation=record_generation,
-            occurrence=admission_occurrence,
-            epistemic_state=LedgerEpistemicState.UNKNOWN,
-            related_record_ids=(claim.record_id,),
-            payload={"disposition": "untracked"},
         ))
         admission_occurrence += 1
 
