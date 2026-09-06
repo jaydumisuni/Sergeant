@@ -11,7 +11,7 @@ The frozen roadmap requires SAE-40 to prove only after SAE-10 and SAE-20. Both a
 - `docs/81-sae10-proven-lifecycle-closeout-manifest.json` produces `QUALIFIED_REVIEW_WORLD_CONTRACT` and `QUALIFIED_RAB_CONTRACT`.
 - `docs/85-sae20-proven-lifecycle-closeout-manifest.json` produces `QUALIFIED_ACR_FOUNDATION` and explicitly marks SAE-40's frozen upstream dependencies available.
 
-The existing Judge remains in `main_review/officer_council.py`. Its current `admission_ledger` is presentation-oriented and intentionally collapses source duplicates to one canonical `finding_id` disposition. SAE-40 does not replace it.
+The existing Judge remains in `main_review/officer_council.py`. SAE-40 does not replace it or the existing Sergeant verdict path.
 
 ## Candidate implementation
 
@@ -19,89 +19,115 @@ The existing Judge remains in `main_review/officer_council.py`. Its current `adm
 
 - full cryptographic record IDs bound to Review World, RAB, scope, generation, occurrence, epistemic state, authority/provenance references, related records and canonical payload;
 - all fourteen founding record families;
-- immutable canonical payload snapshots;
-- strict persisted round-trip validation;
-- a monotonic Judge ledger that conserves UNKNOWN, contradiction, source occurrence/multiplicity and scope;
-- explicit parent-ledger lineage;
-- rejection of cross-world/RAB merge and dangling record links;
+- immutable canonical payload snapshots and strict persisted round-trip validation;
+- monotonic ledger merge that conserves UNKNOWN, contradiction, occurrence/multiplicity, scope and parent lineage;
+- rejection of cross-world/RAB merge, dangling record links, forged identities, mutable generation aliases, non-finite payloads and non-canonical persistence;
 - merged ledgers require an explicit generation distinct from both parent generations.
 
-`main_review/judge_assurance_adapter.py` lifts the existing Judge packet without re-adjudicating it:
+`main_review/judge_assurance_adapter.py` performs a one-way lift of the existing Judge packet:
 
-- raw source claims remain distinct occurrences;
-- every raw claim must carry its existing canonical `finding_id`;
-- every canonical raw finding must have exactly one existing Judge disposition and every Judge disposition must resolve to raw evidence;
-- the Judge disposition ledger must contain exactly the canonical `admitted`, `advisory`, and `rejected` buckets with no duplicate finding occurrence across them;
-- the required-assurance collection must exist and be an array; missing collection state is rejected rather than converted to proven-empty;
-- only canonical assurance states are accepted, with unresolved/advisory obligations conserved as UNKNOWN;
+- every raw source claim remains a distinct occurrence;
+- legacy `finding_id` is required only to recover the existing Judge disposition and remains presentation-only;
+- Claim authority excludes `finding_id` and Judge-stage `admission` / `gates_verdict` metadata;
+- every canonical raw finding must have exactly one existing Judge disposition and every disposition must resolve to raw evidence;
+- admission occurrence identity follows earliest contributing raw occurrence, never lexicographic presentation-alias ordering;
+- required-assurance collection and canonical contract fields are mandatory;
+- assurance status/gate pairs are exact: satisfied/false, unresolved/true, advisory/false;
+- unresolved/advisory obligations remain `UNKNOWN`;
 - the already-computed result is recorded only as verdict lineage.
 
-Legacy `finding_id` remains compatible for UI/grouping, but it is never positive proof authority.
+Legacy `finding_id` remains compatible for UI/grouping and persisted presentation integrity but is never positive proof authority.
 
-## Fresh hostile review and RED → GREEN generations
+## Hostile review lineage — RED → GREEN
 
-The originally published candidate was `bee2928bd4537afda4e87e7e2595666839489966`. Fresh hostile review did not treat its green CI as qualification. The review attacked the authority lift and merge semantics directly and produced three bounded RED generations before freeze.
+The originally published candidate was `bee2928bd4537afda4e87e7e2595666839489966`. Green CI was not accepted as qualification. Five distinct RED generations forced successor corrections.
 
-### Hostile generation 1 — merge generation and malformed Judge state
+### RED 1 — merge generation and malformed Judge state
 
-Test-only RED head: `e40bec3a92fef65cc84e9e46625fb73b47b125fc`.
+Test-only head `e40bec3a92fef65cc84e9e46625fb73b47b125fc` exposed:
 
-It exposed four fail-open conditions:
+1. merged-ledger parent-generation reuse;
+2. orphan Judge disposition loss;
+3. malformed assurance-state normalization;
+4. duplicate/unknown Judge disposition acceptance.
 
-1. a merged ledger could reuse a parent generation despite the frozen requirement for a new generation;
-2. a Judge disposition could reference no raw claim and be silently dropped;
-3. a non-canonical assurance status could be normalized instead of rejected;
-4. duplicate Judge dispositions or unknown disposition buckets could be accepted.
+Correction: `2995a51e55afd8cb2af383f972930ec2e1d73180`.
 
-The production correction converged at `2995a51e55afd8cb2af383f972930ec2e1d73180`. Exact-head clean-clone proof then reached **1380 passed / 2 xfailed**, with the sole failure being the intentionally stale SAE-40 candidate manifest.
+### RED 2 — synthetic Judge authority
 
-### Hostile generation 2 — synthetic Judge disposition
+Test-only head `7bb7d4bc29a0b693a497b56892acae365bcfc45f` proved that synthetic `untracked` admissions violated the canonical producer contract. Correction `af6341a8c110f1f2f5665949f97e753c0aefde40` requires exact raw-finding ↔ Judge-disposition coverage.
 
-Test-only RED head: `7bb7d4bc29a0b693a497b56892acae365bcfc45f`.
+### RED 3 — missing assurance collection
 
-The canonical producer in `main_review/officer_council.py` was recovered before reasoning: normalized raw findings always receive deterministic `finding_id` values and the existing Judge produces one canonical disposition per canonical finding. Against that evidence, the adapter's synthetic `untracked` admission path was invalid because it invented Judge state instead of lifting existing Judge authority.
+Test-only head `3a572fd9f2b0e8fd05d16410ae525d2cb9473446` proved missing `required_assurances` was being normalized to a proven-empty collection. Correction `9b0cbc6a2236073b34ee34911b63f14227a48e6f` removed default-empty behavior.
 
-Exact-head RED proof reached **1380 passed / 2 xfailed** with exactly the synthetic-disposition hostile test plus the stale manifest failing. The correction at `af6341a8c110f1f2f5665949f97e753c0aefde40` required exact raw-finding ↔ Judge-disposition coverage. Exact-head clean-clone proof then reached **1381 passed / 2 xfailed**, again with only the intentionally stale manifest failing.
+### External hostile review — legacy alias authority leak and malformed obligations
 
-### Hostile generation 3 — missing assurance collection
+The corrected frozen head `ea96a0eb478f0f092edfcee25ea7581b3d4ef2f8` independently earned **1383 passed / 2 historical XFAIL / 0 failed**, exact Main Review APPROVE/PASS and a completed CodeRabbit review. CodeRabbit then produced three valid actionable findings rather than being treated as a ceremonial PASS:
 
-Test-only RED head: `3a572fd9f2b0e8fd05d16410ae525d2cb9473446`.
+1. the implementation plan still recorded 18 focused tests instead of 24;
+2. `finding_id` remained inside the canonical Claim payload and therefore indirectly changed `record_id`, contradicting its presentation-only status;
+3. malformed assurance entries could omit `required_assurance` or `gates_verdict` and still become obligations.
 
-It proved that a missing `required_assurances` collection was being interpreted as `[]`, which could convert malformed/unknown obligation state into apparent proven-empty state. Exact-head RED proof reached **1381 passed / 2 xfailed** with exactly that hostile test plus the stale manifest failing.
+The branch was reopened instead of merged.
 
-The correction at `9b0cbc6a2236073b34ee34911b63f14227a48e6f` removed the default-empty behavior. Exact-head clean-clone proof reached **1382 passed / 2 xfailed** with the **only** remaining failure being the deliberately stale candidate manifest.
+### RED 4 — presentation-only Claim identity and assurance contract fields
 
-These hostile-review generations are project-controlled review evidence. They are not claimed `INDEPENDENT` under future SAE-30/EEPR provenance law and do not manufacture SAE-30 qualification authority.
+Test-only head `5bae7edf7413b73e4770190ae9f066b98f8793ca` recorded exact RED proof: **1382 passed / 2 historical XFAIL / 3 failed**, where two failures were the new substantive hostile tests and the third was the deliberately stale candidate manifest.
+
+Correction `c8f4620bec9b8e870362994b81a45b9741b1f260` removed `finding_id` from Claim authority and required canonical assurance contract fields. Plan accounting was corrected in the following documentation generation.
+
+### RED 5 — alias-ordered admissions, Judge metadata leakage and status/gate mismatch
+
+A deeper contract audit recovered `docs/44-deterministic-permanent-officer-formation.md` before reasoning: `raw_findings` are pre-Judge claims even though the current producer mutates those objects with Judge-stage `admission` and `gates_verdict` metadata during adjudication.
+
+Test-only head `be0ff9ecac62ff94bb282b93dc2c7e53df521cee` then recorded exact RED proof: **1384 passed / 2 historical XFAIL / 4 failed**. Three failures were new hostile behaviors and the fourth was the deliberately stale manifest:
+
+- admission record identity depended on lexicographic legacy-alias ordering;
+- Judge-stage `admission` / `gates_verdict` leaked into raw Claim authority;
+- inconsistent assurance status/gate combinations were accepted.
+
+Correction `36058c1fc491adc7a5d83c78b5f869883aac4b48` removes Judge-only fields from Claim authority, derives admission occurrence from raw occurrence, and enforces canonical status/gate pairs. Documentation generation `1971877ade6b95ef4308ccb24013a6e11e60ef73` records the resulting 29-test focused hostile corpus.
+
+## Pre-freeze proof
+
+Exact generation `1971877ade6b95ef4308ccb24013a6e11e60ef73` was executed before manifest rebinding.
+
+Both ordinary repository CI and clean-clone execution independently reached:
+
+- **1387 passed**;
+- **2 historical XFAIL**;
+- **0 substantive failures**;
+- exactly **1 expected failure**, the intentionally stale SAE-40 candidate-manifest blob binding.
+
+This establishes that the implementation and complete hostile corpus are green before the manifest is rebound. It does not itself create qualification authority.
 
 ## Frozen hostile corpus
 
-The focused SAE-40 corpus now contains **24 hostile tests** across `tests/test_assurance_ledger.py` and `tests/test_judge_assurance_adapter.py`. It attacks:
+The focused SAE-40 corpus contains **29 hostile tests** across `tests/test_assurance_ledger.py` and `tests/test_judge_assurance_adapter.py`. It attacks, among other boundaries:
 
 - world/RAB/scope/state/occurrence identity substitution;
-- duplicate legacy `finding_id` source collapse;
+- duplicate source multiplicity under one legacy presentation ID;
+- presentation-alias influence on Claim or admission authority;
+- Judge-stage metadata leakage into raw Claim authority;
 - UNKNOWN replacement by later TRUE;
 - contradiction erasure;
 - cross-world and cross-RAB merge;
-- non-monotonic parent lineage;
-- parent-generation reuse during merge;
-- forged record IDs;
-- mutable authority aliases;
-- bool-as-occurrence coercion;
-- malformed authority refs;
-- non-finite JSON;
-- non-canonical record/alias ordering;
-- dangling related-record links;
-- missing or multiple existing Judge authority;
-- orphan, duplicate, unknown-bucket, missing, or synthetic Judge dispositions;
-- malformed or missing required-assurance state.
+- non-monotonic parent lineage and parent-generation reuse;
+- forged record IDs and mutable authority aliases;
+- bool-as-occurrence coercion, malformed refs and non-finite JSON;
+- non-canonical persistence and dangling record links;
+- missing/multiple Judge reports;
+- orphan, duplicate, unknown-bucket, missing or synthetic Judge dispositions;
+- missing assurance collection/contract fields, non-canonical state and status/gate mismatch.
 
-The pre-freeze repository proof on `9b0cbc6a2236073b34ee34911b63f14227a48e6f` establishes that every substantive test is green and that the manifest is the only intentionally stale artifact left to rebind. The final frozen candidate must still independently earn exact-head repository CI, clean-clone proof, Main Review and zero unresolved actionable review findings after the manifest is rebound.
+The CodeRabbit-originated defects are materially external to the then-green internal hostile corpus because they forced successor generations. They are useful hostile evidence but are **not** relabelled `INDEPENDENT` under future SAE-30/EEPR law. Self-authored hostile review is likewise project-controlled and not an independent Genesis lane.
 
-## Authority boundary
+## Freeze and qualification boundary
 
-This candidate produces **no authority now**.
+The candidate manifest must bind the exact corrected code, design, plan, hostile corpus and this candidate record. Any later content change creates another candidate generation and requires rebinding/re-proof.
 
-It does not:
+This candidate produces **no authority now**. It does not:
 
 - change normal Sergeant verdict authority;
 - create a second Judge, Cpl, scheduler or verdict engine;
@@ -110,4 +136,4 @@ It does not:
 - activate Genesis or any partial Assurance Evolution generation;
 - auto-qualify SAE-R1, SAE-50 or another dependent node.
 
-Only a later separate SAE-40 lifecycle closeout may produce `QUALIFIED_ASSURANCE_LEDGER` after exact-head review, proof, bounded qualification and guarded merge.
+Only a later separate SAE-40 lifecycle closeout, after exact frozen-head proof, hostile-review closure and guarded candidate merge, may produce `QUALIFIED_ASSURANCE_LEDGER`.
