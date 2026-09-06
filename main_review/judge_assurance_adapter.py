@@ -151,7 +151,7 @@ def build_judge_assurance_ledger(
         ))
         admission_occurrence += 1
 
-    assurances = council.get("required_assurances", [])
+    assurances = council.get("required_assurances")
     if not isinstance(assurances, list):
         raise AssuranceLedgerError("required_assurances must be an array")
     for index, assurance in enumerate(assurances):
