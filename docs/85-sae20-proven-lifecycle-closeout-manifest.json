@@ -1,0 +1,164 @@
+{
+  "schema_version": "sergeant.sae20-proven-lifecycle-closeout.v1",
+  "node": "SAE-20",
+  "node_title": "Assurance Contract Registry + Authoring Audit",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "normal_verdict_authority": false,
+  "proof_requires": [
+    "SAE-00"
+  ],
+  "sae00_proven_authority": {
+    "merge_commit": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+    "closeout_document": "docs/66-sae00-proven-lifecycle-closeout.md",
+    "closeout_manifest": "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
+    "required_output": "ROADMAP_EXECUTION_AUTHORITY"
+  },
+  "candidate_generation": {
+    "pull_request": 178,
+    "head": "4c00b54b578aed0f9925cff9345b4482c46ebc3e",
+    "candidate_document": {
+      "path": "docs/82-sae20-acr-authoring-audit-candidate.md",
+      "blob_sha": "cbd004b374e25d452ddada93d82e0d67495e15b0"
+    },
+    "candidate_manifest": {
+      "path": "docs/83-sae20-acr-authoring-audit-candidate-manifest.json",
+      "blob_sha": "f8b5fc6f90fa7441f187c6e6cb5a702b24ba3e87"
+    },
+    "candidate_manifest_proof": {
+      "path": "tests/test_sae20_acr_candidate_manifest.py",
+      "blob_sha": "0f6fedf2705d9533f883f85760c136795fc6e730"
+    },
+    "hostile_regression_proof": {
+      "path": "tests/test_sae20_regressions.py",
+      "blob_sha": "fcd99d7e84fe74eaa9f5fb3a695a30091b35ac99"
+    },
+    "authority_implementation_blobs": {
+      "main_review/assurance_contract_registry.py": "11ae081dc8e68bc6339f50d2830f515a7e5ebd0a",
+      "main_review/acr_authoring_audit.py": "a8285c286effa62c973f121763d43e1da57cdd1a"
+    },
+    "historical_candidate_preserved_not_rewritten": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "3a5522c5a789e4ef5e512af4d491cad95a051307",
+    "exact_head_guard": "4c00b54b578aed0f9925cff9345b4482c46ebc3e",
+    "merge_method": "merge_commit"
+  },
+  "candidate_execution_confirmation": {
+    "exact_head": "4c00b54b578aed0f9925cff9345b4482c46ebc3e",
+    "ci_run_id": 33998093987,
+    "full_suite": {
+      "passed": 1338,
+      "xfailed": 2,
+      "failed": 0,
+      "historical_xfails_only": true
+    },
+    "clean_clone_proof": "success",
+    "clean_clone_suite": {
+      "passed": 1338,
+      "xfailed": 2,
+      "failed": 0,
+      "historical_xfails_only": true
+    },
+    "pytest_artifact_digest": "sha256:b22c7542c22d061d7550863675c61e1fe215b174f6ff3437387bbcaf52fdbffd",
+    "clean_clone_artifact_digest": "sha256:82ae92b761280e4889cf50283a4db3b202fcbadeffc4173baa8de73259a33240",
+    "main_review_run_id": 33998093976,
+    "main_review": "APPROVE",
+    "main_review_repository_verdict": "PASS",
+    "main_review_diff_verdict": "PASS",
+    "main_review_capability_verdict": "PASS",
+    "main_review_changed_scope_defects": 0,
+    "main_review_unresolved_explicit_assurances": 0,
+    "main_review_artifact_digest": "sha256:ff7463663b9aa31491e316c89c0a4ca07304e10a80951eee3ec5307c346655fe",
+    "focused_local_collection": {
+      "passed": 65,
+      "failed": 0,
+      "authority_role": "historical_construction_evidence_only"
+    },
+    "actions_required_for_authority": false
+  },
+  "hostile_review_confirmation": {
+    "reviewed_head": "4c00b54b578aed0f9925cff9345b4482c46ebc3e",
+    "owner_root_exact_head_review_id": 5124770297,
+    "owner_root_review_kind": "COMMENT",
+    "owner_root_actionable_findings": 0,
+    "owner_root_review_is_self_approval": false,
+    "codex_external_holdout_reviewed_head": "61f82eaa14478c409d684017663edccf6ee311e8",
+    "codex_external_holdout_finding_ids": [
+      3942298804,
+      3942298806,
+      3942298807,
+      3942298808,
+      3942298810,
+      3942298811
+    ],
+    "coderabbit_external_holdout_finding_id": 3942313482,
+    "coderabbit_current_head_cardinality_confirmation_id": 3942357968,
+    "coderabbit_current_head_iterable_confirmation_id": 3942358802,
+    "external_holdout_defects_forced_successor_generations": true,
+    "full_exact_head_codex_review_submission": null,
+    "full_exact_head_coderabbit_review_submission": null,
+    "full_exact_head_external_review_absence_treated_as_pass": false,
+    "all_inline_review_threads_resolved": true,
+    "disposition": "bounded_owner_root_pre_sae30_completion_audit_with_external_to_internal_corpus_holdout_and_targeted_current_head_verification",
+    "external_holdout_independence_claimed": false
+  },
+  "acr_qualification_campaign": {
+    "fixture_path": "tests/test_sae20_acr_qualification_campaign.py",
+    "fixture_blob_sha": "afb3eacfcc99f2b2c155e063d66cc00e1904f576",
+    "bounded_domain": "typescript.express-route.v1",
+    "unrelated_language_transfer": false,
+    "clean_control": true,
+    "deletion_mutations": true,
+    "undercount_mutations": true,
+    "collection_semantics_cardinality_order_attacks": true,
+    "unknown_and_negative_applicability_attacks": true,
+    "profile_authority_tamper_attack": true,
+    "external_holdout_defects_replayed_as_regressions": true,
+    "external_material_evidence_present": true,
+    "historical_real_defects_and_fixes_present": true,
+    "universal_completeness_claimed": false,
+    "qualified_scope": "SAE-20 ACR foundation generation bound by exact candidate artifacts",
+    "cross_domain_specification_fixture": true
+  },
+  "bootstrap_authority": {
+    "kind": "SAE00_ROADMAP_EXECUTION_PLUS_OWNER_ROOT_CONSTITUTIONAL_TCB",
+    "necessity": "the frozen roadmap gives SAE-20 only SAE-00 as a proof dependency; SAE-30 creates the later general qualification/provenance substrate and cannot be retroactively required without inverting the frozen dependency graph",
+    "scope": "determine only whether the exact SAE-20 ACR foundation and Authoring Audit charter, bounded qualification campaign, and hostile-proof obligations are satisfied",
+    "not_general_qualification_authority": true,
+    "cannot_qualify_dependents": true,
+    "cannot_satisfy_genesis_external_lane": true,
+    "cannot_convert_business_risk_to_pass": true,
+    "partial_generation_activation_allowed": false
+  },
+  "produces": [
+    "QUALIFIED_ACR_FOUNDATION"
+  ],
+  "authority_boundary": {
+    "normal_sergeant_verdict_authority_changed": false,
+    "candidate_self_activation_allowed": false,
+    "sae30_general_qualification_authority_fabricated": false,
+    "genesis_activated": false,
+    "partial_generation_activation_allowed": false,
+    "universal_acr_completeness_claimed": false
+  },
+  "dependency_effect": {
+    "sae20_proof_dependency_resolved": true,
+    "qualified_acr_foundation_available": true,
+    "sae40_frozen_upstream_dependencies_available": true,
+    "sae40_auto_qualified": false,
+    "sae40_auto_proven": false,
+    "dependent_nodes_auto_qualified": false,
+    "dependent_nodes_auto_proven": false,
+    "partial_generation_activation_allowed": false
+  },
+  "closeout_document": {
+    "path": "docs/84-sae20-proven-lifecycle-closeout.md",
+    "blob_sha": "fcdb819a5ec962045bd21243dfa14c0163963e69"
+  },
+  "proof_fixture": {
+    "path": "tests/test_sae20_proven_lifecycle_closeout.py",
+    "blob_sha": "c21c107c3361231c1bcf68713b7410d6b1f32d6c"
+  }
+}
