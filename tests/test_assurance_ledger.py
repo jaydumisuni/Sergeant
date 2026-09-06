@@ -95,6 +95,15 @@ def test_merge_is_monotonic_and_preserves_parent_lineage():
     assert {r.record_id for r in b.records}.issubset({r.record_id for r in merged.records})
 
 
+def test_merge_requires_a_new_generation_distinct_from_both_parents():
+    left=JudgeAssuranceLedger.create(review_world_id=WORLD,rab_id=RAB,generation='left-v1',records=[rec(occurrence=0)])
+    right=JudgeAssuranceLedger.create(review_world_id=WORLD,rab_id=RAB,generation='right-v1',records=[rec(occurrence=1)])
+    with pytest.raises(AssuranceLedgerError):
+        left.merge(right,generation='left-v1')
+    with pytest.raises(AssuranceLedgerError):
+        left.merge(right,generation='right-v1')
+
+
 def test_exact_duplicate_authority_record_unions_presentation_aliases_without_changing_record_id():
     a=rec(aliases=('finding-a',))
     b=LedgerRecord.create(**{**a.constructor_fields(), 'presentation_ids':('finding-b',)})
