@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/model-free-core-transfer-7.yml"
+      - ".github/transfer-evidence/model-free-core-transfer-7-c-archive.json"
       - "scripts/run_static_training_set.py"
       - "main_review/**"
 
@@ -27,32 +28,30 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Checkout Go terminal-status defective revision
+      - name: Checkout Go terminal-status fixing lineage
         uses: actions/checkout@v4
         with:
           repository: acoseac/1-bit-bridge
-          ref: 896128113a76684c1fe75c41b86d5eb1f25bdc87
+          ref: 5590f26983bc1d5cdfcc6bb42c2a9d6c4fb47232
           path: transfer-7/bridge
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 5
 
-      - name: Checkout React MFA defective revision
+      - name: Checkout React MFA fixing lineage
         uses: actions/checkout@v4
         with:
           repository: SpiritSLO-UK/HomeAssistant-expenses-analytics
-          ref: cd5f5e1ec69d878ff1e878b9c37a2617e4790bc8
+          ref: d7fc3835d5d825704e026f9ae4df8b4a1379f185
           path: transfer-7/mfa
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 2
 
-      - name: Checkout wallet ownership defective revision
-        uses: actions/checkout@v4
-        with:
-          repository: Ithastobe1/Velesia-codex
-          ref: c81b3d80880a4181e5e0ec5bdef533fd5bad3807
-          path: transfer-7/wallet
-          persist-credentials: false
-          fetch-depth: 1
+      - name: Freeze exact defective revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C transfer-7/bridge checkout --detach 896128113a76684c1fe75c41b86d5eb1f25bdc87
+          git -C transfer-7/mfa checkout --detach cd5f5e1ec69d878ff1e878b9c37a2617e4790bc8
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -79,26 +78,20 @@ jobs:
               {
                   "case_id": "transfer-7-a",
                   "repository": "acoseac/1-bit-bridge",
-                  "source_pr": None,
+                  "source_pr": 515,
+                  "source_lineage": "PR #515 exact-base repair lineage for the recorded terminal-status defect",
+                  "fixing_ref": "5590f26983bc1d5cdfcc6bb42c2a9d6c4fb47232",
                   "checkout_path": "transfer-7/bridge",
                   "changed_files": ["internal/manifest/store.go"],
               },
               {
                   "case_id": "transfer-7-b",
                   "repository": "SpiritSLO-UK/HomeAssistant-expenses-analytics",
-                  "source_pr": None,
+                  "source_pr": 511,
+                  "source_lineage": "PR #511 exact-base repair lineage for the recorded MFA session-ordering defect",
+                  "fixing_ref": "d7fc3835d5d825704e026f9ae4df8b4a1379f185",
                   "checkout_path": "transfer-7/mfa",
                   "changed_files": ["frontend/src/pages/Settings.tsx"],
-              },
-              {
-                  "case_id": "transfer-7-c",
-                  "repository": "Ithastobe1/Velesia-codex",
-                  "source_pr": None,
-                  "checkout_path": "transfer-7/wallet",
-                  "changed_files": [
-                      "glamcode-flutter-main/lib/data/api/api_helper.dart",
-                      "AdminPanel-main/routes/api.php"
-                  ],
               },
           ]
           for case in cases:
@@ -111,16 +104,28 @@ jobs:
           manifest = {
               "schema_version": "sergeant.review-training.v1",
               "set_id": "model-free-core-transfer-7",
-              "purpose": "Seventh untouched transfer validation across terminal-state monotonicity, MFA session ordering and authenticated-owner routing. Expected roots remain outside Sergeant input.",
+              "purpose": "Seventh untouched transfer validation across live terminal-state monotonicity and MFA session-ordering cases. The historical authenticated-owner case is preserved separately as a non-rerunnable archived control because its external repository disappeared.",
               "rules": {
                   "models_enabled": False,
                   "workspace_default": "none",
                   "expected_defects_visible_to_sergeant": False,
                   "runtime_is_confirmation_not_discovery": True,
                   "classification": "untouched_transfer_validation",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
                   "reviewer_code_frozen_before_target_selection": "c06f9cd394488188ed1e458bbfcdbc0331ff0ec1"
               },
               "cases": cases,
+              "archived_controls": [
+                  {
+                      "case_id": "transfer-7-c",
+                      "status": "archived_non_rerunnable_external_source",
+                      "evidence_path": ".github/transfer-evidence/model-free-core-transfer-7-c-archive.json",
+                      "original_run_id": 29691505027,
+                      "artifact_id": 8443714087,
+                      "artifact_digest": "sha256:00407f5b9ed46283d3d79c876f4e972d352dde5475846f03bc4eb090a38b82a7",
+                  }
+              ],
           }
           Path("build/model-free-core-transfer-7/runtime-manifest.json").write_text(
               json.dumps(manifest, indent=2) + "\n",
@@ -145,6 +150,8 @@ jobs:
             echo "# Model-free Sergeant core — transfer 7"
             echo
             echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
+            echo
+            echo "Archived historical control: \`transfer-7-c\` → \`.github/transfer-evidence/model-free-core-transfer-7-c-archive.json\`"
             echo
             echo '```json'
             cat build/model-free-core-transfer-7/frozen-summary.json 2>/dev/null || true

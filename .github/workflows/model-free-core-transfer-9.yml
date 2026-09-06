@@ -27,32 +27,40 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Checkout transfer case A
+      - name: Checkout transfer case A fixing lineage
         uses: actions/checkout@v4
         with:
           repository: sharpemu/sharpemu
-          ref: d7f6e3f578b0d0d290eb2c5b3bfacd388e52a51a
+          ref: 9ff60abb9b9a94e07b6b69d99e87e191092555a9
           path: transfer-9/sharpemu
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 2
 
-      - name: Checkout transfer case B
+      - name: Checkout transfer case B fixing lineage
         uses: actions/checkout@v4
         with:
           repository: andrii-su/organon
-          ref: ec4936b926dfcfab7dfabb21d1bbf2f7fee4b333
+          ref: 13792305e8c7ce72d4f317af33717739ef4a7243
           path: transfer-9/organon
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 14
 
-      - name: Checkout transfer case C
+      - name: Checkout transfer case C fixing lineage
         uses: actions/checkout@v4
         with:
           repository: Open-iFunny/ifunny-go
-          ref: c673f20a3b863166d1cc49d2d74ed4f0e589c837
+          ref: d150727ca54453053c9a1a7ea9efd76d17e32cf8
           path: transfer-9/ifunny-go
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 10
+
+      - name: Freeze exact defective revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C transfer-9/sharpemu checkout --detach d7f6e3f578b0d0d290eb2c5b3bfacd388e52a51a
+          git -C transfer-9/organon checkout --detach ec4936b926dfcfab7dfabb21d1bbf2f7fee4b333
+          git -C transfer-9/ifunny-go checkout --detach c673f20a3b863166d1cc49d2d74ed4f0e589c837
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -79,7 +87,9 @@ jobs:
               {
                   "case_id": "transfer-9-a",
                   "repository": "sharpemu/sharpemu",
-                  "source_pr": None,
+                  "source_pr": 437,
+                  "source_lineage": "PR #437 exact-base repair merged into the origin repository; fixing_ref is the origin merge commit",
+                  "fixing_ref": "9ff60abb9b9a94e07b6b69d99e87e191092555a9",
                   "checkout_path": "transfer-9/sharpemu",
                   "changed_files": [
                       "src/SharpEmu.Libs/Kernel/KernelMemoryCompatExports.cs"
@@ -88,7 +98,9 @@ jobs:
               {
                   "case_id": "transfer-9-b",
                   "repository": "andrii-su/organon",
-                  "source_pr": None,
+                  "source_pr": 83,
+                  "source_lineage": "PR #83 exact-base repair lineage over the recorded defective revision",
+                  "fixing_ref": "13792305e8c7ce72d4f317af33717739ef4a7243",
                   "checkout_path": "transfer-9/organon",
                   "changed_files": [
                       "crates/organon-cli/src/search.rs",
@@ -98,7 +110,9 @@ jobs:
               {
                   "case_id": "transfer-9-c",
                   "repository": "Open-iFunny/ifunny-go",
-                  "source_pr": None,
+                  "source_pr": 9,
+                  "source_lineage": "PR #9 repair lineage; the recorded defective revision is an ancestor within the nine-commit PR lineage",
+                  "fixing_ref": "d150727ca54453053c9a1a7ea9efd76d17e32cf8",
                   "checkout_path": "transfer-9/ifunny-go",
                   "changed_files": ["client.go"],
               },
@@ -120,6 +134,8 @@ jobs:
                   "expected_defects_visible_to_sergeant": False,
                   "runtime_is_confirmation_not_discovery": True,
                   "classification": "untouched_transfer_validation",
+                  "provenance_required": True,
+                  "provenance_contract": "sergeant.training-provenance.v1",
                   "reviewer_code_frozen_before_target_selection": "fd88cc89836a74f284c2f8ff660067299c25e783"
               },
               "cases": cases,
