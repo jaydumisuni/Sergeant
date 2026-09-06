@@ -30,6 +30,27 @@ def test_adapter_lifts_existing_judge_packet_without_collapsing_duplicate_source
     assert len(lineage)==1 and lineage[0].payload()['verdict']=='NEEDS WORK'
 
 
+def test_adapter_keeps_legacy_finding_id_out_of_claim_authority_identity():
+    def build(finding_id: str):
+        council={
+            'raw_findings':[{'finding_id':finding_id,'source':'repository','message':'unsafe','severity':'major','path':'a.py','line_start':3}],
+            'required_assurances':[],
+            'reports':[{'officer':'Judge','admission_ledger':{'admitted':[finding_id],'advisory':[],'rejected':[]}}],
+            'verdict':'NEEDS WORK',
+        }
+        return build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
+
+    first=build('finding-a')
+    second=build('finding-renamed')
+    first_claim=next(r for r in first.records if r.kind is LedgerRecordKind.CLAIM)
+    second_claim=next(r for r in second.records if r.kind is LedgerRecordKind.CLAIM)
+    assert first_claim.record_id == second_claim.record_id
+    assert 'finding_id' not in first_claim.payload()
+    assert first_claim.presentation_ids == ('finding-a',)
+    assert second_claim.presentation_ids == ('finding-renamed',)
+    assert first.ledger_id != second.ledger_id
+
+
 def test_adapter_fails_closed_without_real_judge_report_or_exact_ids():
     with pytest.raises(AssuranceLedgerError):
         build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council={'raw_findings':[],'reports':[]})
@@ -76,6 +97,20 @@ def test_adapter_rejects_missing_required_assurances_collection():
     }
     with pytest.raises(AssuranceLedgerError):
         build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
+
+
+def test_adapter_rejects_malformed_required_assurance_contract_fields():
+    base={
+        'raw_findings':[],
+        'reports':[{'officer':'Judge','admission_ledger':{'admitted':[],'advisory':[],'rejected':[]}}],
+        'verdict':'PASS',
+    }
+    missing_requirement={**base,'required_assurances':[{'assurance_id':'assure-1','status':'satisfied','gates_verdict':False}]}
+    missing_gate={**base,'required_assurances':[{'assurance_id':'assure-1','status':'unresolved','required_assurance':'coverage'}]}
+    nonboolean_gate={**base,'required_assurances':[{'assurance_id':'assure-1','status':'unresolved','required_assurance':'coverage','gates_verdict':0}]}
+    for council in (missing_requirement,missing_gate,nonboolean_gate):
+        with pytest.raises(AssuranceLedgerError):
+            build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
 
 
 def test_adapter_rejects_noncanonical_assurance_status():
