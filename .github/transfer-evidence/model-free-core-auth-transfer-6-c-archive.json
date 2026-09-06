@@ -1,0 +1,40 @@
+{
+  "schema_version": "sergeant.archived-transfer-evidence.v1",
+  "status": "archived_non_rerunnable_external_source",
+  "set_id": "model-free-core-auth-transfer-6",
+  "case_id": "auth-transfer-6-c",
+  "repository": "Magedemil/Claude",
+  "defective_ref": "7f1c4c67a7f9a9131f07e9693bb290acb28ca67d",
+  "historical_fixing_ref": "1414d426688e68ce1430a68161a47fa70a837c49",
+  "historical_fixing_ref_status": "checkout-proven by the original workflow before the external repository became unavailable",
+  "changed_files": [
+    "src/pages/Auth.tsx"
+  ],
+  "archive_reason": "The external repository now returns repository-not-found. The original frozen execution and its fixing-parent checkout are preserved as historical evidence, but this case can no longer be honestly rerun against the external source.",
+  "original_sergeant_head": "e881b1de7cf77c710b511030dc19ff566197feb7",
+  "reviewer_code_frozen_before_target_selection": "86ad8f6beba70ee81164d8132f7a25c78d823518",
+  "workflow_run_id": 29691504987,
+  "workflow_run_number": 10,
+  "workflow_run_conclusion": "success",
+  "artifact_id": 8443712391,
+  "artifact_name": "model-free-core-auth-transfer-6",
+  "artifact_digest": "sha256:512f0ac6072481a6906abab02217918addf39e21b0e4e18afc3b0047ba4de63c",
+  "artifact_file_hashes": {
+    "runtime-manifest.json": "sha256:c89a3b8218405ddfd72ebef79c44dbdd97bbd897afe5348795fb3d0b5065284f",
+    "frozen-summary.json": "sha256:d432c43178d7714df11017491672dfaae173a255c81926a5e0cc5040376b1fb5",
+    "frozen-result.json": "sha256:8ef09d77f5b2c2f022d8b4fa60ce7e2c76b4fe952eb54e3fad55beccf12b5411"
+  },
+  "frozen_summary": {
+    "admitted_finding_count": 1,
+    "advisory_finding_count": 1,
+    "model_calls": 0,
+    "model_status": "disabled",
+    "policy_profile": "external_static",
+    "review_mode": "snapshot",
+    "unavailable_requested_files": [],
+    "unresolved_assurance_count": 0,
+    "verdict": "REQUEST_CHANGES",
+    "workspace_policy": "static_first"
+  },
+  "provenance_nonclaim": "The historical fixing ref is preserved because the original workflow checked it out successfully before detaching to the defective parent. No claim is made that the external source remains available or rerunnable today."
+}

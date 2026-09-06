@@ -34,7 +34,7 @@ jobs:
           ref: 9ff60abb9b9a94e07b6b69d99e87e191092555a9
           path: transfer-9/sharpemu
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Checkout transfer case B fixing lineage
         uses: actions/checkout@v4
@@ -43,7 +43,7 @@ jobs:
           ref: 13792305e8c7ce72d4f317af33717739ef4a7243
           path: transfer-9/organon
           persist-credentials: false
-          fetch-depth: 14
+          fetch-depth: 0
 
       - name: Checkout transfer case C fixing lineage
         uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
           ref: d150727ca54453053c9a1a7ea9efd76d17e32cf8
           path: transfer-9/ifunny-go
           persist-credentials: false
-          fetch-depth: 10
+          fetch-depth: 0
 
       - name: Freeze exact defective revisions
         shell: bash

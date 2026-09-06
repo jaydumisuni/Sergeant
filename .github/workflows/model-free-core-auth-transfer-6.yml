@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/model-free-core-auth-transfer-6.yml"
+      - ".github/transfer-evidence/model-free-core-auth-transfer-6-c-archive.json"
       - "scripts/run_static_training_set.py"
       - "main_review/**"
 
@@ -45,20 +46,11 @@ jobs:
           persist-credentials: false
           fetch-depth: 2
 
-      - name: Checkout candidate C fixing commit
-        uses: actions/checkout@v4
-        with:
-          repository: Magedemil/Claude
-          ref: 1414d426688e68ce1430a68161a47fa70a837c49
-          path: auth-transfer-6/khedma
-          persist-credentials: false
-          fetch-depth: 2
-
       - name: Freeze defective parent revisions
         shell: bash
         run: |
           set -euo pipefail
-          for path in auth-transfer-6/jellyglance auth-transfer-6/health-care auth-transfer-6/khedma; do
+          for path in auth-transfer-6/jellyglance auth-transfer-6/health-care; do
             git -C "$path" checkout --detach HEAD^
           done
 
@@ -102,15 +94,6 @@ jobs:
                   "checkout_path": "auth-transfer-6/health-care",
                   "changed_files": ["healthcare/src/components/modules/Auth/LoginForm.tsx"],
               },
-              {
-                  "case_id": "auth-transfer-6-c",
-                  "repository": "Magedemil/Claude",
-                  "source_pr": None,
-                  "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
-                  "fixing_ref": "1414d426688e68ce1430a68161a47fa70a837c49",
-                  "checkout_path": "auth-transfer-6/khedma",
-                  "changed_files": ["src/pages/Auth.tsx"],
-              },
           ]
           for case in cases:
               case["defective_ref"] = subprocess.check_output(
@@ -122,7 +105,7 @@ jobs:
           manifest = {
               "schema_version": "sergeant.review-training.v1",
               "set_id": "model-free-core-auth-transfer-6",
-              "purpose": "Sixth untouched transfer validation over fresh auth-state propagation defects. Expected roots remain outside Sergeant input.",
+              "purpose": "Sixth untouched transfer validation over live auth-state propagation defects. The historical third case is preserved separately because its external repository disappeared.",
               "rules": {
                   "models_enabled": False,
                   "workspace_default": "none",
@@ -134,6 +117,16 @@ jobs:
                   "reviewer_code_frozen_before_target_selection": "86ad8f6beba70ee81164d8132f7a25c78d823518",
               },
               "cases": cases,
+              "archived_controls": [
+                  {
+                      "case_id": "auth-transfer-6-c",
+                      "status": "archived_non_rerunnable_external_source",
+                      "evidence_path": ".github/transfer-evidence/model-free-core-auth-transfer-6-c-archive.json",
+                      "original_run_id": 29691504987,
+                      "artifact_id": 8443712391,
+                      "artifact_digest": "sha256:512f0ac6072481a6906abab02217918addf39e21b0e4e18afc3b0047ba4de63c",
+                  }
+              ],
           }
           Path("build/model-free-core-auth-transfer-6/runtime-manifest.json").write_text(
               json.dumps(manifest, indent=2) + "\n",
@@ -158,6 +151,8 @@ jobs:
             echo "# Model-free Sergeant core — auth transfer 6"
             echo
             echo "Exact Sergeant head: \`${GITHUB_SHA}\`"
+            echo
+            echo "Archived historical control: \`auth-transfer-6-c\` → \`.github/transfer-evidence/model-free-core-auth-transfer-6-c-archive.json\`"
             echo
             echo '```json'
             cat build/model-free-core-auth-transfer-6/frozen-summary.json 2>/dev/null || true

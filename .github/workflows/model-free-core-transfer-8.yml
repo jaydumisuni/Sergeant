@@ -34,7 +34,7 @@ jobs:
           ref: bbf8d18bdceb492dbdb6d77cf90355a862e503dd
           path: transfer-8/kandev
           persist-credentials: false
-          fetch-depth: 3
+          fetch-depth: 0
 
       - name: Checkout offline queue fixing lineage
         uses: actions/checkout@v4
@@ -43,7 +43,7 @@ jobs:
           ref: 0ad77cb05faa982ea0a6ed1c2985ed488d9b173d
           path: transfer-8/market-ops
           persist-credentials: false
-          fetch-depth: 3
+          fetch-depth: 0
 
       - name: Checkout webhook durability fixing lineage
         uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
           ref: 46177c44fa38c2cc04ce42129a89913cfa668dd5
           path: transfer-8/litlabs
           persist-credentials: false
-          fetch-depth: 3
+          fetch-depth: 0
 
       - name: Freeze exact defective revisions
         shell: bash
