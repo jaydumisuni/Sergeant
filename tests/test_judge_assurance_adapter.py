@@ -36,3 +36,25 @@ def test_adapter_fails_closed_without_real_judge_report_or_exact_ids():
     with pytest.raises(AssuranceLedgerError):
         build_judge_assurance_ledger(review_world_id='bad',rab_id=RAB,scope_id=SCOPE,generation='v1',council={'raw_findings':[],'reports':[{'officer':'Judge','admission_ledger':{'admitted':[],'advisory':[],'rejected':[]}}]})
 
+
+def test_adapter_rejects_judge_disposition_without_a_raw_claim():
+    council={
+        'raw_findings':[],
+        'required_assurances':[],
+        'reports':[{'officer':'Judge','admission_ledger':{'admitted':['finding-orphan'],'advisory':[],'rejected':[]}}],
+        'verdict':'PASS',
+    }
+    with pytest.raises(AssuranceLedgerError):
+        build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
+
+
+def test_adapter_rejects_noncanonical_assurance_status():
+    council={
+        'raw_findings':[],
+        'required_assurances':[{'assurance_id':'assure-1','status':'dismissed','gates_verdict':False,'required_assurance':'coverage'}],
+        'reports':[{'officer':'Judge','admission_ledger':{'admitted':[],'advisory':[],'rejected':[]}}],
+        'verdict':'PASS',
+    }
+    with pytest.raises(AssuranceLedgerError):
+        build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
+
