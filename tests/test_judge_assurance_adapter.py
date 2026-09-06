@@ -144,3 +144,62 @@ def test_adapter_rejects_duplicate_or_unknown_judge_disposition_buckets():
     with pytest.raises(AssuranceLedgerError):
         build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=unknown_bucket)
 
+
+def test_adapter_admission_identity_does_not_depend_on_legacy_alias_sort_order():
+    def build(first_id: str, second_id: str):
+        council={
+            'raw_findings':[
+                {'finding_id':first_id,'source':'repository','message':'first','severity':'major','path':'a.py','line_start':1},
+                {'finding_id':second_id,'source':'repository','message':'second','severity':'major','path':'b.py','line_start':2},
+            ],
+            'required_assurances':[],
+            'reports':[{'officer':'Judge','admission_ledger':{'admitted':[first_id,second_id],'advisory':[],'rejected':[]}}],
+            'verdict':'NEEDS WORK',
+        }
+        return build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
+
+    first=build('finding-a','finding-z')
+    renamed=build('finding-z','finding-a')
+    def admission_by_claim(ledger):
+        admissions=[r for r in ledger.records if r.kind is LedgerRecordKind.ADMISSION]
+        return {r.related_record_ids[0]:r.record_id for r in admissions}
+    assert admission_by_claim(first) == admission_by_claim(renamed)
+
+
+def test_adapter_keeps_existing_judge_metadata_out_of_raw_claim_authority():
+    def build(admission: str, gates: bool):
+        council={
+            'raw_findings':[{
+                'finding_id':'finding-a','source':'repository','message':'unsafe','severity':'major',
+                'path':'a.py','line_start':3,'admission':admission,'gates_verdict':gates,
+            }],
+            'required_assurances':[],
+            'reports':[{'officer':'Judge','admission_ledger':{'admitted':['finding-a'],'advisory':[],'rejected':[]}}],
+            'verdict':'NEEDS WORK',
+        }
+        return build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
+
+    first=build('actionable',True)
+    second=build('duplicate',False)
+    first_claim=next(r for r in first.records if r.kind is LedgerRecordKind.CLAIM)
+    second_claim=next(r for r in second.records if r.kind is LedgerRecordKind.CLAIM)
+    assert first_claim.record_id == second_claim.record_id
+    assert 'admission' not in first_claim.payload()
+    assert 'gates_verdict' not in first_claim.payload()
+
+
+def test_adapter_rejects_assurance_status_gate_mismatch():
+    base={
+        'raw_findings':[],
+        'reports':[{'officer':'Judge','admission_ledger':{'admitted':[],'advisory':[],'rejected':[]}}],
+        'verdict':'PASS',
+    }
+    mismatches=(
+        {'assurance_id':'a','status':'satisfied','gates_verdict':True,'required_assurance':'coverage'},
+        {'assurance_id':'b','status':'unresolved','gates_verdict':False,'required_assurance':'coverage'},
+        {'assurance_id':'c','status':'advisory','gates_verdict':True,'required_assurance':'none'},
+    )
+    for assurance in mismatches:
+        council={**base,'required_assurances':[assurance]}
+        with pytest.raises(AssuranceLedgerError):
+            build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
