@@ -58,3 +58,24 @@ def test_adapter_rejects_noncanonical_assurance_status():
     with pytest.raises(AssuranceLedgerError):
         build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=council)
 
+
+def test_adapter_rejects_duplicate_or_unknown_judge_disposition_buckets():
+    raw=[{'finding_id':'finding-a','source':'repository','message':'unsafe','severity':'major','path':'a.py','line_start':3}]
+    duplicate={
+        'raw_findings':raw,
+        'required_assurances':[],
+        'reports':[{'officer':'Judge','admission_ledger':{'admitted':['finding-a','finding-a'],'advisory':[],'rejected':[]}}],
+        'verdict':'NEEDS WORK',
+    }
+    with pytest.raises(AssuranceLedgerError):
+        build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=duplicate)
+
+    unknown_bucket={
+        'raw_findings':raw,
+        'required_assurances':[],
+        'reports':[{'officer':'Judge','admission_ledger':{'admitted':['finding-a'],'advisory':[],'rejected':[],'waived':[]}}],
+        'verdict':'NEEDS WORK',
+    }
+    with pytest.raises(AssuranceLedgerError):
+        build_judge_assurance_ledger(review_world_id=WORLD,rab_id=RAB,scope_id=SCOPE,generation='v1',council=unknown_bucket)
+
