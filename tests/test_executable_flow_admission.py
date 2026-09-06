@@ -93,3 +93,16 @@ export function runFixedJob() {
     assert rejected == []
     assert len(advisory) == 2
     assert all(not item.get("executable_flow_proof") for item in advisory)
+
+
+def test_python_execute_function_declaration_is_not_executable_flow_proof(tmp_path: Path) -> None:
+    candidates = _normalized_candidates(
+        tmp_path,
+        "src/controller.py",
+        "def execute(request):\n    data = request.json or {}\n    return {'task': data.get('task')}\n",
+    )
+    admitted, advisory, rejected = _adjudicate(candidates, {"promoted_findings": []})
+    assert admitted == []
+    assert rejected == []
+    assert len(advisory) == 2
+    assert all(not item.get("executable_flow_proof") for item in advisory)

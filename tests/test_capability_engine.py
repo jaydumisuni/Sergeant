@@ -573,3 +573,25 @@ def test_sergeant_review_includes_capability_review(tmp_path: Path) -> None:
     assert packet["capability_review"]["capability_status"]["api_contract"] == "active"
     assert "Tier 1 capabilities" in rendered
     assert "Sergeant Review" in rendered
+
+
+def test_python_distant_input_and_sink_are_not_promoted_as_one_flow(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "controller.py").write_text(
+        "import os\nimport subprocess\n\n"
+        "def read_console():\n    value = input('mode: ')\n    return value\n\n"
+        "def unrelated_process():\n    return subprocess.run(['echo', 'ok'], check=False)\n",
+        encoding="utf-8",
+    )
+    report = run_capability_engine(tmp_path, changed_files=["src/controller.py"])
+    assert not any(f["capability"] in {"data_flow", "security_taint"} for f in report["findings"])
+
+
+def test_python_function_named_execute_is_not_itself_a_sensitive_sink(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "controller.py").write_text(
+        "def execute(request):\n    data = request.json or {}\n    return {'task': data.get('task')}\n",
+        encoding="utf-8",
+    )
+    report = run_capability_engine(tmp_path, changed_files=["src/controller.py"])
+    assert not any(f["capability"] in {"data_flow", "security_taint"} for f in report["findings"])

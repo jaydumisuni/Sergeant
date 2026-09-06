@@ -282,12 +282,19 @@ def _has_local_executable_sensitive_flow(relative: str, text: str) -> bool:
             tree = ast.parse(text)
         except SyntaxError:
             return False
-        lines = text.splitlines(keepends=True)
-        scopes = [
-            "".join(lines[node.lineno - 1:(getattr(node, "end_lineno", None) or node.lineno)])
-            for node in ast.walk(tree)
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-        ]
+        scopes = []
+        nested_types = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            parts = []
+            for statement in node.body:
+                if isinstance(statement, nested_types):
+                    continue
+                segment = ast.get_source_segment(text, statement)
+                if segment:
+                    parts.append(segment)
+            scopes.append("\n".join(parts))
     else:
         scopes = _brace_function_scopes(text)
     return any(_scope_has_input_to_sensitive_sink(scope) for scope in scopes)

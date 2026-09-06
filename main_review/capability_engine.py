@@ -261,8 +261,36 @@ def _architecture_findings(indexes: dict[str, Any], changed: set[str]) -> list[C
     return findings
 
 
+
+def _python_function_scopes(text: str) -> list[str]:
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return []
+    scopes: list[str] = []
+    nested_types = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        parts: list[str] = []
+        for statement in node.body:
+            if isinstance(statement, nested_types):
+                continue
+            segment = ast.get_source_segment(text, statement)
+            if segment:
+                parts.append(segment)
+        scopes.append("\n".join(parts))
+    return scopes
+
+
+def _cooccurs_in_scope(path: str, text: str, sink_pattern: re.Pattern[str], *, extra_sink: re.Pattern[str] | None = None) -> bool:
+    if Path(path).suffix.lower() != ".py":
+        return bool(INPUT_RE.search(text) and (sink_pattern.search(text) or (extra_sink and extra_sink.search(text))))
+    scopes = _python_function_scopes(text)
+    return any(INPUT_RE.search(scope) and (sink_pattern.search(scope) or (extra_sink and extra_sink.search(scope))) for scope in scopes)
+
 def _data_flow_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    return [CapabilityFinding("data_flow", "major", "User-controlled input appears near a risky sink.", path, "Input and sink patterns were both detected in the changed file.", 0.68) for path in sorted(changed) if INPUT_RE.search(indexes["texts"].get(path, "")) and SINK_RE.search(indexes["texts"].get(path, ""))]
+    return [CapabilityFinding("data_flow", "major", "User-controlled input appears near a risky sink.", path, "Input and sink patterns were detected within the same function scope.", 0.68) for path in sorted(changed) if _cooccurs_in_scope(path, indexes["texts"].get(path, ""), SINK_RE)]
 
 
 def _call_graph_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
@@ -278,7 +306,8 @@ def _call_graph_findings(indexes: dict[str, Any], changed: set[str]) -> list[Cap
 
 
 def _security_taint_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    return [CapabilityFinding("security_taint", "major", "Potential tainted input path needs validation review.", path, "Input source and security-sensitive operation are both present.", 0.7) for path in sorted(changed) if INPUT_RE.search(indexes["texts"].get(path, "")) and (SINK_RE.search(indexes["texts"].get(path, "")) or re.search(r"\b(sql|query|exec|eval|shell|command)\b", indexes["texts"].get(path, ""), re.I))]
+    lexical_sink = re.compile(r"\b(sql|query|exec|eval|shell|command)\b", re.I)
+    return [CapabilityFinding("security_taint", "major", "Potential tainted input path needs validation review.", path, "Input source and security-sensitive operation are present within the same function scope.", 0.7) for path in sorted(changed) if _cooccurs_in_scope(path, indexes["texts"].get(path, ""), SINK_RE, extra_sink=lexical_sink)]
 
 
 def _has_nested_ruby_each(text: str) -> bool:
