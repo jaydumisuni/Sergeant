@@ -40,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: andrii-su/organon
-          ref: 13792305e8c7ce72d4f317af33717739ef4a7243
+          ref: c765a7941cb0e507c29b700e14385a1dbd910ef7
           path: transfer-9/organon
           persist-credentials: false
           fetch-depth: 0
@@ -99,8 +99,8 @@ jobs:
                   "case_id": "transfer-9-b",
                   "repository": "andrii-su/organon",
                   "source_pr": 83,
-                  "source_lineage": "PR #83 exact-base repair lineage over the recorded defective revision",
-                  "fixing_ref": "13792305e8c7ce72d4f317af33717739ef4a7243",
+                  "source_lineage": "PR #83 exact-base merged repair; fixing_ref is the origin merge commit",
+                  "fixing_ref": "c765a7941cb0e507c29b700e14385a1dbd910ef7",
                   "checkout_path": "transfer-9/organon",
                   "changed_files": [
                       "crates/organon-cli/src/search.rs",
