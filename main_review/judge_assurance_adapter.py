@@ -100,6 +100,7 @@ def build_judge_assurance_ledger(
         if not isinstance(finding, Mapping):
             raise AssuranceLedgerError("raw_findings contains a non-object entry")
         finding_id = _string(finding.get("finding_id"), "finding_id")
+        finding_payload = {key: value for key, value in finding.items() if key != "finding_id"}
         claim = LedgerRecord.create(
             kind=LedgerRecordKind.CLAIM,
             review_world_id=world,
@@ -108,7 +109,7 @@ def build_judge_assurance_ledger(
             generation=record_generation,
             occurrence=index,
             epistemic_state=LedgerEpistemicState.ASSERTED,
-            payload=dict(finding),
+            payload=finding_payload,
             presentation_ids=(finding_id,),
         )
         records.append(claim)
@@ -159,6 +160,9 @@ def build_judge_assurance_ledger(
             raise AssuranceLedgerError("required_assurances contains a non-object entry")
         assurance_id = assurance.get("assurance_id")
         aliases = () if assurance_id is None else (_string(assurance_id, "assurance_id"),)
+        _string(assurance.get("required_assurance"), "required_assurance")
+        if not isinstance(assurance.get("gates_verdict"), bool):
+            raise AssuranceLedgerError("required assurance gates_verdict must be a boolean")
         records.append(LedgerRecord.create(
             kind=LedgerRecordKind.OBLIGATION,
             review_world_id=world,
