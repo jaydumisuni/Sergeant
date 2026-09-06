@@ -24,9 +24,9 @@ Accepted frozen candidate head:
 
 `c910b7a08e7b33c5ec69cb115affc044aed4df8e`
 
-Candidate tree:
+Candidate tree recovered directly from the Git commit object:
 
-`c9850a8195eed884a4a3f419545532b698eb4c82`
+`bd267e4fd1578f7df3d33befb1a4a18b2dcbcb9a`
 
 Candidate PR: `#180`.
 
@@ -39,11 +39,13 @@ The signed Git merge object proves the exact parent pair:
 1. previous canonical `main`: `2a1d16f9772997d993d0f0d41e1c5161f222f136`;
 2. accepted SAE-40 candidate: `c910b7a08e7b33c5ec69cb115affc044aed4df8e`.
 
-The merge tree is:
+The merge tree is also:
 
 `bd267e4fd1578f7df3d33befb1a4a18b2dcbcb9a`.
 
-This corrects an earlier stale handoff value for the pre-merge main commit. The signed merge object is the authority.
+The identical candidate/merge tree proves the guarded merge introduced no content mutation beyond integrating the candidate history.
+
+This closeout intentionally corrects stale earlier handoff values for both the pre-merge main identity and the candidate tree. Git commit objects are the authority.
 
 ## 3. Exact candidate execution proof
 
