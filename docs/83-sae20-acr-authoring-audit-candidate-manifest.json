@@ -1,0 +1,138 @@
+{
+  "schema_version": "sergeant.sae20-acr-authoring-audit-candidate.v1",
+  "node": "SAE-20",
+  "node_title": "Assurance Contract Registry + Authoring Audit",
+  "roadmap_generation": "sergeant-assurance-evolution-v1.1-20260828",
+  "repository": "jaydumisuni/Sergeant",
+  "construction_base": "e4cd5af49823a97451a998a3ae553a1cefb2d97d",
+  "lifecycle_state": "CANDIDATE",
+  "candidate_revision": 2,
+  "proof_requires": [
+    "SAE-00"
+  ],
+  "normal_verdict_authority": false,
+  "authority_sources": {
+    "founding_architecture": {
+      "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
+      "blob_sha": "b7d7ea0cec987046ece2aecb554cc29d86aa447b"
+    },
+    "roadmap": {
+      "path": "docs/59-sergeant-assurance-evolution-roadmap.md",
+      "blob_sha": "f54dd414da2c01284c94a3f7349030da0cda4457"
+    },
+    "sae00_proven_manifest": {
+      "path": "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
+      "blob_sha": "578b9e5505e6ebcdf3b82f1d41f04fdd893bb9d1"
+    }
+  },
+  "sae00_proven_authority": {
+    "closeout_merge": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+    "required_output": "ROADMAP_EXECUTION_AUTHORITY"
+  },
+  "content_blobs": {
+    "docs/82-sae20-acr-authoring-audit-candidate.md": "6729c50ad25664e928488e659195b3daf0038c69",
+    "docs/superpowers/specs/2026-09-04-sae-20-acr-design.md": "9455b00cfd137c07b151baf62727e8674c250a9f",
+    "docs/superpowers/plans/2026-09-04-sae-20-acr.md": "b8263da7af449702fb5a85b489c4a5217fc0f182",
+    "main_review/assurance_contract_registry.py": "51c85bffe8baa5f77b1453164d77287e990752c1",
+    "main_review/acr_authoring_audit.py": "99fdec71005203793d5dfbf51653712d9bfa18e8",
+    "main_review/_acr_authoring_audit_base.py": "7db22bdd844ae764a98146e8a9f843209b8675c3",
+    "tests/test_assurance_contract_registry.py": "c02835674db18c6011207369ad860fe3de18e0d8",
+    "tests/test_acr_authoring_audit.py": "8e3dd049f0d42c8ff308e96557103ac908f86c0c",
+    "tests/test_sae20_acr_candidate_manifest.py": "b027e1bbd6ce977ef6012eaddfe901cf7e7e1e38"
+  },
+  "foundation_semantics": {
+    "applicability_truth_values": [
+      "TRUE",
+      "FALSE",
+      "UNKNOWN"
+    ],
+    "missing_fact_is_false": false,
+    "negative_applicability_mode": "PROVEN_NO_MATCH",
+    "collection_semantics": [
+      "SET",
+      "MULTISET",
+      "ORDER"
+    ],
+    "closure_grades": [
+      "EXACT",
+      "CONSERVATIVE_SUPERSET",
+      "PARTIAL",
+      "UNKNOWN"
+    ],
+    "v1_contracts_mandatory": true,
+    "missing_mandatory_evaluation_truth": "UNKNOWN",
+    "unsupported_fallback": "UNKNOWN"
+  },
+  "authoring_audit_attack_families": [
+    "affected_relation_omission",
+    "applicability_omission",
+    "applicability_semantics_weakening",
+    "audit_scope_mismatch",
+    "candidate_self_qualification",
+    "closure_grade_weakening",
+    "coherence_rule_omission",
+    "collection_semantics_or_cardinality_weakening",
+    "consumer_interpretation_omission",
+    "external_review_lane_cardinality_weakening",
+    "falsifier_family_omission",
+    "independence_rule_omission",
+    "material_input_omission",
+    "mutable_generation_alias",
+    "negative_applicability_burden_missing",
+    "noncanonical_contract",
+    "noncanonical_profile",
+    "obligation_omission",
+    "premise_omission",
+    "repeated_authority_premise_omission",
+    "semantic_carrier_omission",
+    "temporal_rule_omission",
+    "unknown_fallback_weakening"
+  ],
+  "internal_hostile_review": {
+    "reviewed_candidate_commit": "d3b04f2ecff5a34f3ff0ed3fb58d617c8a036061",
+    "candidate_revision_before_review": 1,
+    "candidate_revision_after_correction": 2,
+    "independence_disposition": "NOT_INDEPENDENT",
+    "qualification_credit": false,
+    "defects_corrected": [
+      "premise/obligation/material-input closure-grade weakening could evade family-name-only audit",
+      "same-fact applicability semantics could weaken all_of to any_of without omission",
+      "authoring scope did not bind exact bounded-domain generation/hash",
+      "direct noncanonical contract/profile construction was not canonical-validated at the audit boundary"
+    ],
+    "first_candidate_promoted": false
+  },
+  "qualification_boundary": {
+    "candidate_self_qualification_allowed": false,
+    "audit_clean_means_qualified": false,
+    "qualification_bounded_domain_only": true,
+    "sae30_qualification_authority_fabricated": false,
+    "genesis_activated": false,
+    "dependent_nodes_auto_qualified": false,
+    "dependent_nodes_auto_proven": false
+  },
+  "qualification_escape_law": {
+    "disposition": "SUSPEND_OR_REVOKE",
+    "impact_analysis_required": true,
+    "permanent_qualification_evidence": true,
+    "automatic_corrected_contract_promotion_allowed": false
+  },
+  "local_construction_proof": {
+    "initial_production_tests_passed": 34,
+    "initial_production_tests_failed": 0,
+    "initial_compile_proof": "pass",
+    "coercive_persistence_scan": "no_str_int_bool_coercion_sites",
+    "post_review_repository_audit_tests_passed": 24,
+    "post_review_focused_hardening_tests_passed": 11,
+    "post_review_correction_harness_total_passed": 35,
+    "post_review_correction_harness_tests_failed": 0,
+    "corrected_audit_compile_proof": "pass",
+    "correction_harness_scope": "corrected production audit boundary with faithful minimal registry/base API harnesses",
+    "frozen_authority_blob_check_requires_real_repository_tree": true,
+    "repository_wide_proof_claimed": false
+  },
+  "produces_now": [],
+  "produces_if_proven": [
+    "QUALIFIED_ACR_FOUNDATION"
+  ]
+}
