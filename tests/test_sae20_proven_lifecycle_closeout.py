@@ -44,22 +44,30 @@ def test_external_holdout_evidence_is_preserved_not_relabelled() -> None:
     assert r['coderabbit_current_head_cardinality_confirmation_id']==3942357968 and r['coderabbit_current_head_iterable_confirmation_id']==3942358802
     assert r['full_exact_head_codex_review_submission'] is None and r['full_exact_head_coderabbit_review_submission'] is None
     assert r['full_exact_head_external_review_absence_treated_as_pass'] is False and r['all_inline_review_threads_resolved'] is True
+    assert r['external_holdout_independence_claimed'] is False
 
 def test_acr_qualification_campaign_is_bounded_and_content_bound() -> None:
     q=load(MANIFEST)['acr_qualification_campaign']; assert blob(QUAL)==q['fixture_blob_sha'] and q['bounded_domain']=='typescript.express-route.v1'
-    for key in ('clean_control','unrelated_language_transfer','deletion_mutations','undercount_mutations','collection_semantics_cardinality_order_attacks','unknown_and_negative_applicability_attacks','external_holdout_defects_replayed_as_regressions'): assert q[key] is True
+    for key in ('clean_control','cross_domain_specification_fixture','deletion_mutations','undercount_mutations','collection_semantics_cardinality_order_attacks','unknown_and_negative_applicability_attacks','external_holdout_defects_replayed_as_regressions'): assert q[key] is True
+    assert q['unrelated_language_transfer'] is False
     assert q['universal_completeness_claimed'] is False
 
 def test_exact_candidate_head_is_parent_of_canonical_merge() -> None:
     m=load(MANIFEST); assert m['canonical_candidate_merge']=={'commit':MERGE,'exact_head_guard':HEAD,'merge_method':'merge_commit'}
     assert re.fullmatch(r'[0-9a-f]{40}',MERGE) and MERGE in DOC.read_text() and HEAD in DOC.read_text()
     if available(MERGE) and available(HEAD):
-        assert HEAD in git('show','-s','--format=%P',MERGE).split(); subprocess.check_call(['git','merge-base','--is-ancestor',MERGE,'HEAD'],cwd=ROOT)
+        assert HEAD in git('show','-s','--format=%P',MERGE).split()
+        subprocess.check_call(['git','merge-base','--is-ancestor',HEAD,MERGE],cwd=ROOT)
+        subprocess.check_call(['git','merge-base','--is-ancestor',MERGE,'HEAD'],cwd=ROOT)
     else: assert git('rev-parse','--is-shallow-repository')=='true'
 
 def test_proven_sae00_authority_and_bounded_bootstrap() -> None:
     m,s=load(MANIFEST),load(SAE00); a=m['sae00_proven_authority']; b=m['bootstrap_authority']
     assert s['node']=='SAE-00' and s['lifecycle_state']=='PROVEN' and a['merge_commit']==SAE00_MERGE and a['required_output'] in s['produces']
+    if available(SAE00_MERGE):
+        subprocess.check_call(['git','merge-base','--is-ancestor',SAE00_MERGE,'HEAD'],cwd=ROOT)
+    else:
+        assert git('rev-parse','--is-shallow-repository')=='true'
     assert b['kind']=='SAE00_ROADMAP_EXECUTION_PLUS_OWNER_ROOT_CONSTITUTIONAL_TCB' and b['not_general_qualification_authority'] and b['cannot_qualify_dependents'] and b['cannot_satisfy_genesis_external_lane'] and b['cannot_convert_business_risk_to_pass'] and b['partial_generation_activation_allowed'] is False
     assert m['produces']==['QUALIFIED_ACR_FOUNDATION'] and m['authority_boundary']['universal_acr_completeness_claimed'] is False
 

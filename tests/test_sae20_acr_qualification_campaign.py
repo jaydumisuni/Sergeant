@@ -3,6 +3,8 @@ import dataclasses
 from main_review.acr_authoring_audit import AuthoringAuditProfile, AuthoringAuditStatus, audit_contract_authoring
 from main_review.assurance_contract_registry import *
 
+# Cross-domain ACR schema fixture only. It does not execute TypeScript or claim
+# unrelated-language transfer evidence.
 
 def contract() -> ACRContract:
     d=BoundedDomain.create(domain_id='typescript.express-route.v1',generation='transfer-domain-1',dimensions={'max_files':120,'max_routes':300})
@@ -24,12 +26,12 @@ def families(candidate: ACRContract) -> set[str]:
     return {finding.family for finding in result.findings}
 
 
-def test_transfer_clean_control_never_self_qualifies() -> None:
+def test_cross_domain_clean_control_never_self_qualifies() -> None:
     result=audit_contract_authoring(contract(),profile())
     assert result.status is AuthoringAuditStatus.CLEAN and result.findings == () and result.qualifies_contract is False
 
 
-def test_transfer_applicability_and_negative_burden_are_fail_closed() -> None:
+def test_cross_domain_applicability_and_negative_burden_are_fail_closed() -> None:
     c=contract()
     assert c.evaluate(ApplicabilityContext.exact({'language':'typescript','framework':'express'})).truth is ApplicabilityTruth.TRUE
     assert c.evaluate(ApplicabilityContext.exact({'language':'typescript','framework':'koa'})).truth is ApplicabilityTruth.FALSE

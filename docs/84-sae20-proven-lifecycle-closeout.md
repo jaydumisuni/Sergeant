@@ -40,9 +40,9 @@ The two XFAILs are pre-existing historical fixtures outside SAE-20 and are prese
 
 SAE-20 cannot become PROVEN merely because its code exists or its ordinary tests are green. The founding architecture requires the ACR itself to survive omission and weakening attacks inside a bounded domain and requires qualification truth to include materially external hostile evidence.
 
-The closeout therefore adds `tests/test_sae20_acr_qualification_campaign.py` without changing the accepted SAE-20 production candidate. The fixture exercises an unrelated TypeScript/Express bounded-domain transfer and verifies:
+The closeout therefore adds `tests/test_sae20_acr_qualification_campaign.py` without changing the accepted SAE-20 production candidate. The fixture exercises a TypeScript/Express-shaped **cross-domain ACR specification** and verifies:
 
-- a clean transfer control remains `CLEAN` but never self-qualifies;
+- a clean cross-domain control remains `CLEAN` but never self-qualifies;
 - TRUE / FALSE / UNKNOWN applicability and negative absence burden remain fail-closed;
 - semantic-carrier, consumer-interpretation, affected-relation, premise, obligation, material-input and falsifier deletion attacks are detected;
 - mandatory external-review-lane undercount is detected;
@@ -52,7 +52,9 @@ The closeout therefore adds `tests/test_sae20_acr_qualification_campaign.py` wit
 
 This supplements, rather than replaces, the candidate's existing attack matrix for the roadmap-mandated omission, cardinality, applicability, material-input, falsifier-family and external-review-lane-cardinality attacks.
 
-## Materially external hostile evidence
+The fixture does **not** execute TypeScript, consult Express runtime/framework truth or establish unrelated-language transfer evidence. Its authority is limited to exercising the SAE-20 ACR/Authoring-Audit schema against a semantically different contract shape. Materially external evidence comes from the hostile-review lineage below, not from the fixture's language label.
+
+## External-to-corpus hostile evidence
 
 The qualification corpus did not establish its own completeness by internal tests alone. Two external holdout waves found real defects after prior generations had already earned green mechanical proof:
 
@@ -61,7 +63,7 @@ The qualification corpus did not establish its own completeness by internal test
 
 The current final head also has targeted CodeRabbit confirmation that the unit-cardinality defect is fixed and that the repeated one-shot-iterable report no longer applies to the exact current implementation.
 
-These reviewer-originated defects function as materially external hostile/holdout evidence because they were discovered outside the candidate's then-green internal corpus and forced new generations rather than being waived.
+These reviewer-originated defects function as evidence external to the candidate's then-green internal corpus because they forced new generations rather than being waived. They are **not** claimed `INDEPENDENT` under the future SAE-30/EEPR provenance law and cannot satisfy a mandatory Genesis independent lane.
 
 External-review accounting remains explicit: there is **no claim of a new full Codex or CodeRabbit review submission over the complete exact `4c00b54...` tree**. Absence of such a full submission is not treated as a PASS. The closeout uses the bounded pre-SAE-30 Owner/Root exact-head completion audit plus targeted external current-head verification, while preserving that limitation.
 
@@ -97,7 +99,7 @@ This closeout therefore uses the same bounded pre-SAE-30 constitutional bootstra
 
 - PROVEN SAE-00 `ROADMAP_EXECUTION_AUTHORITY`;
 - Owner/Root constitutional authority inside the finite founding TCB;
-- materially external hostile evidence from the PR review lineage;
+- hostile evidence external to the then-green internal corpus, without claiming SAE-30 `INDEPENDENT` status;
 - exact-head deterministic execution and review proof.
 
 This bootstrap:
