@@ -40,7 +40,9 @@ Every `LedgerRecord` binds:
 
 The full body is SHA-256 content-addressed as `record_id`.
 
-Legacy `finding_id` values are presentation aliases only. They are deliberately excluded from `record_id`, so changing a UI/grouping alias cannot become positive proof authority. Presentation aliases are still included in the containing ledger payload and therefore alter `ledger_id`, preserving persisted presentation integrity.
+Legacy `finding_id` values are presentation aliases only. They are deliberately excluded from both the Claim authority payload and `record_id`, so changing a UI/grouping alias cannot become positive proof authority. Presentation aliases are still included in the containing ledger payload and therefore alter `ledger_id`, preserving persisted presentation integrity.
+
+The current officer-council producer mutates raw finding objects with Judge-stage `admission` and `gates_verdict` fields during adjudication even though `raw_findings` remains the pre-Judge claim collection in the canonical packet contract. The adapter therefore excludes `finding_id`, `admission`, and `gates_verdict` from Claim authority payloads. Judge disposition is represented separately by admission records.
 
 ## Supported founding record families
 
@@ -88,6 +90,16 @@ The adapter requires exactly one existing Judge report. It lifts:
 
 It intentionally does not multiply one canonical Judge admission merely because multiple source claims share the same `finding_id`.
 
+Admission occurrence identity is derived from earliest contributing raw-claim occurrence, never lexicographic ordering of presentation aliases. Renaming or reordering only legacy `finding_id` strings cannot reorder positive admission authority.
+
+A required-assurance entry is accepted only when its canonical contract fields exist and agree. `required_assurance` must be a non-empty canonical string, `gates_verdict` must be a boolean, and the only accepted status/gate pairs are:
+
+- `satisfied` / `false` → `TRUE`;
+- `unresolved` / `true` → `UNKNOWN`;
+- `advisory` / `false` → `UNKNOWN`.
+
+This prevents malformed packet state from being normalized into non-gating or proven assurance.
+
 ## Fail-closed boundaries
 
 The implementation rejects:
@@ -103,6 +115,9 @@ The implementation rejects:
 - cross-world/cross-RAB record membership or merge;
 - missing/multiple existing Judge reports;
 - malformed existing Judge disposition arrays;
+- orphan, missing, duplicate, synthetic, or unknown-bucket Judge dispositions;
+- missing required-assurance collection;
+- missing `required_assurance`, missing/non-boolean `gates_verdict`, non-canonical assurance status, or status/gate mismatch;
 - dangling authority-record links.
 
 ## Authority boundary
