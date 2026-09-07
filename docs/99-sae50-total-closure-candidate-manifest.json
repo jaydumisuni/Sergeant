@@ -1,10 +1,11 @@
 {
-  "schema_version": "sergeant.sae50-total-closure-candidate.v1",
+  "schema_version": "sergeant.sae50-total-closure-candidate.v2",
   "node": "SAE-50",
   "lifecycle_state": "CANDIDATE",
   "construction_base": "535699dc5952f5309eaa843098b21457439af706",
   "red_generation": "0877bcc59825c2a05a4bf7555f3e8c4d10744ae5",
   "first_green_generation": "c4d2a06b480768445410bad7fe6cb74d7e60468c",
+  "hostile_review_hardening_generation": "c4d870f6bbb227bcc44bf43284cf6f0b33911c41",
   "proof_requires": ["SAE-10", "SAE-20", "SAE-40"],
   "proven_dependency_records": [
     "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
@@ -13,15 +14,24 @@
   ],
   "content_blobs": {
     "main_review/closure_core.py": "bcd03f053e83b698c16dcd1818675adbd0a82355",
-    "tests/test_sae50_total_closure_core.py": "172b90a2ee53ec8bce94f85ee8fbdb3a40da9eb6"
+    "tests/test_sae50_total_closure_core.py": "1840e138bbd63e3d3e927720a2c487bcf0d28c5e"
   },
   "properties": [
     "rooted_source_basis",
+    "witness_basis_binding",
     "set_multiset_order_semantics",
+    "known_subset_is_partial",
     "exact_complete_witness",
-    "proven_empty_burden",
+    "proven_empty_requires_complete_witness",
     "resource_exhaustion_unknown",
+    "successful_affected_relation_fixpoint",
     "late_member_invalidation"
+  ],
+  "hostile_review_findings_closed_by_candidate": [
+    "mismatched_basis_witness_rejected",
+    "incomplete_empty_not_proven_empty",
+    "proper_subset_exactly_partial",
+    "within_budget_cycle_fixpoint_closes"
   ],
   "produces_now": [],
   "produces_if_proven": ["QUALIFIED_SET_VALUED_CLOSURE_CORE"],
