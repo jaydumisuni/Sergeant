@@ -1,11 +1,11 @@
 {
-  "schema_version": "sergeant.sae-r1-rust-canonical-identity-candidate.v2",
+  "schema_version": "sergeant.sae-r1-rust-canonical-identity-candidate.v3",
   "node": "SAE-R1",
   "lifecycle_state": "CANDIDATE",
   "construction_base": "535699dc5952f5309eaa843098b21457439af706",
   "red_generation": "932d803a34a52a9b5a77e2f536fd9c9abd9f3126",
   "first_complete_green_generation": "69325e915afc4227ab595d1edd68fc673184851b",
-  "hostile_review_hardening_generation": "e98e8967c7e024a94921d3d26e588500b1a7b8dd",
+  "hostile_review_hardening_generation": "b0d3b2da7e8fd9299aa1cb6b5f3641f3dad477f2",
   "proof_requires": ["SAE-10", "SAE-20", "SAE-40"],
   "proven_dependency_records": [
     "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
@@ -13,12 +13,14 @@
     "docs/89-sae40-proven-lifecycle-closeout-manifest.json"
   ],
   "content_blobs": {
+    ".github/workflows/sae-rust-proof.yml": "d513ab2533843bac0f3997249443a2152d9489f9",
     "main_review/rust_identity_vectors.py": "efa70aa52289b30c22366fa663ed44e885a8cc7c",
     "rust/sergeant-assurance-identity/src/lib.rs": "df9d4028116347d918fcee223d65b9c8d7126e9f",
     "rust/sergeant-assurance-identity/tests/frozen_vectors.rs": "12bf03234a21339885cf517c962fb15f42e7d432",
     "spec/sae-r1-canonical-vectors.txt": "68442efab6e8dc811f20dea0a06d3b67c18e1b42",
     "spec/sae-r1-canonical-byte-vectors.txt": "7b7cb159aa2844de6234e272209c323078eed23a",
-    "tests/test_sae_r1_canonical_identity.py": "7ec5311c994dd32f1cc8a728dde61de8f7fa5560"
+    "tests/test_sae_r1_canonical_identity.py": "7ec5311c994dd32f1cc8a728dde61de8f7fa5560",
+    "tests/test_sae_r1_candidate_manifest.py": "dde2f4c689a7322626ff5985f3afbfe6d865e833"
   },
   "independence": {
     "shared_implementation": false,
