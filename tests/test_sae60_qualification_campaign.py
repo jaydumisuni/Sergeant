@@ -8,6 +8,12 @@ import pytest
 from main_review.assurance_contract_registry import BoundedDomain, ClosureGrade
 from main_review.capability_qualification import CapabilityPassport, analyze_bounded_indirect_calls
 from main_review.review_world import sha256_id
+from main_review.semantic_capability_protocol import (
+    BOUNDED_CAPABILITY_ID,
+    PROTOCOL_ID,
+    SemanticCapabilityProtocolError,
+    qualify_bounded_literal_dispatch,
+)
 from tests.semantic_oracle.bounded_call_oracle import (
     HOLDOUT_FIXTURE,
     ORACLE_IMPLEMENTATION_LINEAGE_ID,
@@ -82,6 +88,18 @@ def test_exact_training_hidden_holdout_and_transfer_are_all_independently_closed
         assert exact_match(fixture, observed(result))
 
 
+def test_exact_frozen_passport_can_cross_the_qualification_protocol() -> None:
+    p = passport()
+    result = analyze_bounded_indirect_calls(HOLDOUT_FIXTURE.source, passport=p)
+    qualified = qualify_bounded_literal_dispatch(passport=p, evaluation=result)
+
+    assert qualified.protocol_id == PROTOCOL_ID == "QUALIFIED_SEMANTIC_CAPABILITY_PROTOCOL"
+    assert qualified.capability_id == BOUNDED_CAPABILITY_ID == "python.bounded-literal-dispatch.v1"
+    assert qualified.passport_id == p.passport_id
+    assert qualified.evaluation_id == result.evaluation_id
+    assert len(qualified.qualification_id) == 64
+
+
 def test_omission_order_and_cardinality_mutations_fail_independent_oracle() -> None:
     result = analyze_bounded_indirect_calls(HOLDOUT_FIXTURE.source, passport=passport())
     baseline = observed(result)
@@ -100,15 +118,22 @@ def test_omission_order_and_cardinality_mutations_fail_independent_oracle() -> N
     assert not exact_match(HOLDOUT_FIXTURE, injected)
 
 
-def test_historical_replay_cannot_cross_passport_generation_identity() -> None:
+def test_historical_replay_cannot_cross_passport_generation_authority() -> None:
     generation_one = passport()
     generation_two = passport(artifact_generation="sae60-candidate-gen-2")
-    result = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=generation_one)
+    historical = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=generation_one)
+    future_measurement = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=generation_two)
 
-    assert result.grade is ClosureGrade.EXACT
-    assert result.passport_id == generation_one.passport_id
+    assert historical.grade is ClosureGrade.EXACT
+    assert future_measurement.grade is ClosureGrade.EXACT
+    assert historical.passport_id == generation_one.passport_id
+    assert future_measurement.passport_id == generation_two.passport_id
     assert generation_two.passport_id != generation_one.passport_id
-    assert result.passport_id != generation_two.passport_id
+
+    with pytest.raises(SemanticCapabilityProtocolError, match="artifact generation"):
+        qualify_bounded_literal_dispatch(passport=generation_two, evaluation=future_measurement)
+    with pytest.raises(SemanticCapabilityProtocolError, match="evaluation passport binding"):
+        qualify_bounded_literal_dispatch(passport=generation_two, evaluation=historical)
 
     forged_current = replace(generation_two, passport_id=generation_one.passport_id)
     forged_result = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=forged_current)
@@ -122,27 +147,24 @@ def test_historical_oracle_fixture_replay_is_digest_bound() -> None:
         expected_relations(stale)
 
 
-def test_only_the_measured_bounded_domain_can_reach_exact() -> None:
-    general_domain = passport(domain_id="python.general-call-semantics.v1")
-    wrong_domain_generation = passport(domain_generation="domain-gen-2")
-    wrong_parser = passport(parser_generation="cpython-ast-3.12-v1")
-    wrong_framework = passport(framework_generation="python-language-3.12")
-    weaker_ceiling = passport(proof_ceiling="BOUNDED_CORPUS_ONLY")
-
-    cases = (
-        (general_domain, "unsupported capability domain"),
-        (wrong_domain_generation, "unsupported capability domain generation"),
-        (wrong_parser, "unsupported parser generation"),
-        (wrong_framework, "unsupported framework generation"),
-        (weaker_ceiling, "proof/closure ceiling"),
+def test_only_exact_frozen_domain_generation_and_ceilings_can_qualify() -> None:
+    variants = (
+        passport(domain_id="python.general-call-semantics.v1"),
+        passport(domain_generation="domain-gen-2"),
+        passport(parser_generation="cpython-ast-3.12-v1"),
+        passport(framework_generation="python-language-3.12"),
+        passport(proof_ceiling="BOUNDED_CORPUS_ONLY"),
+        passport(max_ast_nodes=501),
     )
-    for p, expected in cases:
-        result = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=p)
-        assert result.grade is ClosureGrade.UNKNOWN
-        assert any(expected in blocker for blocker in result.blockers)
+
+    for variant in variants:
+        result = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=variant)
+        with pytest.raises(SemanticCapabilityProtocolError):
+            qualify_bounded_literal_dispatch(passport=variant, evaluation=result)
 
 
-def test_dynamic_and_resource_exhausted_constructs_remain_unknown() -> None:
+def test_dynamic_and_resource_exhausted_constructs_remain_unknown_and_cannot_qualify() -> None:
+    p = passport()
     dynamic = '''def left():
     return 1
 
@@ -153,29 +175,38 @@ TABLE = {"left": left, "right": right}
 def dispatch(key):
     return TABLE[key]()
 '''
-    result = analyze_bounded_indirect_calls(dynamic, passport=passport())
+    result = analyze_bounded_indirect_calls(dynamic, passport=p)
     assert result.grade is ClosureGrade.UNKNOWN
     assert all(relation.target is None for relation in result.relations)
+    with pytest.raises(SemanticCapabilityProtocolError, match="only EXACT"):
+        qualify_bounded_literal_dispatch(passport=p, evaluation=result)
 
+    exhausted_passport = passport(max_ast_nodes=20)
     oversized = TRAINING_FIXTURE.source + "\n" + "\n".join(
         f"filler_{index} = {index}" for index in range(100)
     )
-    exhausted = analyze_bounded_indirect_calls(oversized, passport=passport(max_ast_nodes=20))
+    exhausted = analyze_bounded_indirect_calls(oversized, passport=exhausted_passport)
     assert exhausted.grade is ClosureGrade.UNKNOWN
     assert exhausted.resource_exhausted is True
     assert any("resource" in blocker.lower() for blocker in exhausted.blockers)
+    with pytest.raises(SemanticCapabilityProtocolError):
+        qualify_bounded_literal_dispatch(passport=exhausted_passport, evaluation=exhausted)
 
 
-def test_oracle_and_candidate_have_distinct_implementation_and_source_lineage() -> None:
+def test_oracle_candidate_and_qualification_authority_have_separate_roles() -> None:
     assert IMPLEMENTATION_LINEAGE != ORACLE_IMPLEMENTATION_LINEAGE_ID
 
     oracle_text = (ROOT / "tests/semantic_oracle/bounded_call_oracle.py").read_text(encoding="utf-8")
     candidate_text = (ROOT / "main_review/capability_qualification.py").read_text(encoding="utf-8")
+    protocol_text = (ROOT / "main_review/semantic_capability_protocol.py").read_text(encoding="utf-8")
 
     assert "main_review.capability_qualification" not in oracle_text
     assert "tests.semantic_oracle" not in candidate_text
     assert "ast.parse" not in oracle_text
     assert "ast.parse" in candidate_text
+    assert "qualify_bounded_literal_dispatch" in protocol_text
+    assert "DOMAIN_GENERATION" in protocol_text
+    assert "ARTIFACT_GENERATION" in protocol_text
 
 
 def test_qualification_does_not_expand_normal_verdict_or_genesis_authority() -> None:
