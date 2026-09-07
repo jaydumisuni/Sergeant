@@ -1,5 +1,5 @@
 {
-  "schema_version": "sergeant.sae30-proven-lifecycle-closeout.v2",
+  "schema_version": "sergeant.sae30-proven-lifecycle-closeout.v3",
   "node": "SAE-30",
   "node_title": "Qualification, Provenance, Genesis and Owner-Authority Substrate",
   "repository": "jaydumisuni/Sergeant",
@@ -68,7 +68,7 @@
   },
   "qualification_campaign": {
     "path": "tests/test_sae30_qualification_campaign.py",
-    "blob": "9736af104c74bebd882a75f1353fba6618be11e0",
+    "blob": "661c88553d83061aafb7e820e4210b962812d044",
     "attacks": [
       "key_custody_and_registry_generation",
       "replay_and_currentness",
