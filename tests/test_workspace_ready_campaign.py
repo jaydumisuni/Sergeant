@@ -80,7 +80,13 @@ def test_unavailable_adapters_preserve_requests_without_fabricating_evidence(tmp
     result = dispatch_authorized_requests(campaign)
     assert result["authority_preserved"] is True
     assert result["evidence_packets"] == []
-    assert {item["status"] for item in result["workspace_results"]} == {"awaiting_capability"}
+    frontier_ids = set(result["frontier_task_ids"])
+    frontier_rows = [item for item in result["workspace_results"] if item["task_id"] in frontier_ids]
+    deferred_rows = [item for item in result["workspace_results"] if item["task_id"] not in frontier_ids]
+    assert frontier_rows
+    assert {item["status"] for item in frontier_rows} == {"awaiting_capability"}
+    assert deferred_rows
+    assert {item["status"] for item in deferred_rows} == {"deferred"}
     assert {item["status"] for item in result["research_results"]} == {"awaiting_capability"}
 
 
@@ -176,7 +182,13 @@ def test_adapter_without_required_capability_is_not_called(tmp_path: Path) -> No
     adapter = WrongWorkspace()
     result = dispatch_authorized_requests(campaign, workspace=adapter)
     assert adapter.called is False
-    assert {item["status"] for item in result["workspace_results"]} == {"awaiting_capability"}
+    frontier_ids = set(result["frontier_task_ids"])
+    frontier_rows = [item for item in result["workspace_results"] if item["task_id"] in frontier_ids]
+    deferred_rows = [item for item in result["workspace_results"] if item["task_id"] not in frontier_ids]
+    assert frontier_rows
+    assert {item["status"] for item in frontier_rows} == {"awaiting_capability"}
+    assert deferred_rows
+    assert {item["status"] for item in deferred_rows} == {"deferred"}
 
 
 def test_adapter_cannot_smuggle_command_authority(tmp_path: Path) -> None:
@@ -350,7 +362,13 @@ def test_adapter_capability_exception_is_bounded(tmp_path: Path) -> None:
             raise AssertionError("must not execute")
     result = dispatch_authorized_requests(campaign, workspace=BrokenCapabilities())
     assert result["workspace_results"]
-    assert {item.get("error_kind") for item in result["workspace_results"]} == {"adapter_capability_error"}
+    frontier_ids = set(result["frontier_task_ids"])
+    frontier_rows = [item for item in result["workspace_results"] if item["task_id"] in frontier_ids]
+    deferred_rows = [item for item in result["workspace_results"] if item["task_id"] not in frontier_ids]
+    assert frontier_rows
+    assert {item.get("error_kind") for item in frontier_rows} == {"adapter_capability_error"}
+    assert deferred_rows
+    assert {item.get("status") for item in deferred_rows} == {"deferred"}
 
 
 def test_one_adapter_failure_does_not_cancel_independent_requests(tmp_path: Path) -> None:
