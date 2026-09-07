@@ -1,5 +1,5 @@
 {
-  "schema_version": "sergeant.sae30-qualification-provenance-genesis-candidate.v1",
+  "schema_version": "sergeant.sae30-qualification-provenance-genesis-candidate.v2",
   "node": "SAE-30",
   "lifecycle_state": "CANDIDATE",
   "construction_base": "535699dc5952f5309eaa843098b21457439af706",
@@ -7,7 +7,8 @@
     "67d80d29deb197fed18d0542838535d3a009c5ad",
     "12e2ddc3c883b6cdcb36aaac32a226b80a4f43fb"
   ],
-  "hardened_implementation_generation": "073adfc69d65c9db7891bb1f3ed76781b8ed1b62",
+  "first_hardened_implementation_generation": "073adfc69d65c9db7891bb1f3ed76781b8ed1b62",
+  "hostile_review_hardening_generation": "9237e72fb0e418abc3f98874b48bcbe575a351ee",
   "proof_requires": ["SAE-00", "SPIKE-ID", "SPIKE-EXT"],
   "proven_dependency_records": [
     "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
@@ -15,19 +16,32 @@
     "docs/69-spike-ext-proven-lifecycle-closeout-manifest.json"
   ],
   "content_blobs": {
-    "main_review/qualification_authority.py": "6a10aef17667f4ae18ab99055a46bdce5b14759f",
-    "main_review/external_evidence_provenance.py": "a1e286fbba2df0254a17fccf4ceaa3e9635e0ea8",
-    "main_review/owner_risk.py": "e9ea7de9cdaa015c41cc67b56a3c86449f6dfea3"
+    "main_review/qualification_authority.py": "ee7743f41d33aae6dbd1c7943fac1129503c9377",
+    "main_review/external_evidence_provenance.py": "e694c845484eb31064964c93e0428df576e5b8f9",
+    "main_review/owner_risk.py": "e9ea7de9cdaa015c41cc67b56a3c86449f6dfea3",
+    "tests/test_sae30_qualification_provenance_genesis.py": "c153dfa4df999009b1870a1ad45b6280761c5741",
+    "tests/test_sae30_attestation_provenance_and_issuer_state.py": "3f30d352120b600878f1824b3eb84bb7ae9ae829"
   },
   "authority_properties": [
     "trusted_registry_issuer_generation",
+    "verifier_authenticated_issuer",
     "derived_qualification",
+    "judge_protocol_evidence_external_independence_closure",
     "revocation_replay_currentness",
     "attestation_provenance_and_independence_binding",
-    "eepr_control_lineage",
-    "external_review_census",
+    "authenticated_eepr_control_lineage",
+    "ineligible_external_review_exclusion",
+    "sae170_genesis_authority_fence",
     "genesis_provisional_exit_separation",
     "engineering_business_risk_separation"
+  ],
+  "hostile_review_findings_closed_by_candidate": [
+    "issuer_authentication_not_copyable_payload",
+    "qualification_requires_closed_verifier_proof",
+    "positive_independence_requires_authenticated_provenance",
+    "external_census_excludes_ineligible_records",
+    "sae170_gate_is_load_bearing",
+    "issuer_suspension_revocation_and_registry_currentness"
   ],
   "produces_now": [],
   "produces_if_proven": [
