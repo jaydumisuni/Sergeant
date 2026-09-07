@@ -27,9 +27,11 @@ def test_sae_r1_candidate_binds_proven_dependencies_and_independent_implementati
         "shared_frozen_specification_vectors": True,
         "rust_third_party_dependencies": False,
         "python_and_rust_both_checked_against_exact_frozen_bytes": True,
+        "focused_python_proofs_executed_by_rust_workflow": True,
     }
     assert manifest["hostile_review_findings_closed_by_candidate"] == [
-        "both_encoders_checked_against_exact_frozen_bytes_and_ids"
+        "both_encoders_checked_against_exact_frozen_bytes_and_ids",
+        "workflow_triggers_and_executes_focused_python_proofs",
     ]
     cargo = (ROOT / "rust/sergeant-assurance-identity/Cargo.toml").read_text(encoding="utf-8")
     assert cargo.strip().endswith("[dependencies]")
