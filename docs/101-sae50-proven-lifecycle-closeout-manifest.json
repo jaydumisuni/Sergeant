@@ -1,0 +1,79 @@
+{
+  "schema_version": "sergeant.sae50-proven-lifecycle-closeout.v1",
+  "node": "SAE-50",
+  "node_title": "Total Coverage + Total Set-Valued Closure Core",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "normal_verdict_authority": false,
+  "proof_requires": ["SAE-10", "SAE-20", "SAE-40"],
+  "proven_dependency_records": [
+    "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/89-sae40-proven-lifecycle-closeout-manifest.json"
+  ],
+  "candidate_generation": {
+    "pull_request": 190,
+    "head": "69c3e0dca33f42cf725c2301cd39800cb1be1783",
+    "tree": "9a35e4d279839c19dd11b414ac2add547ae5800b",
+    "candidate_document": "docs/98-sae50-total-closure-candidate.md",
+    "candidate_document_blob": "1ac4edbedfef4fe6052fd935f6bafb48b66e710b",
+    "candidate_manifest": "docs/99-sae50-total-closure-candidate-manifest.json",
+    "candidate_manifest_blob": "3429dc8796cf96d58aef6dee51e41a58acbfb5a7",
+    "historical_candidate_preserved_not_rewritten": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "ef0a94f968eae5aecd60954f8b67b87bcb5886cb",
+    "tree": "9a35e4d279839c19dd11b414ac2add547ae5800b",
+    "parents": [
+      "535699dc5952f5309eaa843098b21457439af706",
+      "69c3e0dca33f42cf725c2301cd39800cb1be1783"
+    ],
+    "exact_head_guard": "69c3e0dca33f42cf725c2301cd39800cb1be1783",
+    "merge_method": "merge_commit"
+  },
+  "candidate_execution_confirmation": {
+    "exact_head": "69c3e0dca33f42cf725c2301cd39800cb1be1783",
+    "ci_run_id": 34112836393,
+    "ci": "success",
+    "clean_clone_proof": "success",
+    "main_review_run_id": 34112836449,
+    "main_review": "success",
+    "hostile_regressions": {
+      "mismatched_basis_witness_rejected": true,
+      "incomplete_empty_not_proven_empty": true,
+      "proper_subset_exactly_partial": true,
+      "within_budget_cycle_fixpoint_closes": true
+    }
+  },
+  "hostile_review_confirmation": {
+    "reviewed_head": "69c3e0dca33f42cf725c2301cd39800cb1be1783",
+    "all_inline_review_threads_resolved_before_candidate_merge": true,
+    "historical_external_findings_suppressed": false,
+    "external_independence_claimed": false
+  },
+  "qualified_scope": [
+    "rooted_source_basis",
+    "witness_basis_binding",
+    "set_multiset_order_semantics",
+    "exact_partial_unknown_closure_grades",
+    "multiplicity_and_order_conservation",
+    "proven_empty_burden",
+    "affected_relation_fixpoint",
+    "resource_exhaustion_unknown",
+    "closure_certificate_invalidation"
+  ],
+  "produces": ["QUALIFIED_SET_VALUED_CLOSURE_CORE"],
+  "dependent_nodes_auto_proven": false,
+  "authority_boundary": {
+    "genesis_activated": false,
+    "semantic_capability_auto_qualified": false,
+    "contract_instance_closure_auto_qualified": false,
+    "rust_kernel_auto_qualified": false,
+    "partial_generation_activation_allowed": false
+  },
+  "closeout_document_blob": "0728f1a1b93be7ece05bfa52fd383f65255ad021",
+  "proof_fixture": {
+    "path": "tests/test_sae50_proven_lifecycle_closeout.py",
+    "blob_sha": "d2dd949df1b34b3e21dc6f058d047cf2573c9336"
+  }
+}
