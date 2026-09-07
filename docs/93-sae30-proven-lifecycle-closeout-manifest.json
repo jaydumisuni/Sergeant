@@ -1,0 +1,112 @@
+{
+  "schema_version": "sergeant.sae30-proven-lifecycle-closeout.v4",
+  "node": "SAE-30",
+  "node_title": "Qualification, Provenance, Genesis and Owner-Authority Substrate",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "normal_verdict_authority": false,
+  "proof_requires": ["SAE-00", "SPIKE-ID", "SPIKE-EXT"],
+  "proven_dependency_records": [
+    "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
+    "docs/73-spike-id-proven-lifecycle-closeout-manifest.json",
+    "docs/69-spike-ext-proven-lifecycle-closeout-manifest.json"
+  ],
+  "candidate_generation": {
+    "pull_request": 188,
+    "head": "efa5dd06411c8767ce78faed89fc2383874fe823",
+    "candidate_document": "docs/90-sae30-qualification-provenance-genesis-candidate.md",
+    "candidate_document_blob": "705eb6575aa7b81d61edd48c86d35f3f1f3cee00",
+    "candidate_manifest": "docs/91-sae30-qualification-provenance-genesis-candidate-manifest.json",
+    "candidate_manifest_blob": "886882a51715781c50e63a2579dbeb48cd1907e1",
+    "historical_candidate_preserved_not_rewritten": true
+  },
+  "pull_request_integration": {
+    "base_at_final_candidate_gate": "9cc8bc7247c804b8ba4c2f3b81a9e078bf210727",
+    "synthetic_merge_ref": "7317026f0043f1593df65807b75316ea528ff38d",
+    "exact_candidate_head": "efa5dd06411c8767ce78faed89fc2383874fe823",
+    "current_base_integration_proven": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "81801ec06ddbcebb3b986a6d434b6ccdcbe7a3cc",
+    "tree": "593b6253cc367a976b1cf393ce03fa748a43ee28",
+    "parents": [
+      "9cc8bc7247c804b8ba4c2f3b81a9e078bf210727",
+      "efa5dd06411c8767ce78faed89fc2383874fe823"
+    ],
+    "exact_head_guard": "efa5dd06411c8767ce78faed89fc2383874fe823",
+    "merge_method": "merge_commit"
+  },
+  "candidate_execution_confirmation": {
+    "exact_head": "efa5dd06411c8767ce78faed89fc2383874fe823",
+    "ci_run_id": 34113914294,
+    "ci": "success",
+    "main_review_run_id": 34113914365,
+    "main_review": "success",
+    "multiplatform_run_id": 34113914325,
+    "multiplatform": "success",
+    "review_intelligence_run_id": 34113914287,
+    "review_intelligence": "success",
+    "reviewer_comparison_run_id": 34113914268,
+    "reviewer_comparison": "success",
+    "standalone_service_run_id": 34113914381,
+    "standalone_service": "success",
+    "live_github_ingestion_run_id": 34113914383,
+    "live_github_ingestion": "success",
+    "final_static_transfer_holdout_run_id": 34113914285,
+    "final_static_transfer_holdout": "success"
+  },
+  "hostile_review_confirmation": {
+    "all_inline_review_threads_resolved_before_candidate_merge": true,
+    "closed_findings": [
+      "issuer_authentication_not_copyable_payload",
+      "qualification_requires_closed_verifier_proof",
+      "positive_independence_requires_authenticated_provenance",
+      "external_census_excludes_ineligible_records",
+      "sae170_gate_is_load_bearing",
+      "issuer_suspension_revocation_and_registry_currentness"
+    ]
+  },
+  "qualification_campaign": {
+    "path": "tests/test_sae30_qualification_campaign.py",
+    "blob": "661c88553d83061aafb7e820e4210b962812d044",
+    "attacks": [
+      "key_custody_and_registry_generation",
+      "replay_and_currentness",
+      "domain_and_closure_ceiling",
+      "independence_and_control_lineage_ambiguity",
+      "external_review_census_eligibility",
+      "genesis_provisional_exit_separation",
+      "owner_business_risk_non_authority"
+    ]
+  },
+  "non_dependency_coexistence": {
+    "sae_r1_proven_closeout_merge": "10934d6e9baf2800687f86a21bf107529001858e",
+    "sae_r1_is_not_consumed_by_sae30": true,
+    "purpose": "force and record final closeout integration against canonical main after independent SAE-R1 authority landed"
+  },
+  "produces": [
+    "QUALIFICATION_PROVENANCE_SUBSTRATE",
+    "GENESIS_AUTHORITY_SUBSTRATE",
+    "OWNER_RISK_SEPARATION_SUBSTRATE"
+  ],
+  "dependent_nodes_auto_proven": false,
+  "authority_boundary": {
+    "genesis_activated": false,
+    "sae170_exit_authority_preserved": true,
+    "business_risk_can_become_engineering_pass": false,
+    "semantic_capability_auto_qualified": false,
+    "set_valued_closure_auto_qualified": false,
+    "contract_instance_closure_auto_qualified": false,
+    "rust_kernel_auto_qualified": false,
+    "partial_generation_activation_allowed": false
+  },
+  "dependency_effect": {
+    "sae60_may_consume_sae30_after_closeout_merge": true,
+    "sae60_auto_proven": false,
+    "later_nodes_auto_proven": false
+  },
+  "closeout_document": "docs/92-sae30-proven-lifecycle-closeout.md",
+  "closeout_document_blob": "7723415fe24b147b840d65c2948ab527adb912e2",
+  "closeout_test": "tests/test_sae30_proven_lifecycle_closeout.py",
+  "closeout_test_blob": "ffaa42be025ee4f62e05ace35799872653486209"
+}
