@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, Protocol
 
 from .operational_contracts import validate_evidence_packet
@@ -60,6 +61,7 @@ _FORBIDDEN_RESULT_KEYS = {
     "final_verdict",
     "sergeant_verdict",
 }
+_SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def _bounded_failure(request: dict[str, Any], task: dict[str, Any], adapter_name: str, kind: str, error: Exception) -> dict[str, Any]:
@@ -151,6 +153,31 @@ def _execution_request(
     }
 
 
+def _dependency_bindings_are_complete(task: dict[str, Any], bindings: list[dict[str, Any]]) -> bool:
+    dependencies = [str(item) for item in task.get("dependencies", []) if str(item)]
+    if not dependencies:
+        return True
+    if len(bindings) != len(dependencies):
+        return False
+    by_id: dict[str, dict[str, Any]] = {}
+    for binding in bindings:
+        task_id = str(binding.get("task_id") or "")
+        if not task_id or task_id in by_id:
+            return False
+        by_id[task_id] = binding
+    if set(by_id) != set(dependencies):
+        return False
+    for dependency in dependencies:
+        binding = by_id[dependency]
+        if not str(binding.get("source_revision") or "").strip():
+            return False
+        if not _SHA256_RE.fullmatch(str(binding.get("evidence_digest") or "").lower()):
+            return False
+        if not isinstance(binding.get("provenance"), dict) or not binding.get("provenance"):
+            return False
+    return True
+
+
 def dispatch_authorized_requests(
     campaign: dict[str, Any],
     *,
@@ -193,8 +220,20 @@ def dispatch_authorized_requests(
             workspace_results.append({**request, "status": "rejected", "reason": "Task is not authorized."})
             continue
         if frontier_task_ids is not None and task["task_id"] not in frontier_task_ids:
+            workspace_results.append({
+                **request,
+                "status": "deferred",
+                "reason": "Task is authorized but not on the currently unblocked Tenfold frontier.",
+            })
             continue
         execution_request = _execution_request(request, task["task_id"], dependency_bindings)
+        if not _dependency_bindings_are_complete(task, execution_request["dependency_bindings"]):
+            workspace_results.append({
+                **execution_request,
+                "status": "rejected",
+                "reason": "Task cannot dispatch without complete frozen dependency bindings.",
+            })
+            continue
         if not set(execution_request.get("scope", [])).issubset(set(task.get("scope", []))):
             workspace_results.append({**execution_request, "status": "rejected", "reason": "Request escaped task scope."})
             continue
@@ -241,8 +280,20 @@ def dispatch_authorized_requests(
             research_results.append({**request, "status": "rejected", "reason": "Task is not authorized."})
             continue
         if frontier_task_ids is not None and task["task_id"] not in frontier_task_ids:
+            research_results.append({
+                **request,
+                "status": "deferred",
+                "reason": "Task is authorized but not on the currently unblocked Tenfold frontier.",
+            })
             continue
         execution_request = _execution_request(request, task["task_id"], dependency_bindings)
+        if not _dependency_bindings_are_complete(task, execution_request["dependency_bindings"]):
+            research_results.append({
+                **execution_request,
+                "status": "rejected",
+                "reason": "Task cannot dispatch without complete frozen dependency bindings.",
+            })
+            continue
         if research_capability_error is not None:
             research_results.append(_bounded_failure(execution_request, task, research.name, "adapter_capability_error", research_capability_error))
             continue
