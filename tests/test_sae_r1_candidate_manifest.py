@@ -33,8 +33,10 @@ def test_sae_r1_candidate_binds_proven_dependencies_and_independent_implementati
     ]
     cargo = (ROOT / "rust/sergeant-assurance-identity/Cargo.toml").read_text(encoding="utf-8")
     assert cargo.strip().endswith("[dependencies]")
-    rust = (ROOT / "rust/sergeant-assurance-identity/src/lib.rs").read_text(encoding="utf-8")
-    assert "use pyo" not in rust.lower()
-    assert "python" not in rust.lower().split("#[cfg(test)]", 1)[0]
+    rust = (ROOT / "rust/sergeant-assurance-identity/src/lib.rs").read_text(encoding="utf-8").lower()
+    assert "use pyo" not in rust
+    assert "pyo3" not in rust
+    assert "std::process" not in rust
+    assert "command::new" not in rust
     assert manifest["produces_now"] == []
     assert manifest["produces_if_proven"] == ["QUALIFIED_RUST_IDENTITY_FOUNDATION"]
