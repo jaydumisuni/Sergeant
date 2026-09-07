@@ -13,6 +13,7 @@ THREE = "3" * 64
 FOUR = "4" * 64
 FIVE = "5" * 64
 SIX = "6" * 64
+SEVEN = "7" * 64
 
 
 def _load_contract():
@@ -58,6 +59,7 @@ def _qualification_fixture(contract):
         domains=("typescript.express-route.v1",),
         proof_classes=("bounded-hostile-qualification",),
         closure_grades=("EXACT",),
+        allowed_independence_states=("INDEPENDENT",),
         control_lineage_id=TWO,
         state=q["IssuerState"].ACTIVE,
     )
@@ -82,6 +84,9 @@ def _qualification_fixture(contract):
         evidence_root_id=FOUR,
         proof_class="bounded-hostile-qualification",
         closure_grade="EXACT",
+        independence_state="INDEPENDENT",
+        qualification_lineage_id=SIX,
+        authenticated_provenance_id=ZERO,
         issued_at=now - timedelta(minutes=1),
         expires_at=now + timedelta(hours=1),
         issuer_identity="owner-root-qualification",
@@ -95,6 +100,9 @@ def _qualification_fixture(contract):
         acr_generation="registry-gen-1",
         qualification_protocol_generation="sae30-v1",
         evidence_root_id=FOUR,
+        independence_state="INDEPENDENT",
+        qualification_lineage_id=SIX,
+        authenticated_provenance_id=ZERO,
         candidate_control_lineage_id=FIVE,
         now=now,
     )
@@ -114,6 +122,9 @@ def test_qualification_is_derived_only_from_trusted_registry_and_authenticated_i
     assert qualification.attestation_id == attestation.attestation_id
     assert qualification.issuer_authorization_id in consumed.authority_ids
     assert attestation.attestation_id in consumed.consumed_attestation_ids
+    assert qualification.independence_state == "INDEPENDENT"
+    assert qualification.qualification_lineage_id == SIX
+    assert qualification.authenticated_provenance_id == ZERO
 
 
 def test_payload_cannot_spoof_issuer_identity_or_generation() -> None:
@@ -165,12 +176,15 @@ def test_wrong_subject_domain_generations_evidence_or_ceiling_cannot_qualify() -
     q = _load_contract()
     registry, authenticated, attestation, expected = _qualification_fixture(q)
     mutations = {
-        "subject_id": SIX,
+        "subject_id": SEVEN,
         "domain": "python.call.v1",
         "artifact_generation": "acr-gen-2",
         "acr_generation": "registry-gen-2",
         "qualification_protocol_generation": "sae30-v2",
-        "evidence_root_id": SIX,
+        "evidence_root_id": SEVEN,
+        "independence_state": "NOT_INDEPENDENT",
+        "qualification_lineage_id": SEVEN,
+        "authenticated_provenance_id": SEVEN,
         "proof_class": "heuristic",
         "closure_grade": "PARTIAL",
     }
