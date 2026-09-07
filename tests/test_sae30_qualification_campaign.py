@@ -230,7 +230,7 @@ def test_external_campaign_preserves_unknown_and_excludes_ineligible_records() -
     dependent = ControlLineageFacts.create(
         **{**independent.to_payload(), "prompt_control_separate": False}
     )
-    unknown = _external_record(evidence_id=THREE, source_class="unknown", facts=independent, authenticated=False)
+    unknown = _external_record(evidence_id=FOUR, source_class="unknown", facts=independent, authenticated=False)
     assert unknown.independence_state is IndependenceState.UNKNOWN_INDEPENDENCE
 
     records = (
