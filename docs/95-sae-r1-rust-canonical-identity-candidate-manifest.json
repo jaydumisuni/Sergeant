@@ -1,0 +1,40 @@
+{
+  "schema_version": "sergeant.sae-r1-rust-canonical-identity-candidate.v5",
+  "node": "SAE-R1",
+  "lifecycle_state": "CANDIDATE",
+  "construction_base": "535699dc5952f5309eaa843098b21457439af706",
+  "red_generation": "932d803a34a52a9b5a77e2f536fd9c9abd9f3126",
+  "first_complete_green_generation": "69325e915afc4227ab595d1edd68fc673184851b",
+  "hostile_review_hardening_generation": "12e9d717e30b67ce0fbda709a4148582c4a246b6",
+  "proof_requires": ["SAE-10", "SAE-20", "SAE-40"],
+  "proven_dependency_records": [
+    "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/89-sae40-proven-lifecycle-closeout-manifest.json"
+  ],
+  "content_blobs": {
+    ".github/workflows/sae-rust-proof.yml": "49d9d0faf021f46ae85ef8fe1771b24473ccc937",
+    "main_review/rust_identity_vectors.py": "efa70aa52289b30c22366fa663ed44e885a8cc7c",
+    "rust/sergeant-assurance-identity/src/lib.rs": "df9d4028116347d918fcee223d65b9c8d7126e9f",
+    "rust/sergeant-assurance-identity/tests/frozen_vectors.rs": "12bf03234a21339885cf517c962fb15f42e7d432",
+    "spec/sae-r1-canonical-vectors.txt": "68442efab6e8dc811f20dea0a06d3b67c18e1b42",
+    "spec/sae-r1-canonical-byte-vectors.txt": "7b7cb159aa2844de6234e272209c323078eed23a",
+    "tests/test_sae_r1_canonical_identity.py": "7ec5311c994dd32f1cc8a728dde61de8f7fa5560",
+    "tests/test_sae_r1_candidate_manifest.py": "b032ae46fab3d8c8af6519938225e6a681ecf683"
+  },
+  "independence": {
+    "shared_implementation": false,
+    "shared_frozen_specification_vectors": true,
+    "rust_third_party_dependencies": false,
+    "python_and_rust_both_checked_against_exact_frozen_bytes": true,
+    "focused_python_proofs_executed_by_rust_workflow": true
+  },
+  "hostile_review_findings_closed_by_candidate": [
+    "both_encoders_checked_against_exact_frozen_bytes_and_ids",
+    "workflow_triggers_and_executes_focused_python_proofs"
+  ],
+  "produces_now": [],
+  "produces_if_proven": ["QUALIFIED_RUST_IDENTITY_FOUNDATION"],
+  "normal_verdict_authority": false,
+  "partial_generation_activation": false
+}
