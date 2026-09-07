@@ -17,6 +17,7 @@ def _contract():
         RustIdentityError,
         authority_id,
         canonical_authority_bytes,
+        frozen_vector_object,
         require_authority_id,
     )
     return locals()
@@ -94,12 +95,27 @@ def test_authority_ids_must_be_full_lowercase_sha256() -> None:
             c["require_authority_id"](bad)
 
 
-def test_rust_identity_crate_and_frozen_cross_language_vectors_exist() -> None:
-    _contract()
+def test_frozen_vectors_match_exact_python_bytes_and_digests_and_rust_proof_exists() -> None:
+    c = _contract()
     assert (ROOT / "rust/sergeant-assurance-identity/Cargo.toml").is_file()
     assert (ROOT / "rust/sergeant-assurance-identity/src/lib.rs").is_file()
+    assert (ROOT / "rust/sergeant-assurance-identity/tests/frozen_vectors.rs").is_file()
     vector_path = ROOT / "spec/sae-r1-canonical-vectors.txt"
     assert vector_path.is_file()
-    text = vector_path.read_text(encoding="utf-8")
-    for family in ("review-world", "rab", "acr", "ledger", "collection", "attestation", "provenance", "capsule"):
-        assert f"{family}\t" in text
+    expected_families = {"review-world", "rab", "acr", "ledger", "collection", "attestation", "provenance", "capsule"}
+    seen: set[str] = set()
+    for raw in vector_path.read_text(encoding="utf-8").splitlines():
+        if not raw or raw.startswith("#"):
+            continue
+        fields = raw.split("\t")
+        assert len(fields) == 3
+        family, expected_bytes_hex, expected_id = fields
+        assert family in expected_families
+        assert family not in seen
+        object_ = c["frozen_vector_object"](family)
+        actual_bytes = c["canonical_authority_bytes"](object_)
+        assert actual_bytes.hex() == expected_bytes_hex
+        assert c["authority_id"](object_) == expected_id
+        assert c["require_authority_id"](expected_id) == expected_id
+        seen.add(family)
+    assert seen == expected_families
