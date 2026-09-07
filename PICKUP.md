@@ -22,6 +22,7 @@ Do not treat old chat transcripts, stale branches, closed pull requests, or copi
   - Sergeant internally scales Cpl/officer/private review and governed learning through the 10× private-force law.
 - Twenty privates is the minimum two-worker-equivalent formation, not a ceiling.
 - For substantial multi-stage work, Tenfold is machine-native dependency-frontier execution: recover the dependency DAG, keep every safe unblocked node occupied, and rebind dependent work to exact frozen upstream truth before freeze, merge, or completion claims.
+- The runtime implementation for that Tenfold dependency-frontier law is merged through PR #185 and now lives on `main`; do not treat the doctrine as documentation-only.
 - Hermes transports orders, evidence, status, and provenance but does not command, promote lessons, or issue the final verdict.
 - Automatic lesson promotion and automatic merge remain forbidden.
 
@@ -118,6 +119,22 @@ PR #165, `learning/oracle-oidc-workflow-intake`, is **merged and complete**.
 
 PR #165 is historical authority for the completed Oracle evaluation. Do not create an accepted lesson from it and do not re-admit its signal after terminal closeout.
 
+## PR #185 Tenfold runtime state
+
+PR #185, `implementation/tenfold-frontier-runtime-20260906`, is **merged and complete** and closes issue #163.
+
+- exact merge-authority PR head: `67d85931925b09ccfa4e6386acb538c589b7abba`
+- guarded two-parent merge commit on `main`: `5b82758f2c8f46461addfa9a433e90d02202b8ca`
+- merge tree equals the exact PR-head tree: `b416385f2d056dd76b846e7f45a31c1b8252f182`
+- issue #163 final state: closed / completed
+- exact-head workflows were green across CI, Main Review, Final Static Transfer Holdout, Live GitHub Ingestion, Review Intelligence, Reviewer Comparison, Standalone Service, Multiplatform, and all other triggered proof workflows.
+- no post-merge workflow run exists on the merge commit itself; do not misstate the exact-head proof as a post-merge run.
+- all four substantive CodeRabbit review threads were resolved before merge.
+- the runtime now occupies the complete currently unblocked Tenfold frontier, reallocates the existing private force, binds dependents to exact frozen source revision plus evidence digest, preserves visible deferred adapter requests, validates persisted frontier state fail-closed, and requires explicit Cpl reauthorization for blocked/failed lanes.
+- Sergeant remains final-verdict authority; Cpl remains campaign/frontier command authority; officers retain specialist ownership; Hermes, models, tools, scanners, and workspace adapters remain non-authoritative support.
+
+PR #185 is historical authority for the completed Tenfold runtime implementation. Do not reopen it, append orphan commits to its merged branch, or recreate the implementation from issue #163.
+
 ## External donor state
 
 KiloCode is recorded only as a future review/self-check donor. The canonical source is `Kilo-Org/kilocode`. A Kilo-derived mechanism must enter through Sergeant's existing governed cross-repository learning path and earn promotion; KiloCode does not replace Sergeant and CodeOps does not become the reviewer.
@@ -149,7 +166,9 @@ If live GitHub state conflicts with this file, recover the newer evidence, updat
 
 ## Next valid work
 
-Return to project-driven continuous learning from **new provenance-complete THETECHGUY engineering fixes**.
+Treat the Tenfold runtime implementation from PR #185 as merged baseline, not pending work. Continue from the complete currently unblocked repository frontier discovered through live GitHub.
+
+For project-driven learning, continue only from **new provenance-complete THETECHGUY engineering fixes**:
 
 ```text
 recover useful repository event
@@ -164,7 +183,7 @@ recover useful repository event
 → owner-controlled promotion proposal
 ```
 
-Do not restart either rejected PR #159 credential proposal or rejected PR #165 Oracle proposal from the same evidence, do not duplicate the accepted checksum lesson, and do not start a calendar-based Week 2 merely because Week 1 is complete.
+Do not restart issue #163 or PR #185, do not restart either rejected PR #159 credential proposal or rejected PR #165 Oracle proposal from the same evidence, do not duplicate the accepted checksum lesson, and do not start a calendar-based Week 2 merely because Week 1 is complete.
 
 ## Completion boundary
 
@@ -173,10 +192,12 @@ A future chat has successfully recovered Sergeant only when it can state, withou
 - what Sergeant is;
 - the model-free/optional-model boundary;
 - the dual 10-for-2 doctrine and dependency-frontier law;
+- that the dependency-frontier doctrine is implemented in runtime through merged PR #185 rather than remaining documentation-only;
 - the command chain and Hermes boundary;
 - the governed cross-repository learning sequence;
 - which lessons are accepted, rejected, candidate-ready, or evidence-only;
 - the current live GitHub PR/check state;
 - that PR #159 is merged at `9f653412cd056119aa2231ac4a6b5d3f8c53c03b` with one accepted and one rejected candidate;
 - that PR #165 is merged at `5753c5d1cff953c4591d009cc819c3eca661b56c` and its Oracle lesson proposal is rejected with no accepted lesson;
+- that PR #185 exact head `67d85931925b09ccfa4e6386acb538c589b7abba` is merged through `5b82758f2c8f46461addfa9a433e90d02202b8ca`, closes issue #163, and must not be restarted;
 - the next valid owner-authorized action.
