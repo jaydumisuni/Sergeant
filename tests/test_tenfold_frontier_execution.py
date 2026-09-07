@@ -221,3 +221,44 @@ def test_cpl_campaign_saturates_independent_field_frontier_and_gates_adapters(tm
     bindings = updated["tenfold_execution"]["dependency_bindings"][challenger["task_id"]]
     assert {item["task_id"] for item in bindings} == {item["task_id"] for item in field}
     assert {item["source_revision"] for item in bindings} == {"frozen-a", "frozen-b", "frozen-c"}
+
+
+def test_dependent_adapter_request_carries_exact_frozen_upstream_bindings(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "auth.py").write_text("def refresh(token):\n    return token\n", encoding="utf-8")
+    campaign = build_cpl_campaign(
+        tmp_path,
+        ["src/auth.py", "pyproject.toml"],
+        officer_reports=[], admitted=[], advisory=[], rejected=[], assurances=[],
+        cpl={"status": "disabled", "passes": []}, offline={"complete": True},
+    )
+    field = [
+        next(item for item in campaign["tasks"] if item["responsible_officer"] == officer)
+        for officer in ("Scout", "Engineer", "Medic")
+    ]
+    challenger = next(item for item in campaign["tasks"] if item["responsible_officer"] == "Challenger")
+    updated = advance_campaign(
+        campaign,
+        [],
+        status_packets=[_completed(field[0], "a"), _completed(field[1], "b"), _completed(field[2], "c")],
+    )
+
+    class BindingWorkspace:
+        name = "binding-workspace"
+        seen: list[dict] = []
+        def capabilities(self) -> set[str]:
+            return {"repository", "test_runner", "runtime"}
+        def execute(self, request: dict, task: dict) -> dict:
+            if task["task_id"] == challenger["task_id"]:
+                self.seen = list(request.get("dependency_bindings", []))
+            return {"request_id": request["request_id"], "task_id": task["task_id"], "status": "completed"}
+
+    adapter = BindingWorkspace()
+    dispatch_authorized_requests(updated, workspace=adapter)
+    assert {item["task_id"] for item in adapter.seen} == {item["task_id"] for item in field}
+    assert {item["source_revision"] for item in adapter.seen} == {"frozen-a", "frozen-b", "frozen-c"}
+    assert {item["evidence_digest"] for item in adapter.seen} == {
+        "sha256:" + "a" * 64,
+        "sha256:" + "b" * 64,
+        "sha256:" + "c" * 64,
+    }
