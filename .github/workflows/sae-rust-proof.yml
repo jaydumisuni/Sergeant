@@ -1,0 +1,33 @@
+name: SAE Rust Proof
+
+on:
+  pull_request:
+    paths:
+      - 'rust/**'
+      - 'spec/sae-r1-canonical-vectors.txt'
+      - 'main_review/rust_identity_vectors.py'
+      - 'tests/test_sae_r1_canonical_identity.py'
+      - '.github/workflows/sae-rust-proof.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'rust/**'
+      - 'spec/sae-r1-canonical-vectors.txt'
+      - 'main_review/rust_identity_vectors.py'
+      - 'tests/test_sae_r1_canonical_identity.py'
+      - '.github/workflows/sae-rust-proof.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Show Rust toolchain
+        run: |
+          rustc --version
+          cargo --version
+      - name: Prove independent Rust canonical identity
+        run: cargo test --manifest-path rust/sergeant-assurance-identity/Cargo.toml --locked
