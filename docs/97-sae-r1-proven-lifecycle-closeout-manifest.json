@@ -1,0 +1,83 @@
+{
+  "schema_version": "sergeant.sae-r1-proven-lifecycle-closeout.v1",
+  "node": "SAE-R1",
+  "node_title": "Independent Rust Canonical Identity Foundation",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "normal_verdict_authority": false,
+  "proof_requires": ["SAE-10", "SAE-20", "SAE-40"],
+  "proven_dependency_records": [
+    "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/89-sae40-proven-lifecycle-closeout-manifest.json"
+  ],
+  "candidate_generation": {
+    "pull_request": 189,
+    "head": "a53e4ee9cc73f325e1c5f81387638b0762359f77",
+    "candidate_document": "docs/94-sae-r1-rust-canonical-identity-candidate.md",
+    "candidate_document_blob": "a4a5f0f9d4025972d997a67906de7124f13021c6",
+    "candidate_manifest": "docs/95-sae-r1-rust-canonical-identity-candidate-manifest.json",
+    "candidate_manifest_blob": "381dce7367f6546dc5babb7c793a2d60c67f20a8",
+    "historical_candidate_preserved_not_rewritten": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "54b37d33674efcd986a07df6d7ccaa03a01025c4",
+    "tree": "b53a5e99771fefa88c7e726c8678c530648b3b21",
+    "parents": [
+      "81801ec06ddbcebb3b986a6d434b6ccdcbe7a3cc",
+      "a53e4ee9cc73f325e1c5f81387638b0762359f77"
+    ],
+    "exact_head_guard": "a53e4ee9cc73f325e1c5f81387638b0762359f77",
+    "merge_method": "merge_commit"
+  },
+  "candidate_execution_confirmation": {
+    "exact_head": "a53e4ee9cc73f325e1c5f81387638b0762359f77",
+    "ci_run_id": 34114064133,
+    "ci": "success",
+    "main_review_run_id": 34114064048,
+    "main_review": "success",
+    "sae_rust_proof_run_id": 34114064108,
+    "sae_rust_proof": "success",
+    "multiplatform_run_id": 34114064085,
+    "multiplatform": "success"
+  },
+  "post_merge_execution_confirmation": {
+    "canonical_merge": "54b37d33674efcd986a07df6d7ccaa03a01025c4",
+    "completed_push_workflows": 5,
+    "successful_push_workflows": 5,
+    "all_completed_push_workflows_successful": true
+  },
+  "hostile_review_confirmation": {
+    "all_inline_review_threads_resolved_before_candidate_merge": true,
+    "closed_findings": [
+      "both_encoders_checked_against_exact_frozen_bytes_and_ids",
+      "workflow_triggers_and_executes_focused_python_proofs"
+    ]
+  },
+  "independence": {
+    "shared_implementation": false,
+    "shared_frozen_specification_vectors": true,
+    "rust_third_party_dependencies": false,
+    "python_binding_or_subprocess_bridge": false,
+    "authority_ids_full_lowercase_sha256_only": true
+  },
+  "produces": ["QUALIFIED_RUST_IDENTITY_FOUNDATION"],
+  "dependent_nodes_auto_proven": false,
+  "authority_boundary": {
+    "rust_verdict_authority": false,
+    "normal_sergeant_verdict_authority_changed": false,
+    "semantic_capability_auto_qualified": false,
+    "rust_assurance_kernel_auto_qualified": false,
+    "genesis_activated": false,
+    "partial_generation_activation_allowed": false
+  },
+  "dependency_effect": {
+    "sae_r2_may_consume_r1_after_closeout_merge": true,
+    "sae_r2_auto_proven": false,
+    "later_nodes_auto_proven": false
+  },
+  "closeout_document": "docs/96-sae-r1-proven-lifecycle-closeout.md",
+  "closeout_document_blob": "f0c1897609fa1f9863ac938ec97acb31ae122af0",
+  "closeout_test": "tests/test_sae_r1_proven_lifecycle_closeout.py",
+  "closeout_test_blob": "b095c37c626a8774006ff8d7673ea229cee10a88"
+}
