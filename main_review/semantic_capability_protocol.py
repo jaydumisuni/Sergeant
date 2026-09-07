@@ -2,7 +2,7 @@
 
 The candidate analyzer can measure candidate passports from multiple generations.
 Qualification authority is narrower: only the exact frozen SAE-60 generation,
-domain, ceilings and lineages may cross this protocol.  Historical or future
+domain, ceilings and lineages may cross this protocol. Historical or future
 candidate measurements therefore cannot inherit qualified authority by replay.
 """
 from __future__ import annotations
@@ -65,6 +65,45 @@ def _require_equal(actual: object, expected: object, field: str) -> None:
         )
 
 
+def _validate_evaluation_integrity(evaluation: SemanticCapabilityEvaluation) -> None:
+    if evaluation.schema_version != "sergeant.semantic-capability-evaluation.v1":
+        raise SemanticCapabilityProtocolError("semantic evaluation schema integrity mismatch")
+    if not isinstance(evaluation.grade, ClosureGrade):
+        raise SemanticCapabilityProtocolError("semantic evaluation grade integrity mismatch")
+    if not isinstance(evaluation.resource_exhausted, bool):
+        raise SemanticCapabilityProtocolError("semantic evaluation resource flag integrity mismatch")
+    if not isinstance(evaluation.operations, int) or isinstance(evaluation.operations, bool) or evaluation.operations < 0:
+        raise SemanticCapabilityProtocolError("semantic evaluation operation-count integrity mismatch")
+
+    for relation in evaluation.relations:
+        if not isinstance(relation.grade, ClosureGrade):
+            raise SemanticCapabilityProtocolError("semantic relation grade integrity mismatch")
+        relation_body = {
+            "schema_version": "sergeant.indirect-call-relation.v1",
+            "table": relation.table,
+            "key": relation.key,
+            "target": relation.target,
+            "line": relation.line,
+            "grade": relation.grade.value,
+            "reason": relation.reason,
+        }
+        if sha256_id(relation_body) != relation.relation_id:
+            raise SemanticCapabilityProtocolError("semantic relation content-addressed identity mismatch")
+
+    body = {
+        "schema_version": "sergeant.semantic-capability-evaluation.v1",
+        "passport_id": evaluation.passport_id,
+        "source_digest": evaluation.source_digest,
+        "relation_ids": [relation.relation_id for relation in evaluation.relations],
+        "grade": evaluation.grade.value,
+        "blockers": list(evaluation.blockers),
+        "resource_exhausted": evaluation.resource_exhausted,
+        "operations": evaluation.operations,
+    }
+    if sha256_id(body) != evaluation.evaluation_id:
+        raise SemanticCapabilityProtocolError("semantic evaluation content-addressed identity mismatch")
+
+
 def qualify_bounded_literal_dispatch(
     *,
     passport: CapabilityPassport,
@@ -106,6 +145,7 @@ def qualify_bounded_literal_dispatch(
     _require_equal(passport.common_mode_lineage_id, COMMON_MODE_LINEAGE_ID, "common-mode lineage")
     _require_equal(passport.control_lineage_id, CONTROL_LINEAGE_ID, "control lineage")
 
+    _validate_evaluation_integrity(evaluation)
     _require_equal(evaluation.passport_id, passport.passport_id, "evaluation passport binding")
     if evaluation.grade is not ClosureGrade.EXACT:
         raise SemanticCapabilityProtocolError("only EXACT bounded semantic evidence can qualify")
