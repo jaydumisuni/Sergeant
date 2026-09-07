@@ -12,7 +12,7 @@ fn hex_lower(bytes: &[u8]) -> String {
 
 #[test]
 fn every_frozen_vector_matches_exact_rust_bytes_and_digest() {
-    let text = include_str!("../../../spec/sae-r1-canonical-vectors.txt");
+    let text = include_str!("../../../spec/sae-r1-canonical-byte-vectors.txt");
     let mut seen = 0usize;
     for line in text.lines().filter(|line| !line.is_empty() && !line.starts_with('#')) {
         let mut fields = line.split('\t');
