@@ -45,7 +45,7 @@ This is intentionally narrower than the seven candidate families measured by SPI
 
 The passport is content-addressed. Mutating a frozen dataclass instance without canonically reissuing the passport invalidates its identity and returns `UNKNOWN`. A canonically reissued passport for an unsupported parser or domain generation also returns `UNKNOWN` through the explicit generation/domain gate.
 
-The candidate passport remains `CANDIDATE`; the analyzer cannot self-issue `QUALIFIED` authority.
+The candidate passport remains `CANDIDATE`; the analyzer cannot self-issue qualified authority.
 
 ## Independent oracle and holdouts
 
@@ -90,6 +90,8 @@ PR #194 had no inline hostile-review threads at candidate-freeze entry.
 
 ## Authority boundary
 
-This document freezes a candidate implementation and qualification corpus only. It does not produce `QUALIFIED_SEMANTIC_CAPABILITY_FOUNDATION`, does not activate any ACR domain for normal Sergeant verdict authority, does not activate Genesis, does not change SAE-170 exit authority, and does not auto-prove SAE-70 or any later node.
+This document freezes a candidate implementation and qualification corpus only. It does not produce `QUALIFIED_SEMANTIC_CAPABILITY_PROTOCOL`, does not qualify `python.bounded-literal-dispatch.v1`, does not activate any ACR domain for normal Sergeant verdict authority, does not activate Genesis, does not change SAE-170 exit authority, and does not auto-prove SAE-70 or any later node.
+
+If the separate lifecycle closeout succeeds, SAE-60 may produce `QUALIFIED_SEMANTIC_CAPABILITY_PROTOCOL` together with the first bounded qualified semantic capability, limited to the exact `python.bounded-literal-dispatch.v1` domain and frozen passport ceiling. No broader semantic capability is implied.
 
 A separate lifecycle closeout must bind the exact reviewed candidate head, guarded canonical merge, current-base integration proof, frozen content blobs, qualification/holdout evidence, and authority boundary before SAE-60 becomes PROVEN.
