@@ -1,5 +1,5 @@
 {
-  "schema_version": "sergeant.sae-r1-rust-canonical-identity-candidate.v4",
+  "schema_version": "sergeant.sae-r1-rust-canonical-identity-candidate.v5",
   "node": "SAE-R1",
   "lifecycle_state": "CANDIDATE",
   "construction_base": "535699dc5952f5309eaa843098b21457439af706",
@@ -20,7 +20,7 @@
     "spec/sae-r1-canonical-vectors.txt": "68442efab6e8dc811f20dea0a06d3b67c18e1b42",
     "spec/sae-r1-canonical-byte-vectors.txt": "7b7cb159aa2844de6234e272209c323078eed23a",
     "tests/test_sae_r1_canonical_identity.py": "7ec5311c994dd32f1cc8a728dde61de8f7fa5560",
-    "tests/test_sae_r1_candidate_manifest.py": "dde2f4c689a7322626ff5985f3afbfe6d865e833"
+    "tests/test_sae_r1_candidate_manifest.py": "b032ae46fab3d8c8af6519938225e6a681ecf683"
   },
   "independence": {
     "shared_implementation": false,
