@@ -100,7 +100,7 @@ def test_frozen_vectors_match_exact_python_bytes_and_digests_and_rust_proof_exis
     assert (ROOT / "rust/sergeant-assurance-identity/Cargo.toml").is_file()
     assert (ROOT / "rust/sergeant-assurance-identity/src/lib.rs").is_file()
     assert (ROOT / "rust/sergeant-assurance-identity/tests/frozen_vectors.rs").is_file()
-    vector_path = ROOT / "spec/sae-r1-canonical-vectors.txt"
+    vector_path = ROOT / "spec/sae-r1-canonical-byte-vectors.txt"
     assert vector_path.is_file()
     expected_families = {"review-world", "rab", "acr", "ledger", "collection", "attestation", "provenance", "capsule"}
     seen: set[str] = set()
