@@ -1,9 +1,9 @@
 """SAE-30 qualification authority, derived qualification and Genesis substrate.
 
-Qualification authority is verifier-trusted state. Candidate payloads may repeat
-issuer/generation facts for coherence, but they never select the authority that
-validates them. Genesis remains provisional until the SAE-170 exit authority is
-satisfied for an exact qualification package.
+Trusted registry state selects issuer authority. Attestation payloads bind the
+qualified subject, proof ceilings, independence disposition, qualification
+lineage and authenticated provenance, but cannot self-authorize those facts.
+Genesis remains provisional until the exact SAE-170 exit gate authorizes it.
 """
 from __future__ import annotations
 
@@ -79,6 +79,7 @@ class QualificationIssuerAuthorization:
     domains: tuple[str, ...]
     proof_classes: tuple[str, ...]
     closure_grades: tuple[str, ...]
+    allowed_independence_states: tuple[str, ...]
     control_lineage_id: str
     state: IssuerState
     authorization_id: str
@@ -95,6 +96,7 @@ class QualificationIssuerAuthorization:
         domains: Iterable[str],
         proof_classes: Iterable[str],
         closure_grades: Iterable[str],
+        allowed_independence_states: Iterable[str],
         control_lineage_id: str,
         state: IssuerState,
     ) -> "QualificationIssuerAuthorization":
@@ -109,19 +111,19 @@ class QualificationIssuerAuthorization:
             "domains": _strings(domains, "qualified domain"),
             "proof_classes": _strings(proof_classes, "proof class"),
             "closure_grades": _strings(closure_grades, "closure grade"),
+            "allowed_independence_states": _strings(allowed_independence_states, "independence state"),
             "control_lineage_id": _sha(control_lineage_id, "control_lineage_id"),
         }
         body = {
-            "schema_version": "sergeant.qualification-issuer-authorization.v1",
+            "schema_version": "sergeant.qualification-issuer-authorization.v2",
             **{key: list(value) if isinstance(value, tuple) else value for key, value in values.items()},
             "state": state.value,
         }
         return cls(
-            "sergeant.qualification-issuer-authorization.v1",
-            values["issuer_identity"], values["key_id"], values["namespace"],
-            values["issuer_generation"], values["artifact_families"], values["domains"],
-            values["proof_classes"], values["closure_grades"], values["control_lineage_id"],
-            state, sha256_id(body),
+            "sergeant.qualification-issuer-authorization.v2",
+            values["issuer_identity"], values["key_id"], values["namespace"], values["issuer_generation"],
+            values["artifact_families"], values["domains"], values["proof_classes"], values["closure_grades"],
+            values["allowed_independence_states"], values["control_lineage_id"], state, sha256_id(body),
         )
 
 
@@ -164,6 +166,8 @@ class QualificationAuthorityRegistry:
         if isinstance(issuers, (str, bytes)):
             raise QualificationAuthorityError("issuers must be a non-string iterable")
         normalized = tuple(sorted(tuple(issuers), key=lambda item: (item.issuer_identity, item.issuer_generation)))
+        if not normalized:
+            raise QualificationAuthorityError("trusted registry must contain at least one issuer authorization")
         for item in normalized:
             if not isinstance(item, QualificationIssuerAuthorization):
                 raise QualificationAuthorityError("registry contains invalid issuer authorization")
@@ -173,8 +177,6 @@ class QualificationAuthorityRegistry:
         revoked = _ids(revoked_attestation_ids, "revoked attestation id")
         consumed = _ids(consumed_attestation_ids, "consumed attestation id")
         if set(revoked) & set(consumed):
-            # A consumed attestation may later be revoked only in a successor registry
-            # after callers deliberately remove it from the consumed active set.
             raise QualificationAuthorityError("attestation cannot be both consumed and revoked in one active registry")
         body = {
             "schema_version": "sergeant.qualification-authority-registry.v1",
@@ -202,10 +204,8 @@ class QualificationAuthorityRegistry:
         revoked = _ids(values, "revoked attestation id")
         consumed = tuple(item for item in self.consumed_attestation_ids if item not in set(revoked))
         return type(self).create(
-            generation=self.generation,
-            issuers=self.issuers,
-            revoked_attestation_ids=revoked,
-            consumed_attestation_ids=consumed,
+            generation=self.generation, issuers=self.issuers,
+            revoked_attestation_ids=revoked, consumed_attestation_ids=consumed,
         )
 
     def consume(self, attestation_id: str) -> "QualificationAuthorityRegistry":
@@ -215,8 +215,7 @@ class QualificationAuthorityRegistry:
         if attestation_id in self.revoked_attestation_ids:
             raise QualificationAuthorityError("attestation is revoked")
         return type(self).create(
-            generation=self.generation,
-            issuers=self.issuers,
+            generation=self.generation, issuers=self.issuers,
             revoked_attestation_ids=self.revoked_attestation_ids,
             consumed_attestation_ids=(*self.consumed_attestation_ids, attestation_id),
         )
@@ -234,6 +233,9 @@ class QualificationAttestation:
     evidence_root_id: str
     proof_class: str
     closure_grade: str
+    independence_state: str
+    qualification_lineage_id: str
+    authenticated_provenance_id: str
     issued_at: datetime
     expires_at: datetime
     issuer_identity: str
@@ -253,6 +255,9 @@ class QualificationAttestation:
         evidence_root_id: str,
         proof_class: str,
         closure_grade: str,
+        independence_state: str,
+        qualification_lineage_id: str,
+        authenticated_provenance_id: str,
         issued_at: datetime,
         expires_at: datetime,
         issuer_identity: str,
@@ -272,36 +277,36 @@ class QualificationAttestation:
             "evidence_root_id": _sha(evidence_root_id, "evidence_root_id"),
             "proof_class": _string(proof_class, "proof_class"),
             "closure_grade": _string(closure_grade, "closure_grade"),
+            "independence_state": _string(independence_state, "independence_state"),
+            "qualification_lineage_id": _sha(qualification_lineage_id, "qualification_lineage_id"),
+            "authenticated_provenance_id": _sha(authenticated_provenance_id, "authenticated_provenance_id"),
             "issuer_identity": _string(issuer_identity, "issuer_identity"),
             "issuer_generation": _string(issuer_generation, "issuer_generation"),
         }
         body = {
-            "schema_version": "sergeant.qualification-attestation.v1", **values,
+            "schema_version": "sergeant.qualification-attestation.v2", **values,
             "issued_at": _time_text(issued), "expires_at": _time_text(expires),
         }
         return cls(
-            "sergeant.qualification-attestation.v1",
-            values["subject_id"], values["artifact_family"], values["domain"],
-            values["artifact_generation"], values["acr_generation"], values["qualification_protocol_generation"],
-            values["evidence_root_id"], values["proof_class"], values["closure_grade"],
+            "sergeant.qualification-attestation.v2",
+            values["subject_id"], values["artifact_family"], values["domain"], values["artifact_generation"],
+            values["acr_generation"], values["qualification_protocol_generation"], values["evidence_root_id"],
+            values["proof_class"], values["closure_grade"], values["independence_state"],
+            values["qualification_lineage_id"], values["authenticated_provenance_id"],
             issued, expires, values["issuer_identity"], values["issuer_generation"], sha256_id(body),
         )
 
     def constructor_fields(self) -> dict[str, object]:
         return {
-            "subject_id": self.subject_id,
-            "artifact_family": self.artifact_family,
-            "domain": self.domain,
-            "artifact_generation": self.artifact_generation,
-            "acr_generation": self.acr_generation,
+            "subject_id": self.subject_id, "artifact_family": self.artifact_family, "domain": self.domain,
+            "artifact_generation": self.artifact_generation, "acr_generation": self.acr_generation,
             "qualification_protocol_generation": self.qualification_protocol_generation,
-            "evidence_root_id": self.evidence_root_id,
-            "proof_class": self.proof_class,
-            "closure_grade": self.closure_grade,
-            "issued_at": self.issued_at,
-            "expires_at": self.expires_at,
-            "issuer_identity": self.issuer_identity,
-            "issuer_generation": self.issuer_generation,
+            "evidence_root_id": self.evidence_root_id, "proof_class": self.proof_class,
+            "closure_grade": self.closure_grade, "independence_state": self.independence_state,
+            "qualification_lineage_id": self.qualification_lineage_id,
+            "authenticated_provenance_id": self.authenticated_provenance_id,
+            "issued_at": self.issued_at, "expires_at": self.expires_at,
+            "issuer_identity": self.issuer_identity, "issuer_generation": self.issuer_generation,
         }
 
 
@@ -315,6 +320,9 @@ class DerivedQualification:
     attestation_id: str
     issuer_authorization_id: str
     evidence_root_id: str
+    independence_state: str
+    qualification_lineage_id: str
+    authenticated_provenance_id: str
     qualification_id: str
 
 
@@ -330,6 +338,9 @@ def admit_qualification_attestation(
     acr_generation: str,
     qualification_protocol_generation: str,
     evidence_root_id: str,
+    independence_state: str,
+    qualification_lineage_id: str,
+    authenticated_provenance_id: str,
     candidate_control_lineage_id: str,
     now: datetime,
 ) -> tuple[DerivedQualification, QualificationAuthorityRegistry]:
@@ -365,6 +376,9 @@ def admit_qualification_attestation(
         "acr_generation": _string(acr_generation, "expected acr_generation"),
         "qualification_protocol_generation": _string(qualification_protocol_generation, "expected qualification protocol generation"),
         "evidence_root_id": _sha(evidence_root_id, "expected evidence_root_id"),
+        "independence_state": _string(independence_state, "expected independence_state"),
+        "qualification_lineage_id": _sha(qualification_lineage_id, "expected qualification_lineage_id"),
+        "authenticated_provenance_id": _sha(authenticated_provenance_id, "expected authenticated_provenance_id"),
     }
     for field, value in expected.items():
         if getattr(attestation, field) != value:
@@ -375,24 +389,25 @@ def admit_qualification_attestation(
         raise QualificationAuthorityError("qualification proof class exceeds issuer ceiling")
     if attestation.closure_grade not in authorization.closure_grades:
         raise QualificationAuthorityError("qualification closure grade exceeds issuer ceiling")
+    if attestation.independence_state not in authorization.allowed_independence_states:
+        raise QualificationAuthorityError("qualification independence disposition exceeds issuer authorization")
     candidate_lineage = _sha(candidate_control_lineage_id, "candidate_control_lineage_id")
     if candidate_lineage == authorization.control_lineage_id:
         raise QualificationAuthorityError("candidate-controlled lineage cannot issue its own qualification")
     body = {
-        "schema_version": "sergeant.derived-qualification.v1",
-        "subject_id": attestation.subject_id,
-        "artifact_family": attestation.artifact_family,
-        "domain": attestation.domain,
-        "artifact_generation": attestation.artifact_generation,
-        "attestation_id": attestation.attestation_id,
-        "issuer_authorization_id": authorization.authorization_id,
-        "evidence_root_id": attestation.evidence_root_id,
-        "state": "QUALIFIED",
+        "schema_version": "sergeant.derived-qualification.v2",
+        "subject_id": attestation.subject_id, "artifact_family": attestation.artifact_family,
+        "domain": attestation.domain, "artifact_generation": attestation.artifact_generation,
+        "attestation_id": attestation.attestation_id, "issuer_authorization_id": authorization.authorization_id,
+        "evidence_root_id": attestation.evidence_root_id, "independence_state": attestation.independence_state,
+        "qualification_lineage_id": attestation.qualification_lineage_id,
+        "authenticated_provenance_id": attestation.authenticated_provenance_id, "state": "QUALIFIED",
     }
     qualification = DerivedQualification(
         "QUALIFIED", attestation.subject_id, attestation.artifact_family, attestation.domain,
         attestation.artifact_generation, attestation.attestation_id, authorization.authorization_id,
-        attestation.evidence_root_id, sha256_id(body),
+        attestation.evidence_root_id, attestation.independence_state, attestation.qualification_lineage_id,
+        attestation.authenticated_provenance_id, sha256_id(body),
     )
     return qualification, registry.consume(attestation.attestation_id)
 
@@ -433,15 +448,10 @@ class GenesisQualificationPackage:
         proof = None if founding_final_proof_id is None else _sha(founding_final_proof_id, "founding final proof id")
         generation = _string(generation, "Genesis generation")
         body = {
-            "schema_version": "sergeant.genesis-qualification-package.v1",
-            "review_world_id": world,
-            "required_qualification_ids": list(required),
-            "present_qualification_ids": list(present),
-            "external_review_census_id": census,
-            "external_review_census_satisfied": external_review_census_satisfied,
-            "founding_final_proof_id": proof,
-            "generation": generation,
-            "state": "GENESIS_PROVISIONAL",
+            "schema_version": "sergeant.genesis-qualification-package.v1", "review_world_id": world,
+            "required_qualification_ids": list(required), "present_qualification_ids": list(present),
+            "external_review_census_id": census, "external_review_census_satisfied": external_review_census_satisfied,
+            "founding_final_proof_id": proof, "generation": generation, "state": "GENESIS_PROVISIONAL",
         }
         return cls(
             "sergeant.genesis-qualification-package.v1", world, required, present, census,
@@ -466,19 +476,15 @@ def evaluate_genesis_exit_gate(*, package: GenesisQualificationPackage, authorit
     blockers: list[str] = []
     if node != "SAE-170":
         blockers.append("Genesis Exit authority is reserved to SAE-170")
-    missing = tuple(sorted(set(package.required_qualification_ids) - set(package.present_qualification_ids)))
-    if missing:
+    if set(package.required_qualification_ids) - set(package.present_qualification_ids):
         blockers.append("mandatory qualifications remain open")
     if not package.external_review_census_satisfied:
         blockers.append("mandatory independent/external review census remains open")
     if package.founding_final_proof_id is None:
         blockers.append("founding final proof is absent")
     body = {
-        "schema_version": "sergeant.genesis-exit-gate.v1",
-        "package_id": package.package_id,
-        "authority_node": node,
-        "authorized": not blockers,
-        "blockers": blockers,
+        "schema_version": "sergeant.genesis-exit-gate.v1", "package_id": package.package_id,
+        "authority_node": node, "authorized": not blockers, "blockers": blockers,
     }
     return GenesisExitGate(
         "sergeant.genesis-exit-gate.v1", package.package_id, node,
@@ -512,12 +518,10 @@ class GenesisActivationRecord:
         if activation_class in used:
             raise QualificationAuthorityError("Genesis one-time activation class has already been consumed")
         body = {
-            "schema_version": "sergeant.genesis-activation-record.v1",
-            "package_id": package.package_id,
-            "exit_gate_id": exit_gate.gate_id,
-            "activation_class": activation_class,
+            "schema_version": "sergeant.genesis-activation-record.v1", "package_id": package.package_id,
+            "exit_gate_id": exit_gate.gate_id, "activation_class": activation_class,
         }
         return cls(
-            "sergeant.genesis-activation-record.v1", package.package_id, exit_gate.gate_id,
-            activation_class, sha256_id(body),
+            "sergeant.genesis-activation-record.v1", package.package_id,
+            exit_gate.gate_id, activation_class, sha256_id(body),
         )
