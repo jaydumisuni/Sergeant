@@ -1,14 +1,13 @@
 """SAE-60 bounded semantic capability candidate.
 
-This module implements one deliberately narrow semantic family: Python calls
-through immutable module-level literal-key dispatch tables whose values are
-unique top-level functions. It is fail-closed by construction. Dynamic keys,
-mutation/escape, lexical shadowing, parser/framework drift, parse failure and
-resource exhaustion conserve UNKNOWN.
+The founding slice is deliberately narrow: Python calls through immutable
+module-level literal-key dispatch tables whose values are unique, undecorated,
+non-rebound top-level functions. Anything outside that closed domain conserves
+UNKNOWN, including dynamic keys, mutation/escape, unsupported lexical scopes,
+parser/framework drift, parse failure, and resource exhaustion.
 
-Capability passports produced here are CANDIDATE records only. This module has
-no authority to self-qualify a capability; positive qualification is a later
-SAE-30-backed lifecycle operation.
+Capability passports created here remain CANDIDATE records. This module cannot
+self-qualify a capability; lifecycle qualification is external authority.
 """
 from __future__ import annotations
 
@@ -22,7 +21,7 @@ from .review_world import ReviewWorldError, require_full_sha256, sha256_id
 
 
 class CapabilityQualificationError(ReviewWorldError):
-    """Raised for malformed capability/passport authority inputs."""
+    """Raised for malformed semantic-capability authority inputs."""
 
 
 CANDIDATE_STATE = "CANDIDATE"
@@ -179,6 +178,10 @@ class CapabilityPassport:
 
     def integrity_error(self) -> str | None:
         try:
+            if not isinstance(self.domain, BoundedDomain):
+                return "capability passport domain type mismatch"
+            if not isinstance(self.closure_ceiling, ClosureGrade):
+                return "capability passport closure ceiling type mismatch"
             rebuilt_domain = BoundedDomain.create(
                 domain_id=self.domain.domain_id,
                 generation=self.domain.generation,
@@ -207,7 +210,7 @@ class CapabilityPassport:
             )
             if sha256_id(body) != self.passport_id:
                 return "capability passport content-addressed identity mismatch"
-        except (CapabilityQualificationError, ReviewWorldError, ValueError, TypeError) as exc:
+        except (CapabilityQualificationError, ReviewWorldError, ValueError, TypeError, AttributeError) as exc:
             return f"capability passport integrity failure: {exc}"
         return None
 
@@ -298,6 +301,26 @@ def _evaluation(
     )
 
 
+def _unknown(
+    passport: CapabilityPassport,
+    source_digest: str,
+    blockers: Iterable[str],
+    *,
+    relations: Iterable[IndirectCallRelation] = (),
+    operations: int = 0,
+    resource_exhausted: bool = False,
+) -> SemanticCapabilityEvaluation:
+    return _evaluation(
+        passport=passport,
+        source_digest=source_digest,
+        relations=relations,
+        grade=ClosureGrade.UNKNOWN,
+        blockers=blockers,
+        resource_exhausted=resource_exhausted,
+        operations=operations,
+    )
+
+
 def _function_locals(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     names = {arg.arg for arg in (*node.args.posonlyargs, *node.args.args, *node.args.kwonlyargs)}
     if node.args.vararg:
@@ -305,7 +328,7 @@ def _function_locals(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
     if node.args.kwarg:
         names.add(node.args.kwarg.arg)
 
-    class Locals(ast.NodeVisitor):
+    class LocalBindings(ast.NodeVisitor):
         def visit_FunctionDef(self, child: ast.FunctionDef) -> None:
             if child is node:
                 for statement in child.body:
@@ -336,37 +359,47 @@ def _function_locals(node: ast.FunctionDef | ast.AsyncFunctionDef) -> set[str]:
         def visit_ImportFrom(self, child: ast.ImportFrom) -> None:
             names.update(alias.asname or alias.name for alias in child.names if alias.name != "*")
 
-    Locals().visit(node)
+    LocalBindings().visit(node)
     return names
 
 
-def _unknown(
-    passport: CapabilityPassport,
-    source_digest: str,
-    blockers: Iterable[str],
-    *,
-    relations: Iterable[IndirectCallRelation] = (),
-    operations: int = 0,
-    resource_exhausted: bool = False,
-) -> SemanticCapabilityEvaluation:
-    return _evaluation(
-        passport=passport,
-        source_digest=source_digest,
-        relations=relations,
-        grade=ClosureGrade.UNKNOWN,
-        blockers=blockers,
-        resource_exhausted=resource_exhausted,
-        operations=operations,
-    )
+def _module_binding_counts(tree: ast.Module) -> tuple[dict[str, int], dict[str, ast.FunctionDef | ast.AsyncFunctionDef], set[str], set[str]]:
+    counts: dict[str, int] = {}
+    definitions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
+    duplicates: set[str] = set()
+    decorated: set[str] = set()
+
+    def bind(name: str) -> None:
+        counts[name] = counts.get(name, 0) + 1
+
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            bind(node.name)
+            if node.name in definitions:
+                duplicates.add(node.name)
+            definitions[node.name] = node
+            if node.decorator_list:
+                decorated.add(node.name)
+        elif isinstance(node, ast.ClassDef):
+            bind(node.name)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    bind(target.id)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            bind(node.target.id)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                bind(alias.asname or alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name != "*":
+                    bind(alias.asname or alias.name)
+    return counts, definitions, duplicates, decorated
 
 
 def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport) -> SemanticCapabilityEvaluation:
-    """Analyze the one SAE-60 candidate semantic family.
-
-    Positive EXACT is limited to immutable module-level dicts of literal string
-    keys to unique top-level functions, invoked by literal keys. Any observed
-    uncertainty affecting that family makes the whole evaluation UNKNOWN.
-    """
+    """Evaluate the one SAE-60 founding semantic family."""
     if not isinstance(source, str):
         raise CapabilityQualificationError("semantic capability source must be text")
     if not isinstance(passport, CapabilityPassport):
@@ -406,29 +439,29 @@ def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport)
             operations=operations, resource_exhausted=True,
         )
 
-    definitions: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] = {}
-    duplicate_definitions: set[str] = set()
-    for node in tree.body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            if node.name in definitions:
-                duplicate_definitions.add(node.name)
-            definitions[node.name] = node
+    parents: dict[int, ast.AST] = {}
+    for parent in nodes:
+        for child in ast.iter_child_nodes(parent):
+            parents[id(child)] = parent
 
-    module_assignments: dict[str, int] = {}
+    binding_counts, definitions, duplicate_definitions, decorated_definitions = _module_binding_counts(tree)
+
     table_nodes: dict[str, ast.Dict] = {}
+    table_assignment_counts: dict[str, int] = {}
     invalid_tables: set[str] = set()
     for node in tree.body:
         if isinstance(node, ast.Assign):
-            targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
-            for name in targets:
-                module_assignments[name] = module_assignments.get(name, 0) + 1
+            for target in node.targets:
+                if not isinstance(target, ast.Name):
+                    continue
+                table_assignment_counts[target.id] = table_assignment_counts.get(target.id, 0) + 1
                 if isinstance(node.value, ast.Dict):
-                    if name in table_nodes:
-                        invalid_tables.add(name)
-                    table_nodes[name] = node.value
+                    if target.id in table_nodes:
+                        invalid_tables.add(target.id)
+                    table_nodes[target.id] = node.value
         elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             name = node.target.id
-            module_assignments[name] = module_assignments.get(name, 0) + 1
+            table_assignment_counts[name] = table_assignment_counts.get(name, 0) + 1
             if isinstance(node.value, ast.Dict):
                 if name in table_nodes:
                     invalid_tables.add(name)
@@ -441,10 +474,10 @@ def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport)
             operations=operations, resource_exhausted=True,
         )
 
-    tables: dict[str, dict[str, str]] = {}
     blockers: list[str] = []
+    tables: dict[str, dict[str, str]] = {}
     for name, node in sorted(table_nodes.items()):
-        if module_assignments.get(name) != 1:
+        if table_assignment_counts.get(name) != 1 or binding_counts.get(name) != 1:
             invalid_tables.add(name)
         if len(node.keys) > dimensions["max_table_entries"]:
             invalid_tables.add(name)
@@ -463,39 +496,60 @@ def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport)
                 invalid_tables.add(name)
                 blockers.append(f"dispatch table {name} has duplicate literal key {key.value!r}")
                 continue
-            if not isinstance(value, ast.Name) or value.id not in definitions or value.id in duplicate_definitions:
+            closed_target = (
+                isinstance(value, ast.Name)
+                and value.id in definitions
+                and value.id not in duplicate_definitions
+                and value.id not in decorated_definitions
+                and binding_counts.get(value.id) == 1
+            )
+            if not closed_target:
                 invalid_tables.add(name)
-                blockers.append(f"dispatch table {name} target for {key.value!r} is not one unique top-level function")
+                blockers.append(
+                    f"dispatch table {name} target for {key.value!r} is not one closed unique undecorated top-level function"
+                )
                 continue
+            assert isinstance(value, ast.Name)
             mapping[key.value] = value.id
         if name not in invalid_tables:
             tables[name] = mapping
 
     all_table_names = set(table_nodes)
+
+    def subscript_table(target: ast.AST) -> str | None:
+        if isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name) and target.value.id in all_table_names:
+            return target.value.id
+        return None
+
     for node in nodes:
-        if isinstance(node, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
-            targets: list[ast.AST] = []
-            if isinstance(node, ast.Assign):
-                targets.extend(node.targets)
-            else:
-                targets.append(node.target)
-            for target in targets:
-                if isinstance(target, ast.Subscript) and isinstance(target.value, ast.Name) and target.value.id in all_table_names:
-                    invalid_tables.add(target.value.id)
-                if isinstance(target, ast.Name) and target.id in all_table_names and node not in tree.body:
-                    # Function/local rebinding is handled as shadowing at call sites.
-                    continue
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                table_name = subscript_table(target)
+                if table_name:
+                    invalid_tables.add(table_name)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign)):
+            table_name = subscript_table(node.target)
+            if table_name:
+                invalid_tables.add(table_name)
+        elif isinstance(node, ast.Delete):
+            for target in node.targets:
+                table_name = subscript_table(target)
+                if table_name:
+                    invalid_tables.add(table_name)
+
         if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
             receiver = node.func.value
             if isinstance(receiver, ast.Name) and receiver.id in all_table_names and node.func.attr in _MUTATING_METHODS:
                 invalid_tables.add(receiver.id)
-        if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name) and node.value.id in all_table_names:
-            if not any(isinstance(target, ast.Name) and target.id == node.value.id for target in node.targets):
-                invalid_tables.add(node.value.id)
-        if isinstance(node, ast.Call):
-            for argument in (*node.args, *(keyword.value for keyword in node.keywords)):
-                if isinstance(argument, ast.Name) and argument.id in all_table_names:
-                    invalid_tables.add(argument.id)
+
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id in all_table_names:
+            parent = parents.get(id(node))
+            allowed = isinstance(parent, ast.Subscript) and parent.value is node
+            if allowed:
+                grandparent = parents.get(id(parent))
+                allowed = isinstance(grandparent, ast.Call) and grandparent.func is parent
+            if not allowed:
+                invalid_tables.add(node.id)
 
     if invalid_tables:
         blockers.extend(f"dispatch table {name} is mutated or escaped" for name in sorted(invalid_tables))
@@ -507,9 +561,10 @@ def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport)
     }
     relations: list[IndirectCallRelation] = []
 
-    class Calls(ast.NodeVisitor):
+    class CallVisitor(ast.NodeVisitor):
         def __init__(self) -> None:
             self.scope_stack: list[ast.FunctionDef | ast.AsyncFunctionDef] = []
+            self.restricted_depth = 0
 
         def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
             self.scope_stack.append(node)
@@ -523,10 +578,28 @@ def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport)
                 self.visit(statement)
             self.scope_stack.pop()
 
+        def _restricted(self, node: ast.AST) -> None:
+            self.restricted_depth += 1
+            self.generic_visit(node)
+            self.restricted_depth -= 1
+
+        def visit_ClassDef(self, node: ast.ClassDef) -> None:
+            self._restricted(node)
+
         def visit_Lambda(self, node: ast.Lambda) -> None:
-            # Lambda-local semantics are outside the founding bounded slice.
-            for child in ast.iter_child_nodes(node):
-                self.visit(child)
+            self._restricted(node)
+
+        def visit_ListComp(self, node: ast.ListComp) -> None:
+            self._restricted(node)
+
+        def visit_SetComp(self, node: ast.SetComp) -> None:
+            self._restricted(node)
+
+        def visit_DictComp(self, node: ast.DictComp) -> None:
+            self._restricted(node)
+
+        def visit_GeneratorExp(self, node: ast.GeneratorExp) -> None:
+            self._restricted(node)
 
         def visit_Call(self, node: ast.Call) -> None:
             nonlocal operations
@@ -534,10 +607,20 @@ def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport)
             func = node.func
             if isinstance(func, ast.Subscript) and isinstance(func.value, ast.Name) and func.value.id in all_table_names:
                 table_name = func.value.id
+                literal_key = (
+                    func.slice.value
+                    if isinstance(func.slice, ast.Constant) and isinstance(func.slice.value, str)
+                    else None
+                )
                 shadowed = any(table_name in function_locals.get(id(scope), set()) for scope in self.scope_stack)
-                key_node = func.slice
-                literal_key = key_node.value if isinstance(key_node, ast.Constant) and isinstance(key_node.value, str) else None
-                if shadowed:
+                if self.restricted_depth:
+                    blockers.append(f"dispatch table {table_name} call occurs in unsupported lexical scope at line {node.lineno}")
+                    relations.append(IndirectCallRelation.create(
+                        table=table_name, key=literal_key, target=None, line=node.lineno,
+                        grade=ClosureGrade.UNKNOWN,
+                        reason="lambda/class/comprehension lexical semantics are outside the qualified slice",
+                    ))
+                elif shadowed:
                     blockers.append(f"dispatch table {table_name} is lexically shadowed at line {node.lineno}")
                     relations.append(IndirectCallRelation.create(
                         table=table_name, key=literal_key, target=None, line=node.lineno,
@@ -564,14 +647,19 @@ def analyze_bounded_indirect_calls(source: str, *, passport: CapabilityPassport)
                 else:
                     relations.append(IndirectCallRelation.create(
                         table=table_name, key=literal_key, target=tables[table_name][literal_key], line=node.lineno,
-                        grade=ClosureGrade.EXACT, reason="immutable module table + literal key + unique top-level callable",
+                        grade=ClosureGrade.EXACT,
+                        reason="immutable module table + literal key + closed unique top-level callable",
                     ))
             self.generic_visit(node)
 
-    Calls().visit(tree)
+    CallVisitor().visit(tree)
     relations.sort(key=lambda item: (item.line, item.table, item.key or "", item.target or ""))
     if blockers or any(relation.grade is not ClosureGrade.EXACT for relation in relations):
-        return _unknown(passport, digest, blockers or ("semantic relation did not close exactly",), relations=relations, operations=operations)
+        return _unknown(
+            passport, digest,
+            blockers or ("semantic relation did not close exactly",),
+            relations=relations, operations=operations,
+        )
     return _evaluation(
         passport=passport,
         source_digest=digest,
