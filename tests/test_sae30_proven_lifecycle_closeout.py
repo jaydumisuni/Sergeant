@@ -6,9 +6,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "docs/103-sae30-proven-lifecycle-closeout-manifest.json"
+MANIFEST = ROOT / "docs/93-sae30-proven-lifecycle-closeout-manifest.json"
 CANDIDATE = ROOT / "docs/91-sae30-qualification-provenance-genesis-candidate-manifest.json"
-DOC = ROOT / "docs/102-sae30-proven-lifecycle-closeout.md"
+DOC = ROOT / "docs/92-sae30-proven-lifecycle-closeout.md"
 
 
 def load(path: Path) -> dict:
