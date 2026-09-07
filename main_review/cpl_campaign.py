@@ -308,6 +308,7 @@ def _validate_task_graph(tasks: list[dict[str, Any]]) -> dict[str, dict[str, Any
 
     visiting: set[str] = set()
     visited: set[str] = set()
+
     def visit(task_id: str) -> None:
         if task_id in visiting:
             raise ValueError("Tenfold task dependency cycle detected")
@@ -318,6 +319,7 @@ def _validate_task_graph(tasks: list[dict[str, Any]]) -> dict[str, dict[str, Any
             visit(str(dependency))
         visiting.remove(task_id)
         visited.add(task_id)
+
     for task_id in by_id:
         visit(task_id)
     return by_id
@@ -421,6 +423,7 @@ def advance_tenfold_frontier(
         statuses.setdefault(task_id, "authorized")
     bindings = {task_id: dict(binding) for task_id, binding in dict(frontier.get("completion_bindings", {})).items()}
     old_frontier = list(frontier.get("frontier_task_ids", []))
+    active_frontier = set(old_frontier)
     old_allocations = {item["task_id"]: int(item.get("private_count") or 0) for item in frontier.get("allocations", [])}
     completed_now: list[str] = []
 
@@ -430,6 +433,8 @@ def advance_tenfold_frontier(
         task = by_id.get(task_id)
         if task is None:
             raise ValueError("task status references an unknown campaign task")
+        if task_id not in active_frontier and statuses.get(task_id) != "completed":
+            raise ValueError("task status is outside the current Cpl-authorized frontier")
         packet = validate_task_status_packet(packet, task)
         previous = statuses.get(task_id, "authorized")
         next_status = packet["status"]
