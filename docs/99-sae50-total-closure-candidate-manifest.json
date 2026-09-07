@@ -1,0 +1,30 @@
+{
+  "schema_version": "sergeant.sae50-total-closure-candidate.v1",
+  "node": "SAE-50",
+  "lifecycle_state": "CANDIDATE",
+  "construction_base": "535699dc5952f5309eaa843098b21457439af706",
+  "red_generation": "0877bcc59825c2a05a4bf7555f3e8c4d10744ae5",
+  "first_green_generation": "c4d2a06b480768445410bad7fe6cb74d7e60468c",
+  "proof_requires": ["SAE-10", "SAE-20", "SAE-40"],
+  "proven_dependency_records": [
+    "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/89-sae40-proven-lifecycle-closeout-manifest.json"
+  ],
+  "content_blobs": {
+    "main_review/closure_core.py": "bcd03f053e83b698c16dcd1818675adbd0a82355",
+    "tests/test_sae50_total_closure_core.py": "172b90a2ee53ec8bce94f85ee8fbdb3a40da9eb6"
+  },
+  "properties": [
+    "rooted_source_basis",
+    "set_multiset_order_semantics",
+    "exact_complete_witness",
+    "proven_empty_burden",
+    "resource_exhaustion_unknown",
+    "late_member_invalidation"
+  ],
+  "produces_now": [],
+  "produces_if_proven": ["QUALIFIED_SET_VALUED_CLOSURE_CORE"],
+  "normal_verdict_authority": false,
+  "partial_generation_activation": false
+}
