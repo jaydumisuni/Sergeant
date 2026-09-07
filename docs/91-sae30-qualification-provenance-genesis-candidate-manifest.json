@@ -1,0 +1,41 @@
+{
+  "schema_version": "sergeant.sae30-qualification-provenance-genesis-candidate.v1",
+  "node": "SAE-30",
+  "lifecycle_state": "CANDIDATE",
+  "construction_base": "535699dc5952f5309eaa843098b21457439af706",
+  "red_generations": [
+    "67d80d29deb197fed18d0542838535d3a009c5ad",
+    "12e2ddc3c883b6cdcb36aaac32a226b80a4f43fb"
+  ],
+  "hardened_implementation_generation": "073adfc69d65c9db7891bb1f3ed76781b8ed1b62",
+  "proof_requires": ["SAE-00", "SPIKE-ID", "SPIKE-EXT"],
+  "proven_dependency_records": [
+    "docs/67-sae00-proven-lifecycle-closeout-manifest.json",
+    "docs/73-spike-id-proven-lifecycle-closeout-manifest.json",
+    "docs/69-spike-ext-proven-lifecycle-closeout-manifest.json"
+  ],
+  "content_blobs": {
+    "main_review/qualification_authority.py": "6a10aef17667f4ae18ab99055a46bdce5b14759f",
+    "main_review/external_evidence_provenance.py": "a1e286fbba2df0254a17fccf4ceaa3e9635e0ea8",
+    "main_review/owner_risk.py": "e9ea7de9cdaa015c41cc67b56a3c86449f6dfea3"
+  },
+  "authority_properties": [
+    "trusted_registry_issuer_generation",
+    "derived_qualification",
+    "revocation_replay_currentness",
+    "attestation_provenance_and_independence_binding",
+    "eepr_control_lineage",
+    "external_review_census",
+    "genesis_provisional_exit_separation",
+    "engineering_business_risk_separation"
+  ],
+  "produces_now": [],
+  "produces_if_proven": [
+    "QUALIFICATION_PROVENANCE_SUBSTRATE",
+    "GENESIS_AUTHORITY_SUBSTRATE",
+    "OWNER_RISK_SEPARATION_SUBSTRATE"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activation": false,
+  "partial_generation_activation": false
+}
