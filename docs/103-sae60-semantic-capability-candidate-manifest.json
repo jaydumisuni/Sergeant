@@ -1,0 +1,102 @@
+{
+  "schema_version": "sergeant.sae60-semantic-capability-candidate.v2",
+  "node": "SAE-60",
+  "node_title": "Semantic Capability Qualification Foundation",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "CANDIDATE",
+  "authority_gain_now": "none",
+  "proof_requires": ["SAE-20", "SAE-30", "SAE-50", "SPIKE-SEM"],
+  "proven_dependency_records": [
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/93-sae30-proven-lifecycle-closeout-manifest.json",
+    "docs/101-sae50-proven-lifecycle-closeout-manifest.json",
+    "docs/77-spike-sem-proven-lifecycle-closeout-manifest.json"
+  ],
+  "construction_base": "8df705d3cc6237937a8ee0bde74d44481d352679",
+  "red_generation": "a585d22695051f48aec1e5bea0c0c2d36cf91cfe",
+  "accepted_production_generation": "dd96affea3a3d1072b8cae176ac15c2725a68ca4",
+  "candidate_document": "docs/102-sae60-semantic-capability-candidate.md",
+  "candidate_document_blob": "94af6650e08202dd675145d95b5b9122b0630519",
+  "content_blobs": {
+    "main_review/capability_qualification.py": "0b138005746e0f0782a89288ac832a175b6565aa",
+    "tests/semantic_oracle/bounded_call_oracle.py": "0b9e8207b22a77c910b5ad5858313934d0ecc3ef",
+    "tests/test_capability_qualification.py": "06a4b2575951093206f97ed9b0c5c79b261da2cc"
+  },
+  "candidate_domain": {
+    "domain_id": "python.bounded-literal-dispatch.v1",
+    "domain_generation": "domain-gen-1",
+    "artifact_generation": "sae60-candidate-gen-1",
+    "parser_generation": "cpython-ast-3.11-v1",
+    "framework_generation": "python-language-3.11",
+    "qualification_protocol_generation": "sae60-qualification-v1",
+    "proof_ceiling": "BOUNDED_EXHAUSTIVE_ORACLE",
+    "closure_ceiling": "EXACT",
+    "positive_exact_scope": "immutable module-level literal-string-key dispatch tables to unique undecorated closed top-level functions"
+  },
+  "oracle_independence": {
+    "path": "tests/semantic_oracle/bounded_call_oracle.py",
+    "imports_candidate_analyzer": false,
+    "parses_candidate_source": false,
+    "expected_relations_separately_authored": true,
+    "source_digests_frozen": true,
+    "oracle_implementation_lineage_distinct_from_candidate": true,
+    "corpora": ["training", "hidden_holdout", "transfer"]
+  },
+  "fail_closed_cases": [
+    "dynamic_dispatch_key",
+    "table_mutation",
+    "table_alias_argument_or_return_escape",
+    "function_lambda_comprehension_or_class_shadowing",
+    "decorated_or_rebound_target",
+    "duplicate_or_nonliteral_key",
+    "unsupported_parser_generation",
+    "unsupported_framework_generation",
+    "unsupported_domain_generation",
+    "forged_passport_identity",
+    "missing_literal_key",
+    "parse_failure",
+    "source_resource_exhaustion",
+    "ast_resource_exhaustion",
+    "dispatch_table_resource_exhaustion",
+    "dispatch_entry_resource_exhaustion"
+  ],
+  "accepted_generation_execution_confirmation": {
+    "exact_head": "dd96affea3a3d1072b8cae176ac15c2725a68ca4",
+    "ci_run_id": 34116706898,
+    "ci": "success",
+    "main_review_run_id": 34116706843,
+    "main_review": "success",
+    "multiplatform_run_id": 34116706911,
+    "multiplatform": "success",
+    "review_intelligence_run_id": 34116706951,
+    "review_intelligence": "success",
+    "reviewer_comparison_run_id": 34116706886,
+    "reviewer_comparison": "success",
+    "standalone_service_run_id": 34116706994,
+    "standalone_service": "success",
+    "live_github_ingestion_run_id": 34116706933,
+    "live_github_ingestion": "success",
+    "final_static_transfer_holdout_run_id": 34116706897,
+    "final_static_transfer_holdout": "success",
+    "all_triggered_model_free_transfer_campaigns": "success"
+  },
+  "hostile_review_confirmation": {
+    "inline_review_threads_at_freeze_entry": 0,
+    "false_exact_hardening": [
+      "lexical_scope_shadowing",
+      "lambda_comprehension_class_scope",
+      "decorated_target",
+      "rebound_target",
+      "read_escape",
+      "passport_forgery",
+      "wrong_parser_and_domain_generation"
+    ]
+  },
+  "produces_now": [],
+  "produces_if_proven": ["QUALIFIED_SEMANTIC_CAPABILITY_PROTOCOL"],
+  "bounded_capabilities_if_proven": ["python.bounded-literal-dispatch.v1"],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false
+}
