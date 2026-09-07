@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from pathlib import Path
 
 import pytest
 
@@ -18,15 +19,22 @@ from main_review.assurance_contract_registry import (
     ExternalReviewLane,
     NegativeApplicabilityBurden,
 )
-import main_review.contract_closure as closure
 from main_review.contract_closure import (
     ContractClosureError,
     ContractInstanceEnumeration,
-    ExpectedObligation,
     ProvenNoMatch,
     compile_contract_closure,
 )
+from main_review.contract_closure_protocol import (
+    QUALIFIED_CONTRACT_INSTANCE_CLOSURE,
+    QUALIFIED_EXPECTED_OBLIGATION_COMPILER,
+    qualify_contract_closure,
+    validate_qualified_contract_closure,
+)
 from main_review.review_world import sha256_id
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def contract(
@@ -85,7 +93,11 @@ def exact_context(framework: str = "flask") -> ApplicabilityContext:
     return ApplicabilityContext.exact({"language": "python", "framework": framework})
 
 
-def instances(c: ACRContract, *routes: str, closure_grade: ClosureGrade = ClosureGrade.EXACT) -> ContractInstanceEnumeration:
+def instances(
+    c: ACRContract,
+    *routes: str,
+    closure_grade: ClosureGrade = ClosureGrade.EXACT,
+) -> ContractInstanceEnumeration:
     return ContractInstanceEnumeration.create(
         contract=c,
         bindings=tuple({"route": route} for route in routes),
@@ -108,20 +120,6 @@ def no_match(c: ACRContract, context: ApplicabilityContext) -> ProvenNoMatch:
             }
         ),
     )
-
-
-def qualification_api():
-    qualify = getattr(closure, "qualify_contract_closure", None)
-    assert callable(qualify), "SAE-70 exact-result qualification protocol is not implemented"
-    return qualify
-
-
-def protocol_ids() -> tuple[str, str]:
-    first = getattr(closure, "QUALIFIED_CONTRACT_INSTANCE_CLOSURE", None)
-    second = getattr(closure, "QUALIFIED_EXPECTED_OBLIGATION_COMPILER", None)
-    assert first == "QUALIFIED_CONTRACT_INSTANCE_CLOSURE"
-    assert second == "QUALIFIED_EXPECTED_OBLIGATION_COMPILER"
-    return first, second
 
 
 def exact_fixture():
@@ -169,7 +167,7 @@ def overlapping_fixture(*, same_obligation: bool = False):
 
 def qualify_fixture(fixture):
     r, contexts, enumerations, no_matches, result = fixture
-    return qualification_api()(
+    return qualify_contract_closure(
         registry=r,
         contexts=contexts,
         instance_enumerations=enumerations,
@@ -178,12 +176,28 @@ def qualify_fixture(fixture):
     )
 
 
+def assert_recomputation_rejects(fixture, mutated) -> None:
+    r, contexts, enumerations, no_matches, _ = fixture
+    with pytest.raises(ContractClosureError, match="canonical recomputation"):
+        qualify_contract_closure(
+            registry=r,
+            contexts=contexts,
+            instance_enumerations=enumerations,
+            proven_no_match=no_matches,
+            result=mutated,
+        )
+
+
 def test_exact_bounded_census_instances_and_obligations_cross_qualification_boundary() -> None:
     fixture = exact_fixture()
     qualified = qualify_fixture(fixture)
-    first, second = protocol_ids()
 
-    assert qualified.protocol_ids == (first, second)
+    assert qualified.protocol_ids == (
+        QUALIFIED_CONTRACT_INSTANCE_CLOSURE,
+        QUALIFIED_EXPECTED_OBLIGATION_COMPILER,
+    )
+    assert QUALIFIED_CONTRACT_INSTANCE_CLOSURE == "QUALIFIED_CONTRACT_INSTANCE_CLOSURE"
+    assert QUALIFIED_EXPECTED_OBLIGATION_COMPILER == "QUALIFIED_EXPECTED_OBLIGATION_COMPILER"
     assert qualified.registry_id == fixture[0].registry_id
     assert qualified.contract_closure_result_id == fixture[4].result_id
     assert qualified.expected_instance_ids == tuple(
@@ -196,29 +210,21 @@ def test_exact_bounded_census_instances_and_obligations_cross_qualification_boun
 
 
 def test_dropped_contract_census_entry_cannot_be_qualified() -> None:
-    r, contexts, enumerations, no_matches, result = exact_fixture()
-    dropped = replace(result, contract_census=result.contract_census[:-1])
-    with pytest.raises(ContractClosureError, match="canonical recomputation"):
-        qualification_api()(
-            registry=r,
-            contexts=contexts,
-            instance_enumerations=enumerations,
-            proven_no_match=no_matches,
-            result=dropped,
-        )
+    fixture = exact_fixture()
+    result = fixture[4]
+    assert_recomputation_rejects(
+        fixture,
+        replace(result, contract_census=result.contract_census[:-1]),
+    )
 
 
 def test_dropped_contract_instance_cannot_be_qualified() -> None:
-    r, contexts, enumerations, no_matches, result = exact_fixture()
-    dropped = replace(result, expected_instances=result.expected_instances[:-1])
-    with pytest.raises(ContractClosureError, match="canonical recomputation"):
-        qualification_api()(
-            registry=r,
-            contexts=contexts,
-            instance_enumerations=enumerations,
-            proven_no_match=no_matches,
-            result=dropped,
-        )
+    fixture = exact_fixture()
+    result = fixture[4]
+    assert_recomputation_rejects(
+        fixture,
+        replace(result, expected_instances=result.expected_instances[:-1]),
+    )
 
 
 def test_unknown_applicability_cannot_cross_qualification_as_false() -> None:
@@ -235,7 +241,7 @@ def test_unknown_applicability_cannot_cross_qualification_as_false() -> None:
     assert result.contract_census[0].disposition == "UNKNOWN"
 
     with pytest.raises(ContractClosureError, match="EXACT"):
-        qualification_api()(
+        qualify_contract_closure(
             registry=r,
             contexts=contexts,
             instance_enumerations={},
@@ -245,39 +251,29 @@ def test_unknown_applicability_cannot_cross_qualification_as_false() -> None:
 
 
 def test_first_match_weakening_cannot_drop_an_overlapping_obligation() -> None:
-    r, contexts, enumerations, no_matches, result = overlapping_fixture()
+    fixture = overlapping_fixture()
+    result = fixture[4]
     assert {item.family for item in result.expected_obligations} == {
         "authz-preserved",
         "audit-event-emitted",
     }
-    weakened = replace(result, expected_obligations=result.expected_obligations[:1])
-
-    with pytest.raises(ContractClosureError, match="canonical recomputation"):
-        qualification_api()(
-            registry=r,
-            contexts=contexts,
-            instance_enumerations=enumerations,
-            proven_no_match=no_matches,
-            result=weakened,
-        )
+    assert_recomputation_rejects(
+        fixture,
+        replace(result, expected_obligations=result.expected_obligations[:1]),
+    )
 
 
 def test_obligation_provenance_collapse_cannot_be_qualified() -> None:
-    r, contexts, enumerations, no_matches, result = overlapping_fixture(same_obligation=True)
+    fixture = overlapping_fixture(same_obligation=True)
+    result = fixture[4]
     assert len(result.expected_obligations) == 1
     obligation = result.expected_obligations[0]
     assert len(obligation.provenance) == 2
     collapsed_obligation = replace(obligation, provenance=obligation.provenance[:1])
-    collapsed = replace(result, expected_obligations=(collapsed_obligation,))
-
-    with pytest.raises(ContractClosureError, match="canonical recomputation"):
-        qualification_api()(
-            registry=r,
-            contexts=contexts,
-            instance_enumerations=enumerations,
-            proven_no_match=no_matches,
-            result=collapsed,
-        )
+    assert_recomputation_rejects(
+        fixture,
+        replace(result, expected_obligations=(collapsed_obligation,)),
+    )
 
 
 def test_partial_instance_enumeration_never_becomes_qualified_exact_closure() -> None:
@@ -294,7 +290,7 @@ def test_partial_instance_enumeration_never_becomes_qualified_exact_closure() ->
     assert result.grade is ClosureGrade.PARTIAL
 
     with pytest.raises(ContractClosureError, match="EXACT"):
-        qualification_api()(
+        qualify_contract_closure(
             registry=r,
             contexts=contexts,
             instance_enumerations=enumerations,
@@ -305,11 +301,14 @@ def test_partial_instance_enumeration_never_becomes_qualified_exact_closure() ->
 
 def test_historical_result_cannot_replay_against_another_registry_generation() -> None:
     r, contexts, enumerations, no_matches, result = exact_fixture()
-    changed_registry = ACRRegistry.create(generation="sae70-qualification-acr-gen-2", contracts=r.contracts)
+    changed_registry = ACRRegistry.create(
+        generation="sae70-qualification-acr-gen-2",
+        contracts=r.contracts,
+    )
     assert changed_registry.registry_id != r.registry_id
 
     with pytest.raises(ContractClosureError, match="canonical recomputation|registry"):
-        qualification_api()(
+        qualify_contract_closure(
             registry=changed_registry,
             contexts=contexts,
             instance_enumerations=enumerations,
@@ -319,32 +318,22 @@ def test_historical_result_cannot_replay_against_another_registry_generation() -
 
 
 def test_forged_result_identity_is_rejected_before_authority_is_issued() -> None:
-    r, contexts, enumerations, no_matches, result = exact_fixture()
-    forged = replace(result, result_id="0" * 64)
-
-    with pytest.raises(ContractClosureError, match="canonical recomputation|identity"):
-        qualification_api()(
-            registry=r,
-            contexts=contexts,
-            instance_enumerations=enumerations,
-            proven_no_match=no_matches,
-            result=forged,
-        )
+    fixture = exact_fixture()
+    result = fixture[4]
+    assert_recomputation_rejects(fixture, replace(result, result_id="0" * 64))
 
 
 def test_qualified_record_is_content_addressed_and_not_self_mutable() -> None:
     qualified = qualify_fixture(exact_fixture())
     forged = replace(qualified, qualification_id="0" * 64)
-    validate = getattr(closure, "validate_qualified_contract_closure", None)
-    assert callable(validate), "qualified SAE-70 authority must be independently revalidatable"
     with pytest.raises(ContractClosureError, match="qualification identity"):
-        validate(forged)
-    assert validate(qualified) == qualified
+        validate_qualified_contract_closure(forged)
+    assert validate_qualified_contract_closure(qualified) == qualified
 
 
 def test_qualification_does_not_activate_genesis_or_normal_sergeant_verdict_authority() -> None:
-    candidate_manifest = __import__("pathlib").Path(
-        "docs/107-sae70-contract-obligation-closure-candidate-manifest.json"
+    candidate_manifest = (
+        ROOT / "docs/107-sae70-contract-obligation-closure-candidate-manifest.json"
     ).read_text(encoding="utf-8")
     assert '"produces_now": []' in candidate_manifest
     assert '"normal_verdict_authority": false' in candidate_manifest
