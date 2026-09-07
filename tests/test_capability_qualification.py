@@ -173,6 +173,81 @@ def invoke(TABLE):
     assert any("shadowed" in blocker for blocker in result.blockers)
 
 
+def test_lambda_comprehension_and_class_scope_do_not_false_grade_exact() -> None:
+    lambda_source = '''def real():
+    return 1
+
+TABLE = {"real": real}
+invoke = lambda TABLE: TABLE["real"]()
+'''
+    lambda_result = analyze_bounded_indirect_calls(lambda_source, passport=_passport())
+    assert lambda_result.grade is ClosureGrade.UNKNOWN
+    assert any("lexical scope" in blocker for blocker in lambda_result.blockers)
+
+    comprehension_source = '''def real():
+    return 1
+
+TABLE = {"real": real}
+others = ({"real": real},)
+values = [TABLE["real"]() for TABLE in others]
+'''
+    comprehension_result = analyze_bounded_indirect_calls(comprehension_source, passport=_passport())
+    assert comprehension_result.grade is ClosureGrade.UNKNOWN
+    assert any("lexical scope" in blocker for blocker in comprehension_result.blockers)
+
+    class_source = '''def real():
+    return 1
+
+TABLE = {"real": real}
+class Wrapper:
+    TABLE = {"real": real}
+    value = TABLE["real"]()
+'''
+    class_result = analyze_bounded_indirect_calls(class_source, passport=_passport())
+    assert class_result.grade is ClosureGrade.UNKNOWN
+    assert any("lexical scope" in blocker for blocker in class_result.blockers)
+
+
+def test_decorated_or_rebound_target_and_read_escape_are_unknown() -> None:
+    decorated = '''def decorate(fn):
+    return fn
+
+@decorate
+def real():
+    return 1
+
+TABLE = {"real": real}
+TABLE["real"]()
+'''
+    result = analyze_bounded_indirect_calls(decorated, passport=_passport())
+    assert result.grade is ClosureGrade.UNKNOWN
+    assert any("target" in blocker and "closed" in blocker for blocker in result.blockers)
+
+    rebound = '''def real():
+    return 1
+
+real = lambda: 2
+TABLE = {"real": real}
+TABLE["real"]()
+'''
+    result = analyze_bounded_indirect_calls(rebound, passport=_passport())
+    assert result.grade is ClosureGrade.UNKNOWN
+    assert any("target" in blocker and "closed" in blocker for blocker in result.blockers)
+
+    escaped = '''def real():
+    return 1
+
+TABLE = {"real": real}
+def expose():
+    return TABLE
+
+TABLE["real"]()
+'''
+    result = analyze_bounded_indirect_calls(escaped, passport=_passport())
+    assert result.grade is ClosureGrade.UNKNOWN
+    assert any("mutated or escaped" in blocker for blocker in result.blockers)
+
+
 def test_parse_failure_and_resource_exhaustion_fail_closed_to_unknown() -> None:
     broken = analyze_bounded_indirect_calls("def broken(:\n    pass\n", passport=_passport())
     assert broken.grade is ClosureGrade.UNKNOWN
