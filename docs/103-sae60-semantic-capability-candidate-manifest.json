@@ -1,5 +1,5 @@
 {
-  "schema_version": "sergeant.sae60-semantic-capability-candidate.v1",
+  "schema_version": "sergeant.sae60-semantic-capability-candidate.v2",
   "node": "SAE-60",
   "node_title": "Semantic Capability Qualification Foundation",
   "repository": "jaydumisuni/Sergeant",
@@ -16,7 +16,7 @@
   "red_generation": "a585d22695051f48aec1e5bea0c0c2d36cf91cfe",
   "accepted_production_generation": "dd96affea3a3d1072b8cae176ac15c2725a68ca4",
   "candidate_document": "docs/102-sae60-semantic-capability-candidate.md",
-  "candidate_document_blob": "8da44771167dc902ce3954b16620060b34f48f61",
+  "candidate_document_blob": "94af6650e08202dd675145d95b5b9122b0630519",
   "content_blobs": {
     "main_review/capability_qualification.py": "0b138005746e0f0782a89288ac832a175b6565aa",
     "tests/semantic_oracle/bounded_call_oracle.py": "0b9e8207b22a77c910b5ad5858313934d0ecc3ef",
@@ -93,7 +93,8 @@
     ]
   },
   "produces_now": [],
-  "produces_if_proven": ["QUALIFIED_SEMANTIC_CAPABILITY_FOUNDATION"],
+  "produces_if_proven": ["QUALIFIED_SEMANTIC_CAPABILITY_PROTOCOL"],
+  "bounded_capabilities_if_proven": ["python.bounded-literal-dispatch.v1"],
   "normal_verdict_authority": false,
   "genesis_activated": false,
   "dependent_nodes_auto_proven": false,
