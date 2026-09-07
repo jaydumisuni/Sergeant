@@ -1,0 +1,126 @@
+{
+  "schema_version": "sergeant.sae70-contract-obligation-closure-candidate.v1",
+  "node": "SAE-70",
+  "node_title": "Total Contract / Contract-Instance / Obligation Closure",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "CANDIDATE",
+  "authority_gain_now": "none",
+  "proof_requires": ["SAE-20", "SAE-50", "SAE-60"],
+  "proven_dependency_records": [
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/101-sae50-proven-lifecycle-closeout-manifest.json",
+    "docs/105-sae60-proven-lifecycle-closeout-manifest.json"
+  ],
+  "construction_base": "6d4ecc03782fa72d517e0b111a3757e4b2f65cf0",
+  "red_generation": "4e344e4043cbb00b8cc84ec1c69c113649909c4d",
+  "red_importable_generation": "664e39c93d5854ff226e179d4d710c8d2922d8b6",
+  "red_execution_confirmation": {
+    "ci_run_id": 34133911617,
+    "sae70_failures": 11,
+    "existing_passes": 1511,
+    "historical_xfails": 2,
+    "failure_boundary": "missing contract-instance enumeration / total contract closure behavior"
+  },
+  "accepted_production_generation": "60532ea0c33d7d4bd8443ac6434c6c6251836fe7",
+  "candidate_document": "docs/106-sae70-contract-obligation-closure-candidate.md",
+  "candidate_document_blob": "04d453a619337b475ce5c7d2e34aa9933372fd54",
+  "content_blobs": {
+    "main_review/contract_closure.py": "c531f57e58dfcc8f26d8c0a8cfe81017868782b3",
+    "tests/test_contract_closure.py": "bfff5367a4c504af7613e6ad882094cd0fb0aa74"
+  },
+  "founding_contract_census": {
+    "registry_authority": "existing SAE-20 ACRRegistry",
+    "mandatory_contracts_total": true,
+    "true_disposition": "ACTIVE",
+    "false_disposition_requires": "PROVEN_NO_MATCH",
+    "unknown_conserved": true,
+    "missing_evaluation_becomes_unknown": true,
+    "first_match_priority_specificity_subsumption_weakening": false
+  },
+  "contract_instance_enumeration": {
+    "contract_id_bound": true,
+    "contract_generation_bound": true,
+    "contract_content_identity_bound": true,
+    "exact_bound_subject_variables_required": true,
+    "duplicates_rejected": true,
+    "source_basis_sha256_bound": true,
+    "content_addressed": true,
+    "closure_grade_propagates": true
+  },
+  "proven_no_match": {
+    "requires_false_applicability": true,
+    "contract_identity_bound": true,
+    "applicability_context_identity_bound": true,
+    "evidence_sha256_bound": true,
+    "must_meet_declared_negative_applicability_burden": true,
+    "unknown_to_false_coercion": false,
+    "content_addressed": true
+  },
+  "expected_obligation_compiler": {
+    "composition": "CONSERVATIVE_UNION",
+    "union_key": ["obligation_family", "exact_subject_binding"],
+    "preserves_subject_multiplicity": true,
+    "preserves_all_origin_contracts": true,
+    "preserves_all_origin_contract_instances": true,
+    "preserves_origin_required_closure": true,
+    "closure_conflict_resolution": "strongest requirement",
+    "conflict_marked": true
+  },
+  "fail_closed_cases": [
+    "missing_contract_evaluation",
+    "unknown_applicability",
+    "false_without_proven_no_match",
+    "true_without_instance_enumeration",
+    "partial_instance_enumeration",
+    "wrong_contract_generation",
+    "wrong_registry_key",
+    "duplicate_contract_instance",
+    "wrong_bound_subject_variables",
+    "proven_no_match_context_replay",
+    "proven_no_match_contract_replay",
+    "content_identity_mismatch"
+  ],
+  "accepted_generation_execution_confirmation": {
+    "exact_head": "60532ea0c33d7d4bd8443ac6434c6c6251836fe7",
+    "ci_run_id": 34134248608,
+    "ci": "success",
+    "clean_clone_full_chain": "success",
+    "main_review_run_id": 34134248503,
+    "main_review": "success",
+    "multiplatform_run_id": 34134248510,
+    "multiplatform": "success",
+    "review_intelligence_run_id": 34134248631,
+    "review_intelligence": "success",
+    "reviewer_comparison_run_id": 34134248664,
+    "reviewer_comparison": "success",
+    "standalone_service_run_id": 34134248591,
+    "standalone_service": "success",
+    "live_github_ingestion_run_id": 34134248617,
+    "live_github_ingestion": "success",
+    "final_static_transfer_holdout_run_id": 34134248586,
+    "final_static_transfer_holdout": "success",
+    "all_triggered_model_free_transfer_campaigns": "success"
+  },
+  "hostile_review_confirmation": {
+    "inline_review_threads_at_candidate_freeze_entry": 0,
+    "red_attacks": [
+      "dropped_contract",
+      "dropped_instance",
+      "unknown_to_false",
+      "first_match_weakening",
+      "obligation_provenance_collapse",
+      "weak_instance_closure",
+      "contract_generation_substitution",
+      "registry_key_substitution"
+    ]
+  },
+  "produces_now": [],
+  "produces_if_proven": [
+    "QUALIFIED_CONTRACT_INSTANCE_CLOSURE",
+    "QUALIFIED_EXPECTED_OBLIGATION_COMPILER"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false
+}
