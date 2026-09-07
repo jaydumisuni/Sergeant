@@ -5,16 +5,20 @@ on:
     paths:
       - 'rust/**'
       - 'spec/sae-r1-canonical-vectors.txt'
+      - 'spec/sae-r1-canonical-byte-vectors.txt'
       - 'main_review/rust_identity_vectors.py'
       - 'tests/test_sae_r1_canonical_identity.py'
+      - 'tests/test_sae_r1_candidate_manifest.py'
       - '.github/workflows/sae-rust-proof.yml'
   push:
     branches: [main]
     paths:
       - 'rust/**'
       - 'spec/sae-r1-canonical-vectors.txt'
+      - 'spec/sae-r1-canonical-byte-vectors.txt'
       - 'main_review/rust_identity_vectors.py'
       - 'tests/test_sae_r1_canonical_identity.py'
+      - 'tests/test_sae_r1_candidate_manifest.py'
       - '.github/workflows/sae-rust-proof.yml'
 
 permissions:
