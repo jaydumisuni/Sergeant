@@ -36,9 +36,30 @@ def test_valid_subset_cannot_become_exact_complete_collection() -> None:
     )
     witness = c["ClosureWitness"].create(basis_id=basis.basis_id, members=("a", "b"), declared_complete=True)
     result = c["evaluate_closure"](basis=basis, witness=witness)
-    assert result.grade is not c["ClosureGrade"].EXACT
+    assert result.grade is c["ClosureGrade"].PARTIAL
     assert result.complete is False
     assert "missing" in " ".join(result.blockers).lower()
+
+
+def test_witness_bound_to_another_basis_is_rejected() -> None:
+    c = _contract()
+    basis = c["ClosureBasis"].create(
+        source_basis_id=ZERO,
+        source_basis_kind="independent_census",
+        semantics=c["CollectionSemantics"].SET,
+        members=("a", "b"),
+        grade=c["ClosureGrade"].EXACT,
+    )
+    other = c["ClosureBasis"].create(
+        source_basis_id=ONE,
+        source_basis_kind="independent_census",
+        semantics=c["CollectionSemantics"].SET,
+        members=("a", "b"),
+        grade=c["ClosureGrade"].EXACT,
+    )
+    witness = c["ClosureWitness"].create(basis_id=other.basis_id, members=("a", "b"), declared_complete=True)
+    with pytest.raises(c["ClosureCoreError"], match="different basis"):
+        c["evaluate_closure"](basis=basis, witness=witness)
 
 
 def test_partial_basis_cannot_produce_exact_child_collection() -> None:
@@ -99,6 +120,19 @@ def test_resource_exhaustion_conserves_unknown() -> None:
     assert result.resource_exhausted is True
 
 
+def test_affected_relation_fixpoint_completes_within_budget_even_with_cycle() -> None:
+    c = _contract()
+    result = c["affected_relation_fixpoint"](
+        seeds=("a",),
+        edges=(("a", "b"), ("b", "c"), ("c", "a"), ("c", "d")),
+        budget=20,
+    )
+    assert result.members == ("a", "b", "c", "d")
+    assert result.grade is c["ClosureGrade"].EXACT
+    assert result.resource_exhausted is False
+    assert result.operations > 0
+
+
 def test_self_declared_universe_cannot_be_positive_closure_authority() -> None:
     c = _contract()
     with pytest.raises(c["ClosureCoreError"], match="self-defining"):
@@ -120,10 +154,17 @@ def test_proven_empty_requires_exact_independent_basis_and_complete_witness() ->
         members=(),
         grade=c["ClosureGrade"].EXACT,
     )
-    witness = c["ClosureWitness"].create(basis_id=exact.basis_id, members=(), declared_complete=True)
-    result = c["evaluate_closure"](basis=exact, witness=witness)
-    assert result.complete is True
-    assert result.proven_empty is True
+    complete_witness = c["ClosureWitness"].create(basis_id=exact.basis_id, members=(), declared_complete=True)
+    complete_result = c["evaluate_closure"](basis=exact, witness=complete_witness)
+    assert complete_result.complete is True
+    assert complete_result.proven_empty is True
+    assert complete_result.certificate is not None
+
+    incomplete_witness = c["ClosureWitness"].create(basis_id=exact.basis_id, members=(), declared_complete=False)
+    incomplete_result = c["evaluate_closure"](basis=exact, witness=incomplete_witness)
+    assert incomplete_result.complete is False
+    assert incomplete_result.proven_empty is False
+    assert incomplete_result.certificate is None
 
 
 def test_late_member_discovery_invalidates_prior_certificate() -> None:
