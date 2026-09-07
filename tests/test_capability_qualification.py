@@ -54,6 +54,31 @@ def _passport(*, max_ast_nodes: int = 500, max_source_bytes: int = 20_000) -> Ca
     )
 
 
+def _variant(
+    passport: CapabilityPassport,
+    *,
+    domain: BoundedDomain | None = None,
+    artifact_generation: str | None = None,
+    parser_generation: str | None = None,
+    proof_ceiling: str | None = None,
+) -> CapabilityPassport:
+    return CapabilityPassport.create(
+        capability_name=passport.capability_name,
+        domain=domain or passport.domain,
+        artifact_generation=artifact_generation or passport.artifact_generation,
+        parser_generation=parser_generation or passport.parser_generation,
+        framework_generation=passport.framework_generation,
+        qualification_protocol_generation=passport.qualification_protocol_generation,
+        proof_ceiling=proof_ceiling or passport.proof_ceiling,
+        closure_ceiling=passport.closure_ceiling,
+        implementation_lineage_id=passport.implementation_lineage_id,
+        parser_lineage_id=passport.parser_lineage_id,
+        framework_lineage_id=passport.framework_lineage_id,
+        common_mode_lineage_id=passport.common_mode_lineage_id,
+        control_lineage_id=passport.control_lineage_id,
+    )
+
+
 def _observed(result) -> tuple[tuple[str, str, str], ...]:
     return tuple((relation.table, relation.key, relation.target) for relation in result.relations if relation.target is not None)
 
@@ -162,12 +187,18 @@ def test_parse_failure_and_resource_exhaustion_fail_closed_to_unknown() -> None:
 
 def test_wrong_parser_or_domain_generation_cannot_reuse_exact_measurement() -> None:
     passport = _passport()
-    wrong_parser = replace(passport, parser_generation="cpython-ast-3.12-v1")
+
+    forged_parser = replace(passport, parser_generation="cpython-ast-3.12-v1")
+    forged = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=forged_parser)
+    assert forged.grade is ClosureGrade.UNKNOWN
+    assert any("identity mismatch" in blocker for blocker in forged.blockers)
+
+    wrong_parser = _variant(passport, parser_generation="cpython-ast-3.12-v1")
     result = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=wrong_parser)
     assert result.grade is ClosureGrade.UNKNOWN
     assert any("parser generation" in blocker for blocker in result.blockers)
 
-    wrong_domain = replace(
+    wrong_domain = _variant(
         passport,
         domain=BoundedDomain.create(
             domain_id="python.general-call-semantics.v1",
@@ -182,24 +213,16 @@ def test_wrong_parser_or_domain_generation_cannot_reuse_exact_measurement() -> N
 
 def test_passport_identity_changes_with_generation_domain_or_proof_ceiling() -> None:
     passport = _passport()
-    changed_generation = CapabilityPassport.create(
-        capability_name=passport.capability_name,
-        domain=passport.domain,
-        artifact_generation="sae60-candidate-gen-2",
-        parser_generation=passport.parser_generation,
-        framework_generation=passport.framework_generation,
-        qualification_protocol_generation=passport.qualification_protocol_generation,
-        proof_ceiling=passport.proof_ceiling,
-        closure_ceiling=passport.closure_ceiling,
-        implementation_lineage_id=passport.implementation_lineage_id,
-        parser_lineage_id=passport.parser_lineage_id,
-        framework_lineage_id=passport.framework_lineage_id,
-        common_mode_lineage_id=passport.common_mode_lineage_id,
-        control_lineage_id=passport.control_lineage_id,
+    changed_generation = _variant(passport, artifact_generation="sae60-candidate-gen-2")
+    changed_ceiling = _variant(passport, proof_ceiling="BOUNDED_CORPUS_ONLY")
+    changed_domain = _variant(
+        passport,
+        domain=BoundedDomain.create(
+            domain_id=passport.domain.domain_id,
+            generation="domain-gen-2",
+            dimensions=dict(passport.domain.dimensions),
+        ),
     )
-    changed_ceiling = replace(passport, proof_ceiling="BOUNDED_CORPUS_ONLY")
     assert changed_generation.passport_id != passport.passport_id
-    assert changed_ceiling.passport_id == passport.passport_id, (
-        "dataclass replacement must not be accepted as a newly issued passport identity; "
-        "callers must create a canonical passport instead"
-    )
+    assert changed_ceiling.passport_id != passport.passport_id
+    assert changed_domain.passport_id != passport.passport_id
