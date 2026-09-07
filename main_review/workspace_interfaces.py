@@ -138,6 +138,19 @@ def _validate_adapter_evidence(
     return validate_evidence_packet(packet, task)
 
 
+def _execution_request(
+    request: dict[str, Any],
+    task_id: str,
+    dependency_bindings: dict[str, list[dict[str, Any]]],
+) -> dict[str, Any]:
+    """Bind an adapter invocation to Cpl's exact frozen upstream evidence."""
+
+    return {
+        **request,
+        "dependency_bindings": [dict(item) for item in dependency_bindings.get(task_id, [])],
+    }
+
+
 def dispatch_authorized_requests(
     campaign: dict[str, Any],
     *,
@@ -148,7 +161,9 @@ def dispatch_authorized_requests(
 
     Legacy campaigns without a ``tenfold_execution`` packet retain their prior
     all-authorized behavior.  Current campaigns bind execution to Cpl's frontier;
-    adapters cannot schedule blocked/dependent tasks themselves.
+    adapters cannot schedule blocked/dependent tasks themselves.  Dependent
+    invocations receive the exact frozen upstream bindings from Cpl state so the
+    execution facility cannot substitute or infer dependency truth.
     """
 
     workspace = workspace or UnavailableWorkspaceAdapter()
@@ -158,8 +173,16 @@ def dispatch_authorized_requests(
     tasks = {item["task_id"]: item for item in campaign.get("tasks", [])}
     tenfold = campaign.get("tenfold_execution")
     frontier_task_ids: set[str] | None = None
+    dependency_bindings: dict[str, list[dict[str, Any]]] = {}
     if isinstance(tenfold, dict):
         frontier_task_ids = {str(item) for item in tenfold.get("frontier_task_ids", []) if str(item)}
+        raw_bindings = tenfold.get("dependency_bindings", {})
+        if isinstance(raw_bindings, dict):
+            dependency_bindings = {
+                str(task_id): [dict(item) for item in bindings if isinstance(item, dict)]
+                for task_id, bindings in raw_bindings.items()
+                if isinstance(bindings, list)
+            }
     workspace_results: list[dict[str, Any]] = []
     research_results: list[dict[str, Any]] = []
     evidence: list[dict[str, Any]] = []
@@ -171,31 +194,42 @@ def dispatch_authorized_requests(
             continue
         if frontier_task_ids is not None and task["task_id"] not in frontier_task_ids:
             continue
-        if not set(request.get("scope", [])).issubset(set(task.get("scope", []))):
-            workspace_results.append({**request, "status": "rejected", "reason": "Request escaped task scope."})
+        execution_request = _execution_request(request, task["task_id"], dependency_bindings)
+        if not set(execution_request.get("scope", [])).issubset(set(task.get("scope", []))):
+            workspace_results.append({**execution_request, "status": "rejected", "reason": "Request escaped task scope."})
             continue
         if workspace_capability_error is not None:
-            workspace_results.append(_bounded_failure(request, task, workspace.name, "adapter_capability_error", workspace_capability_error))
+            workspace_results.append(_bounded_failure(execution_request, task, workspace.name, "adapter_capability_error", workspace_capability_error))
             continue
-        required = _FACILITY_CAPABILITY.get(str(request.get("facility") or ""), str(request.get("facility") or ""))
+        required = _FACILITY_CAPABILITY.get(
+            str(execution_request.get("facility") or ""),
+            str(execution_request.get("facility") or ""),
+        )
         if required and required not in workspace_capabilities:
             workspace_results.append({
-                **request,
+                **execution_request,
                 "status": "awaiting_capability",
                 "reason": f"Workspace adapter does not provide required capability: {required}",
             })
             continue
         try:
-            result = _validate_result(workspace.execute(request, task), request, task, workspace.name)
+            result = _validate_result(
+                workspace.execute(execution_request, task),
+                execution_request,
+                task,
+                workspace.name,
+            )
             packet = _validate_adapter_evidence(
                 result,
-                request,
+                execution_request,
                 task,
                 adapter_name=workspace.name,
                 research=False,
             )
         except Exception as error:  # one failed request must not cancel independent work
-            workspace_results.append(_bounded_failure(request, task, workspace.name, "adapter_execution_or_result_error", error))
+            workspace_results.append(
+                _bounded_failure(execution_request, task, workspace.name, "adapter_execution_or_result_error", error)
+            )
             continue
         workspace_results.append(result)
         if packet is not None:
@@ -208,27 +242,35 @@ def dispatch_authorized_requests(
             continue
         if frontier_task_ids is not None and task["task_id"] not in frontier_task_ids:
             continue
+        execution_request = _execution_request(request, task["task_id"], dependency_bindings)
         if research_capability_error is not None:
-            research_results.append(_bounded_failure(request, task, research.name, "adapter_capability_error", research_capability_error))
+            research_results.append(_bounded_failure(execution_request, task, research.name, "adapter_capability_error", research_capability_error))
             continue
         if "research" not in research_capabilities:
             research_results.append({
-                **request,
+                **execution_request,
                 "status": "awaiting_capability",
                 "reason": "Research adapter does not provide governed research capability.",
             })
             continue
         try:
-            result = _validate_result(research.lookup(request, task), request, task, research.name)
+            result = _validate_result(
+                research.lookup(execution_request, task),
+                execution_request,
+                task,
+                research.name,
+            )
             packet = _validate_adapter_evidence(
                 result,
-                request,
+                execution_request,
                 task,
                 adapter_name=research.name,
                 research=True,
             )
         except Exception as error:  # research failure remains bounded to this request
-            research_results.append(_bounded_failure(request, task, research.name, "adapter_execution_or_result_error", error))
+            research_results.append(
+                _bounded_failure(execution_request, task, research.name, "adapter_execution_or_result_error", error)
+            )
             continue
         research_results.append(result)
         if packet is not None:
