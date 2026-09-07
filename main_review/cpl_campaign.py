@@ -411,21 +411,68 @@ def build_tenfold_frontier(tasks: Iterable[dict[str, Any]]) -> dict[str, Any]:
     return state
 
 
+def _validate_tenfold_execution_state(
+    tasks: Iterable[dict[str, Any]],
+    frontier: dict[str, Any],
+) -> None:
+    rows = [dict(item) for item in tasks]
+    by_id = _validate_task_graph(rows)
+    required = {
+        "schema_version",
+        "task_status",
+        "completion_bindings",
+        "frontier_task_ids",
+        "blocked_tasks",
+        "dependency_bindings",
+        "allocations",
+        "allocated_private_count",
+    }
+    if frontier.get("schema_version") != "sergeant.tenfold-frontier.v1" or not required.issubset(frontier):
+        raise ValueError("malformed Tenfold execution state")
+    if not isinstance(frontier.get("task_status"), dict) or set(frontier["task_status"]) != set(by_id):
+        raise ValueError("malformed Tenfold execution state")
+    if not isinstance(frontier.get("completion_bindings"), dict):
+        raise ValueError("malformed Tenfold execution state")
+    try:
+        canonical = _frontier_snapshot(
+            rows,
+            {task_id: str(status) for task_id, status in frontier["task_status"].items()},
+            {task_id: dict(binding) for task_id, binding in frontier["completion_bindings"].items()},
+        )
+    except (TypeError, ValueError) as error:
+        raise ValueError("malformed Tenfold execution state") from error
+    for key in ("frontier_task_ids", "blocked_tasks", "dependency_bindings", "allocations", "allocated_private_count"):
+        if frontier.get(key) != canonical[key]:
+            raise ValueError("malformed Tenfold execution state")
+
+
 def advance_tenfold_frontier(
     tasks: Iterable[dict[str, Any]],
     frontier: dict[str, Any],
     status_packets: Iterable[dict[str, Any]],
+    *,
+    reauthorized_task_ids: Iterable[str] = (),
 ) -> dict[str, Any]:
     rows = [dict(item) for item in tasks]
     by_id = _validate_task_graph(rows)
+    _validate_tenfold_execution_state(rows, frontier)
     statuses = {task_id: str(status) for task_id, status in dict(frontier.get("task_status", {})).items()}
-    for task_id in by_id:
-        statuses.setdefault(task_id, "authorized")
     bindings = {task_id: dict(binding) for task_id, binding in dict(frontier.get("completion_bindings", {})).items()}
     old_frontier = list(frontier.get("frontier_task_ids", []))
     active_frontier = set(old_frontier)
     old_allocations = {item["task_id"]: int(item.get("private_count") or 0) for item in frontier.get("allocations", [])}
     completed_now: list[str] = []
+    reauthorized_now: list[str] = []
+
+    for task_id in dict.fromkeys(str(item) for item in reauthorized_task_ids if str(item)):
+        task = by_id.get(task_id)
+        if task is None:
+            raise ValueError("Tenfold reauthorization references an unknown campaign task")
+        if statuses.get(task_id) not in {"blocked", "failed"}:
+            raise ValueError("only blocked or failed Tenfold tasks may be explicitly reauthorized")
+        statuses[task_id] = "authorized"
+        active_frontier.add(task_id)
+        reauthorized_now.append(task_id)
 
     for raw in status_packets:
         packet = dict(raw)
@@ -456,6 +503,7 @@ def advance_tenfold_frontier(
     new_allocations = {item["task_id"]: int(item.get("private_count") or 0) for item in state["allocations"]}
     state["reallocation"] = {
         "completed_task_ids": completed_now,
+        "reauthorized_task_ids": reauthorized_now,
         "newly_unblocked_task_ids": newly_unblocked,
         "released_private_count": released,
         "newly_allocated_private_count": sum(new_allocations.get(task_id, 0) for task_id in newly_unblocked),
@@ -526,6 +574,7 @@ def build_cpl_campaign(
             "Require new questions to return for officer/Cpl authorization before another cell is created.",
         ],
         "authorized_tasks": [item["task_id"] for item in tasks],
+        "frontier_task_ids": list(tenfold_execution["frontier_task_ids"]),
         "pending_authorizations": [],
         "evidence_saturation": not unresolved_assurances,
         "report_ready_for_sergeant": not unresolved_assurances,
@@ -663,9 +712,13 @@ def advance_campaign(
                 questions.append(str(question))
 
     status_rows = [dict(item) for item in status_packets]
-    tenfold_execution = campaign.get("tenfold_execution")
-    if not isinstance(tenfold_execution, dict):
+    if "tenfold_execution" not in campaign:
         tenfold_execution = build_tenfold_frontier(tasks.values())
+    else:
+        tenfold_execution = campaign.get("tenfold_execution")
+        if not isinstance(tenfold_execution, dict):
+            raise ValueError("malformed Tenfold execution state")
+        _validate_tenfold_execution_state(tasks.values(), tenfold_execution)
     if status_rows:
         tenfold_execution = advance_tenfold_frontier(tasks.values(), tenfold_execution, status_rows)
 
@@ -692,7 +745,8 @@ def advance_campaign(
             "Keep discovered questions pending until officer relevance and Cpl priority are authorized.",
             "Preserve prior required-assurance gates until explicit adjudication marks them satisfied.",
         ],
-        "authorized_tasks": list(tenfold_execution["frontier_task_ids"]),
+        "authorized_tasks": list(tasks),
+        "frontier_task_ids": list(tenfold_execution["frontier_task_ids"]),
         "pending_authorizations": [item["authorization_id"] for item in pending],
         "evidence_saturation": report_ready,
         "report_ready_for_sergeant": report_ready,
