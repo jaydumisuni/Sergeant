@@ -1,5 +1,5 @@
 {
-  "schema_version": "sergeant.sae30-qualification-provenance-genesis-candidate.v2",
+  "schema_version": "sergeant.sae30-qualification-provenance-genesis-candidate.v3",
   "node": "SAE-30",
   "lifecycle_state": "CANDIDATE",
   "construction_base": "535699dc5952f5309eaa843098b21457439af706",
@@ -43,6 +43,7 @@
     "sae170_gate_is_load_bearing",
     "issuer_suspension_revocation_and_registry_currentness"
   ],
+  "hostile_review_threads_resolved": true,
   "produces_now": [],
   "produces_if_proven": [
     "QUALIFICATION_PROVENANCE_SUBSTRATE",
