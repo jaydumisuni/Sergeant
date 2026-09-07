@@ -121,6 +121,10 @@ def test_status_packets_fail_closed_and_cannot_acquire_command_authority() -> No
 
     with pytest.raises(ValueError):
         validate_task_status_packet({**packet, "verdict": "PASS"}, scout)
+    with pytest.raises(ValueError, match="command or verdict authority"):
+        validate_task_status_packet({**packet, "may_issue_verdict": True}, scout)
+    with pytest.raises(ValueError, match="command or verdict authority"):
+        validate_task_status_packet({**packet, "may_schedule": True}, scout)
     with pytest.raises(ValueError):
         task_status_packet(
             mission_id=scout["mission_id"], task_id=scout["task_id"], worker_id="Private-bad",
@@ -201,7 +205,9 @@ def test_cpl_campaign_saturates_independent_field_frontier_and_gates_adapters(tm
             return {"request_id": request["request_id"], "task_id": task["task_id"], "status": "completed"}
 
     adapter = RecordingWorkspace()
-    dispatch_authorized_requests(campaign, workspace=adapter)
+    dispatched = dispatch_authorized_requests(campaign, workspace=adapter)
+    assert dispatched["frontier_enforced"] is True
+    assert set(dispatched["frontier_task_ids"]) == frontier_ids
     expected_workspace_frontier = {
         item["task_id"] for item in campaign["workspace_requests"] if item["task_id"] in frontier_ids
     }
