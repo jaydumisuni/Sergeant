@@ -35,3 +35,7 @@ jobs:
           cargo --version
       - name: Prove independent Rust canonical identity
         run: cargo test --manifest-path rust/sergeant-assurance-identity/Cargo.toml --locked
+      - name: Install focused Python proof runner
+        run: python -m pip install pytest
+      - name: Prove Python reference and frozen candidate contract
+        run: python -m pytest -q tests/test_sae_r1_canonical_identity.py tests/test_sae_r1_candidate_manifest.py
