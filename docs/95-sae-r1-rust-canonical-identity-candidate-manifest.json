@@ -1,0 +1,29 @@
+{
+  "schema_version": "sergeant.sae-r1-rust-canonical-identity-candidate.v1",
+  "node": "SAE-R1",
+  "lifecycle_state": "CANDIDATE",
+  "construction_base": "535699dc5952f5309eaa843098b21457439af706",
+  "red_generation": "932d803a34a52a9b5a77e2f536fd9c9abd9f3126",
+  "first_complete_green_generation": "69325e915afc4227ab595d1edd68fc673184851b",
+  "proof_requires": ["SAE-10", "SAE-20", "SAE-40"],
+  "proven_dependency_records": [
+    "docs/81-sae10-proven-lifecycle-closeout-manifest.json",
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/89-sae40-proven-lifecycle-closeout-manifest.json"
+  ],
+  "content_blobs": {
+    "main_review/rust_identity_vectors.py": "efa70aa52289b30c22366fa663ed44e885a8cc7c",
+    "rust/sergeant-assurance-identity/src/lib.rs": "df9d4028116347d918fcee223d65b9c8d7126e9f",
+    "spec/sae-r1-canonical-vectors.txt": "68442efab6e8dc811f20dea0a06d3b67c18e1b42",
+    "tests/test_sae_r1_canonical_identity.py": "ad61914d67c7575b0a0e5342fe90a470eed83be9"
+  },
+  "independence": {
+    "shared_implementation": false,
+    "shared_frozen_specification_vectors": true,
+    "rust_third_party_dependencies": false
+  },
+  "produces_now": [],
+  "produces_if_proven": ["QUALIFIED_RUST_IDENTITY_FOUNDATION"],
+  "normal_verdict_authority": false,
+  "partial_generation_activation": false
+}
