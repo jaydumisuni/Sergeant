@@ -133,12 +133,16 @@ def test_historical_replay_cannot_cross_passport_generation_authority() -> None:
     with pytest.raises(SemanticCapabilityProtocolError, match="artifact generation"):
         qualify_bounded_literal_dispatch(passport=generation_two, evaluation=future_measurement)
     with pytest.raises(SemanticCapabilityProtocolError, match="evaluation passport binding"):
-        qualify_bounded_literal_dispatch(passport=generation_two, evaluation=historical)
+        qualify_bounded_literal_dispatch(passport=generation_one, evaluation=future_measurement)
 
     forged_current = replace(generation_two, passport_id=generation_one.passport_id)
     forged_result = analyze_bounded_indirect_calls(TRAINING_FIXTURE.source, passport=forged_current)
     assert forged_result.grade is ClosureGrade.UNKNOWN
     assert any("identity mismatch" in blocker for blocker in forged_result.blockers)
+
+    forged_evaluation = replace(historical, evaluation_id="0" * 64)
+    with pytest.raises(SemanticCapabilityProtocolError, match="evaluation content-addressed identity mismatch"):
+        qualify_bounded_literal_dispatch(passport=generation_one, evaluation=forged_evaluation)
 
 
 def test_historical_oracle_fixture_replay_is_digest_bound() -> None:
