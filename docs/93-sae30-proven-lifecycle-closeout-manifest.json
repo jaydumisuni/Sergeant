@@ -1,5 +1,5 @@
 {
-  "schema_version": "sergeant.sae30-proven-lifecycle-closeout.v3",
+  "schema_version": "sergeant.sae30-proven-lifecycle-closeout.v4",
   "node": "SAE-30",
   "node_title": "Qualification, Provenance, Genesis and Owner-Authority Substrate",
   "repository": "jaydumisuni/Sergeant",
@@ -21,7 +21,7 @@
     "historical_candidate_preserved_not_rewritten": true
   },
   "pull_request_integration": {
-    "base_at_final_gate": "9cc8bc7247c804b8ba4c2f3b81a9e078bf210727",
+    "base_at_final_candidate_gate": "9cc8bc7247c804b8ba4c2f3b81a9e078bf210727",
     "synthetic_merge_ref": "7317026f0043f1593df65807b75316ea528ff38d",
     "exact_candidate_head": "efa5dd06411c8767ce78faed89fc2383874fe823",
     "current_base_integration_proven": true
@@ -78,6 +78,11 @@
       "genesis_provisional_exit_separation",
       "owner_business_risk_non_authority"
     ]
+  },
+  "non_dependency_coexistence": {
+    "sae_r1_proven_closeout_merge": "10934d6e9baf2800687f86a21bf107529001858e",
+    "sae_r1_is_not_consumed_by_sae30": true,
+    "purpose": "force and record final closeout integration against canonical main after independent SAE-R1 authority landed"
   },
   "produces": [
     "QUALIFICATION_PROVENANCE_SUBSTRATE",
