@@ -1,0 +1,176 @@
+{
+  "schema_version": "sergeant.sae80-evidence-proof-world-candidate.v1",
+  "node": "SAE-80",
+  "node_title": "Evidence + Proof World",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "CANDIDATE",
+  "authority_gain_now": "none",
+  "proof_requires": ["SAE-30", "SAE-40", "SAE-50", "SAE-60", "SAE-70"],
+  "proven_dependency_records": [
+    "docs/93-sae30-proven-lifecycle-closeout-manifest.json",
+    "docs/89-sae40-proven-lifecycle-closeout-manifest.json",
+    "docs/101-sae50-proven-lifecycle-closeout-manifest.json",
+    "docs/105-sae60-proven-lifecycle-closeout-manifest.json",
+    "docs/109-sae70-proven-lifecycle-closeout-manifest.json"
+  ],
+  "construction_base": "5ae80680a02562707a82064cc8d5f4e8196ddb8b",
+  "discarded_non_behavioral_red_generation": {
+    "head": "2f35adeed41e731868c044018876a026eb59f3f5",
+    "accepted_as_red_evidence": false,
+    "reason": "pytest collection instantiated unimplemented WorldCoordinates during parametrization"
+  },
+  "final_red_generation": "ad3c7b46a9b4e9db0e7e199ecf8cfde1d323288e",
+  "red_execution_confirmation": {
+    "ci_run_id": 34292463099,
+    "sae80_failures": 16,
+    "existing_passes": 1540,
+    "historical_xfails": 2,
+    "failure_boundary": "missing Evidence + Proof World behavior after collection and SAE-70 qualification integration succeeded",
+    "registry_binding_hardened_before_green": true
+  },
+  "accepted_production_generation": "d2e3737b2300d42ba1bce434a65c71e44461c7f7",
+  "accepted_production_tree": "b5a6c4f0bbfcd8c5d41981f03ed6caae753ae5c3",
+  "candidate_document": "docs/110-sae80-evidence-proof-world-candidate.md",
+  "candidate_document_blob": "2c83ccc437a00197659b0a5000b3fee5467f74d7",
+  "content_blobs": {
+    "main_review/proof_world.py": "ca73f85388d1d9f73a7240f78e26da7f47644484",
+    "tests/test_proof_world.py": "d21bc2a24977044306262ac69ebd23f9fb382530"
+  },
+  "sae70_authority_binding": {
+    "qualified_closure_revalidated": true,
+    "qualified_registry_id_must_match_exact_acr_registry": true,
+    "expected_obligation_id_must_be_qualified": true,
+    "all_provenance_instance_ids_must_be_qualified": true,
+    "origin_contract_id_and_generation_revalidated": true,
+    "origin_mandatory_obligation_requirement_revalidated": true,
+    "strongest_required_closure_recomputed": true,
+    "conservative_conflict_flag_recomputed": true,
+    "expected_obligation_content_identity_recomputed": true
+  },
+  "world_coordinates": {
+    "content_addressed": true,
+    "candidate_generation_bound": true,
+    "framework_generation_bound": true,
+    "provider_generation_bound": true,
+    "dependency_generations_bound": true,
+    "epoch_bound": true,
+    "frankenworld_composition_allowed": false
+  },
+  "proof_classes": {
+    "mechanical": "EXACT",
+    "exhaustive-oracle": "EXACT",
+    "heuristic": "CONSERVATIVE_SUPERSET",
+    "claimed_closure_may_exceed_class_ceiling": false,
+    "origin_contract_admissibility": "intersection across all obligation origins"
+  },
+  "material_input_closure": {
+    "requirements_source": "exact SAE-70-qualified ACR registry",
+    "composition": "CONSERVATIVE_UNION_ACROSS_ORIGINS",
+    "duplicate_family_requirement": "strongest required closure",
+    "missing_required_input": "UNKNOWN",
+    "weaker_present_input": "visible blocker plus conservative closure reduction",
+    "material_input_proofs_content_addressed": true
+  },
+  "coherence_and_temporal": {
+    "supported_coherence_rules": [
+      "same-candidate-generation",
+      "same-framework-generation",
+      "same-provider-generation",
+      "same-dependency-generation"
+    ],
+    "unsupported_coherence_rule": "UNKNOWN",
+    "supported_temporal_rules": ["evidence-not-older-than-world"],
+    "founding_exact_temporal_semantics": "evidence observed_epoch equals world epoch",
+    "stale_evidence": "UNKNOWN",
+    "unsupported_temporal_rule": "UNKNOWN"
+  },
+  "assumption_taxonomy": {
+    "kinds": ["VERIFIED", "DECLARED", "UNRESOLVED"],
+    "content_addressed": true,
+    "non_verified_assumption_caps_exact": true,
+    "conflicting_same_id_records_rejected": true
+  },
+  "contradiction_preservation": {
+    "claim_values": "canonical immutable JSON scalars",
+    "type_sensitive_distinctness": true,
+    "contradiction_records_content_addressed": true,
+    "all_contributing_evidence_ids_preserved": true,
+    "contradiction_caps_exact": true,
+    "priority_or_confidence_erasure": false
+  },
+  "proof_world_identity": {
+    "qualified_closure_id_bound": true,
+    "expected_obligation_id_bound": true,
+    "world_id_bound": true,
+    "closure_grade_bound": true,
+    "material_input_ids_bound": true,
+    "all_evidence_ids_bound": true,
+    "assumption_record_ids_bound": true,
+    "contradiction_ids_bound": true,
+    "blockers_bound": true,
+    "self_validation": true
+  },
+  "hostile_regressions": [
+    "wrong_candidate_generation",
+    "wrong_framework_generation",
+    "wrong_provider_generation",
+    "wrong_dependency_generation",
+    "frankenworld_mixing",
+    "omitted_material_input",
+    "overlapping_origin_material_union_loss",
+    "qualified_registry_requirement_laundering",
+    "heuristic_as_exact",
+    "inadmissible_proof_class",
+    "stale_evidence",
+    "unresolved_assumption",
+    "hidden_contradiction",
+    "forged_expected_obligation",
+    "forged_proof_world_identity"
+  ],
+  "accepted_generation_execution_confirmation": {
+    "exact_head": "d2e3737b2300d42ba1bce434a65c71e44461c7f7",
+    "ci_run_id": 34292776687,
+    "ci": "success",
+    "ordinary_suite_passes": 1556,
+    "historical_xfails": 2,
+    "clean_clone_full_chain": "success",
+    "main_review_run_id": 34292776788,
+    "main_review": "success",
+    "multiplatform_run_id": 34292776659,
+    "multiplatform": "success",
+    "review_intelligence_run_id": 34292776704,
+    "review_intelligence": "success",
+    "reviewer_comparison_run_id": 34292776798,
+    "reviewer_comparison": "success",
+    "standalone_service_run_id": 34292776660,
+    "standalone_service": "success",
+    "live_github_ingestion_run_id": 34292776633,
+    "live_github_ingestion": "success",
+    "final_static_transfer_holdout_run_id": 34292776640,
+    "final_static_transfer_holdout": "success"
+  },
+  "known_external_infrastructure_drift": {
+    "workflow": "Model-Free Core Auth Transfer 7",
+    "run_id": 34292776690,
+    "conclusion": "failure",
+    "sergeant_executed": false,
+    "failed_boundary": "checkout historical third-party fixture",
+    "fixture_repository": "jraversbcn21/PlayQAcademy",
+    "fixture_error": "Repository not found",
+    "represented_as_sae80_proof": false,
+    "represented_as_success": false
+  },
+  "hostile_review_confirmation": {
+    "inline_review_threads_at_candidate_freeze_entry": 0,
+    "submitted_change_requests_at_candidate_freeze_entry": 0
+  },
+  "produces_now": [],
+  "produces_if_proven": [
+    "QUALIFIED_EVIDENCE_CONTRACT",
+    "QUALIFIED_PROOF_WORLD"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false
+}
