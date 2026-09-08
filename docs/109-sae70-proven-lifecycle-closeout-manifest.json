@@ -1,0 +1,125 @@
+{
+  "schema_version": "sergeant.sae70-proven-lifecycle-closeout.v1",
+  "node": "SAE-70",
+  "node_title": "Total Contract / Contract-Instance / Obligation Closure",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "proof_requires": ["SAE-20", "SAE-50", "SAE-60"],
+  "proven_dependency_records": [
+    "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+    "docs/101-sae50-proven-lifecycle-closeout-manifest.json",
+    "docs/105-sae60-proven-lifecycle-closeout-manifest.json"
+  ],
+  "candidate_generation": {
+    "pull_request": 196,
+    "head": "9f6f5b9800e0143f4614a904b780f3767305eb12",
+    "tree": "c2c8a2482b5b8ffbbeb1e8f9f9f4d3bcb39ccef4",
+    "candidate_document": "docs/106-sae70-contract-obligation-closure-candidate.md",
+    "candidate_document_blob": "04d453a619337b475ce5c7d2e34aa9933372fd54",
+    "candidate_manifest": "docs/107-sae70-contract-obligation-closure-candidate-manifest.json",
+    "candidate_manifest_blob": "19976a9e39b6277ac82ce164b486bdc5507076ed",
+    "historical_candidate_preserved_not_rewritten": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "281b97c94fb77693d9c9df89b6a4ef67896185c0",
+    "tree": "c2c8a2482b5b8ffbbeb1e8f9f9f4d3bcb39ccef4",
+    "parents": [
+      "6d4ecc03782fa72d517e0b111a3757e4b2f65cf0",
+      "9f6f5b9800e0143f4614a904b780f3767305eb12"
+    ],
+    "exact_head_guard": "9f6f5b9800e0143f4614a904b780f3767305eb12",
+    "merge_method": "merge_commit",
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "qualification_hardening_generation": {
+    "red_head": "f85613d003ae7803311eeda4afc3fbbe364f46d4",
+    "red_ci_run_id": 34135393353,
+    "red_qualification_failures": 10,
+    "red_existing_passes": 1523,
+    "red_historical_xfails": 2,
+    "red_failure_boundary": "missing exact-result SAE-70 qualification protocol",
+    "head": "8a25dbd69e9498b38c6f3f137e8140313a04a335",
+    "tree": "b2828cad58cb8bbc034582798f7ba8992208e381",
+    "qualification_protocol_generation": "sae70-qualification-v1",
+    "protocol_path": "main_review/contract_closure_protocol.py",
+    "protocol_blob": "e55d2616cf831f0a96205e8e69c1523ab4e77c2e",
+    "qualification_campaign_path": "tests/test_sae70_qualification_campaign.py",
+    "qualification_campaign_blob": "3a395bc4771d8107dd4ed513f4fb44269ab3ad9f",
+    "candidate_compiler_rewritten": false,
+    "qualification_model": "canonical recomputation of exact source inputs plus full result equality"
+  },
+  "hardening_execution_confirmation": {
+    "exact_head": "8a25dbd69e9498b38c6f3f137e8140313a04a335",
+    "ci_run_id": 34135754332,
+    "ci": "success",
+    "clean_clone_full_chain": "success",
+    "main_review_run_id": 34135754341,
+    "main_review": "success",
+    "multiplatform_run_id": 34135754385,
+    "multiplatform": "success",
+    "review_intelligence_run_id": 34135754371,
+    "review_intelligence": "success",
+    "reviewer_comparison_run_id": 34135754345,
+    "reviewer_comparison": "success",
+    "standalone_service_run_id": 34135754411,
+    "standalone_service": "success",
+    "live_github_ingestion_run_id": 34135754259,
+    "live_github_ingestion": "success",
+    "final_static_transfer_holdout_run_id": 34135754195,
+    "final_static_transfer_holdout": "success",
+    "all_triggered_model_free_workflows": "success"
+  },
+  "hostile_review_confirmation": {
+    "reviewed_hardening_head": "8a25dbd69e9498b38c6f3f137e8140313a04a335",
+    "inline_review_threads_at_closeout_freeze_entry": 0,
+    "historical_external_findings_suppressed": false,
+    "external_independence_claimed": false
+  },
+  "qualified_scope": {
+    "mandatory_contract_census_total": true,
+    "unknown_conserved": true,
+    "false_requires_proven_no_match": true,
+    "contract_instances_explicit_and_content_bound": true,
+    "expected_obligations_conservative_union": true,
+    "all_obligation_provenance_preserved": true,
+    "strongest_required_closure_preserved": true,
+    "qualification_requires_canonical_recomputation": true,
+    "qualification_requires_exact_closure": true,
+    "qualification_requires_blocker_free_result": true,
+    "source_input_set_content_bound": true,
+    "qualification_record_content_addressed": true,
+    "historical_registry_replay_allowed": false,
+    "first_match_weakening_allowed": false,
+    "unknown_or_partial_promotion_allowed": false
+  },
+  "qualification_protocol_ids": [
+    "QUALIFIED_CONTRACT_INSTANCE_CLOSURE",
+    "QUALIFIED_EXPECTED_OBLIGATION_COMPILER"
+  ],
+  "produces": [
+    "QUALIFIED_CONTRACT_INSTANCE_CLOSURE",
+    "QUALIFIED_EXPECTED_OBLIGATION_COMPILER"
+  ],
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "authority_boundary": {
+    "normal_sergeant_verdict_authority_changed": false,
+    "genesis_activated": false,
+    "proof_world_auto_qualified": false,
+    "falsification_frontier_auto_qualified": false,
+    "rust_kernel_auto_qualified": false,
+    "sae80_auto_proven": false,
+    "first_match_priority_specificity_subsumption_weakening_allowed": false,
+    "self_written_result_without_recomputation_allowed": false
+  },
+  "closeout_document": "docs/108-sae70-proven-lifecycle-closeout.md",
+  "closeout_document_blob": "f9f5641e4fef886159455711ac2b09c6697f0f34",
+  "proof_fixture": {
+    "path": "tests/test_sae70_proven_lifecycle_closeout.py",
+    "blob_sha": "0218ca35d8fdf40bff32b22c5b61bc75e4927ac4"
+  },
+  "qualification_campaign_blob": "3a395bc4771d8107dd4ed513f4fb44269ab3ad9f",
+  "qualification_protocol_blob": "e55d2616cf831f0a96205e8e69c1523ab4e77c2e"
+}
