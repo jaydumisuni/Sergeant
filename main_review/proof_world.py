@@ -1,8 +1,8 @@
 """SAE-80 RED interface surface for Evidence + Proof World.
 
-This module intentionally contains only importable authority shapes.  The
+This module intentionally contains only importable authority shapes. The
 founding SAE-80 RED campaign in ``tests/test_proof_world.py`` must fail at the
-missing Proof World behavior rather than at test collection.  A later TDD
+missing Proof World behavior rather than at test collection. A later TDD
 generation replaces these ``NotImplementedError`` boundaries with the minimal
 implementation required by the frozen RED contract.
 """
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Mapping, Sequence
 
-from .assurance_contract_registry import ACRContract, ClosureGrade
+from .assurance_contract_registry import ACRRegistry, ClosureGrade
 from .contract_closure import ExpectedObligation
 from .contract_closure_protocol import QualifiedContractClosure
 from .review_world import ReviewWorldError
@@ -154,7 +154,7 @@ def compile_proof_world(
     *,
     qualified_closure: QualifiedContractClosure,
     expected_obligation: ExpectedObligation,
-    contracts: Mapping[str, ACRContract],
+    registry: ACRRegistry,
     world: WorldCoordinates,
     evidence: Sequence[EvidenceProof],
 ) -> ProofWorld:
