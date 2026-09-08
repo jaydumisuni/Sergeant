@@ -254,17 +254,21 @@ def test_omitted_material_input_prevents_exact_closure() -> None:
 
 
 @pytest.mark.parametrize(
-    ("field", "mutated"),
+    ("field", "coordinate_kwargs"),
     (
-        ("candidate_generation", coordinates(candidate="candidate-gen-2")),
-        ("framework_generation", coordinates(framework="flask-gen-4")),
-        ("provider_generation", coordinates(provider="provider-gen-8")),
-        ("dependency_generation", coordinates(dependency="authz-lib-gen-12")),
+        ("candidate_generation", {"candidate": "candidate-gen-2"}),
+        ("framework_generation", {"framework": "flask-gen-4"}),
+        ("provider_generation", {"provider": "provider-gen-8"}),
+        ("dependency_generation", {"dependency": "authz-lib-gen-12"}),
     ),
 )
-def test_wrong_world_generations_cannot_be_mixed_into_proof_world(field: str, mutated: WorldCoordinates) -> None:
+def test_wrong_world_generations_cannot_be_mixed_into_proof_world(
+    field: str,
+    coordinate_kwargs: dict[str, str],
+) -> None:
     qualified, obligation, contracts = qualified_fixture()
     canonical_world = coordinates()
+    mutated = coordinates(**coordinate_kwargs)
     wrong = evidence(obligation, mutated)
     with pytest.raises(ProofWorldError, match="world|generation|coherence"):
         compile_proof_world(
