@@ -29,6 +29,7 @@ from main_review.proof_world import (
     compile_proof_world,
 )
 from main_review.review_world import sha256_id
+from tests.sae80_authority_fixtures import authority_fixture
 
 
 def _fixture():
@@ -135,25 +136,11 @@ def _raw_mechanical_evidence(obligation, world: WorldCoordinates) -> EvidencePro
     )
 
 
-def _raw_heuristic_evidence(obligation, world: WorldCoordinates) -> EvidenceProof:
-    return EvidenceProof.create(
-        proof_class=ProofClass.HEURISTIC,
-        claimed_closure=ClosureGrade.CONSERVATIVE_SUPERSET,
-        obligation_id=obligation.obligation_id,
-        contract_instance_ids=tuple(origin.contract_instance_id for origin in obligation.provenance),
-        world=world,
-        material_inputs=(_material(),),
-        claims={"authz:/admin": "preserved"},
-        assumptions=(),
-        observed_epoch=world.epoch,
-        evidence_basis_id=sha256_id({"sae80-authority-heuristic-evidence": obligation.obligation_id}),
-    )
-
-
 def _proof_world_id(proof) -> str:
     return sha256_id(
         {
-            "schema_version": "sergeant.sae80-proof-world.v1",
+            "schema_version": "sergeant.sae80-proof-world.v2",
+            "basis_id": proof.basis.basis_id,
             "qualified_closure_id": proof.qualified_closure_id,
             "obligation_id": proof.obligation_id,
             "world_id": proof.world_id,
@@ -169,18 +156,18 @@ def _proof_world_id(proof) -> str:
 
 def test_public_validation_rejects_semantically_forged_stronger_world_even_with_rehashed_id() -> None:
     registry, qualified, obligation = _fixture()
-    world = _raw_world()
+    authority, world = authority_fixture(qualified, registry)
     proof = compile_proof_world(
         qualified_closure=qualified,
         expected_obligation=obligation,
         registry=registry,
         world=world,
         evidence=(),
+        world_authority=authority,
     )
     assert proof.grade is ClosureGrade.UNKNOWN
     forged = replace(proof, grade=ClosureGrade.EXACT, blockers=(), proof_world_id="")
     forged = replace(forged, proof_world_id=_proof_world_id(forged))
-
     with pytest.raises(ProofWorldError, match="authority|semantic|recomput"):
         forged.validate()
 
@@ -188,21 +175,18 @@ def test_public_validation_rejects_semantically_forged_stronger_world_even_with_
 def test_free_form_world_coordinates_cannot_supply_proof_world_authority() -> None:
     registry, qualified, obligation = _fixture()
     world = _raw_world()
-    evidence = _raw_heuristic_evidence(obligation, world)
-
     with pytest.raises(ProofWorldError, match="qualified|Review World|authority"):
         compile_proof_world(
             qualified_closure=qualified,
             expected_obligation=obligation,
             registry=registry,
             world=world,
-            evidence=(evidence,),
+            evidence=(),
         )
 
 
 def test_caller_cannot_self_label_mechanical_evidence_without_qualified_proof_authority() -> None:
     _, _, obligation = _fixture()
     world = _raw_world()
-
     with pytest.raises(ProofWorldError, match="mechanical|qualified|authority"):
         _raw_mechanical_evidence(obligation, world)
