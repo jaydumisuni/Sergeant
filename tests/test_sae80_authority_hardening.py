@@ -135,6 +135,21 @@ def _raw_mechanical_evidence(obligation, world: WorldCoordinates) -> EvidencePro
     )
 
 
+def _raw_heuristic_evidence(obligation, world: WorldCoordinates) -> EvidenceProof:
+    return EvidenceProof.create(
+        proof_class=ProofClass.HEURISTIC,
+        claimed_closure=ClosureGrade.CONSERVATIVE_SUPERSET,
+        obligation_id=obligation.obligation_id,
+        contract_instance_ids=tuple(origin.contract_instance_id for origin in obligation.provenance),
+        world=world,
+        material_inputs=(_material(),),
+        claims={"authz:/admin": "preserved"},
+        assumptions=(),
+        observed_epoch=world.epoch,
+        evidence_basis_id=sha256_id({"sae80-authority-heuristic-evidence": obligation.obligation_id}),
+    )
+
+
 def _proof_world_id(proof) -> str:
     return sha256_id(
         {
@@ -173,7 +188,7 @@ def test_public_validation_rejects_semantically_forged_stronger_world_even_with_
 def test_free_form_world_coordinates_cannot_supply_proof_world_authority() -> None:
     registry, qualified, obligation = _fixture()
     world = _raw_world()
-    evidence = _raw_mechanical_evidence(obligation, world)
+    evidence = _raw_heuristic_evidence(obligation, world)
 
     with pytest.raises(ProofWorldError, match="qualified|Review World|authority"):
         compile_proof_world(
