@@ -1,7 +1,7 @@
 """SAE-80 rooted authority inputs for Evidence + Proof World.
 
 Task 11 may construct candidate Proof Worlds, but it may not treat a caller's
-self-consistent strings or hashes as positive authority.  This module binds the
+self-consistent strings or hashes as positive authority. This module binds the
 candidate world to already-PROVEN SAE-10/30/40/60/70 authority records and
 binds an evidence proof class to an already-admitted SAE-30 qualification.
 """
@@ -23,10 +23,7 @@ from .qualification_authority import (
 )
 from .review_authority_bundle import ReviewAuthorityBundle, RABAuthorization
 from .review_world import GitHubReviewWorld, ReviewWorldError, require_full_sha256, sha256_id
-from .semantic_capability_protocol import (
-    QualifiedSemanticCapability,
-    qualify_bounded_literal_dispatch,
-)
+from .semantic_capability_protocol import QualifiedSemanticCapability, qualify_bounded_literal_dispatch
 
 
 class ProofWorldAuthorityError(ReviewWorldError):
@@ -73,9 +70,7 @@ def _canonical_issuer(value: QualificationIssuerAuthorization) -> QualificationI
     return value
 
 
-def _canonical_qualification_registry(
-    value: QualificationAuthorityRegistry,
-) -> QualificationAuthorityRegistry:
+def _canonical_qualification_registry(value: QualificationAuthorityRegistry) -> QualificationAuthorityRegistry:
     if not isinstance(value, QualificationAuthorityRegistry):
         raise ProofWorldAuthorityError("qualified Proof World requires QualificationAuthorityRegistry")
     issuers = tuple(_canonical_issuer(item) for item in value.issuers)
@@ -112,7 +107,12 @@ def _rab_component(rab: ReviewAuthorityBundle, name: str):
 def _dependency_tuple(values: Mapping[str, str]) -> tuple[tuple[str, str], ...]:
     if not isinstance(values, Mapping):
         raise ProofWorldAuthorityError("dependency generations must be a mapping")
-    items = tuple(sorted((_string(k, "dependency name"), _string(v, "dependency generation")) for k, v in values.items()))
+    items = tuple(
+        sorted(
+            (_string(k, "dependency name"), _string(v, "dependency generation"))
+            for k, v in values.items()
+        )
+    )
     if len({k for k, _ in items}) != len(items):
         raise ProofWorldAuthorityError("dependency generations contain duplicate names")
     return items
@@ -188,17 +188,9 @@ def bind_proof_world_authority(
     acr = _canonical_acr(acr_registry)
     qcomp = _rab_component(rab, "qualification_authority_registry")
     acomp = _rab_component(rab, "acr_generation")
-    if (
-        qcomp.lifecycle_state != "active"
-        or qcomp.content_id != qreg.registry_id
-        or qcomp.generation != qreg.generation
-    ):
+    if qcomp.lifecycle_state != "active" or qcomp.content_id != qreg.registry_id or qcomp.generation != qreg.generation:
         raise ProofWorldAuthorityError("RAB does not bind exact qualification authority registry")
-    if (
-        acomp.lifecycle_state != "active"
-        or acomp.content_id != acr.registry_id
-        or acomp.generation != acr.generation
-    ):
+    if acomp.lifecycle_state != "active" or acomp.content_id != acr.registry_id or acomp.generation != acr.generation:
         raise ProofWorldAuthorityError("RAB does not bind exact ACR registry generation")
 
     if not isinstance(ledger, JudgeAssuranceLedger):
@@ -214,10 +206,7 @@ def bind_proof_world_authority(
 
     if not isinstance(capability_passport, CapabilityPassport) or not isinstance(capability_evaluation, SemanticCapabilityEvaluation):
         raise ProofWorldAuthorityError("qualified SAE-60 capability inputs are required")
-    reproduced = qualify_bounded_literal_dispatch(
-        passport=capability_passport,
-        evaluation=capability_evaluation,
-    )
+    reproduced = qualify_bounded_literal_dispatch(passport=capability_passport, evaluation=capability_evaluation)
     if not isinstance(semantic_capability, QualifiedSemanticCapability) or reproduced != semantic_capability:
         raise ProofWorldAuthorityError("semantic capability is not the exact SAE-60 qualified generation")
 
@@ -241,42 +230,40 @@ def bind_proof_world_authority(
         }
     )
     provisional = ProofWorldAuthority(
-        review_world,
-        rab,
-        rab_authorization,
-        ledger,
-        qreg,
-        acr,
-        capability_passport,
-        capability_evaluation,
-        semantic_capability,
-        closure,
-        candidate_generation,
-        framework_generation,
-        provider_generation,
-        dependencies,
-        epoch,
-        "",
+        review_world=review_world,
+        rab=rab,
+        rab_authorization=rab_authorization,
+        ledger=ledger,
+        qualification_registry=qreg,
+        acr_registry=acr,
+        capability_passport=capability_passport,
+        capability_evaluation=capability_evaluation,
+        semantic_capability=semantic_capability,
+        qualified_contract_closure=closure,
+        candidate_generation=candidate_generation,
+        framework_generation=framework_generation,
+        provider_generation=provider_generation,
+        dependency_generations=dependencies,
+        epoch=epoch,
+        authority_id="",
     )
     return ProofWorldAuthority(
-        *provisional.__dict__.values().__iter__().__next__() if False else (
-            review_world,
-            rab,
-            rab_authorization,
-            ledger,
-            qreg,
-            acr,
-            capability_passport,
-            capability_evaluation,
-            semantic_capability,
-            closure,
-            candidate_generation,
-            framework_generation,
-            provider_generation,
-            dependencies,
-            epoch,
-            sha256_id(_world_authority_body(provisional)),
-        )
+        review_world=review_world,
+        rab=rab,
+        rab_authorization=rab_authorization,
+        ledger=ledger,
+        qualification_registry=qreg,
+        acr_registry=acr,
+        capability_passport=capability_passport,
+        capability_evaluation=capability_evaluation,
+        semantic_capability=semantic_capability,
+        qualified_contract_closure=closure,
+        candidate_generation=candidate_generation,
+        framework_generation=framework_generation,
+        provider_generation=provider_generation,
+        dependency_generations=dependencies,
+        epoch=epoch,
+        authority_id=sha256_id(_world_authority_body(provisional)),
     )
 
 
