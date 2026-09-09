@@ -350,17 +350,32 @@ class EvidenceProof:
             raise ProofWorldError("evidence contract instance IDs contain duplicates")
         if isinstance(material_inputs, (str, bytes)):
             raise ProofWorldError("evidence material inputs must be a non-string sequence")
-        materials = tuple(sorted((_validate_material(item) for item in material_inputs), key=lambda item: (item.family, item.material_input_id)))
+        materials = tuple(
+            sorted(
+                (_validate_material(item) for item in material_inputs),
+                key=lambda item: (item.family, item.material_input_id),
+            )
+        )
         if len({item.family for item in materials}) != len(materials):
             raise ProofWorldError("evidence material inputs contain duplicate families")
         if not isinstance(claims, Mapping):
             raise ProofWorldError("evidence claims must be a mapping")
-        claim_items = tuple(sorted((_string(name, "claim name"), _scalar(value, "claim value")) for name, value in claims.items()))
+        claim_items = tuple(
+            sorted(
+                (_string(name, "claim name"), _scalar(value, "claim value"))
+                for name, value in claims.items()
+            )
+        )
         if len({name for name, _ in claim_items}) != len(claim_items):
             raise ProofWorldError("evidence claims contain duplicate names")
         if isinstance(assumptions, (str, bytes)):
             raise ProofWorldError("evidence assumptions must be a non-string sequence")
-        assumption_items = tuple(sorted((_validate_assumption(item) for item in assumptions), key=lambda item: (item.assumption_id, item.record_id)))
+        assumption_items = tuple(
+            sorted(
+                (_validate_assumption(item) for item in assumptions),
+                key=lambda item: (item.assumption_id, item.record_id),
+            )
+        )
         if len({item.assumption_id for item in assumption_items}) != len(assumption_items):
             raise ProofWorldError("evidence assumptions contain duplicate assumption IDs")
         if isinstance(observed_epoch, bool) or not isinstance(observed_epoch, int) or observed_epoch < 0:
@@ -384,21 +399,19 @@ class EvidenceProof:
             "",
         )
         return cls(
-            *provisional.__dict__.values().__iter__().__next__() if False else (
-                rooted_proof,
-                proof_class,
-                claimed_closure,
-                obligation_id,
-                instances,
-                canonical_world.world_id,
-                materials,
-                claim_items,
-                assumption_items,
-                observed_epoch,
-                evidence_basis_id,
-                ceiling,
-                sha256_id(_evidence_body(provisional)),
-            )
+            rooted_proof,
+            proof_class,
+            claimed_closure,
+            obligation_id,
+            instances,
+            canonical_world.world_id,
+            materials,
+            claim_items,
+            assumption_items,
+            observed_epoch,
+            evidence_basis_id,
+            ceiling,
+            sha256_id(_evidence_body(provisional)),
         )
 
 
@@ -612,7 +625,10 @@ def _required_materials(origin_contracts: Sequence[ACRContract]) -> dict[str, Cl
     required: dict[str, ClosureGrade] = {}
     for contract in origin_contracts:
         for requirement in contract.material_inputs:
-            required[requirement.family] = _stronger(required.get(requirement.family, ClosureGrade.UNKNOWN), requirement.required_closure)
+            required[requirement.family] = _stronger(
+                required.get(requirement.family, ClosureGrade.UNKNOWN),
+                requirement.required_closure,
+            )
     return required
 
 
@@ -651,7 +667,12 @@ def _derive_semantics(
         registry=basis.registry,
     )
     world = WorldCoordinates.from_authority(basis.world_authority)
-    evidence_items = tuple(sorted((_validate_evidence(item, world_authority=basis.world_authority) for item in evidence), key=lambda item: item.evidence_id))
+    evidence_items = tuple(
+        sorted(
+            (_validate_evidence(item, world_authority=basis.world_authority) for item in evidence),
+            key=lambda item: item.evidence_id,
+        )
+    )
     if len({item.evidence_id for item in evidence_items}) != len(evidence_items):
         raise ProofWorldError("Proof World evidence contains duplicates")
 
@@ -674,7 +695,9 @@ def _derive_semantics(
         if item.world_id != world.world_id:
             raise ProofWorldError("evidence world generation/coherence does not match qualified Proof World")
         if item.proof_class.value not in admitted_classes:
-            raise ProofWorldError(f"evidence proof class {item.proof_class.value!r} is not admissible for every origin contract")
+            raise ProofWorldError(
+                f"evidence proof class {item.proof_class.value!r} is not admissible for every origin contract"
+            )
         strongest_evidence = _stronger(strongest_evidence, item.claimed_closure)
     if evidence_items:
         grade = _weaker(grade, strongest_evidence)
@@ -711,11 +734,16 @@ def _derive_semantics(
         strongest = ClosureGrade.UNKNOWN
         for candidate in candidates:
             strongest = _stronger(strongest, candidate.closure)
-        chosen = sorted((candidate for candidate in candidates if candidate.closure is strongest), key=lambda item: item.material_input_id)[0]
+        chosen = sorted(
+            (candidate for candidate in candidates if candidate.closure is strongest),
+            key=lambda item: item.material_input_id,
+        )[0]
         selected.append(chosen)
         if not _meets(strongest, required_closure):
             grade = _weaker(grade, strongest)
-            blockers.append(f"material input {family} closure {strongest.value} does not meet required {required_closure.value}")
+            blockers.append(
+                f"material input {family} closure {strongest.value} does not meet required {required_closure.value}"
+            )
 
     assumptions_by_id: dict[str, Assumption] = {}
     for item in evidence_items:
@@ -724,7 +752,9 @@ def _derive_semantics(
             if previous is not None and previous != assumption:
                 raise ProofWorldError("same assumption ID has conflicting records")
             assumptions_by_id[assumption.assumption_id] = assumption
-    assumptions = tuple(sorted(assumptions_by_id.values(), key=lambda item: (item.assumption_id, item.record_id)))
+    assumptions = tuple(
+        sorted(assumptions_by_id.values(), key=lambda item: (item.assumption_id, item.record_id))
+    )
     for assumption in assumptions:
         if assumption.kind is not AssumptionKind.VERIFIED:
             grade = ClosureGrade.UNKNOWN
@@ -744,9 +774,13 @@ def _derive_semantics(
             continue
         ordered = sorted(by_value.items(), key=lambda item: item[0])
         values = tuple(item[1][0] for item in ordered)
-        evidence_ids = tuple(sorted({identifier for _, (_, identifiers) in ordered for identifier in identifiers}))
+        evidence_ids = tuple(
+            sorted({identifier for _, (_, identifiers) in ordered for identifier in identifiers})
+        )
         provisional = Contradiction(claim, values, evidence_ids, "")
-        contradictions.append(Contradiction(claim, values, evidence_ids, sha256_id(_contradiction_body(provisional))))
+        contradictions.append(
+            Contradiction(claim, values, evidence_ids, sha256_id(_contradiction_body(provisional)))
+        )
         grade = ClosureGrade.UNKNOWN
         blockers.append(f"contradiction detected for claim: {claim}")
 
@@ -798,11 +832,22 @@ class ProofWorld:
         world = WorldCoordinates.from_authority(basis.world_authority)
         if self.world_id != world.world_id:
             raise ProofWorldError("Proof World world authority mismatch")
-        evidence = tuple(sorted((_validate_evidence(item, world_authority=basis.world_authority) for item in self.evidence), key=lambda item: item.evidence_id))
+        evidence = tuple(
+            sorted(
+                (_validate_evidence(item, world_authority=basis.world_authority) for item in self.evidence),
+                key=lambda item: item.evidence_id,
+            )
+        )
         if evidence != self.evidence or len({item.evidence_id for item in evidence}) != len(evidence):
             raise ProofWorldError("Proof World evidence collection is not canonical")
         derived = _derive_semantics(basis=basis, evidence=evidence)
-        actual = (self.grade, self.material_inputs, self.assumptions, self.contradictions, self.blockers)
+        actual = (
+            self.grade,
+            self.material_inputs,
+            self.assumptions,
+            self.contradictions,
+            self.blockers,
+        )
         if actual != derived:
             raise ProofWorldError("Proof World semantic recomputation mismatch")
         if self.proof_world_id != sha256_id(_proof_world_body(self)):
@@ -837,10 +882,18 @@ def compile_proof_world(
     )
     if isinstance(evidence, (str, bytes)):
         raise ProofWorldError("Proof World evidence must be a non-string sequence")
-    evidence_items = tuple(sorted((_validate_evidence(item, world_authority=authority) for item in evidence), key=lambda item: item.evidence_id))
+    evidence_items = tuple(
+        sorted(
+            (_validate_evidence(item, world_authority=authority) for item in evidence),
+            key=lambda item: item.evidence_id,
+        )
+    )
     if len({item.evidence_id for item in evidence_items}) != len(evidence_items):
         raise ProofWorldError("Proof World evidence contains duplicates")
-    grade, materials, assumptions, contradictions, blockers = _derive_semantics(basis=basis, evidence=evidence_items)
+    grade, materials, assumptions, contradictions, blockers = _derive_semantics(
+        basis=basis,
+        evidence=evidence_items,
+    )
     provisional = ProofWorld(
         basis,
         basis.qualified_closure.qualification_id,
