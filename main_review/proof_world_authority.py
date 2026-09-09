@@ -3,7 +3,7 @@
 Task 11 may construct candidate Proof Worlds, but it may not treat a caller's
 self-consistent strings or hashes as positive authority. This module binds the
 candidate world to already-PROVEN SAE-10/30/40/60/70 authority records and
-binds an evidence proof class to an already-admitted SAE-30 qualification.
+binds an evidence proof class to an already-derived SAE-30 qualification.
 """
 from __future__ import annotations
 
@@ -230,40 +230,15 @@ def bind_proof_world_authority(
         }
     )
     provisional = ProofWorldAuthority(
-        review_world=review_world,
-        rab=rab,
-        rab_authorization=rab_authorization,
-        ledger=ledger,
-        qualification_registry=qreg,
-        acr_registry=acr,
-        capability_passport=capability_passport,
-        capability_evaluation=capability_evaluation,
-        semantic_capability=semantic_capability,
-        qualified_contract_closure=closure,
-        candidate_generation=candidate_generation,
-        framework_generation=framework_generation,
-        provider_generation=provider_generation,
-        dependency_generations=dependencies,
-        epoch=epoch,
-        authority_id="",
+        review_world, rab, rab_authorization, ledger, qreg, acr,
+        capability_passport, capability_evaluation, semantic_capability, closure,
+        candidate_generation, framework_generation, provider_generation, dependencies, epoch, "",
     )
     return ProofWorldAuthority(
-        review_world=review_world,
-        rab=rab,
-        rab_authorization=rab_authorization,
-        ledger=ledger,
-        qualification_registry=qreg,
-        acr_registry=acr,
-        capability_passport=capability_passport,
-        capability_evaluation=capability_evaluation,
-        semantic_capability=semantic_capability,
-        qualified_contract_closure=closure,
-        candidate_generation=candidate_generation,
-        framework_generation=framework_generation,
-        provider_generation=provider_generation,
-        dependency_generations=dependencies,
-        epoch=epoch,
-        authority_id=sha256_id(_world_authority_body(provisional)),
+        review_world, rab, rab_authorization, ledger, qreg, acr,
+        capability_passport, capability_evaluation, semantic_capability, closure,
+        candidate_generation, framework_generation, provider_generation, dependencies, epoch,
+        sha256_id(_world_authority_body(provisional)),
     )
 
 
@@ -378,8 +353,6 @@ def bind_evidence_proof_authority(
         raise ProofWorldAuthorityError("evidence qualification issuer is not active")
     if attestation.attestation_id in world.qualification_registry.revoked_attestation_ids:
         raise ProofWorldAuthorityError("evidence qualification attestation is revoked")
-    if attestation.attestation_id not in world.qualification_registry.consumed_attestation_ids:
-        raise ProofWorldAuthorityError("evidence qualification was not admitted by the bound SAE-30 registry")
 
     if qualification.attestation_id != attestation.attestation_id:
         raise ProofWorldAuthorityError("derived qualification does not bind exact attestation")
@@ -416,25 +389,12 @@ def bind_evidence_proof_authority(
         raise ProofWorldAuthorityError("evidence qualification closure grade is unknown") from exc
 
     provisional = QualifiedEvidenceProofAuthority(
-        world.authority_id,
-        obligation_id,
-        evidence_basis_id,
-        attestation,
-        qualification,
-        issuer,
-        attestation.proof_class,
-        attestation.closure_grade,
-        "",
+        world.authority_id, obligation_id, evidence_basis_id, attestation, qualification,
+        issuer, attestation.proof_class, attestation.closure_grade, "",
     )
     return QualifiedEvidenceProofAuthority(
-        world.authority_id,
-        obligation_id,
-        evidence_basis_id,
-        attestation,
-        qualification,
-        issuer,
-        attestation.proof_class,
-        attestation.closure_grade,
+        world.authority_id, obligation_id, evidence_basis_id, attestation, qualification,
+        issuer, attestation.proof_class, attestation.closure_grade,
         sha256_id(_evidence_authority_body(provisional)),
     )
 
