@@ -1,0 +1,64 @@
+{
+  "schema_version": "sergeant.sae90-proven-lifecycle-closeout.v1",
+  "node": "SAE-90",
+  "node_title": "Mandatory Falsification / Challenger Evolution",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": [
+    "SAE-70",
+    "SAE-80"
+  ],
+  "candidate_generation": {
+    "pull_request": 214,
+    "head": "f6ae8c812516b95eefe4c57e5d21f27b5dd1838e",
+    "tree": "2d8ecba10ce3e1f5419fb3b9b1c4ce75c4f13fd2",
+    "candidate_document_blob": "c3cc411dd467b1f491ca5ed288022afe865dd31a",
+    "candidate_manifest_blob": "c536ac4b921ed009ce4e5f606887308bc8857cd2",
+    "historical_pr213_preserved": true
+  },
+  "canonical_candidate_merge": {
+    "commit": "bfa4808f1c13753eb16c0442e2fdfc59b441c564",
+    "tree": "2d8ecba10ce3e1f5419fb3b9b1c4ce75c4f13fd2",
+    "parents": [
+      "e663d4e69a00ea8d107b01eae5aad86b48b9c4fd",
+      "f6ae8c812516b95eefe4c57e5d21f27b5dd1838e"
+    ],
+    "exact_head_guard": "f6ae8c812516b95eefe4c57e5d21f27b5dd1838e",
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "qualification_hardening_generation": {
+    "head": "5aa6d0ba68794ee4ea9b7ed873e7a27b9aa2312c",
+    "protocol_generation": "sae90-qualification-v1",
+    "protocol_path": "main_review/falsification_frontier_protocol.py",
+    "protocol_blob": "d2e6362a535e2310f882a9b6366bd195090257d5",
+    "qualification_campaign_path": "tests/test_sae90_qualification_campaign.py",
+    "qualification_campaign_blob": "2a6f0669c541ec5da3a16b9558b762d4b4b4109f",
+    "candidate_compiler_rewritten": false,
+    "qualification_model": "canonical recomputation of exact SAE-90 source inputs plus full frontier equality"
+  },
+  "qualified_scope": {
+    "qualified_sae80_proof_world_revalidated": true,
+    "sae70_expected_obligation_revalidated": true,
+    "closed_parameter_domains_required": true,
+    "expected_falsifier_instances_exact": true,
+    "counter_world_evidence_content_bound": true,
+    "exhaustive_bounded_search_required": true,
+    "no_op_mutation_allowed": false,
+    "statistical_search_may_claim_exhaustive": false,
+    "missing_instance_evidence_may_qualify": false,
+    "canonical_recomputation_required": true,
+    "exact_closure_required": true,
+    "blocker_free_required": true,
+    "qualification_record_content_addressed": true
+  },
+  "qualification_protocol_id": "QUALIFIED_FALSIFICATION_FRONTIER",
+  "produces": [
+    "QUALIFIED_FALSIFICATION_FRONTIER"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true
+}

@@ -62,6 +62,9 @@ def test_replay_allows_proven_lifecycle_and_ci_ancestry_metadata_only():
         "main_review/falsification_frontier_protocol.py",
         "tests/test_sae90_candidate_record_integrity.py",
         "tests/test_sae90_qualification_campaign.py",
+        "docs/116-sae90-proven-lifecycle-closeout.md",
+        "docs/117-sae90-proven-lifecycle-closeout-manifest.json",
+        "tests/test_sae90_proven_lifecycle_closeout.py",
     ]
     validate_changed_paths(expected, ALLOWED_REPLAY_DRIFT)
     try:
