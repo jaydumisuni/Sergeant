@@ -23,6 +23,7 @@ from .proof_world import (
     EvidenceProof,
     ProofWorld,
     ProofWorldError,
+    WorldAuthority,
     WorldCoordinates,
     compile_proof_world,
 )
@@ -159,6 +160,7 @@ def qualify_proof_world(
     registry: ACRRegistry,
     world: WorldCoordinates,
     evidence: Sequence[EvidenceProof],
+    world_authority: WorldAuthority,
     result: ProofWorld,
 ) -> QualifiedProofWorld:
     """Admit exactly one canonically reproduced Task 11 Proof World.
@@ -177,6 +179,7 @@ def qualify_proof_world(
             registry=registry,
             world=world,
             evidence=evidence,
+            world_authority=world_authority,
         )
     except ProofWorldError as exc:
         raise ProofWorldQualificationError(

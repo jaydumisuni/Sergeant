@@ -39,6 +39,11 @@ from main_review.proof_world_protocol import (
 )
 from main_review.review_world import sha256_id
 
+from tests.sae80_authority_fixtures import (
+    authority_fixture as rooted_authority_fixture,
+    evidence as rooted_evidence,
+)
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -146,6 +151,7 @@ def material() -> MaterialInputProof:
 def evidence(
     obligation,
     coordinates: WorldCoordinates,
+    world_authority,
     *,
     proof_class: ProofClass = ProofClass.MECHANICAL,
     claimed_closure: ClosureGrade = ClosureGrade.EXACT,
@@ -153,53 +159,45 @@ def evidence(
     claims: dict[str, object] | None = None,
     assumptions: tuple[Assumption, ...] = (),
 ) -> EvidenceProof:
-    return EvidenceProof.create(
+    return rooted_evidence(
+        obligation,
+        coordinates,
+        world_authority,
         proof_class=proof_class,
         claimed_closure=claimed_closure,
-        obligation_id=obligation.obligation_id,
-        contract_instance_ids=tuple(
-            origin.contract_instance_id for origin in obligation.provenance
-        ),
-        world=coordinates,
-        material_inputs=(material(),),
-        claims=claims or {"authz:/admin": "preserved"},
+        materials=("router-config",),
+        claims=claims,
         assumptions=assumptions,
-        observed_epoch=coordinates.epoch if observed_epoch is None else observed_epoch,
-        evidence_basis_id=sha256_id(
-            {
-                "sae80-evidence": obligation.obligation_id,
-                "class": proof_class.value,
-                "epoch": coordinates.epoch if observed_epoch is None else observed_epoch,
-                "claims": claims or {"authz:/admin": "preserved"},
-            }
-        ),
+        epoch=observed_epoch,
     )
 
 
 def canonical_fixture():
     registry, qualified, obligation = fixture()
-    coordinates = world()
-    proof_evidence = (evidence(obligation, coordinates),)
+    authority, coordinates = rooted_authority_fixture(qualified, registry)
+    proof_evidence = (evidence(obligation, coordinates, authority),)
     result = compile_proof_world(
         qualified_closure=qualified,
         expected_obligation=obligation,
         registry=registry,
         world=coordinates,
         evidence=proof_evidence,
+        world_authority=authority,
     )
     assert result.grade is ClosureGrade.EXACT
     assert result.blockers == ()
-    return registry, qualified, obligation, coordinates, proof_evidence, result
+    return registry, qualified, obligation, coordinates, proof_evidence, result, authority
 
 
 def qualify(parts):
-    registry, qualified, obligation, coordinates, proof_evidence, result = parts
+    registry, qualified, obligation, coordinates, proof_evidence, result, authority = parts
     return qualify_proof_world(
         qualified_closure=qualified,
         expected_obligation=obligation,
         registry=registry,
         world=coordinates,
         evidence=proof_evidence,
+        world_authority=authority,
         result=result,
     )
 
@@ -231,19 +229,21 @@ def test_supplied_proof_world_must_equal_fresh_canonical_recomputation() -> None
             registry=parts[0],
             world=parts[3],
             evidence=parts[4],
+            world_authority=parts[6],
             result=forged,
         )
 
 
 def test_missing_evidence_never_qualifies_as_exact_proof_world() -> None:
     registry, qualified, obligation = fixture()
-    coordinates = world()
+    authority, coordinates = rooted_authority_fixture(qualified, registry)
     result = compile_proof_world(
         qualified_closure=qualified,
         expected_obligation=obligation,
         registry=registry,
         world=coordinates,
         evidence=(),
+        world_authority=authority,
     )
     assert result.grade is ClosureGrade.UNKNOWN
     with pytest.raises(ProofWorldQualificationError, match="EXACT|blocked"):
@@ -253,13 +253,20 @@ def test_missing_evidence_never_qualifies_as_exact_proof_world() -> None:
             registry=registry,
             world=coordinates,
             evidence=(),
+            world_authority=authority,
             result=result,
         )
 
 
 def test_historical_proof_world_cannot_replay_against_another_world_generation() -> None:
     parts = canonical_fixture()
-    changed_world = world(candidate="candidate-gen-2")
+    changed_world = WorldCoordinates.create(
+        candidate_generation="candidate-gen-2",
+        framework_generation=parts[3].framework_generation,
+        provider_generation=parts[3].provider_generation,
+        dependency_generations=dict(parts[3].dependency_generations),
+        epoch=parts[3].epoch,
+    )
     with pytest.raises(ProofWorldQualificationError, match="canonical|world|generation"):
         qualify_proof_world(
             qualified_closure=parts[1],
@@ -267,17 +274,19 @@ def test_historical_proof_world_cannot_replay_against_another_world_generation()
             registry=parts[0],
             world=changed_world,
             evidence=parts[4],
+            world_authority=parts[6],
             result=parts[5],
         )
 
 
 def test_heuristic_only_world_cannot_cross_exact_qualification_boundary() -> None:
     registry, qualified, obligation = fixture()
-    coordinates = world()
+    authority, coordinates = rooted_authority_fixture(qualified, registry)
     heuristic = (
         evidence(
             obligation,
             coordinates,
+            authority,
             proof_class=ProofClass.HEURISTIC,
             claimed_closure=ClosureGrade.CONSERVATIVE_SUPERSET,
         ),
@@ -288,6 +297,7 @@ def test_heuristic_only_world_cannot_cross_exact_qualification_boundary() -> Non
         registry=registry,
         world=coordinates,
         evidence=heuristic,
+        world_authority=authority,
     )
     assert result.grade is ClosureGrade.CONSERVATIVE_SUPERSET
     with pytest.raises(ProofWorldQualificationError, match="EXACT"):
@@ -297,20 +307,22 @@ def test_heuristic_only_world_cannot_cross_exact_qualification_boundary() -> Non
             registry=registry,
             world=coordinates,
             evidence=heuristic,
+            world_authority=authority,
             result=result,
         )
 
 
 def test_stale_evidence_cannot_cross_exact_qualification_boundary() -> None:
     registry, qualified, obligation = fixture()
-    coordinates = world(epoch=42)
-    stale = (evidence(obligation, coordinates, observed_epoch=41),)
+    authority, coordinates = rooted_authority_fixture(qualified, registry, epoch=42)
+    stale = (evidence(obligation, coordinates, authority, observed_epoch=41),)
     result = compile_proof_world(
         qualified_closure=qualified,
         expected_obligation=obligation,
         registry=registry,
         world=coordinates,
         evidence=stale,
+        world_authority=authority,
     )
     assert result.grade is ClosureGrade.UNKNOWN
     with pytest.raises(ProofWorldQualificationError, match="EXACT|blocked"):
@@ -320,25 +332,27 @@ def test_stale_evidence_cannot_cross_exact_qualification_boundary() -> None:
             registry=registry,
             world=coordinates,
             evidence=stale,
+            world_authority=authority,
             result=result,
         )
 
 
 def test_unresolved_assumption_cannot_cross_exact_qualification_boundary() -> None:
     registry, qualified, obligation = fixture()
-    coordinates = world()
+    authority, coordinates = rooted_authority_fixture(qualified, registry)
     unresolved = Assumption.create(
         assumption_id="external-policy-completeness",
         kind=AssumptionKind.UNRESOLVED,
         basis_id=sha256_id({"assumption": "external-policy-completeness"}),
     )
-    proof_evidence = (evidence(obligation, coordinates, assumptions=(unresolved,)),)
+    proof_evidence = (evidence(obligation, coordinates, authority, assumptions=(unresolved,)),)
     result = compile_proof_world(
         qualified_closure=qualified,
         expected_obligation=obligation,
         registry=registry,
         world=coordinates,
         evidence=proof_evidence,
+        world_authority=authority,
     )
     assert result.grade is ClosureGrade.UNKNOWN
     with pytest.raises(ProofWorldQualificationError, match="EXACT|blocked"):
@@ -348,16 +362,17 @@ def test_unresolved_assumption_cannot_cross_exact_qualification_boundary() -> No
             registry=registry,
             world=coordinates,
             evidence=proof_evidence,
+            world_authority=authority,
             result=result,
         )
 
 
 def test_contradictory_world_cannot_cross_exact_qualification_boundary() -> None:
     registry, qualified, obligation = fixture()
-    coordinates = world()
+    authority, coordinates = rooted_authority_fixture(qualified, registry)
     proof_evidence = (
-        evidence(obligation, coordinates, claims={"authz:/admin": "preserved"}),
-        evidence(obligation, coordinates, claims={"authz:/admin": "removed"}),
+        evidence(obligation, coordinates, authority, claims={"authz:/admin": "preserved"}),
+        evidence(obligation, coordinates, authority, claims={"authz:/admin": "removed"}),
     )
     result = compile_proof_world(
         qualified_closure=qualified,
@@ -365,6 +380,7 @@ def test_contradictory_world_cannot_cross_exact_qualification_boundary() -> None
         registry=registry,
         world=coordinates,
         evidence=proof_evidence,
+        world_authority=authority,
     )
     assert result.grade is ClosureGrade.UNKNOWN
     assert result.contradictions
@@ -375,6 +391,7 @@ def test_contradictory_world_cannot_cross_exact_qualification_boundary() -> None
             registry=registry,
             world=coordinates,
             evidence=proof_evidence,
+            world_authority=authority,
             result=result,
         )
 
@@ -389,6 +406,7 @@ def test_forged_candidate_identity_cannot_cross_qualification_boundary() -> None
             registry=parts[0],
             world=parts[3],
             evidence=parts[4],
+            world_authority=parts[6],
             result=forged,
         )
 
