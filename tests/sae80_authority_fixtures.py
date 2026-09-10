@@ -69,7 +69,7 @@ from main_review.semantic_capability_protocol import (
 from tests.semantic_oracle.bounded_call_oracle import HOLDOUT_FIXTURE
 
 
-ISSUER_SECRET = b"sae80-proof-authority-secret-2026"
+ISSUER_SECRET = sha256_id({"fixture": "sae80-independent-issuer"}).encode("ascii")
 KEY_ID = sha256_id({"sae80": "issuer-key"})
 ISSUER_CONTROL = sha256_id({"sae80": "independent-issuer-control"})
 CANDIDATE_CONTROL = sha256_id({"sae80": "candidate-control"})
