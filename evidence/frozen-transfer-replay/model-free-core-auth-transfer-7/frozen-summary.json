@@ -1,0 +1,101 @@
+{
+  "set_id": "model-free-core-auth-transfer-7",
+  "summaries": [
+    {
+      "admitted_finding_count": 2,
+      "admitted_roots": [
+        {
+          "message": "A user-facing save action updates local domain state and exits edit mode without proving durable persistence.",
+          "path": "src/app/[lng]/auth/sign-in/SignInForm.tsx",
+          "root_cause": "ui-save-mutates-local-state-without-persistence",
+          "severity": "major"
+        },
+        {
+          "message": "A context-supplied authentication success navigates directly into a Next.js Router Cache built under the prior session.",
+          "path": "src/app/[lng]/auth/sign-in/SignInForm.tsx",
+          "root_cause": "post-auth-navigation-before-router-cache-handoff",
+          "severity": "major"
+        }
+      ],
+      "advisory_finding_count": 1,
+      "case_id": "auth-transfer-7-a",
+      "defective_ref": "609dc12b3e1ef364abc9641ee690c0661b8fb083",
+      "elapsed_seconds": 0.676,
+      "fixing_ref": "90418d017ce04b41e643a044a52ead93c6fd03a0",
+      "model_calls": 0,
+      "model_status": "disabled",
+      "policy_profile": "external_static",
+      "rejected_finding_count": 0,
+      "repository": "jraversbcn21/PlayQAcademy",
+      "review_mode": "snapshot",
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "source_pr": null,
+      "unavailable_requested_files": [],
+      "unresolved_assurance_count": 0,
+      "verdict": "REQUEST_CHANGES",
+      "workspace_policy": "static_first"
+    },
+    {
+      "admitted_finding_count": 2,
+      "admitted_roots": [
+        {
+          "message": "A login flow persists the new token and navigates before refreshing the shared user context that drives mounted chrome.",
+          "path": "frontend/src/pages/Login.jsx",
+          "root_cause": "post-auth-navigation-before-user-context-refresh",
+          "severity": "major"
+        },
+        {
+          "message": "An async component action can publish React state after the component lifetime has ended.",
+          "path": "frontend/src/pages/Login.jsx",
+          "root_cause": "component-async-publication-after-unmount",
+          "severity": "major"
+        }
+      ],
+      "advisory_finding_count": 1,
+      "case_id": "auth-transfer-7-b",
+      "defective_ref": "b0b11ccb19d7a7a12833d89b973b9d5e8957756b",
+      "elapsed_seconds": 0.151,
+      "fixing_ref": "8b87a93e867f56ac85c2d355afe271f096c4bfcc",
+      "model_calls": 0,
+      "model_status": "disabled",
+      "policy_profile": "external_static",
+      "rejected_finding_count": 0,
+      "repository": "JuanCeja/WagerInsights",
+      "review_mode": "snapshot",
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "source_pr": null,
+      "unavailable_requested_files": [],
+      "unresolved_assurance_count": 0,
+      "verdict": "REQUEST_CHANGES",
+      "workspace_policy": "static_first"
+    },
+    {
+      "admitted_finding_count": 1,
+      "admitted_roots": [
+        {
+          "message": "An authentication mutation navigates while a sticky shared session query still owns the pre-authentication verdict.",
+          "path": "web/src/features/auth/components/login-form.tsx",
+          "root_cause": "post-auth-navigation-before-session-query-invalidation",
+          "severity": "major"
+        }
+      ],
+      "advisory_finding_count": 2,
+      "case_id": "auth-transfer-7-c",
+      "defective_ref": "919c949f9dc2bf5c7e31d73e2f4927725c2193dd",
+      "elapsed_seconds": 5.852,
+      "fixing_ref": "ae4082aa4d8aefd95529434209d732a97d9d854b",
+      "model_calls": 0,
+      "model_status": "disabled",
+      "policy_profile": "external_static",
+      "rejected_finding_count": 0,
+      "repository": "Hassad674/DesignedTrust-Services",
+      "review_mode": "snapshot",
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "source_pr": null,
+      "unavailable_requested_files": [],
+      "unresolved_assurance_count": 0,
+      "verdict": "REQUEST_CHANGES",
+      "workspace_policy": "static_first"
+    }
+  ]
+}
