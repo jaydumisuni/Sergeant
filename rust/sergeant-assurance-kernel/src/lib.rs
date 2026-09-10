@@ -21,10 +21,18 @@ pub struct AssuranceCapsule {
     pub provenance_id: String,
     pub subject_generation: String,
     pub current_generation: String,
-    pub all_inputs_qualified: bool,
-    pub closure_exact: bool,
+    pub review_world_qualified: bool,
+    pub rab_qualified: bool,
+    pub active_contracts_complete: bool,
+    pub applicable_instances_complete: bool,
+    pub expected_obligations_complete: bool,
+    pub authority_premises_typed: bool,
+    pub closure_certificate_valid: bool,
+    pub capability_passports_qualified: bool,
+    pub proof_world_bound: bool,
+    pub falsifier_frontier_complete: bool,
+    pub provenance_bound: bool,
     pub unknowns_present: bool,
-    pub capsule_complete: bool,
     pub python_expected_list_authority: bool,
     pub shared_implementation_claim: bool,
 }
@@ -53,9 +61,20 @@ pub fn evaluate_capsule(capsule: &AssuranceCapsule) -> &'static str {
     if ids.iter().any(|value| !is_full_authority_id(value)) {
         return INADMISSIBLE;
     }
-    if !capsule.capsule_complete
-        || !capsule.all_inputs_qualified
-        || !capsule.closure_exact
+    let component_gates = [
+        capsule.review_world_qualified,
+        capsule.rab_qualified,
+        capsule.active_contracts_complete,
+        capsule.applicable_instances_complete,
+        capsule.expected_obligations_complete,
+        capsule.authority_premises_typed,
+        capsule.closure_certificate_valid,
+        capsule.capability_passports_qualified,
+        capsule.proof_world_bound,
+        capsule.falsifier_frontier_complete,
+        capsule.provenance_bound,
+    ];
+    if component_gates.iter().any(|qualified| !qualified)
         || capsule.unknowns_present
         || capsule.python_expected_list_authority
         || capsule.shared_implementation_claim
@@ -86,10 +105,18 @@ mod tests {
             provenance_id: "e".repeat(64),
             subject_generation: "g90".into(),
             current_generation: "g90".into(),
-            all_inputs_qualified: true,
-            closure_exact: true,
+            review_world_qualified: true,
+            rab_qualified: true,
+            active_contracts_complete: true,
+            applicable_instances_complete: true,
+            expected_obligations_complete: true,
+            authority_premises_typed: true,
+            closure_certificate_valid: true,
+            capability_passports_qualified: true,
+            proof_world_bound: true,
+            falsifier_frontier_complete: true,
+            provenance_bound: true,
             unknowns_present: false,
-            capsule_complete: true,
             python_expected_list_authority: false,
             shared_implementation_claim: false,
         }
@@ -136,10 +163,28 @@ mod tests {
     }
 
     #[test]
+    fn each_component_gate_fails_closed() {
+        let mut cases = Vec::new();
+        macro_rules! reject { ($field:ident) => {{ let mut v = capsule(); v.$field = false; cases.push(evaluate_capsule(&v)); }}; }
+        reject!(review_world_qualified);
+        reject!(rab_qualified);
+        reject!(active_contracts_complete);
+        reject!(applicable_instances_complete);
+        reject!(expected_obligations_complete);
+        reject!(authority_premises_typed);
+        reject!(closure_certificate_valid);
+        reject!(capability_passports_qualified);
+        reject!(proof_world_bound);
+        reject!(falsifier_frontier_complete);
+        reject!(provenance_bound);
+        assert!(cases.iter().all(|value| *value == INADMISSIBLE));
+    }
+
+    #[test]
     fn kernel_output_domain_is_exact() {
         let accepted = evaluate_capsule(&capsule());
         let mut rejected = capsule();
-        rejected.capsule_complete = false;
+        rejected.provenance_bound = false;
         assert_eq!([accepted, evaluate_capsule(&rejected)], [ADMISSIBLE, INADMISSIBLE]);
     }
 }

@@ -43,10 +43,18 @@ class AssuranceCapsule:
     provenance_id: str
     subject_generation: str
     current_generation: str
-    all_inputs_qualified: bool
-    closure_exact: bool
+    review_world_qualified: bool
+    rab_qualified: bool
+    active_contracts_complete: bool
+    applicable_instances_complete: bool
+    expected_obligations_complete: bool
+    authority_premises_typed: bool
+    closure_certificate_valid: bool
+    capability_passports_qualified: bool
+    proof_world_bound: bool
+    falsifier_frontier_complete: bool
+    provenance_bound: bool
     unknowns_present: bool
-    capsule_complete: bool
     python_expected_list_authority: bool
     shared_implementation_claim: bool
 
@@ -71,11 +79,20 @@ def evaluate_capsule(capsule: AssuranceCapsule) -> str:
         return INADMISSIBLE
     if not _ids_are_canonical(capsule):
         return INADMISSIBLE
-    if not capsule.capsule_complete:
-        return INADMISSIBLE
-    if not capsule.all_inputs_qualified:
-        return INADMISSIBLE
-    if not capsule.closure_exact:
+    component_gates = (
+        capsule.review_world_qualified,
+        capsule.rab_qualified,
+        capsule.active_contracts_complete,
+        capsule.applicable_instances_complete,
+        capsule.expected_obligations_complete,
+        capsule.authority_premises_typed,
+        capsule.closure_certificate_valid,
+        capsule.capability_passports_qualified,
+        capsule.proof_world_bound,
+        capsule.falsifier_frontier_complete,
+        capsule.provenance_bound,
+    )
+    if not all(component_gates):
         return INADMISSIBLE
     if capsule.unknowns_present:
         return INADMISSIBLE

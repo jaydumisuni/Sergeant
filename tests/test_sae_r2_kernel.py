@@ -34,10 +34,18 @@ def valid_capsule(**overrides):
         provenance_id=E,
         subject_generation="g90",
         current_generation="g90",
-        all_inputs_qualified=True,
-        closure_exact=True,
+        review_world_qualified=True,
+        rab_qualified=True,
+        active_contracts_complete=True,
+        applicable_instances_complete=True,
+        expected_obligations_complete=True,
+        authority_premises_typed=True,
+        closure_certificate_valid=True,
+        capability_passports_qualified=True,
+        proof_world_bound=True,
+        falsifier_frontier_complete=True,
+        provenance_bound=True,
         unknowns_present=False,
-        capsule_complete=True,
         python_expected_list_authority=False,
         shared_implementation_claim=False,
     )
@@ -52,9 +60,17 @@ def test_complete_current_qualified_capsule_is_admissible():
 @pytest.mark.parametrize(
     "field,value",
     [
-        ("capsule_complete", False),
-        ("all_inputs_qualified", False),
-        ("closure_exact", False),
+        ("review_world_qualified", False),
+        ("rab_qualified", False),
+        ("active_contracts_complete", False),
+        ("applicable_instances_complete", False),
+        ("expected_obligations_complete", False),
+        ("authority_premises_typed", False),
+        ("closure_certificate_valid", False),
+        ("capability_passports_qualified", False),
+        ("proof_world_bound", False),
+        ("falsifier_frontier_complete", False),
+        ("provenance_bound", False),
         ("unknowns_present", True),
         ("python_expected_list_authority", True),
         ("shared_implementation_claim", True),
@@ -92,3 +108,28 @@ def test_candidate_record_remains_non_authoritative():
     assert record["authority_gain"] == "none"
     assert record["requires_proven"] == ["SAE-R1", "SAE-30", "SAE-60", "SAE-70", "SAE-80", "SAE-90"]
     assert record["output_domain"] == ["ADMISSIBLE", "INADMISSIBLE"]
+
+
+def test_kernel_has_no_aggregate_qualification_trust_switches():
+    rust = Path("rust/sergeant-assurance-kernel/src/lib.rs").read_text(encoding="utf-8")
+    python_ref = Path("main_review/rust_assurance_kernel.py").read_text(encoding="utf-8")
+    for forbidden in ("all_inputs_qualified", "closure_exact", "capsule_complete"):
+        assert forbidden not in rust
+        assert forbidden not in python_ref
+
+
+@pytest.mark.parametrize("field", [
+    "review_world_qualified",
+    "rab_qualified",
+    "active_contracts_complete",
+    "applicable_instances_complete",
+    "expected_obligations_complete",
+    "authority_premises_typed",
+    "closure_certificate_valid",
+    "capability_passports_qualified",
+    "proof_world_bound",
+    "falsifier_frontier_complete",
+    "provenance_bound",
+])
+def test_each_typed_authority_gate_fails_closed_independently(field):
+    assert evaluate_capsule(valid_capsule(**{field: False})) == INADMISSIBLE

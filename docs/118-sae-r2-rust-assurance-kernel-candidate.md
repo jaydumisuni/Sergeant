@@ -8,7 +8,7 @@ Construction begins from canonical Sergeant `main` at `56157e6ed218bbeb532ad714f
 
 ## Constitutional surface
 
-The independent dependency-free Rust crate accepts frozen authority-capsule fields and emits exactly `ADMISSIBLE` or `INADMISSIBLE`. The first constitutional slice fails closed for incomplete capsules, unqualified inputs, non-exact closure, preserved UNKNOWN state, stale generation, malformed/truncated authority identities, Python expected-list authority, and any shared-implementation claim.
+The independent dependency-free Rust crate accepts frozen authority-capsule fields and emits exactly `ADMISSIBLE` or `INADMISSIBLE`. Qualification is checked through explicit component gates for Review World, RAB, active contracts, applicable instances, expected obligations, typed authority premises, closure certificate, capability passports, Proof World, falsifier frontier, and provenance. No aggregate `all_inputs_qualified`, `closure_exact`, or `capsule_complete` trust switch exists. Every component gate fails closed independently, as do preserved UNKNOWN state, stale generation, malformed/truncated authority identities, Python expected-list authority, and any shared-implementation claim.
 
 `main_review/rust_assurance_kernel.py` is a reference surface for adversarial test construction only. It is not imported by the Rust crate and is not an oracle or qualification issuer. Rust and Python may share the frozen SAE-R1 canonical identity specification, never implementation code.
 
