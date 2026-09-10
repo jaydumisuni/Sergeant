@@ -15,8 +15,8 @@ def load(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def git_blob(revision_path: str) -> str:
-    return subprocess.check_output(["git", "rev-parse", revision_path], cwd=ROOT, text=True).strip()
+def working_tree_blob(path: str) -> str:
+    return subprocess.check_output(["git", "hash-object", str(ROOT / path)], cwd=ROOT, text=True).strip()
 
 
 def test_sae80_closeout_binds_exact_clean_candidate_and_guarded_merge():
@@ -38,7 +38,7 @@ def test_sae80_closeout_preserves_exact_candidate_content():
     closeout = load(MANIFEST)
     blobs = closeout["candidate_generation"]["content_blobs"]
     for path, expected in blobs.items():
-        assert git_blob(f"e35d3b4d14f6fa45bb84375eb9b9bc481794e365:{path}") == expected
+        assert working_tree_blob(path) == expected
 
 
 def test_sae80_closeout_advances_only_qualified_evidence_and_proof_world():
