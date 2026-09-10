@@ -108,7 +108,7 @@ def _raw_world(*, provider: str = "provider-gen-7") -> WorldCoordinates:
         candidate_generation="candidate-gen-1",
         framework_generation="flask-gen-3",
         provider_generation=provider,
-        dependency_generations={"authz-lib": "authz-lib-gen-11"},
+        dependency_generations={"authorization-library": "generation-11"},
         epoch=42,
     )
 
