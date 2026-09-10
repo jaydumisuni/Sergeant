@@ -38,7 +38,7 @@ jobs:
 
       - name: Build changed file list
         run: |
-          git fetch origin ${{ github.base_ref }} --depth=1
+          git fetch origin ${{ github.base_ref }}
           git diff --name-only origin/${{ github.base_ref }}...HEAD > changed-files.txt
 
       - name: Run independent Main Review
