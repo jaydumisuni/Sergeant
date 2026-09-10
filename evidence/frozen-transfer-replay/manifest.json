@@ -1,0 +1,57 @@
+{
+  "schema": "sergeant.frozen-transfer-replay.v1",
+  "sets": {
+    "model-free-core-auth-transfer-7": {
+      "artifact_digest": "sha256:a7ede19b80a1d1620d5edd0c799c1c14a918615807d7dd13ddce7411c8512940",
+      "artifact_id": 10023898745,
+      "files": {
+        "frozen-result.json": {
+          "bytes": 974652,
+          "path": "evidence/frozen-transfer-replay/model-free-core-auth-transfer-7/frozen-result.json",
+          "sha256": "e5bb4800fcab22d90076d4dc598dd154ad4e829148e75671b0664ec4c5a0bee8"
+        },
+        "frozen-summary.json": {
+          "bytes": 4109,
+          "path": "evidence/frozen-transfer-replay/model-free-core-auth-transfer-7/frozen-summary.json",
+          "sha256": "ef2c0811527fe8d016b2c1b460967f4d5a68083b2601f9971a8f488e2395508d"
+        },
+        "runtime-manifest.json": {
+          "bytes": 2444,
+          "path": "evidence/frozen-transfer-replay/model-free-core-auth-transfer-7/runtime-manifest.json",
+          "sha256": "0d9c23c81714295bb87838173b4ead9ce782c736f43306a926116998189df74b"
+        }
+      },
+      "fixture_defective_ref": "609dc12b3e1ef364abc9641ee690c0661b8fb083",
+      "fixture_fixing_ref": "90418d017ce04b41e643a044a52ead93c6fd03a0",
+      "fixture_repository": "jraversbcn21/PlayQAcademy",
+      "source_head": "8a25dbd69e9498b38c6f3f137e8140313a04a335",
+      "source_run_id": 34135754257
+    },
+    "model-free-core-await-transfer-5": {
+      "artifact_digest": "sha256:372cd7cc584b2a3c4831e46c5a89d4dc3fe1a1dd0e052ee2ab3e9bede3fee3ac",
+      "artifact_id": 10142485499,
+      "files": {
+        "frozen-result.json": {
+          "bytes": 967122,
+          "path": "evidence/frozen-transfer-replay/model-free-core-await-transfer-5/frozen-result.json",
+          "sha256": "a99e5d3425ba1dab16a5af0bd548828171b2864b1ec0cdac00cc272d683dff5e"
+        },
+        "frozen-summary.json": {
+          "bytes": 4005,
+          "path": "evidence/frozen-transfer-replay/model-free-core-await-transfer-5/frozen-summary.json",
+          "sha256": "f25bb0a285bec4b51b95200ed9b99c59c7528dcadcef6e4d9aecd07f91eca590"
+        },
+        "runtime-manifest.json": {
+          "bytes": 2302,
+          "path": "evidence/frozen-transfer-replay/model-free-core-await-transfer-5/runtime-manifest.json",
+          "sha256": "aef03bffbf2a6d6c8b1860ffe2b1f9ee80fd28cd1f28da1a6b100094fbc4ddfd"
+        }
+      },
+      "fixture_defective_ref": "11c9bae7180d1f07a22049aa0ab5b411879edf58",
+      "fixture_fixing_ref": "8941b53d4a016535c018540b4c1df0394614e061",
+      "fixture_repository": "shantanuchandra/cardcompass",
+      "source_head": "6ad9b816f09fe26031305efa37548fbf701a9940",
+      "source_run_id": 34453497537
+    }
+  }
+}

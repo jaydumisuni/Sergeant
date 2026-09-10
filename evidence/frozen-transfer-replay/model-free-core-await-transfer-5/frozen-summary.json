@@ -1,0 +1,101 @@
+{
+  "set_id": "model-free-core-await-transfer-5",
+  "summaries": [
+    {
+      "admitted_finding_count": 1,
+      "admitted_roots": [
+        {
+          "message": "A Riverpod notifier touches lifecycle-bound state after an async gap without proving it is still mounted.",
+          "path": "lib/features/auth/providers/auth_provider.dart",
+          "root_cause": "disposed-provider-ref-after-await",
+          "severity": "major"
+        }
+      ],
+      "advisory_finding_count": 0,
+      "case_id": "await-transfer-5-a",
+      "defective_ref": "11c9bae7180d1f07a22049aa0ab5b411879edf58",
+      "elapsed_seconds": 0.671,
+      "fixing_ref": "8941b53d4a016535c018540b4c1df0394614e061",
+      "model_calls": 0,
+      "model_status": "disabled",
+      "policy_profile": "external_static",
+      "rejected_finding_count": 0,
+      "repository": "shantanuchandra/cardcompass",
+      "review_mode": "snapshot",
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "source_pr": null,
+      "unavailable_requested_files": [],
+      "unresolved_assurance_count": 0,
+      "verdict": "REQUEST_CHANGES",
+      "workspace_policy": "static_first"
+    },
+    {
+      "admitted_finding_count": 2,
+      "admitted_roots": [
+        {
+          "message": "A re-entrant async loader can publish state from an older invocation after a newer invocation has started.",
+          "path": "app/prs/[id]/page.tsx",
+          "root_cause": "superseded-request-publishes-component-state",
+          "severity": "major"
+        },
+        {
+          "message": "An async component action can publish React state after the component lifetime has ended.",
+          "path": "app/prs/[id]/page.tsx",
+          "root_cause": "component-async-publication-after-unmount",
+          "severity": "major"
+        }
+      ],
+      "advisory_finding_count": 1,
+      "case_id": "await-transfer-5-b",
+      "defective_ref": "0cf76edd4b54527cceb1c4cb22e736f7bbd157fe",
+      "elapsed_seconds": 0.595,
+      "fixing_ref": "118bc693dfb7626006d6a46a5482c51b109e2189",
+      "model_calls": 0,
+      "model_status": "disabled",
+      "policy_profile": "external_static",
+      "rejected_finding_count": 0,
+      "repository": "jdpnielsen/claude-reviewer",
+      "review_mode": "snapshot",
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "source_pr": null,
+      "unavailable_requested_files": [],
+      "unresolved_assurance_count": 0,
+      "verdict": "REQUEST_CHANGES",
+      "workspace_policy": "static_first"
+    },
+    {
+      "admitted_finding_count": 2,
+      "admitted_roots": [
+        {
+          "message": "A long-lived SPA chrome surface is not invalidated when authoritative browser-session identity changes.",
+          "path": "public/modules/topbar/index.js",
+          "root_cause": "auth-session-change-not-invalidating-mounted-chrome",
+          "severity": "major"
+        },
+        {
+          "message": "A re-entrant async loader can publish state from an older invocation after a newer invocation has started.",
+          "path": "public/spyglass.app.js",
+          "root_cause": "superseded-request-publishes-component-state",
+          "severity": "major"
+        }
+      ],
+      "advisory_finding_count": 5,
+      "case_id": "await-transfer-5-c",
+      "defective_ref": "a500a6ea8fcf15d491c6e69c2ea8777071e40fab",
+      "elapsed_seconds": 2.856,
+      "fixing_ref": "e73b9eb24bd360b0e972e4d8375aad916f8f0119",
+      "model_calls": 0,
+      "model_status": "disabled",
+      "policy_profile": "external_static",
+      "rejected_finding_count": 0,
+      "repository": "vladikkrasulya/adtech-spyglass",
+      "review_mode": "snapshot",
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "source_pr": null,
+      "unavailable_requested_files": [],
+      "unresolved_assurance_count": 0,
+      "verdict": "REQUEST_CHANGES",
+      "workspace_policy": "static_first"
+    }
+  ]
+}
