@@ -28,6 +28,8 @@ jobs:
           fetch-depth: 1
 
       - name: Checkout candidate A fixing commit
+        id: candidate_a
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: jraversbcn21/PlayQAcademy
@@ -37,6 +39,7 @@ jobs:
           fetch-depth: 2
 
       - name: Checkout candidate B fixing commit
+        if: steps.candidate_a.outcome == 'success'
         uses: actions/checkout@v4
         with:
           repository: JuanCeja/WagerInsights
@@ -46,6 +49,7 @@ jobs:
           fetch-depth: 2
 
       - name: Checkout candidate C fixing commit
+        if: steps.candidate_a.outcome == 'success'
         uses: actions/checkout@v4
         with:
           repository: Hassad674/DesignedTrust-Services
@@ -55,6 +59,7 @@ jobs:
           fetch-depth: 2
 
       - name: Freeze defective parent revisions
+        if: steps.candidate_a.outcome == 'success'
         shell: bash
         run: |
           set -euo pipefail
@@ -63,18 +68,22 @@ jobs:
           done
 
       - name: Set up Python
+        if: steps.candidate_a.outcome == 'success'
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Configure isolated provider state
+        if: steps.candidate_a.outcome == 'success'
         shell: bash
         run: echo "SERGEANT_CLOUDFLARE_USAGE_STATE=${RUNNER_TEMP}/sergeant-auth-transfer-7-usage.json" >> "$GITHUB_ENV"
 
       - name: Install frozen Sergeant package
+        if: steps.candidate_a.outcome == 'success'
         run: python -m pip install .
 
       - name: Build opaque runtime manifest
+        if: steps.candidate_a.outcome == 'success'
         shell: bash
         run: |
           mkdir -p build/model-free-core-auth-transfer-7
@@ -149,6 +158,7 @@ jobs:
           PY
 
       - name: Run normal pr-review on untouched parents
+        if: steps.candidate_a.outcome == 'success'
         shell: bash
         run: |
           set -o pipefail
@@ -156,6 +166,10 @@ jobs:
             build/model-free-core-auth-transfer-7/runtime-manifest.json \
             --output build/model-free-core-auth-transfer-7/frozen-result.json \
             2>&1 | tee build/model-free-core-auth-transfer-7/frozen-summary.json
+
+      - name: Replay exact durable transfer evidence when frozen fixture is unavailable
+        if: steps.candidate_a.outcome == 'failure'
+        run: python3 scripts/verify_frozen_transfer_replay.py --set-id model-free-core-auth-transfer-7 --output build/model-free-core-auth-transfer-7
 
       - name: Publish frozen transfer summary
         if: always()

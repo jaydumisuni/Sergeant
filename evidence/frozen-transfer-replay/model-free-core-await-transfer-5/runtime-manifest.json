@@ -1,0 +1,57 @@
+{
+  "schema_version": "sergeant.review-training.v1",
+  "set_id": "model-free-core-await-transfer-5",
+  "purpose": "Fifth untouched transfer validation over fresh external async state defects. Expected roots remain outside Sergeant input.",
+  "rules": {
+    "models_enabled": false,
+    "workspace_default": "none",
+    "expected_defects_visible_to_sergeant": false,
+    "runtime_is_confirmation_not_discovery": true,
+    "classification": "untouched_transfer_validation",
+    "provenance_required": true,
+    "provenance_contract": "sergeant.training-provenance.v1",
+    "reviewer_code_frozen_before_target_selection": "d7e9c36a5a95c7e590fbf6186751427b7a4c4903"
+  },
+  "cases": [
+    {
+      "case_id": "await-transfer-5-a",
+      "repository": "shantanuchandra/cardcompass",
+      "source_pr": null,
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "fixing_ref": "8941b53d4a016535c018540b4c1df0394614e061",
+      "checkout_path": "await-transfer-5/cardcompass",
+      "changed_files": [
+        "lib/features/auth/providers/auth_provider.dart"
+      ],
+      "defective_ref": "11c9bae7180d1f07a22049aa0ab5b411879edf58",
+      "workspace_policy": "static_first"
+    },
+    {
+      "case_id": "await-transfer-5-b",
+      "repository": "jdpnielsen/claude-reviewer",
+      "source_pr": null,
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "fixing_ref": "118bc693dfb7626006d6a46a5482c51b109e2189",
+      "checkout_path": "await-transfer-5/claude-reviewer",
+      "changed_files": [
+        "app/prs/[id]/page.tsx"
+      ],
+      "defective_ref": "0cf76edd4b54527cceb1c4cb22e736f7bbd157fe",
+      "workspace_policy": "static_first"
+    },
+    {
+      "case_id": "await-transfer-5-c",
+      "repository": "vladikkrasulya/adtech-spyglass",
+      "source_pr": null,
+      "source_lineage": "workflow-frozen fixing commit; defective_ref is its first parent",
+      "fixing_ref": "e73b9eb24bd360b0e972e4d8375aad916f8f0119",
+      "checkout_path": "await-transfer-5/adtech-spyglass",
+      "changed_files": [
+        "public/spyglass.app.js",
+        "public/modules/topbar/index.js"
+      ],
+      "defective_ref": "a500a6ea8fcf15d491c6e69c2ea8777071e40fab",
+      "workspace_policy": "static_first"
+    }
+  ]
+}
