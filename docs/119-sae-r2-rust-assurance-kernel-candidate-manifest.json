@@ -1,0 +1,52 @@
+{
+  "schema_version": "sergeant.sae-r2-rust-assurance-kernel-candidate.v1",
+  "node": "SAE-R2",
+  "node_title": "Independent Rust Assurance Kernel",
+  "lifecycle_state": "CANDIDATE",
+  "construction_base": "56157e6ed218bbeb532ad714f652adcb0c5c582a",
+  "authority_gain": "none",
+  "requires_proven": [
+    "SAE-R1",
+    "SAE-30",
+    "SAE-60",
+    "SAE-70",
+    "SAE-80",
+    "SAE-90"
+  ],
+  "proven_dependency_records": [
+    "docs/97-sae-r1-proven-lifecycle-closeout-manifest.json",
+    "docs/93-sae30-proven-lifecycle-closeout-manifest.json",
+    "docs/105-sae60-proven-lifecycle-closeout-manifest.json",
+    "docs/109-sae70-proven-lifecycle-closeout-manifest.json",
+    "docs/113-sae80-proven-lifecycle-closeout-manifest.json",
+    "docs/117-sae90-proven-lifecycle-closeout-manifest.json"
+  ],
+  "output_domain": [
+    "ADMISSIBLE",
+    "INADMISSIBLE"
+  ],
+  "first_slice": {
+    "capsule_complete_required": true,
+    "all_inputs_qualified_required": true,
+    "exact_closure_required": true,
+    "unknown_conservation": "fail_closed",
+    "current_generation_required": true,
+    "full_sha256_authority_ids_required": true,
+    "python_expected_list_authority_rejected": true,
+    "shared_implementation_claim_rejected": true
+  },
+  "independence": {
+    "rust_third_party_dependencies": false,
+    "python_reference_is_rust_authority": false,
+    "shared_python_implementation": false,
+    "shared_frozen_r1_identity_specification_allowed": true
+  },
+  "produces_now": [],
+  "produces_if_proven": [
+    "QUALIFIED_RUST_ASSURANCE_KERNEL"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false
+}
