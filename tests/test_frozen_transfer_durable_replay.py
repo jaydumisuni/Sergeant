@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scripts.verify_frozen_transfer_replay import validate_archive, validate_changed_paths
+from scripts.verify_frozen_transfer_replay import ALLOWED_REPLAY_DRIFT, validate_archive, validate_changed_paths
 
 
 def test_auth7_archive_is_exact_and_intact():
@@ -48,3 +48,22 @@ def test_replay_workflows_fetch_sergeant_history():
         text = (root / rel).read_text()
         first_checkout = text.split("- name: Checkout frozen Sergeant reviewer", 1)[1].split("- name: Checkout candidate A fixing commit", 1)[0]
         assert "fetch-depth: 0" in first_checkout, f"{rel} must fetch source-success history for replay validation"
+
+
+def test_replay_allows_proven_lifecycle_and_ci_ancestry_metadata_only():
+    expected = [
+        ".github/workflows/main-review.yml",
+        "docs/112-sae80-proven-lifecycle-closeout.md",
+        "docs/113-sae80-proven-lifecycle-closeout-manifest.json",
+        "docs/114-sae90-falsification-frontier-candidate.md",
+        "docs/115-sae90-falsification-frontier-candidate-manifest.json",
+        "tests/test_main_review_workflow_merge_base.py",
+        "tests/test_sae80_proven_lifecycle_closeout.py",
+    ]
+    validate_changed_paths(expected, ALLOWED_REPLAY_DRIFT)
+    try:
+        validate_changed_paths([".github/workflows/release.yml"], ALLOWED_REPLAY_DRIFT)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("unrelated workflow drift must remain forbidden")

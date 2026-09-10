@@ -1,0 +1,69 @@
+{
+  "schema_version": "sergeant.sae90-mandatory-falsification-candidate.v1",
+  "node": "SAE-90",
+  "node_title": "Mandatory Falsification / Challenger Evolution",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "CANDIDATE",
+  "authority_gain_now": "none",
+  "proof_requires": ["SAE-70", "SAE-80"],
+  "construction_base": "013171c8773f1b396e859c96eb387d9d0f228d26",
+  "accepted_production_generation": "f6af7478d87ab3bb55b592154e28d6d45f42b02d",
+  "accepted_production_tree": "e536795d0823c5cadc2f376f98ba0420baf1f868",
+  "content_blobs": {
+    "main_review/falsification_frontier.py": "0b5f0863a206c6af7ffe1c70982b163823997aac",
+    "tests/test_sae90_falsification_campaign.py": "cf892239b78d77a5038c4bf3388c407fd491bbb8"
+  },
+  "authority_binding": {
+    "qualified_sae80_proof_world_revalidated": true,
+    "qualified_registry_id_exact_match_required": true,
+    "sae70_expected_obligation_identity_recomputed": true,
+    "qualified_obligation_id_exact_match_required": true,
+    "contract_id_and_generation_from_obligation_provenance": true,
+    "contract_instance_id_bound_per_origin": true,
+    "falsifier_instance_content_addressed": true
+  },
+  "parameter_domain_semantics": {
+    "closed_domain_required_for_exhaustive_instances": true,
+    "open_domain": "UNKNOWN",
+    "parameter_assignment_identity_exact": true,
+    "one_instance_may_satisfy_another": false
+  },
+  "counter_world_semantics": {
+    "baseline_state_bound": true,
+    "mutated_state_bound": true,
+    "no_op_mutation_allowed": false,
+    "exhaustive_search_mode": "EXHAUSTIVE_BOUNDED",
+    "statistical_or_open_search_can_claim_exhaustive": false
+  },
+  "hostile_regressions": [
+    "family_name_only_completion",
+    "cross_parameter_instance_substitution",
+    "open_parameter_domain",
+    "no_op_mutation",
+    "statistical_search_as_exhaustive",
+    "forged_falsifier_instance_identity",
+    "wrong_registry_generation",
+    "forged_expected_obligation_identity"
+  ],
+  "freeze_verification": {
+    "focused_tests_passed": 9,
+    "full_suite_passed": 1582,
+    "historical_xfails": 2,
+    "git_diff_check": "pass",
+    "independent_last_proven_sergeant": "APPROVE",
+    "independent_review_confidence": 0.88,
+    "required_actions": 0
+  },
+  "current_blocker": {
+    "type": "external_authority_currentness",
+    "detail": "KRATOS GitHub transport timed out during fetch/ls-remote/PR status recovery; live SAE-80 checks/currentness cannot presently be asserted.",
+    "transient": true,
+    "sae80_represented_as_proven": false
+  },
+  "produces_now": [],
+  "produces_if_proven": ["QUALIFIED_FALSIFICATION_FRONTIER"],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false
+}
