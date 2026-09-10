@@ -37,3 +37,14 @@ def test_replay_path_gate_rejects_review_engine_change():
         assert "main_review/engine.py" in str(exc)
     else:
         raise AssertionError("review-engine drift must fail closed")
+
+
+def test_replay_workflows_fetch_sergeant_history():
+    root = Path(__file__).resolve().parents[1]
+    for rel in [
+        ".github/workflows/model-free-core-auth-transfer-7.yml",
+        ".github/workflows/model-free-core-await-transfer-5.yml",
+    ]:
+        text = (root / rel).read_text()
+        first_checkout = text.split("- name: Checkout frozen Sergeant reviewer", 1)[1].split("- name: Checkout candidate A fixing commit", 1)[0]
+        assert "fetch-depth: 0" in first_checkout, f"{rel} must fetch source-success history for replay validation"
