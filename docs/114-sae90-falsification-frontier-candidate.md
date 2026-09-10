@@ -4,7 +4,7 @@
 
 This record defines the SAE-90 candidate construction only. It creates no new Sergeant verdict authority and does not activate `QUALIFIED_FALSIFICATION_FRONTIER`.
 
-SAE-90 proof requires SAE-70 and SAE-80. The construction is based on the exact reconciled SAE-80 closeout head `013171c8773f1b396e859c96eb387d9d0f228d26`, but SAE-80 is not represented here as PROVEN while live GitHub currentness/check evidence is unavailable. Qualification and lifecycle promotion therefore remain fail-closed.
+SAE-90 proof requires SAE-70 and SAE-80. This candidate was restacked on the exact SAE-80 PROVEN canonical merge `b6e1fe5bbbead26e885e44eecec72b873b4b6ee6`, whose reviewed closeout generation is `754ec015b648e60cd7cace978d76a1b6a1e749a2`. The original merged SAE-90 candidate is preserved at `f37cc9f3393f159ffacf42ce79567e9f13aa00d8` through canonical merge `e663d4e69a00ea8d107b01eae5aad86b48b9c4fd`; this successor corrects only its stale lifecycle record and does not rewrite that frozen generation.
 
 ## Candidate construction
 
@@ -29,8 +29,8 @@ An EXACT frontier requires every mandatory falsifier instance to have bounded-ex
 
 Accepted production generation: `f6af7478d87ab3bb55b592154e28d6d45f42b02d`.
 
-Focused SAE-90 campaign: 9 passed. Full repository regression: 1582 passed, 2 historical XFAIL. `git diff --check` passed before freeze. Independent last-PROVEN Sergeant review from SAE-70 returned APPROVE at confidence 0.88 with no required actions. Its call-graph and nested-iteration signals remained advisory and were not admitted as blockers.
+Focused SAE-90 plus durable-replay campaign: 14 passed. Full repository regression on exact candidate `f37cc9f3393f159ffacf42ce79567e9f13aa00d8`: 1593 passed, 2 historical XFAIL. `git diff --check` passed. Fresh independent last-PROVEN Sergeant review returned APPROVE at confidence 0.88 with no required actions, and every exact-head GitHub gate completed successfully. Its call-graph and nested-iteration signals remained advisory and were not admitted as blockers.
 
 ## Authority boundary
 
-This candidate produces no qualified lifecycle token. `QUALIFIED_FALSIFICATION_FRONTIER` may only be issued by a later qualification/closeout generation after exact live SAE-80 PROVEN authority is recovered and all SAE-90 proof gates are satisfied.
+This candidate produces no qualified lifecycle token. `QUALIFIED_FALSIFICATION_FRONTIER` may only be issued by a later qualification/closeout generation after this corrected candidate record is independently proved and guarded-merged. SAE-80 PROVEN authority is now explicitly bound above; that does not auto-prove SAE-90.

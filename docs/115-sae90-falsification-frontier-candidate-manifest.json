@@ -5,8 +5,11 @@
   "repository": "jaydumisuni/Sergeant",
   "lifecycle_state": "CANDIDATE",
   "authority_gain_now": "none",
-  "proof_requires": ["SAE-70", "SAE-80"],
-  "construction_base": "013171c8773f1b396e859c96eb387d9d0f228d26",
+  "proof_requires": [
+    "SAE-70",
+    "SAE-80"
+  ],
+  "construction_base": "b6e1fe5bbbead26e885e44eecec72b873b4b6ee6",
   "accepted_production_generation": "f6af7478d87ab3bb55b592154e28d6d45f42b02d",
   "accepted_production_tree": "e536795d0823c5cadc2f376f98ba0420baf1f868",
   "content_blobs": {
@@ -46,24 +49,33 @@
     "forged_expected_obligation_identity"
   ],
   "freeze_verification": {
-    "focused_tests_passed": 9,
-    "full_suite_passed": 1582,
+    "focused_tests_passed": 14,
+    "full_suite_passed": 1593,
     "historical_xfails": 2,
     "git_diff_check": "pass",
     "independent_last_proven_sergeant": "APPROVE",
     "independent_review_confidence": 0.88,
-    "required_actions": 0
-  },
-  "current_blocker": {
-    "type": "external_authority_currentness",
-    "detail": "KRATOS GitHub transport timed out during fetch/ls-remote/PR status recovery; live SAE-80 checks/currentness cannot presently be asserted.",
-    "transient": true,
-    "sae80_represented_as_proven": false
+    "required_actions": 0,
+    "remote_exact_head_checks": "pass"
   },
   "produces_now": [],
-  "produces_if_proven": ["QUALIFIED_FALSIFICATION_FRONTIER"],
+  "produces_if_proven": [
+    "QUALIFIED_FALSIFICATION_FRONTIER"
+  ],
   "normal_verdict_authority": false,
   "genesis_activated": false,
   "dependent_nodes_auto_proven": false,
-  "partial_generation_activation": false
+  "partial_generation_activation": false,
+  "proven_sae80_authority": {
+    "closeout_head": "754ec015b648e60cd7cace978d76a1b6a1e749a2",
+    "canonical_merge": "b6e1fe5bbbead26e885e44eecec72b873b4b6ee6",
+    "lifecycle_state": "PROVEN"
+  },
+  "preserved_candidate_generation": {
+    "pull_request": 213,
+    "head": "f37cc9f3393f159ffacf42ce79567e9f13aa00d8",
+    "tree": "7dd2bbb501e32b3b0a31ed2518c58c04f0da6645",
+    "canonical_merge": "e663d4e69a00ea8d107b01eae5aad86b48b9c4fd",
+    "record_correction_required": true
+  }
 }
