@@ -1,0 +1,63 @@
+{
+  "schema_version": "sergeant.sae80-proven-lifecycle-closeout.v1",
+  "node": "SAE-80",
+  "node_title": "Evidence + Proof World",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": [
+    "SAE-30",
+    "SAE-40",
+    "SAE-50",
+    "SAE-60",
+    "SAE-70"
+  ],
+  "candidate_generation": {
+    "pull_request": 206,
+    "head": "e35d3b4d14f6fa45bb84375eb9b9bc481794e365",
+    "tree": "8b96fe5ff3b5477c63540f5231076bc3cbba11af",
+    "content_blobs": {
+      "docs/110-sae80-evidence-proof-world-candidate.md": "2c83ccc437a00197659b0a5000b3fee5467f74d7",
+      "docs/111-sae80-evidence-proof-world-candidate-manifest.json": "b9f296e6be84c73f90170e03514c99a6b255640a",
+      "main_review/proof_world.py": "6a7f682b0e87ee62149241df81d373ad1ee6f0f1",
+      "main_review/proof_world_protocol.py": "84a4421ef316b41bbeef68af724265a7a8733208",
+      "tests/test_sae80_qualification_campaign.py": "b31afdc9707be3133d95bf13a376a1ab9b091780"
+    }
+  },
+  "canonical_candidate_merge": {
+    "commit": "329ac37be70fcae86ece5c877ec31592a77c0f60",
+    "tree": "8b96fe5ff3b5477c63540f5231076bc3cbba11af",
+    "parents": [
+      "5ae80680a02562707a82064cc8d5f4e8196ddb8b",
+      "e35d3b4d14f6fa45bb84375eb9b9bc481794e365"
+    ],
+    "exact_head_guard": "e35d3b4d14f6fa45bb84375eb9b9bc481794e365"
+  },
+  "qualification_evidence": {
+    "candidate_full_suite": "1577 passed, 2 xfailed",
+    "candidate_independent_review": "APPROVE",
+    "candidate_independent_review_confidence": 0.88,
+    "durable_frozen_transfer_replay": true,
+    "candidate_gitguardian": "success"
+  },
+  "qualified_scope": {
+    "exact_obligation_binding": true,
+    "qualified_sae70_closure_revalidated": true,
+    "proof_world_identity_recomputed": true,
+    "material_input_closure_required": true,
+    "frankenworld_allowed": false,
+    "heuristic_may_claim_exact": false,
+    "stale_evidence_yields_unknown": true,
+    "unresolved_assumption_caps_exact": true,
+    "hidden_contradiction_caps_exact": true
+  },
+  "produces": [
+    "QUALIFIED_EVIDENCE_CONTRACT",
+    "QUALIFIED_PROOF_WORLD"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true
+}
