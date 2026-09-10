@@ -133,3 +133,36 @@ def test_kernel_has_no_aggregate_qualification_trust_switches():
 ])
 def test_each_typed_authority_gate_fails_closed_independently(field):
     assert evaluate_capsule(valid_capsule(**{field: False})) == INADMISSIBLE
+
+
+def test_rust_kernel_derives_structural_authority_instead_of_component_booleans():
+    rust = Path("rust/sergeant-assurance-kernel/src/lib.rs").read_text(encoding="utf-8")
+    for forbidden in (
+        "review_world_qualified",
+        "rab_qualified",
+        "active_contracts_complete",
+        "applicable_instances_complete",
+        "expected_obligations_complete",
+        "authority_premises_typed",
+        "closure_certificate_valid",
+        "capability_passports_qualified",
+        "proof_world_bound",
+        "falsifier_frontier_complete",
+        "provenance_bound",
+    ):
+        assert forbidden not in rust
+    for required in (
+        "AuthorityRecord",
+        "QualificationRegistry",
+        "QualificationAttestation",
+        "ClosedCollection",
+        "qualifications_are_derived",
+        "exact_unique_set",
+    ):
+        assert required in rust
+
+    manifest = __import__("json").loads(Path("docs/119-sae-r2-rust-assurance-kernel-candidate-manifest.json").read_text())
+    assert manifest["first_slice"]["component_boolean_authority"] is False
+    assert manifest["first_slice"]["structural_authority_records_required"] is True
+    assert manifest["first_slice"]["qualification_attestations_derived_against_registry"] is True
+    assert manifest["first_slice"]["exact_unique_collection_closure_derived"] is True

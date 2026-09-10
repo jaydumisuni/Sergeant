@@ -3,15 +3,21 @@ use sergeant_assurance_kernel::{
     QualificationRegistry, StructuralAssuranceCapsule, ADMISSIBLE, INADMISSIBLE,
 };
 
-fn id(ch: char) -> String { ch.to_string().repeat(64) }
+fn id(ch: char) -> String {
+    ch.to_string().repeat(64)
+}
 
 fn authority(ch: char, generation: &str) -> AuthorityRecord {
-    AuthorityRecord { id: id(ch), generation: generation.into(), revoked: false }
+    AuthorityRecord {
+        id: id(ch),
+        generation: generation.into(),
+        revoked: false,
+    }
 }
 
 fn attestation(subject: &AuthorityRecord, issuer: char) -> QualificationAttestation {
     QualificationAttestation {
-        id: id('f'),
+        id: subject.id.clone(),
         subject_id: subject.id.clone(),
         subject_generation: subject.generation.clone(),
         issuer_id: id(issuer),
@@ -20,10 +26,10 @@ fn attestation(subject: &AuthorityRecord, issuer: char) -> QualificationAttestat
 }
 
 fn closed(ch: char, generation: &str, members: &[char]) -> ClosedCollection {
-    let authority = authority(ch, generation);
+    let collection_authority = authority(ch, generation);
     let values: Vec<String> = members.iter().map(|c| id(*c)).collect();
     ClosedCollection {
-        authority,
+        authority: collection_authority,
         members: values.clone(),
         expected_members: values,
         certificate: authority('e', generation),
@@ -34,7 +40,7 @@ fn capsule() -> StructuralAssuranceCapsule {
     let generation = "sae-r2-g1";
     let review_world = authority('a', generation);
     let rab = authority('b', generation);
-    let proof_world = authority('c', generation);
+    let proof_world = authority('e', generation);
     let falsifier_frontier = closed('d', generation, &['1', '2']);
     let active_contracts = closed('3', generation, &['4', '5']);
     let applicable_instances = closed('6', generation, &['7', '8']);
@@ -44,7 +50,7 @@ fn capsule() -> StructuralAssuranceCapsule {
     let provenance = closed('4', generation, &['5']);
 
     let registry = QualificationRegistry {
-        authority: authority('6', generation),
+        authority: authority('0', generation),
         authorized_issuers: vec![id('7')],
     };
 
@@ -111,7 +117,9 @@ fn incomplete_collection_is_rejected() {
 #[test]
 fn duplicated_member_cannot_fake_exact_set_closure() {
     let mut c = capsule();
-    c.active_contracts.members.push(c.active_contracts.members[0].clone());
+    c.active_contracts
+        .members
+        .push(c.active_contracts.members[0].clone());
     assert_eq!(evaluate_structural_capsule(&c), INADMISSIBLE);
 }
 
