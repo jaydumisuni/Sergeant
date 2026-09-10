@@ -9,10 +9,6 @@ on:
       - 'main_review/rust_identity_vectors.py'
       - 'tests/test_sae_r1_canonical_identity.py'
       - 'tests/test_sae_r1_candidate_manifest.py'
-      - 'main_review/rust_assurance_kernel.py'
-      - 'tests/test_sae_r2_kernel.py'
-      - 'docs/118-sae-r2-rust-assurance-kernel-candidate.md'
-      - 'docs/119-sae-r2-rust-assurance-kernel-candidate-manifest.json'
       - '.github/workflows/sae-rust-proof.yml'
   push:
     branches: [main]
@@ -23,10 +19,6 @@ on:
       - 'main_review/rust_identity_vectors.py'
       - 'tests/test_sae_r1_canonical_identity.py'
       - 'tests/test_sae_r1_candidate_manifest.py'
-      - 'main_review/rust_assurance_kernel.py'
-      - 'tests/test_sae_r2_kernel.py'
-      - 'docs/118-sae-r2-rust-assurance-kernel-candidate.md'
-      - 'docs/119-sae-r2-rust-assurance-kernel-candidate-manifest.json'
       - '.github/workflows/sae-rust-proof.yml'
 
 permissions:
@@ -43,9 +35,7 @@ jobs:
           cargo --version
       - name: Prove independent Rust canonical identity
         run: cargo test --manifest-path rust/sergeant-assurance-identity/Cargo.toml --locked
-      - name: Prove independent Rust assurance kernel
-        run: cargo test --manifest-path rust/sergeant-assurance-kernel/Cargo.toml --locked
       - name: Install focused Python proof runner
         run: python -m pip install pytest
       - name: Prove Python reference and frozen candidate contract
-        run: python -m pytest -q tests/test_sae_r1_canonical_identity.py tests/test_sae_r1_candidate_manifest.py tests/test_sae_r2_kernel.py
+        run: python -m pytest -q tests/test_sae_r1_canonical_identity.py tests/test_sae_r1_candidate_manifest.py

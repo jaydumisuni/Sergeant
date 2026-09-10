@@ -77,9 +77,11 @@ def test_kernel_returns_only_constitutional_admissibility_tokens():
 
 
 def test_rust_workflow_proves_identity_and_kernel_crates():
-    workflow = Path(".github/workflows/sae-rust-proof.yml").read_text(encoding="utf-8")
+    workflow = Path(".github/workflows/sae-r2-rust-proof.yml").read_text(encoding="utf-8")
     assert "cargo test --manifest-path rust/sergeant-assurance-identity/Cargo.toml --locked" in workflow
     assert "cargo test --manifest-path rust/sergeant-assurance-kernel/Cargo.toml --locked" in workflow
+    frozen_r1 = Path(".github/workflows/sae-rust-proof.yml").read_text(encoding="utf-8")
+    assert "rust/sergeant-assurance-kernel" not in frozen_r1
 
 
 def test_candidate_record_remains_non_authoritative():
