@@ -11,6 +11,7 @@ from main_review.proof_world_authority import (
     EVIDENCE_QUALIFICATION_GENERATION,
     ProofWorldAuthorityError,
     bind_evidence_proof_authority,
+    validate_evidence_proof_authority,
 )
 from main_review.qualification_authority import DerivedQualification, QualificationAttestation
 from main_review.review_world import sha256_id
@@ -88,3 +89,16 @@ def test_public_hash_cannot_forge_sae30_qualification_without_verifier_authentic
             attestation=attestation,
             qualification=forged,
         )
+
+
+def test_reconstructed_evidence_authority_loses_verifier_admission_capability() -> None:
+    from dataclasses import replace
+    from tests.sae80_authority_fixtures import authority_fixture, evidence, qualified_fixture
+
+    qualified, obligation, registry = qualified_fixture()
+    authority, world = authority_fixture(qualified, registry)
+    proof_evidence = evidence(obligation, world, authority)
+    reconstructed = replace(proof_evidence.proof_authority)
+
+    with pytest.raises(ProofWorldAuthorityError, match="verifier-authentic|admission"):
+        validate_evidence_proof_authority(reconstructed, world_authority=authority)

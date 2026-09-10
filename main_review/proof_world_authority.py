@@ -7,7 +7,7 @@ binds an evidence proof class to an already-derived SAE-30 qualification.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Mapping
 
 from .assurance_contract_registry import ACRRegistry, ClosureGrade
@@ -15,11 +15,15 @@ from .assurance_ledger import JudgeAssuranceLedger, LedgerRecordKind
 from .capability_qualification import CapabilityPassport, SemanticCapabilityEvaluation
 from .contract_closure_protocol import QualifiedContractClosure, validate_qualified_contract_closure
 from .qualification_authority import (
+    AuthenticatedIssuer,
     DerivedQualification,
     IssuerState,
     QualificationAttestation,
     QualificationAuthorityRegistry,
     QualificationIssuerAuthorization,
+    QualificationAuthorityError,
+    QualificationClosureProof,
+    admit_qualification_attestation,
 )
 from .review_authority_bundle import ReviewAuthorityBundle, RABAuthorization
 from .review_world import GitHubReviewWorld, ReviewWorldError, require_full_sha256, sha256_id
@@ -318,6 +322,14 @@ def _evidence_authority_body(value: "QualifiedEvidenceProofAuthority") -> dict[s
 
 
 @dataclass(frozen=True)
+class _VerifierEvidenceAdmission:
+    authority_id: str
+    qualification_id: str
+    attestation_id: str
+    closure_proof_id: str
+
+
+@dataclass(frozen=True)
 class QualifiedEvidenceProofAuthority:
     world_authority_id: str
     obligation_id: str
@@ -328,27 +340,43 @@ class QualifiedEvidenceProofAuthority:
     proof_class: str
     closure_ceiling: str
     authority_id: str
+    _verifier_admission: _VerifierEvidenceAdmission | None = field(
+        default=None, init=False, repr=False, compare=False
+    )
 
 
-def bind_evidence_proof_authority(
+def _seal_evidence_authority(value: QualifiedEvidenceProofAuthority) -> QualifiedEvidenceProofAuthority:
+    object.__setattr__(
+        value,
+        "_verifier_admission",
+        _VerifierEvidenceAdmission(
+            authority_id=value.authority_id,
+            qualification_id=value.qualification.qualification_id,
+            attestation_id=value.attestation.attestation_id,
+            closure_proof_id=value.qualification.closure_proof_id,
+        ),
+    )
+    return value
+
+
+def _validate_evidence_authority_content(
+    value: QualifiedEvidenceProofAuthority,
     *,
     world_authority: ProofWorldAuthority,
-    obligation_id: str,
-    evidence_basis_id: str,
-    attestation: QualificationAttestation,
-    qualification: DerivedQualification,
 ) -> QualifiedEvidenceProofAuthority:
     world = validate_proof_world_authority(world_authority)
-    obligation_id = _sha(obligation_id, "evidence authority obligation_id")
-    evidence_basis_id = _sha(evidence_basis_id, "evidence authority basis_id")
-    attestation = _canonical_attestation(attestation)
-    qualification = _validate_derived(qualification)
+    obligation_id = _sha(value.obligation_id, "evidence authority obligation_id")
+    evidence_basis_id = _sha(value.evidence_basis_id, "evidence authority basis_id")
+    attestation = _canonical_attestation(value.attestation)
+    qualification = _validate_derived(value.qualification)
 
     try:
         issuer = world.qualification_registry.find(attestation.issuer_identity, attestation.issuer_generation)
     except ReviewWorldError as exc:
         raise ProofWorldAuthorityError(str(exc)) from exc
     _canonical_issuer(issuer)
+    if value.issuer_authorization != issuer:
+        raise ProofWorldAuthorityError("evidence authority issuer does not match trusted registry")
     if issuer.state is not IssuerState.ACTIVE:
         raise ProofWorldAuthorityError("evidence qualification issuer is not active")
     if attestation.attestation_id in world.qualification_registry.revoked_attestation_ids:
@@ -358,12 +386,12 @@ def bind_evidence_proof_authority(
         raise ProofWorldAuthorityError("derived qualification does not bind exact attestation")
     if qualification.issuer_authorization_id != issuer.authorization_id:
         raise ProofWorldAuthorityError("derived qualification does not bind exact issuer authorization")
-    for field in (
+    for name in (
         "subject_id", "artifact_family", "domain", "artifact_generation", "evidence_root_id",
         "independence_state", "qualification_lineage_id", "authenticated_provenance_id",
     ):
-        if getattr(qualification, field) != getattr(attestation, field):
-            raise ProofWorldAuthorityError(f"derived qualification {field} does not match attestation")
+        if getattr(qualification, name) != getattr(attestation, name):
+            raise ProofWorldAuthorityError(f"derived qualification {name} does not match attestation")
 
     if attestation.subject_id != obligation_id:
         raise ProofWorldAuthorityError("evidence qualification subject is not the SAE-70 obligation")
@@ -383,20 +411,98 @@ def bind_evidence_proof_authority(
         raise ProofWorldAuthorityError("evidence proof class is outside issuer qualification authority")
     if attestation.closure_grade not in issuer.closure_grades:
         raise ProofWorldAuthorityError("evidence closure ceiling is outside issuer qualification authority")
+    if value.proof_class != attestation.proof_class or value.closure_ceiling != attestation.closure_grade:
+        raise ProofWorldAuthorityError("evidence authority proof class/closure ceiling mismatch")
     try:
         ClosureGrade(attestation.closure_grade)
     except ValueError as exc:
         raise ProofWorldAuthorityError("evidence qualification closure grade is unknown") from exc
+    if value.world_authority_id != world.authority_id:
+        raise ProofWorldAuthorityError("evidence authority is bound to another Proof World authority")
+    if value.authority_id != sha256_id(_evidence_authority_body(value)):
+        raise ProofWorldAuthorityError("qualified evidence proof authority identity mismatch")
+    return value
+
+
+def bind_evidence_proof_authority(
+    *,
+    world_authority: ProofWorldAuthority,
+    obligation_id: str,
+    evidence_basis_id: str,
+    attestation: QualificationAttestation,
+    qualification: DerivedQualification | None = None,
+    authenticated_issuer: AuthenticatedIssuer | None = None,
+    closure_proof: QualificationClosureProof | None = None,
+    issuer_verification_secret: bytes | None = None,
+    expected_registry_generation: str | None = None,
+    candidate_control_lineage_id: str | None = None,
+    now=None,
+) -> QualifiedEvidenceProofAuthority:
+    world = validate_proof_world_authority(world_authority)
+    obligation_id = _sha(obligation_id, "evidence authority obligation_id")
+    evidence_basis_id = _sha(evidence_basis_id, "evidence authority basis_id")
+    attestation = _canonical_attestation(attestation)
+
+    if (
+        authenticated_issuer is None
+        or closure_proof is None
+        or issuer_verification_secret is None
+        or expected_registry_generation is None
+        or candidate_control_lineage_id is None
+        or now is None
+    ):
+        raise ProofWorldAuthorityError(
+            "verifier-authentic SAE-30 admission is required for evidence authority"
+        )
+
+    try:
+        derived, _ = admit_qualification_attestation(
+            registry=world.qualification_registry,
+            attestation=attestation,
+            authenticated_issuer=authenticated_issuer,
+            closure_proof=closure_proof,
+            issuer_verification_secret=issuer_verification_secret,
+            expected_registry_generation=expected_registry_generation,
+            subject_id=obligation_id,
+            artifact_family=EVIDENCE_ARTIFACT_FAMILY,
+            domain=EVIDENCE_DOMAIN,
+            artifact_generation=world.candidate_generation,
+            acr_generation=world.acr_registry.generation,
+            qualification_protocol_generation=EVIDENCE_QUALIFICATION_GENERATION,
+            evidence_root_id=evidence_basis_id,
+            independence_state="INDEPENDENT",
+            qualification_lineage_id=attestation.qualification_lineage_id,
+            authenticated_provenance_id=attestation.authenticated_provenance_id,
+            candidate_control_lineage_id=candidate_control_lineage_id,
+            now=now,
+        )
+    except QualificationAuthorityError as exc:
+        raise ProofWorldAuthorityError(
+            f"evidence qualification lacks verifier-authentic SAE-30 admission: {exc}"
+        ) from exc
+
+    if qualification is not None and qualification != derived:
+        raise ProofWorldAuthorityError(
+            "caller qualification does not match verifier-derived SAE-30 authority"
+        )
+    qualification = derived
+    try:
+        issuer = world.qualification_registry.find(attestation.issuer_identity, attestation.issuer_generation)
+    except ReviewWorldError as exc:
+        raise ProofWorldAuthorityError(str(exc)) from exc
+    _canonical_issuer(issuer)
 
     provisional = QualifiedEvidenceProofAuthority(
         world.authority_id, obligation_id, evidence_basis_id, attestation, qualification,
         issuer, attestation.proof_class, attestation.closure_grade, "",
     )
-    return QualifiedEvidenceProofAuthority(
+    authority = QualifiedEvidenceProofAuthority(
         world.authority_id, obligation_id, evidence_basis_id, attestation, qualification,
         issuer, attestation.proof_class, attestation.closure_grade,
         sha256_id(_evidence_authority_body(provisional)),
     )
+    _validate_evidence_authority_content(authority, world_authority=world)
+    return _seal_evidence_authority(authority)
 
 
 def validate_evidence_proof_authority(
@@ -406,13 +512,15 @@ def validate_evidence_proof_authority(
 ) -> QualifiedEvidenceProofAuthority:
     if not isinstance(value, QualifiedEvidenceProofAuthority):
         raise ProofWorldAuthorityError("qualified evidence proof authority has invalid record type")
-    canonical = bind_evidence_proof_authority(
-        world_authority=world_authority,
-        obligation_id=value.obligation_id,
-        evidence_basis_id=value.evidence_basis_id,
-        attestation=value.attestation,
-        qualification=value.qualification,
+    value = _validate_evidence_authority_content(value, world_authority=world_authority)
+    expected = _VerifierEvidenceAdmission(
+        authority_id=value.authority_id,
+        qualification_id=value.qualification.qualification_id,
+        attestation_id=value.attestation.attestation_id,
+        closure_proof_id=value.qualification.closure_proof_id,
     )
-    if canonical != value:
-        raise ProofWorldAuthorityError("qualified evidence proof authority identity mismatch")
+    if value._verifier_admission != expected:
+        raise ProofWorldAuthorityError(
+            "qualified evidence proof authority lacks verifier-authentic admission capability"
+        )
     return value

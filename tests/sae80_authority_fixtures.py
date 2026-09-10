@@ -401,6 +401,12 @@ def evidence(
         evidence_basis_id=basis_id,
         attestation=attestation,
         qualification=qualification,
+        authenticated_issuer=authenticated,
+        closure_proof=closure,
+        issuer_verification_secret=ISSUER_SECRET,
+        expected_registry_generation=world_authority.qualification_registry.generation,
+        candidate_control_lineage_id=CANDIDATE_CONTROL,
+        now=now,
     )
     return EvidenceProof.create(
         proof_class=proof_class,
