@@ -1,0 +1,11 @@
+[package]
+name = "sergeant-assurance-kernel"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "sergeant-assurance-kernel"
+path = "src/main.rs"

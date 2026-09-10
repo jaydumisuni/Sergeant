@@ -1,0 +1,72 @@
+{
+  "schema_version": "sergeant.sae-r2-rust-assurance-kernel-candidate.v1",
+  "node": "SAE-R2",
+  "node_title": "Independent Rust Assurance Kernel",
+  "lifecycle_state": "CANDIDATE",
+  "construction_base": "56157e6ed218bbeb532ad714f652adcb0c5c582a",
+  "authority_gain": "none",
+  "requires_proven": [
+    "SAE-R1",
+    "SAE-30",
+    "SAE-60",
+    "SAE-70",
+    "SAE-80",
+    "SAE-90"
+  ],
+  "proven_dependency_records": [
+    "docs/97-sae-r1-proven-lifecycle-closeout-manifest.json",
+    "docs/93-sae30-proven-lifecycle-closeout-manifest.json",
+    "docs/105-sae60-proven-lifecycle-closeout-manifest.json",
+    "docs/109-sae70-proven-lifecycle-closeout-manifest.json",
+    "docs/113-sae80-proven-lifecycle-closeout-manifest.json",
+    "docs/117-sae90-proven-lifecycle-closeout-manifest.json"
+  ],
+  "output_domain": [
+    "ADMISSIBLE",
+    "INADMISSIBLE"
+  ],
+  "first_slice": {
+    "review_world_qualified_required": true,
+    "rab_qualified_required": true,
+    "active_contracts_complete_required": true,
+    "applicable_instances_complete_required": true,
+    "expected_obligations_complete_required": true,
+    "authority_premises_typed_required": true,
+    "closure_certificate_valid_required": true,
+    "capability_passports_qualified_required": true,
+    "proof_world_bound_required": true,
+    "falsifier_frontier_complete_required": true,
+    "provenance_bound_required": true,
+    "aggregate_qualification_trust_switches": false,
+    "component_boolean_authority": false,
+    "structural_authority_records_required": true,
+    "qualification_attestations_derived_against_registry": true,
+    "exact_unique_collection_closure_derived": true,
+    "unknown_conservation": "fail_closed",
+    "current_generation_required": true,
+    "full_sha256_authority_ids_required": true,
+    "python_expected_list_authority_rejected": true,
+    "shared_implementation_claim_rejected": true,
+    "review_world_rab_scope_binding_derived": true,
+    "closure_certificate_subject_source_binding_derived": true,
+    "contract_instance_obligation_authority_chain_derived": true,
+    "capability_passport_registry_binding_derived": true,
+    "proof_world_review_world_obligation_binding_derived": true,
+    "falsifier_expected_obligation_binding_derived": true,
+    "external_provenance_cardinality_unique_derived": true
+  },
+  "independence": {
+    "rust_third_party_dependencies": false,
+    "python_reference_is_rust_authority": false,
+    "shared_python_implementation": false,
+    "shared_frozen_r1_identity_specification_allowed": true
+  },
+  "produces_now": [],
+  "produces_if_proven": [
+    "QUALIFIED_RUST_ASSURANCE_KERNEL"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false
+}

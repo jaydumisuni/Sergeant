@@ -73,3 +73,24 @@ def test_replay_allows_proven_lifecycle_and_ci_ancestry_metadata_only():
         pass
     else:
         raise AssertionError("unrelated workflow drift must remain forbidden")
+
+
+def test_replay_allows_isolated_sae_r2_candidate_surface_only():
+    expected = [
+        ".github/workflows/sae-r2-rust-proof.yml",
+        "docs/118-sae-r2-rust-assurance-kernel-candidate.md",
+        "docs/119-sae-r2-rust-assurance-kernel-candidate-manifest.json",
+        "main_review/rust_assurance_kernel.py",
+        "rust/sergeant-assurance-kernel/Cargo.lock",
+        "rust/sergeant-assurance-kernel/Cargo.toml",
+        "rust/sergeant-assurance-kernel/src/lib.rs",
+        "rust/sergeant-assurance-kernel/src/main.rs",
+        "tests/test_sae_r2_kernel.py",
+    ]
+    validate_changed_paths(expected, ALLOWED_REPLAY_DRIFT)
+    try:
+        validate_changed_paths(["main_review/engine.py"], ALLOWED_REPLAY_DRIFT)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("existing review-engine drift must remain forbidden")
