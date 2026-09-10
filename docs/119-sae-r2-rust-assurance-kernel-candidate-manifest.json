@@ -46,7 +46,14 @@
     "current_generation_required": true,
     "full_sha256_authority_ids_required": true,
     "python_expected_list_authority_rejected": true,
-    "shared_implementation_claim_rejected": true
+    "shared_implementation_claim_rejected": true,
+    "review_world_rab_scope_binding_derived": true,
+    "closure_certificate_subject_source_binding_derived": true,
+    "contract_instance_obligation_authority_chain_derived": true,
+    "capability_passport_registry_binding_derived": true,
+    "proof_world_review_world_obligation_binding_derived": true,
+    "falsifier_expected_obligation_binding_derived": true,
+    "external_provenance_cardinality_unique_derived": true
   },
   "independence": {
     "rust_third_party_dependencies": false,

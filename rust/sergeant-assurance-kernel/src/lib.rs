@@ -36,6 +36,8 @@ pub struct ClosedCollection {
     pub members: Vec<String>,
     pub expected_members: Vec<String>,
     pub certificate: AuthorityRecord,
+    pub certificate_subject_id: String,
+    pub source_basis_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,15 +47,23 @@ pub struct StructuralAssuranceCapsule {
     pub qualification_registry: QualificationRegistry,
     pub attestations: Vec<QualificationAttestation>,
     pub review_world: AuthorityRecord,
+    pub review_world_rab_id: String,
+    pub review_world_scope_id: String,
     pub rab: AuthorityRecord,
+    pub rab_scope_id: String,
     pub active_contracts: ClosedCollection,
     pub applicable_instances: ClosedCollection,
     pub expected_obligations: ClosedCollection,
     pub authority_premises: ClosedCollection,
     pub capability_passports: ClosedCollection,
     pub proof_world: AuthorityRecord,
+    pub proof_world_review_world_id: String,
+    pub proof_world_expected_obligations_id: String,
     pub falsifier_frontier: ClosedCollection,
+    pub falsifier_expected_obligations_id: String,
     pub provenance: ClosedCollection,
+    pub required_external_sources: usize,
+    pub external_source_ids: Vec<String>,
     pub unknowns_present: bool,
     pub python_expected_list_authority: bool,
     pub shared_implementation_claim: bool,
@@ -89,6 +99,9 @@ fn exact_unique_set(actual: &[String], expected: &[String]) -> bool {
 fn valid_closed_collection(value: &ClosedCollection, generation: &str) -> bool {
     valid_authority(&value.authority, generation)
         && valid_authority(&value.certificate, generation)
+        && is_full_authority_id(&value.certificate_subject_id)
+        && value.certificate_subject_id == value.authority.id
+        && is_full_authority_id(&value.source_basis_id)
         && exact_unique_set(&value.members, &value.expected_members)
 }
 
@@ -171,6 +184,32 @@ pub fn evaluate_structural_capsule(capsule: &StructuralAssuranceCapsule) -> &'st
         || !valid_authority(&capsule.proof_world, generation)
         || !valid_closed_collection(&capsule.falsifier_frontier, generation)
         || !valid_closed_collection(&capsule.provenance, generation)
+        || !is_full_authority_id(&capsule.review_world_rab_id)
+        || capsule.review_world_rab_id != capsule.rab.id
+        || !is_full_authority_id(&capsule.review_world_scope_id)
+        || capsule.review_world_scope_id != capsule.rab_scope_id
+        || capsule.active_contracts.source_basis_id != capsule.review_world.id
+        || capsule.applicable_instances.source_basis_id != capsule.active_contracts.authority.id
+        || capsule.expected_obligations.source_basis_id != capsule.applicable_instances.authority.id
+        || capsule.authority_premises.source_basis_id != capsule.expected_obligations.authority.id
+        || capsule.capability_passports.source_basis_id
+            != capsule.qualification_registry.authority.id
+        || capsule.proof_world_review_world_id != capsule.review_world.id
+        || capsule.proof_world_expected_obligations_id != capsule.expected_obligations.authority.id
+        || capsule.falsifier_expected_obligations_id != capsule.expected_obligations.authority.id
+        || capsule.falsifier_frontier.source_basis_id != capsule.expected_obligations.authority.id
+        || capsule.provenance.source_basis_id != capsule.review_world.id
+        || capsule.external_source_ids.len() != capsule.required_external_sources
+        || capsule
+            .external_source_ids
+            .iter()
+            .any(|id| !is_full_authority_id(id))
+        || capsule
+            .external_source_ids
+            .iter()
+            .collect::<BTreeSet<_>>()
+            .len()
+            != capsule.external_source_ids.len()
         || !qualifications_are_derived(capsule)
     {
         return INADMISSIBLE;
@@ -195,29 +234,41 @@ mod tests {
     }
     fn closed(ch: char, generation: &str, members: &[char]) -> ClosedCollection {
         let values: Vec<String> = members.iter().map(|c| id(*c)).collect();
+        let collection_authority = authority(ch, generation);
         ClosedCollection {
-            authority: authority(ch, generation),
+            authority: collection_authority.clone(),
             members: values.clone(),
             expected_members: values,
             certificate: authority('e', generation),
+            certificate_subject_id: collection_authority.id.clone(),
+            source_basis_id: id('0'),
         }
     }
     fn capsule() -> StructuralAssuranceCapsule {
         let g = "sae-r2-g1";
         let review_world = authority('a', g);
         let rab = authority('b', g);
-        let active_contracts = closed('3', g, &['4', '5']);
-        let applicable_instances = closed('6', g, &['7', '8']);
-        let expected_obligations = closed('9', g, &['a', 'b']);
-        let authority_premises = closed('c', g, &['d', 'e']);
-        let capability_passports = closed('1', g, &['2', '3']);
+        let mut active_contracts = closed('3', g, &['4', '5']);
+        let mut applicable_instances = closed('6', g, &['7', '8']);
+        let mut expected_obligations = closed('9', g, &['a', 'b']);
+        let mut authority_premises = closed('c', g, &['d', 'e']);
+        let mut capability_passports = closed('1', g, &['2', '3']);
         let proof_world = authority('e', g);
-        let falsifier_frontier = closed('d', g, &['1', '2']);
-        let provenance = closed('4', g, &['5']);
+        let mut falsifier_frontier = closed('d', g, &['1', '2']);
+        let mut provenance = closed('4', g, &['5']);
         let registry = QualificationRegistry {
             authority: authority('0', g),
             authorized_issuers: vec![id('7')],
         };
+        let review_world_scope_id = id('8');
+        let review_world_rab_id = rab.id.clone();
+        active_contracts.source_basis_id = review_world.id.clone();
+        applicable_instances.source_basis_id = active_contracts.authority.id.clone();
+        expected_obligations.source_basis_id = applicable_instances.authority.id.clone();
+        authority_premises.source_basis_id = expected_obligations.authority.id.clone();
+        capability_passports.source_basis_id = registry.authority.id.clone();
+        falsifier_frontier.source_basis_id = expected_obligations.authority.id.clone();
+        provenance.source_basis_id = review_world.id.clone();
         let subjects = [
             &review_world,
             &rab,
@@ -240,21 +291,32 @@ mod tests {
                 revoked: false,
             })
             .collect();
+        let proof_world_review_world_id = review_world.id.clone();
+        let proof_world_expected_obligations_id = expected_obligations.authority.id.clone();
+        let falsifier_expected_obligations_id = expected_obligations.authority.id.clone();
         StructuralAssuranceCapsule {
             subject_generation: g.into(),
             current_generation: g.into(),
             qualification_registry: registry,
             attestations,
+            review_world_rab_id,
+            review_world_scope_id: review_world_scope_id.clone(),
             review_world,
             rab,
+            rab_scope_id: review_world_scope_id,
             active_contracts,
             applicable_instances,
             expected_obligations,
             authority_premises,
             capability_passports,
+            proof_world_review_world_id,
+            proof_world_expected_obligations_id,
             proof_world,
+            falsifier_expected_obligations_id,
             falsifier_frontier,
             provenance,
+            required_external_sources: 1,
+            external_source_ids: vec![id('9')],
             unknowns_present: false,
             python_expected_list_authority: false,
             shared_implementation_claim: false,
