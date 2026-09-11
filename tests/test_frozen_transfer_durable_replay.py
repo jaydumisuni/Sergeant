@@ -94,3 +94,32 @@ def test_replay_allows_isolated_sae_r2_candidate_surface_only():
         pass
     else:
         raise AssertionError("existing review-engine drift must remain forbidden")
+
+
+def test_replay_allows_exact_sae_r2_closeout_and_sae100_construction_surface_only():
+    expected = [
+        "docs/120-sae-r2-proven-lifecycle-closeout.md",
+        "docs/121-sae-r2-proven-lifecycle-closeout-manifest.json",
+        "tests/test_sae_r2_proven_lifecycle_closeout.py",
+        "tests/test_sae_r2_qualification_campaign.py",
+        "docs/122-sae100-integration-candidate.md",
+        "docs/122-sae100-sergeant-integration-candidate.md",
+        "docs/123-sae100-sergeant-integration-candidate-manifest.json",
+        "main_review/assurance_integration.py",
+        "tests/test_assurance_integration.py",
+        "tests/test_sae100_integration_candidate_boundary.py",
+        "tests/test_sae100_task17_frozen_predecessor_collision.py",
+    ]
+    validate_changed_paths(expected, ALLOWED_REPLAY_DRIFT)
+    for forbidden in [
+        "main_review/officer_council.py",
+        "main_review/judge_assurance_adapter.py",
+        "main_review/final_proof.py",
+        "main_review/engine.py",
+    ]:
+        try:
+            validate_changed_paths([forbidden], ALLOWED_REPLAY_DRIFT)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(f"frozen/review-engine drift must remain forbidden: {forbidden}")
