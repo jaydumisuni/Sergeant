@@ -1,0 +1,71 @@
+{
+  "schema_version": "sergeant.sae-r2-proven-lifecycle-closeout.v1",
+  "node": "SAE-R2",
+  "node_title": "Independent Rust Assurance Kernel",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": [
+    "SAE-R1",
+    "SAE-30",
+    "SAE-60",
+    "SAE-70",
+    "SAE-80",
+    "SAE-90"
+  ],
+  "candidate_generation": {
+    "pull_request": 217,
+    "head": "c38dd512ddcb2d8c759d034a1d1c32b9b572b10f",
+    "tree": "0d19d0c91ee986b771e81eb95efcba5016d1057e",
+    "candidate_document_blob": "b7265fe559b3072138084b705410774735cdf442",
+    "candidate_manifest_blob": "250e676dc4287ac9847bf0852dd9edc342be28ed",
+    "kernel_blob": "77ae14ed473ec118651215fa27ba1804891eab07",
+    "structural_campaign_blob": "28c119d6dd6a8751cb7c5d503cbb0b43fd2a3848",
+    "workflow_blob": "ffd65ff91f5d77873f43c5150002bf04f2e8eb4d"
+  },
+  "canonical_candidate_merge": {
+    "commit": "cc3168f6a5b49a5b4c4d49303a0bd5fb35e7b335",
+    "tree": "0d19d0c91ee986b771e81eb95efcba5016d1057e",
+    "parents": [
+      "56157e6ed218bbeb532ad714f652adcb0c5c582a",
+      "c38dd512ddcb2d8c759d034a1d1c32b9b572b10f"
+    ],
+    "exact_head_guard": "c38dd512ddcb2d8c759d034a1d1c32b9b572b10f",
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1642 passed, 2 xfailed",
+    "independent_reviewer_generation": "56157e6ed218bbeb532ad714f652adcb0c5c582a",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "31018d7b73ee182a073294b8ed395ec9a67b1320a5782cdd81660fb894c9f5fc",
+    "review_evidence_sha256": "291ba657a48f896babb7af986de0738901669f03594f2f3fcead17150267c501"
+  },
+  "qualified_scope": {
+    "structural_authority_records_required": true,
+    "qualification_attestations_registry_derived": true,
+    "exact_unique_collection_closure_required": true,
+    "review_world_rab_scope_binding_required": true,
+    "closure_certificate_subject_source_binding_required": true,
+    "contract_instance_obligation_authority_chain_required": true,
+    "capability_passport_registry_binding_required": true,
+    "proof_world_review_world_obligation_binding_required": true,
+    "falsifier_expected_obligation_binding_required": true,
+    "external_provenance_cardinality_unique_required": true,
+    "unknown_conservation": "fail_closed",
+    "current_generation_required": true,
+    "revocation_rejected": true,
+    "python_expected_list_authority_rejected": true,
+    "shared_implementation_claim_rejected": true
+  },
+  "qualification_protocol_id": "QUALIFIED_RUST_ASSURANCE_KERNEL",
+  "produces": [
+    "QUALIFIED_RUST_ASSURANCE_KERNEL"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true
+}
