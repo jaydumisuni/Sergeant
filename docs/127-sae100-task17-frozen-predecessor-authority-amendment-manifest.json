@@ -1,0 +1,38 @@
+{
+  "candidate_merge_authorized_before_amendment_merge": false,
+  "existing_preparation_pr": 221,
+  "frozen_predecessor_blobs": {
+    "main_review/final_proof.py": "8ee97495afabd7828a5fc8c37b44e5b802cbeded",
+    "main_review/judge_assurance_adapter.py": "522b01881894e2acf5898a32964c04303b585307",
+    "main_review/officer_council.py": "0089e55db3493501e85fba30f502b36f59fc5433"
+  },
+  "genesis_activated": false,
+  "node": "SAE-100",
+  "normal_verdict_authority_gain": false,
+  "preserve_unchanged": [
+    "main_review/officer_council.py",
+    "main_review/judge_assurance_adapter.py",
+    "main_review/final_proof.py"
+  ],
+  "replacement_rule": "SUCCESSOR_NON_MUTATING_INTEGRATION_SEAMS",
+  "required_candidate_docs": [
+    "docs/122-sae100-sergeant-integration-candidate.md",
+    "docs/123-sae100-sergeant-integration-candidate-manifest.json"
+  ],
+  "required_candidate_tests": [
+    "tests/test_assurance_integration.py"
+  ],
+  "required_successor_surface": [
+    "main_review/assurance_integration.py"
+  ],
+  "requires_explicit_approval_before_guarded_merge": true,
+  "schema": "sergeant.sae100.task17-authority-amendment.v1",
+  "source_main": "4655d18e979e62baf31f301df295e11483d19c00",
+  "source_plan": "docs/superpowers/plans/2026-09-07-sae-30-through-100.md",
+  "source_plan_blob": "b78b960430182216dfce4ce5a6e2c671f2f9e393",
+  "state": "PROPOSED_AUTHORITY_AMENDMENT",
+  "still_required_in_place": [
+    "main_review/cpl_campaign.py"
+  ],
+  "task": 17
+}
