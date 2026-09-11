@@ -9,6 +9,7 @@ on:
       - 'main_review/rust_identity_vectors.py'
       - 'tests/test_sae_r1_canonical_identity.py'
       - 'tests/test_sae_r1_candidate_manifest.py'
+      - 'tests/test_sae_r2_qualification_campaign.py'
       - '.github/workflows/sae-rust-proof.yml'
   push:
     branches: [main]
@@ -19,6 +20,7 @@ on:
       - 'main_review/rust_identity_vectors.py'
       - 'tests/test_sae_r1_canonical_identity.py'
       - 'tests/test_sae_r1_candidate_manifest.py'
+      - 'tests/test_sae_r2_qualification_campaign.py'
       - '.github/workflows/sae-rust-proof.yml'
 
 permissions:
@@ -38,4 +40,4 @@ jobs:
       - name: Install focused Python proof runner
         run: python -m pip install pytest
       - name: Prove Python reference and frozen candidate contract
-        run: python -m pytest -q tests/test_sae_r1_canonical_identity.py tests/test_sae_r1_candidate_manifest.py
+        run: python -m pytest -q tests/test_sae_r1_canonical_identity.py tests/test_sae_r1_candidate_manifest.py tests/test_sae_r2_qualification_campaign.py
