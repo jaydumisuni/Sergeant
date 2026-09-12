@@ -4,6 +4,7 @@ import pytest
 
 from main_review.assurance_integration import (
     SHADOW_MODE,
+    QUALIFIED_RUST_ASSURANCE_KERNEL,
     compile_assurance_frontier,
     run_shadow_assurance,
 )
@@ -11,13 +12,27 @@ from main_review.assurance_integration import (
 
 def inputs():
     return dict(
-        review_world={"open_assurance_frontier": ["obl-1"], "authority_owner": "Sergeant"},
-        registry={"qualified": True},
-        ledger={"judge_admission_required": True},
-        capabilities={"qualified": True},
-        proof_world={"qualified": True},
-        falsification={"challenger_owned": True, "complete": True},
+        review_world={"qualification_protocol_id": "QUALIFIED_REVIEW_WORLD_CONTRACT", "open_assurance_frontier": ["obl-1"], "authority_owner": "Sergeant"},
+        registry={"qualification_protocol_id": "QUALIFIED_CONTRACT_INSTANCE_CLOSURE"},
+        ledger={"qualification_protocol_id": "QUALIFIED_ASSURANCE_LEDGER", "judge_admission_required": True},
+        capabilities={"qualification_protocol_id": "QUALIFIED_SEMANTIC_CAPABILITY_PROTOCOL"},
+        proof_world={"qualification_protocol_id": "QUALIFIED_PROOF_WORLD"},
+        falsification={"qualification_protocol_id": "QUALIFIED_FALSIFICATION_FRONTIER", "challenger_owned": True, "complete": True},
     )
+
+
+class QualifiedKernel:
+    qualification_protocol_id = QUALIFIED_RUST_ASSURANCE_KERNEL
+
+    def __init__(self, result):
+        self.result = result
+
+    def __call__(self, _campaign):
+        return dict(self.result)
+
+
+def kernel(**result):
+    return QualifiedKernel(result)
 
 
 def test_compile_preserves_fixed_authority_ownership_and_shadow_mode():
@@ -42,10 +57,10 @@ def test_missing_dependency_fails_closed():
 
 
 def test_officer_or_judge_bypass_is_rejected():
-    values = inputs(); values["ledger"] = {"judge_admission_required": False}
+    values = inputs(); values["ledger"] = {"qualification_protocol_id": "QUALIFIED_ASSURANCE_LEDGER", "judge_admission_required": False}
     with pytest.raises(ValueError, match="Judge admission"):
         compile_assurance_frontier(**values)
-    values = inputs(); values["falsification"] = {"challenger_owned": False, "complete": True}
+    values = inputs(); values["falsification"] = {"qualification_protocol_id": "QUALIFIED_FALSIFICATION_FRONTIER", "challenger_owned": False, "complete": True}
     with pytest.raises(ValueError, match="Challenger"):
         compile_assurance_frontier(**values)
 
@@ -53,12 +68,12 @@ def test_officer_or_judge_bypass_is_rejected():
 def test_rust_cannot_issue_engineering_verdict():
     campaign = compile_assurance_frontier(**inputs())
     with pytest.raises(ValueError, match="Rust kernel attempted verdict authority"):
-        run_shadow_assurance(campaign, lambda _: {"admissible": True, "verdict": "PASS"})
+        run_shadow_assurance(campaign, kernel(admissible=True, verdict="PASS"))
 
 
 def test_unknown_is_preserved_not_suppressed():
     campaign = compile_assurance_frontier(**inputs())
-    result = run_shadow_assurance(campaign, lambda _: {"admissible": None, "status": "UNKNOWN"})
+    result = run_shadow_assurance(campaign, kernel(admissible=None, status="UNKNOWN"))
     assert result.status == "UNKNOWN"
     assert result.mode == SHADOW_MODE
     assert result.normal_verdict_override is None
@@ -66,7 +81,7 @@ def test_unknown_is_preserved_not_suppressed():
 
 def test_accidental_activation_is_impossible_before_genesis_exit():
     campaign = compile_assurance_frontier(**inputs())
-    result = run_shadow_assurance(campaign, lambda _: {"admissible": True, "status": "QUALIFIED"})
+    result = run_shadow_assurance(campaign, kernel(admissible=True, status="QUALIFIED"))
     assert result.mode == SHADOW_MODE
     assert result.genesis_activated is False
     assert result.normal_verdict_override is None
