@@ -22,17 +22,23 @@ EXPECTED_BLOBS = {
 }
 
 
-def git(*args: str) -> str:
-    return subprocess.check_output(["git", *args], cwd=ROOT, text=True).strip()
-
-
-def blob_at(ref: str, path: str) -> str:
+def ensure_ref(ref: str) -> None:
     try:
-        payload = subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=ROOT, stderr=subprocess.DEVNULL)
+        subprocess.check_call(["git", "cat-file", "-e", f"{ref}^{{commit}}"], cwd=ROOT,
+                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         subprocess.check_call(["git", "fetch", "--no-tags", "--depth", "1", "origin", ref], cwd=ROOT,
                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        payload = subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=ROOT)
+
+
+def tree_at(ref: str) -> str:
+    ensure_ref(ref)
+    return subprocess.check_output(["git", "rev-parse", f"{ref}^{{tree}}"], cwd=ROOT, text=True).strip()
+
+
+def blob_at(ref: str, path: str) -> str:
+    ensure_ref(ref)
+    payload = subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=ROOT)
     return subprocess.check_output(["git", "hash-object", "--stdin"], cwd=ROOT, input=payload).decode().strip()
 
 
@@ -49,8 +55,8 @@ def test_closeout_binds_exact_candidate_merge_tree_and_frozen_blobs():
     assert manifest["canonical_candidate_merge"]["commit"] == CANDIDATE_MERGE
     assert manifest["canonical_candidate_merge"]["tree"] == CANDIDATE_TREE
     assert manifest["canonical_candidate_merge"]["parents"] == [BASE_PROVEN, CANDIDATE]
-    assert git("rev-parse", f"{CANDIDATE}^{{tree}}") == CANDIDATE_TREE
-    assert git("rev-parse", f"{CANDIDATE_MERGE}^{{tree}}") == CANDIDATE_TREE
+    assert tree_at(CANDIDATE) == CANDIDATE_TREE
+    assert tree_at(CANDIDATE_MERGE) == CANDIDATE_TREE
     for path, expected in EXPECTED_BLOBS.items():
         assert manifest["candidate_generation"]["authority_blobs"][path] == expected
         assert blob_at(CANDIDATE, path) == expected
