@@ -5,7 +5,11 @@ ROOT=Path(__file__).resolve().parents[1]
 CANDIDATE="39aaf3769a6d3582ba0d316152e1dfe271313c68"; CANDIDATE_TREE="ab775c5b7df181da6490a76d8bad43e72a7b09f9"; MERGE="cedf045782780cae8e6de24ea964f175d7acb305"; MERGE_TREE="01d00b84775892234a1342cb68b40a464c373da6"; REVIEWER="97c2d939df51a21828a6ea96f05458207ac0793c"
 DOC=ROOT/'docs/142-sae130b-proven-lifecycle-closeout.md'; MANIFEST=ROOT/'docs/143-sae130b-proven-lifecycle-closeout-manifest.json'
 BLOBS={"docs/140-sae130b-semantic-coupling-candidate.md":"4ec111ba35d359f040d243bbca779d047068ede1","docs/141-sae130b-semantic-coupling-candidate-manifest.json":"51b5abf7da0e3912f586e478012d4f4d910ca365","main_review/semantic_coupling.py":"f8597bf7d31dd6a14e087eac261a7da3210d1407","tests/test_semantic_coupling.py":"7179873af5a4cfd03ea50c6c9c2f96a774cffaee"}
-def blob(ref,path): return subprocess.check_output(['git','rev-parse',f'{ref}:{path}'],cwd=ROOT,text=True).strip()
+def ensure_ref(ref):
+ try: subprocess.check_call(['git','cat-file','-e',f'{ref}^{{commit}}'],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ except subprocess.CalledProcessError: subprocess.check_call(['git','fetch','--no-tags','--depth','1','origin',ref],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+def blob(ref,path):
+ ensure_ref(ref); return subprocess.check_output(['git','rev-parse',f'{ref}:{path}'],cwd=ROOT,text=True).strip()
 def test_required_inventory_exists(): assert DOC.is_file() and MANIFEST.is_file() and (ROOT/'tests/test_sae130b_qualification_campaign.py').is_file()
 def test_exact_candidate_and_parallel_merge_binding():
  m=json.loads(MANIFEST.read_text()); assert m['candidate_generation']['head']==CANDIDATE; assert m['candidate_generation']['tree']==CANDIDATE_TREE; assert m['canonical_candidate_merge']['commit']==MERGE; assert m['canonical_candidate_merge']['tree']==MERGE_TREE; assert m['canonical_candidate_merge']['parents']==[REVIEWER,CANDIDATE]
