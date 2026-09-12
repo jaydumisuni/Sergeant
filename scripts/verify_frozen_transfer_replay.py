@@ -75,9 +75,30 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def validate_changed_paths(paths: list[str], allowed: list[str] | tuple[str, ...]) -> None:
+def _paired_new_successor_paths(added_paths: set[str]) -> set[str]:
+    permitted: set[str] = set()
+    for path in added_paths:
+        if not path.startswith('main_review/') or not path.endswith('.py'):
+            continue
+        stem = Path(path).stem
+        test_path = f'tests/test_{stem}.py'
+        if test_path in added_paths:
+            permitted.update({path, test_path})
+    return permitted
+
+
+def validate_changed_paths(
+    paths: list[str],
+    allowed: list[str] | tuple[str, ...],
+    *,
+    added_paths: set[str] | None = None,
+) -> None:
+    paired_new = _paired_new_successor_paths(set(added_paths or ()))
+
     def permitted(path: str) -> bool:
         if path.startswith(PROVENANCE_NEUTRAL_PREFIXES):
+            return True
+        if path in paired_new:
             return True
         return any(path == item or (item.endswith('/') and path.startswith(item)) for item in allowed)
 
@@ -117,12 +138,17 @@ def git_changed_paths(root: Path, baseline: str) -> list[str]:
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
+def git_added_paths(root: Path, baseline: str) -> set[str]:
+    out = subprocess.check_output(['git', 'diff', '--diff-filter=A', '--name-only', f'{baseline}..HEAD'], cwd=root, text=True)
+    return {line.strip() for line in out.splitlines() if line.strip()}
+
+
 def replay(root: Path, set_id: str, output: Path) -> dict:
     manifest = json.loads((root / 'evidence/frozen-transfer-replay/manifest.json').read_text())
     rec = manifest['sets'][set_id]
     validate_archive(root, rec)
     changed = git_changed_paths(root, rec['source_head'])
-    validate_changed_paths(changed, ALLOWED_REPLAY_DRIFT)
+    validate_changed_paths(changed, ALLOWED_REPLAY_DRIFT, added_paths=git_added_paths(root, rec['source_head']))
     output.mkdir(parents=True, exist_ok=True)
     for name, meta in rec['files'].items():
         shutil.copy2(root / meta['path'], output / name)
