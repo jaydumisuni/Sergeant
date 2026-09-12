@@ -1,0 +1,14 @@
+{
+  "schema_version": "sergeant.sae130a-authority-effect-candidate.v1",
+  "node": "SAE-130A",
+  "lifecycle_state": "CANDIDATE",
+  "base_main": "e29ffbcd6aad7336e5827cbb1e6469be398cf730",
+  "proof_requires": ["SAE-60", "SAE-90", "SAE-R2"],
+  "required_surfaces": ["main_review/authority_effect_reasoning.py", "tests/test_authority_effect_reasoning.py", "docs/136-sae130a-authority-effect-candidate.md", "docs/137-sae130a-authority-effect-candidate-manifest.json"],
+  "tenfold_command_authority_imported": false,
+  "unknown_causal_edges_fail_exact": true,
+  "bounded_external_effect_census_required": true,
+  "produces_on_separate_proven_closeout": ["QUALIFIED_AUTHORITY_EFFECT_CAPABILITY"],
+  "authority_gain_at_candidate_merge": "none",
+  "genesis_activated": false
+}
