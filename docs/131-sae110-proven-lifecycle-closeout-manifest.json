@@ -1,0 +1,53 @@
+{
+  "schema_version": "sergeant.sae110-proven-lifecycle-closeout.v1",
+  "node": "SAE-110",
+  "node_title": "Assurance Capsule / Recovery / Currentness / Owner Risk",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": ["SAE-10", "SAE-30", "SAE-40", "SAE-R2"],
+  "candidate_generation": {
+    "pull_request": 229,
+    "head": "2f68974e67c0764712639bdefd6c526537d1795e",
+    "tree": "b2ae7d61a8c19c8f2b0617b582fa83429dc42cfd",
+    "authority_blobs": {
+      "docs/128-sae110-assurance-capsule-candidate.md": "7b965007489c884a5bfc9067ccfe748b5ac3df52",
+      "docs/129-sae110-assurance-capsule-candidate-manifest.json": "f4397469924b1ef129bdd2ec7c10b07980aaa1eb",
+      "main_review/assurance_capsule.py": "80d477514d7fe19c36c4c980c139e14c59ef3a5b",
+      "tests/test_assurance_capsule.py": "9d6e69e2ab9a0d3754d6e7596373c24a41b2193b",
+      "scripts/verify_frozen_transfer_replay.py": "81f07e731976de8048aca330a8d53ad05a015acb",
+      "tests/test_frozen_transfer_durable_replay.py": "2377207c6e0c3022f9e99b890baf3380316fd180"
+    }
+  },
+  "canonical_candidate_merge": {
+    "commit": "1eb29fe4aa61eb3e197bdd0f68cb54c703fc3421",
+    "tree": "b2ae7d61a8c19c8f2b0617b582fa83429dc42cfd",
+    "parents": [
+      "73541e17e8ef7c208d2bfa91012695b6917e549b",
+      "2f68974e67c0764712639bdefd6c526537d1795e"
+    ],
+    "exact_head_guard": "2f68974e67c0764712639bdefd6c526537d1795e",
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1685 passed, 2 xfailed",
+    "independent_reviewer_generation": "73541e17e8ef7c208d2bfa91012695b6917e549b",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "f5f16ba4903acc18638ab8a882713b3a19a2352c6ba5f63c8c085b6eaaf0b0e3",
+    "review_evidence_sha256": "21d1805e9cafb5f83feba5e32ba9db2a5435fb89600f6d553b35edbf312bca95"
+  },
+  "required_closeout_artifacts": [
+    "tests/test_sae110_proven_lifecycle_closeout.py",
+    "tests/test_sae110_qualification_campaign.py",
+    "docs/130-sae110-proven-lifecycle-closeout.md",
+    "docs/131-sae110-proven-lifecycle-closeout-manifest.json"
+  ],
+  "produces": ["QUALIFIED_ASSURANCE_CAPSULE", "QUALIFIED_RECOVERY_PROTOCOL"],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true
+}
