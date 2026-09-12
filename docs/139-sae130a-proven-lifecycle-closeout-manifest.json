@@ -1,0 +1,57 @@
+{
+  "schema_version": "sergeant.sae130a-proven-lifecycle-closeout.v1",
+  "node": "SAE-130A",
+  "node_title": "Authority / Effect Reasoning",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": [
+    "SAE-60",
+    "SAE-90",
+    "SAE-R2"
+  ],
+  "candidate_generation": {
+    "pull_request": 233,
+    "head": "391d176c514aa15a3f217e803486b43007285929",
+    "tree": "0d40113dfbf3c9bb25f84b94004920e63576fa4f",
+    "authority_blobs": {
+      "docs/136-sae130a-authority-effect-candidate.md": "5b9bbc07339f2fb233713d16985aa31404448b5e",
+      "docs/137-sae130a-authority-effect-candidate-manifest.json": "d609dcdcf6ddb01bcc826ec2fa40216af68ffaf5",
+      "main_review/authority_effect_reasoning.py": "1cad4d801ac1ad376fcdfb49439dfdcf304f6c2d",
+      "tests/test_authority_effect_reasoning.py": "3f8fbad343a2608a844f187533b22ee52cc0408b"
+    }
+  },
+  "canonical_candidate_merge": {
+    "commit": "5a701f76477e46210ff4a7251d4e2b156778d396",
+    "tree": "0d40113dfbf3c9bb25f84b94004920e63576fa4f",
+    "parents": [
+      "e29ffbcd6aad7336e5827cbb1e6469be398cf730",
+      "391d176c514aa15a3f217e803486b43007285929"
+    ],
+    "exact_head_guard": "391d176c514aa15a3f217e803486b43007285929",
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1712 passed, 2 xfailed",
+    "independent_reviewer_generation": "e29ffbcd6aad7336e5827cbb1e6469be398cf730",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "13e837919445f627559145116e8998bbf2547f153a38970437c9f4c5cbc9be00",
+    "review_evidence_sha256": "3c1c703d063029f5e4bbb03dad3bf3784ae7320bf48277156104c3c18795ee41"
+  },
+  "required_closeout_artifacts": [
+    "tests/test_sae130a_proven_lifecycle_closeout.py",
+    "tests/test_sae130a_qualification_campaign.py",
+    "docs/138-sae130a-proven-lifecycle-closeout.md",
+    "docs/139-sae130a-proven-lifecycle-closeout-manifest.json"
+  ],
+  "produces": [
+    "QUALIFIED_AUTHORITY_EFFECT_CAPABILITY"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true
+}
