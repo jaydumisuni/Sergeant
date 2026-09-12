@@ -125,3 +125,18 @@ def test_replay_allows_post_sae_r2_and_sae100_authority_surfaces_without_broaden
         except ValueError:
             continue
         raise AssertionError(f"unrelated or frozen predecessor drift must remain forbidden: {forbidden}")
+
+
+def test_replay_allows_sae100_qualification_repair_test_without_broadening():
+    validate_changed_paths(["tests/test_sae100_qualified_dependency_consumption.py"], ALLOWED_REPLAY_DRIFT)
+    for forbidden in [
+        "tests/test_unrelated_review_engine_rewrite.py",
+        "main_review/officer_council.py",
+        "main_review/judge_assurance_adapter.py",
+        "main_review/final_proof.py",
+    ]:
+        try:
+            validate_changed_paths([forbidden], ALLOWED_REPLAY_DRIFT)
+        except ValueError:
+            continue
+        raise AssertionError(f"qualification replay repair must not broaden frozen drift: {forbidden}")

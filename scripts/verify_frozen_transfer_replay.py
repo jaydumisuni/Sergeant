@@ -62,6 +62,7 @@ ALLOWED_REPLAY_DRIFT = (
     'tests/test_assurance_integration.py',
     'tests/test_sae100_post_amendment_candidate.py',
     'tests/test_sae100_task17_authority_amendment_record.py',
+    'tests/test_sae100_qualified_dependency_consumption.py',
     'evidence/frozen-transfer-replay/',
 )
 
