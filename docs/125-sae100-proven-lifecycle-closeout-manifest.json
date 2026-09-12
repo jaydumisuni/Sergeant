@@ -1,0 +1,90 @@
+{
+  "schema_version": "sergeant.sae100-proven-lifecycle-closeout.v1",
+  "node": "SAE-100",
+  "node_title": "Cpl / Officers / Judge / Sergeant Integration",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": [
+    "SAE-70",
+    "SAE-90",
+    "SAE-R2"
+  ],
+  "candidate_generation": {
+    "pull_request": 225,
+    "head": "346569c1488926646aa01eb0e77cbee444023f0c",
+    "tree": "bcc5c4d7d1ebad45e4d9ffb80084a1562865406e",
+    "candidate_document_blob": "3f8db5ba16594b26eb9c21c744528286e895c5d3",
+    "candidate_manifest_blob": "448c8ebc18308b191e152c4fb9a719795b9fedca",
+    "integration_blob": "371eb1c85e1a3c5b6091538d37c1d1f63af70149",
+    "cpl_campaign_blob": "9de701e861d0a917f22eaec785f7da7e1103c6fc",
+    "hostile_campaign_blob": "d520656590e7c63fbc1e5c886898cb551a95596c",
+    "post_amendment_boundary_blob": "efd003d1c9a6ea5819906eba22a2cd496528e4a4"
+  },
+  "canonical_candidate_merge": {
+    "commit": "1c990d87e60e334a92dce147a7cca5c743172783",
+    "tree": "bcc5c4d7d1ebad45e4d9ffb80084a1562865406e",
+    "parents": [
+      "0cd738ccbe392220ff6def65f6a07a1812f26e58",
+      "346569c1488926646aa01eb0e77cbee444023f0c"
+    ],
+    "exact_head_guard": "346569c1488926646aa01eb0e77cbee444023f0c",
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1665 passed, 2 xfailed",
+    "independent_reviewer_generation": "4655d18e979e62baf31f301df295e11483d19c00",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "e71a08776144e8b7181101e6e71d02150b229c56da966ebb937cbc4b56cf3722",
+    "review_evidence_sha256": "f03d7247ffb4da6d5f3634d75d9760b2f25d570dd36afdfc83398c92bd6708f3",
+    "unresolved_actionable_threads": 0
+  },
+  "qualified_scope": {
+    "mode": "SHADOW_OR_QUALIFICATION_ONLY",
+    "ordinary_sergeant_verdict_preserved": true,
+    "cpl_open_frontier_scheduling_only": true,
+    "officers_retain_specialist_ownership": true,
+    "challenger_owns_mandatory_falsification": true,
+    "judge_owns_evidence_admission": true,
+    "rust_constitutional_admissibility_only": true,
+    "sergeant_final_engineering_verdict_owner": true,
+    "unknown_conservation": "fail_closed",
+    "frozen_predecessor_blobs_preserved": true,
+    "task17_authority_amendment_merge": "0cd738ccbe392220ff6def65f6a07a1812f26e58",
+    "qualified_dependency_generations_required": true,
+    "qualified_rust_kernel_required": true
+  },
+  "qualification_protocol_id": "INTEGRATED_SHADOW_ASSURANCE_SERGEANT",
+  "produces": [
+    "INTEGRATED_SHADOW_ASSURANCE_SERGEANT"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true,
+  "qualified_dependency_repair": {
+    "pull_request": 227,
+    "head": "0fc3efb48ee04b76270619607cb577d32e20962c",
+    "canonical_merge": "66601d2854073d9ff8ebe14f0370d8221a73ed3e",
+    "full_suite": "1669 passed, 2 xfailed",
+    "independent_review": {
+      "reviewer_generation": "4655d18e979e62baf31f301df295e11483d19c00",
+      "verdict": "APPROVE",
+      "confidence": 0.88,
+      "required_actions": []
+    },
+    "heavy_evidence_sha256": "db454da92e500ee064b2484832ccfa07543d2757a6c35de727151733b8863508",
+    "review_evidence_sha256": "edc719479a8255b048a4bdf45069fa3d7a886cdc05600475a9b2fc5d04110b11",
+    "integration_blob": "2873a6fd33e99d652ef7f910b3d81c978904692d",
+    "hostile_campaign_blob": "bd50e7c24ded4e7476da7724f8402e3d526345e0",
+    "qualified_dependency_campaign_blob": "12eac0731a506ea30c1466d6e67235332507c70d",
+    "durable_replay_blob": "f7fe8d066f81a95d94a7d0888f64c818aa12aa8a",
+    "durable_replay_campaign_blob": "f78c9f240db3eb09469a5e2dd07ccf8136f71684",
+    "qualified_dependency_enforcement": true,
+    "qualified_rust_kernel_enforcement": true,
+    "authority_gain_at_repair_merge": "none"
+  }
+}
