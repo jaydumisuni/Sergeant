@@ -1,0 +1,17 @@
+{
+  "schema_version": "sergeant.sae130c-state-failure-candidate.v1",
+  "node": "SAE-130C",
+  "lifecycle_state": "CANDIDATE",
+  "base_main": "7af19145d13e173a9fe727cd3977c483aa4c8057",
+  "proof_requires": ["SAE-60", "SAE-90", "SAE-R2"],
+  "required_surfaces": [
+    "main_review/state_failure_reasoning.py",
+    "tests/test_state_failure_reasoning.py",
+    "tests/test_sae130c_qualification_campaign.py",
+    "docs/144-sae130c-state-failure-candidate.md",
+    "docs/145-sae130c-state-failure-candidate-manifest.json"
+  ],
+  "produces_on_separate_proven_closeout": ["QUALIFIED_STATE_FAILURE_CAPABILITY"],
+  "authority_gain_at_candidate_merge": "none",
+  "genesis_activated": false
+}
