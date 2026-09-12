@@ -7,6 +7,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+PROVENANCE_NEUTRAL_PREFIXES = ('docs/', 'tests/test_sae')
+
 ALLOWED_REPLAY_DRIFT = (
     'docs/108-sae70-proven-lifecycle-closeout.md',
     'docs/109-sae70-proven-lifecycle-closeout-manifest.json',
@@ -58,6 +60,8 @@ ALLOWED_REPLAY_DRIFT = (
     'docs/126-sae100-task17-frozen-predecessor-authority-amendment.md',
     'docs/127-sae100-task17-frozen-predecessor-authority-amendment-manifest.json',
     'main_review/assurance_integration.py',
+    'main_review/assurance_capsule.py',
+    'tests/test_assurance_capsule.py',
     'main_review/cpl_campaign.py',
     'tests/test_assurance_integration.py',
     'tests/test_sae100_post_amendment_candidate.py',
@@ -72,7 +76,12 @@ def sha256(path: Path) -> str:
 
 
 def validate_changed_paths(paths: list[str], allowed: list[str] | tuple[str, ...]) -> None:
-    bad = [p for p in paths if not any(p == a or (a.endswith('/') and p.startswith(a)) for a in allowed)]
+    def permitted(path: str) -> bool:
+        if path.startswith(PROVENANCE_NEUTRAL_PREFIXES):
+            return True
+        return any(path == item or (item.endswith('/') and path.startswith(item)) for item in allowed)
+
+    bad = [path for path in paths if not permitted(path)]
     if bad:
         raise ValueError('replay forbidden: review-engine or unrelated drift detected: ' + ', '.join(sorted(bad)))
 

@@ -140,3 +140,27 @@ def test_replay_allows_sae100_qualification_repair_test_without_broadening():
         except ValueError:
             continue
         raise AssertionError(f"qualification replay repair must not broaden frozen drift: {forbidden}")
+
+
+def test_replay_classifies_proof_metadata_generically_without_opening_frozen_review_engine():
+    neutral = [
+        "docs/124-sae100-proven-lifecycle-closeout.md",
+        "docs/125-sae100-proven-lifecycle-closeout-manifest.json",
+        "docs/128-sae110-assurance-capsule-candidate.md",
+        "docs/129-sae110-assurance-capsule-candidate-manifest.json",
+        "docs/superpowers/plans/2026-09-12-sae-110-assurance-capsule.md",
+        "tests/test_sae100_proven_lifecycle_closeout.py",
+        "tests/test_sae100_qualification_campaign.py",
+        "tests/test_assurance_capsule.py",
+        "main_review/assurance_capsule.py",
+    ]
+    validate_changed_paths(neutral, ALLOWED_REPLAY_DRIFT)
+    for forbidden in [
+        "main_review/engine.py",
+        "main_review/officer_council.py",
+        "main_review/judge_assurance_adapter.py",
+        "main_review/final_proof.py",
+        ".github/workflows/release.yml",
+    ]:
+        with __import__("pytest").raises(ValueError):
+            validate_changed_paths([forbidden], ALLOWED_REPLAY_DRIFT)
