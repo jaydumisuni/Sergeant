@@ -1,0 +1,32 @@
+{
+  "schema_version": "sergeant.sae130e-relational-assurance-candidate.v1",
+  "node": "SAE-130E",
+  "lifecycle_state": "CANDIDATE",
+  "base_main": "948c450e15f71f3823be0df1fedf27650edec067",
+  "proof_requires": [
+    "SAE-60",
+    "SAE-90",
+    "SAE-R2"
+  ],
+  "required_relations": [
+    "old_vs_new",
+    "producer_vs_consumer",
+    "serializer_vs_parser",
+    "authorized_vs_unauthorized_world",
+    "single_execution_vs_retry",
+    "python_vs_rust",
+    "expected_vs_observed_effect_set"
+  ],
+  "required_surfaces": [
+    "main_review/relational_assurance.py",
+    "tests/test_relational_assurance.py",
+    "tests/test_sae130e_qualification_campaign.py",
+    "docs/152-sae130e-relational-assurance-candidate.md",
+    "docs/153-sae130e-relational-assurance-candidate-manifest.json"
+  ],
+  "produces_on_separate_proven_closeout": [
+    "QUALIFIED_RELATIONAL_ASSURANCE_CAPABILITY"
+  ],
+  "authority_gain_at_candidate_merge": "none",
+  "genesis_activated": false
+}
