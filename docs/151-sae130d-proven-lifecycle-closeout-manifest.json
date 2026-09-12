@@ -1,0 +1,38 @@
+{
+  "schema_version": "sergeant.sae130d-proven-lifecycle-closeout.v1",
+  "node": "SAE-130D",
+  "lifecycle_state": "PROVEN",
+  "candidate_generation": {
+    "head": "dcfd68bc10cbe7e04ca6def9a5f811942278d014",
+    "tree": "d3ae52a29d922967529d3bee83a9074ff38eed29",
+    "authority_blobs": {
+      "docs/148-sae130d-semantic-mutation-candidate.md": "c2e5d3b90b6a21d006243a080c43a2acbd57c6d8",
+      "docs/149-sae130d-semantic-mutation-candidate-manifest.json": "10edcac35e2d8084fd347492f82aa2cc2e8cbbef",
+      "main_review/semantic_mutation.py": "6e760bcef4c4a3dd3f03c56b786d0eb368203cec",
+      "tests/test_sae130d_qualification_campaign.py": "5e4ccb52ea731102caef91fad6d512c61511d971",
+      "tests/test_semantic_mutation.py": "d322f2897f9acb1aaa97b79962a5b411b7ba51e6"
+    }
+  },
+  "canonical_candidate_merge": {
+    "commit": "15291dd7c59c4d6130325c6d629644165b0eb5fb",
+    "tree": "d3ae52a29d922967529d3bee83a9074ff38eed29",
+    "parents": [
+      "4b3a59117c6ccfac5d6d6d47f795cb4333566b69",
+      "dcfd68bc10cbe7e04ca6def9a5f811942278d014"
+    ]
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1775 passed, 2 xfailed",
+    "independent_reviewer_generation": "4b3a59117c6ccfac5d6d6d47f795cb4333566b69",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "fe7fb486bd11d089bbe6b5549db13b30f921fbee407ef32ffb909c776efa62ea",
+    "review_evidence_sha256": "74264a9c0b314181188ebcae823b1a441dd0b806e3e6a1c7f10d6f5e52730a6d"
+  },
+  "produces": [
+    "QUALIFIED_SEMANTIC_MUTATION_CAPABILITY"
+  ],
+  "closeout_guarded_merge_required_before_authority": true,
+  "genesis_activated": false
+}
