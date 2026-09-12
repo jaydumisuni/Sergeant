@@ -1,0 +1,53 @@
+{
+  "schema_version": "sergeant.sae120-proven-lifecycle-closeout.v1",
+  "node": "SAE-120",
+  "node_title": "GitHub / Local Facility Gradient",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": ["SAE-100", "SAE-110"],
+  "candidate_generation": {
+    "pull_request": 231,
+    "head": "0266492fff989698e5089c2b39ecf21d3bcd05ff",
+    "tree": "df34d5afc58cb42910ca7fb92bdaf5b65eb3e04c",
+    "authority_blobs": {
+      "docs/132-sae120-facility-gradient-candidate.md": "d2fea3d819e07f4ac0ad492468a05b08ca752eed",
+      "docs/133-sae120-facility-gradient-candidate-manifest.json": "b1d088749591b764841b0e17ba02f18d78b6109a",
+      "main_review/facility_gradient.py": "883aadeea0ed0be5ce3bed567be6e51cb233fe3b",
+      "tests/test_facility_gradient.py": "8c7f44be1395dc4d64f807b47ba8913a2a6f2f83",
+      "scripts/verify_frozen_transfer_replay.py": "2d80168f00d80f96333b746fce29cb188e00385a",
+      "tests/test_frozen_transfer_durable_replay.py": "05c8be6baa62f9b3bd07bf635e63e0646650850c"
+    }
+  },
+  "canonical_candidate_merge": {
+    "commit": "119cab7d1f335c33f134a52ef709d7eeb1617f57",
+    "tree": "df34d5afc58cb42910ca7fb92bdaf5b65eb3e04c",
+    "parents": [
+      "1ba0fbbafc9423ed9b098137e0669fe941b052d0",
+      "0266492fff989698e5089c2b39ecf21d3bcd05ff"
+    ],
+    "exact_head_guard": "0266492fff989698e5089c2b39ecf21d3bcd05ff",
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1699 passed, 2 xfailed",
+    "independent_reviewer_generation": "1ba0fbbafc9423ed9b098137e0669fe941b052d0",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "f25c63f70ea28d381ba7fe57542fd4e9b78a79d741deccaaf232d2e3ddab4b04",
+    "review_evidence_sha256": "d130522a60e5d931a308895a0d5955a54550204e26cdd456809171ee8bc6ab7b"
+  },
+  "required_closeout_artifacts": [
+    "tests/test_sae120_proven_lifecycle_closeout.py",
+    "tests/test_sae120_qualification_campaign.py",
+    "docs/134-sae120-proven-lifecycle-closeout.md",
+    "docs/135-sae120-proven-lifecycle-closeout-manifest.json"
+  ],
+  "produces": ["QUALIFIED_PRODUCT_CAPABILITY_GRADIENT"],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true
+}
