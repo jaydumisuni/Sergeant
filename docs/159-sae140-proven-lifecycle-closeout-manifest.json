@@ -1,0 +1,38 @@
+{
+  "schema_version": "sergeant.sae140-proven-lifecycle-closeout.v1",
+  "node": "SAE-140",
+  "lifecycle_state": "PROVEN",
+  "candidate_generation": {
+    "head": "26d35a8885ef9d247e3616a39d2d156c65e6f161",
+    "tree": "766cb78aca3c86a5d9725e37477c4a9f19a87324",
+    "authority_blobs": {
+      "docs/156-sae140-assurance-learning-candidate.md": "f8858d8009720f341ec9e7d8caec286eb483d889",
+      "docs/157-sae140-assurance-learning-candidate-manifest.json": "b3bbacd1c3de6e93a70710a80a50c65e6c2e0eda",
+      "main_review/assurance_learning.py": "415387390be0c15660dc6a60540034b05b036014",
+      "tests/test_assurance_learning.py": "9dc96852d97f0782e7614c65262a054d1d21cef1",
+      "tests/test_sae140_qualification_campaign.py": "1c068f762401237d7bfcc895320038d0aabdc016"
+    }
+  },
+  "canonical_candidate_merge": {
+    "commit": "3a19dffe398b2b2499383782b9c89684acf25d68",
+    "tree": "766cb78aca3c86a5d9725e37477c4a9f19a87324",
+    "parents": [
+      "a889f512662e0b1d62a81582025677276967806d",
+      "26d35a8885ef9d247e3616a39d2d156c65e6f161"
+    ]
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1826 passed, 2 xfailed",
+    "independent_reviewer_generation": "a889f512662e0b1d62a81582025677276967806d",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "c1f998d4393cff2e88bf9ee8c2c6318a8683a1c3341d4e3c38914493cb72d516",
+    "review_evidence_sha256": "d8687731a60a890dd8d4b887afcff9aa5fb363e4a857228762ab2a212da6673c"
+  },
+  "produces": [
+    "QUALIFIED_ASSURANCE_LEARNING_LOOP"
+  ],
+  "closeout_guarded_merge_required_before_authority": true,
+  "genesis_activated": false
+}
