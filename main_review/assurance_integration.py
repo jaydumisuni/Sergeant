@@ -6,6 +6,15 @@ from typing import Any, Callable, Mapping
 from .cpl_campaign import schedule_assurance_frontier
 
 SHADOW_MODE = "SHADOW_OR_QUALIFICATION_ONLY"
+QUALIFIED_RUST_ASSURANCE_KERNEL = "QUALIFIED_RUST_ASSURANCE_KERNEL"
+_QUALIFIED_DEPENDENCY_PROTOCOLS = {
+    "review_world": "QUALIFIED_REVIEW_WORLD_CONTRACT",
+    "registry": "QUALIFIED_CONTRACT_INSTANCE_CLOSURE",
+    "ledger": "QUALIFIED_ASSURANCE_LEDGER",
+    "capabilities": "QUALIFIED_SEMANTIC_CAPABILITY_PROTOCOL",
+    "proof_world": "QUALIFIED_PROOF_WORLD",
+    "falsification": "QUALIFIED_FALSIFICATION_FRONTIER",
+}
 _AUTHORITY_OWNERS = {
     "schedule": "Cpl",
     "specialist": "Officers",
@@ -41,6 +50,8 @@ def compile_assurance_frontier(review_world, registry, ledger, capabilities, pro
     for name, value in deps.items():
         if value is None:
             raise ValueError(f"missing assurance dependency: {name}")
+        if value.get("qualification_protocol_id") != _QUALIFIED_DEPENDENCY_PROTOCOLS[name]:
+            raise ValueError(f"qualified assurance dependency required: {name}")
     if review_world.get("authority_owner") not in (None, "Sergeant"):
         raise ValueError("engineering verdict authority inversion")
     if ledger.get("judge_admission_required") is not True:
@@ -53,6 +64,8 @@ def compile_assurance_frontier(review_world, registry, ledger, capabilities, pro
 def run_shadow_assurance(campaign: AssuranceCampaign, rust_kernel: Callable[[AssuranceCampaign], Mapping[str, Any]]) -> ShadowAssuranceResult:
     if campaign.mode != SHADOW_MODE or campaign.genesis_activated:
         raise ValueError("assurance campaign attempted accidental activation")
+    if getattr(rust_kernel, "qualification_protocol_id", None) != QUALIFIED_RUST_ASSURANCE_KERNEL:
+        raise ValueError("qualified Rust assurance kernel required")
     raw = dict(rust_kernel(campaign))
     if any(key in raw for key in ("verdict", "engineering_verdict", "normal_verdict_override")):
         raise ValueError("Rust kernel attempted verdict authority")
