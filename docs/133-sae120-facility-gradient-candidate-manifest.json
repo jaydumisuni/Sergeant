@@ -1,0 +1,29 @@
+{
+  "schema_version": "sergeant.sae120-facility-gradient-candidate.v1",
+  "node": "SAE-120",
+  "node_title": "GitHub / Local Facility Gradient",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "CANDIDATE",
+  "base_main": "1ba0fbbafc9423ed9b098137e0669fe941b052d0",
+  "proof_requires": ["SAE-100", "SAE-110"],
+  "required_surfaces": [
+    "main_review/facility_gradient.py",
+    "tests/test_facility_gradient.py",
+    "docs/132-sae120-facility-gradient-candidate.md",
+    "docs/133-sae120-facility-gradient-candidate-manifest.json"
+  ],
+  "law": {
+    "same_acr_judge_rust_pass_law_across_facilities": true,
+    "github_read_only": true,
+    "local_writes_explicit_owner_approval": true,
+    "richer_facility_may_strengthen_evidence_only": true,
+    "missing_required_facility_yields_unknown_not_weaker_pass": true,
+    "facility_verdict_semantics_authority_gain": false
+  },
+  "produces_on_separate_proven_closeout": ["QUALIFIED_PRODUCT_CAPABILITY_GRADIENT"],
+  "candidate_merge_authorized": false,
+  "authority_gain_at_candidate_merge": "none",
+  "normal_verdict_authority_gain": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false
+}

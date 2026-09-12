@@ -164,3 +164,14 @@ def test_replay_classifies_proof_metadata_generically_without_opening_frozen_rev
     ]:
         with __import__("pytest").raises(ValueError):
             validate_changed_paths([forbidden], ALLOWED_REPLAY_DRIFT)
+
+
+def test_replay_allows_only_paired_new_successor_module_and_test():
+    added = {"main_review/facility_gradient.py", "tests/test_facility_gradient.py"}
+    validate_changed_paths(list(added), ALLOWED_REPLAY_DRIFT, added_paths=added)
+    with __import__("pytest").raises(ValueError):
+        validate_changed_paths(["main_review/orphan_successor.py"], ALLOWED_REPLAY_DRIFT,
+                               added_paths={"main_review/orphan_successor.py"})
+    with __import__("pytest").raises(ValueError):
+        validate_changed_paths(["main_review/engine.py", "tests/test_engine.py"], ALLOWED_REPLAY_DRIFT,
+                               added_paths=set())
