@@ -1,0 +1,36 @@
+{
+  "schema_version": "sergeant.sae110-assurance-capsule-candidate.v1",
+  "node": "SAE-110",
+  "node_title": "Assurance Capsule / Recovery / Currentness / Owner Risk",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "CANDIDATE",
+  "base_main": "73541e17e8ef7c208d2bfa91012695b6917e549b",
+  "proof_requires": ["SAE-10", "SAE-30", "SAE-40", "SAE-R2"],
+  "required_surfaces": [
+    "main_review/assurance_capsule.py",
+    "tests/test_assurance_capsule.py",
+    "docs/128-sae110-assurance-capsule-candidate.md",
+    "docs/129-sae110-assurance-capsule-candidate-manifest.json"
+  ],
+  "protocol": {
+    "capsule_identity": "content_addressed_sha256",
+    "closure_witness_commitment_required": true,
+    "archivist_durable_storage": true,
+    "exact_generation_recovery": true,
+    "latest_compatible_recovery_forbidden": true,
+    "scope_domain_currentness_fail_closed": true,
+    "provenance_escape_invalidation": true,
+    "zero_context_exact_pickup": true,
+    "owner_risk_disjoint_from_engineering_truth": true
+  },
+  "produces_on_separate_proven_closeout": [
+    "QUALIFIED_ASSURANCE_CAPSULE",
+    "QUALIFIED_RECOVERY_PROTOCOL"
+  ],
+  "candidate_merge_authorized": false,
+  "authority_gain_at_candidate_merge": "none",
+  "normal_verdict_authority_gain": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false
+}
