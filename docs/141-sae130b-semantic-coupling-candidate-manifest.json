@@ -4,7 +4,7 @@
   "lifecycle_state": "CANDIDATE",
   "base_main": "e29ffbcd6aad7336e5827cbb1e6469be398cf730",
   "proof_requires": ["SAE-60", "SAE-90", "SAE-R2"],
-  "required_surfaces": ["main_review/semantic_coupling.py", "tests/test_semantic_coupling.py", "docs/138-sae130b-semantic-coupling-candidate.md", "docs/139-sae130b-semantic-coupling-candidate-manifest.json"],
+  "required_surfaces": ["main_review/semantic_coupling.py", "tests/test_semantic_coupling.py", "docs/140-sae130b-semantic-coupling-candidate.md", "docs/141-sae130b-semantic-coupling-candidate-manifest.json"],
   "produces_on_separate_proven_closeout": ["QUALIFIED_SEMANTIC_COUPLING_CAPABILITY"],
   "authority_gain_at_candidate_merge": "none",
   "genesis_activated": false
