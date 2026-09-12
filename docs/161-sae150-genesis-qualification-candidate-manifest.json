@@ -1,0 +1,25 @@
+{
+  "schema_version":"sergeant.sae150-genesis-qualification-candidate.v1",
+  "node":"SAE-150",
+  "lifecycle_state":"GENESIS_PROVISIONAL",
+  "base_main":"126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
+  "proof_requires":{
+    "SAE-100":"73541e17e8ef7c208d2bfa91012695b6917e549b",
+    "SAE-110":"1ba0fbbafc9423ed9b098137e0669fe941b052d0",
+    "SAE-120":"e29ffbcd6aad7336e5827cbb1e6469be398cf730",
+    "SAE-130A":"97c2d939df51a21828a6ea96f05458207ac0793c",
+    "SAE-130B":"7af19145d13e173a9fe727cd3977c483aa4c8057",
+    "SAE-130C":"4b3a59117c6ccfac5d6d6d47f795cb4333566b69",
+    "SAE-130D":"948c450e15f71f3823be0df1fedf27650edec067",
+    "SAE-130E":"a889f512662e0b1d62a81582025677276967806d",
+    "SAE-140":"126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
+    "SPIKE-EXT":"docs/69-spike-ext-proven-lifecycle-closeout-manifest.json"
+  },
+  "required_surfaces":["main_review/genesis_qualification.py","tests/test_genesis_qualification.py","tests/test_sae150_qualification_campaign.py","docs/160-sae150-genesis-qualification-candidate.md","docs/161-sae150-genesis-qualification-candidate-manifest.json"],
+  "required_mutation_families":["omission","undercount","cardinality","acr","material_input","falsifier","authority","common_mode"],
+  "mandatory_independent_lane":{"required":true,"currently_satisfied":false,"blocker":"MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE"},
+  "candidate_merge_authorized":false,
+  "authority_gain":"none",
+  "normal_verdict_authority":false,
+  "genesis_activated":false
+}
