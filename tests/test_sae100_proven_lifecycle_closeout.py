@@ -18,7 +18,16 @@ def blob(path: str) -> str:
 
 
 def blob_at(ref: str, path: str) -> str:
-    payload = subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=ROOT)
+    try:
+        payload = subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=ROOT, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        subprocess.check_call(
+            ["git", "fetch", "--no-tags", "--depth", "1", "origin", ref],
+            cwd=ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        payload = subprocess.check_output(["git", "show", f"{ref}:{path}"], cwd=ROOT)
     return subprocess.check_output(["git", "hash-object", "--stdin"], cwd=ROOT, input=payload).decode().strip()
 
 
