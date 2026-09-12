@@ -1,8 +1,9 @@
 {
-  "schema_version": "sergeant.sae130d-semantic-mutation-construction.v1",
+  "schema_version": "sergeant.sae130d-semantic-mutation-candidate.v1",
   "node": "SAE-130D",
-  "lifecycle_state": "CONSTRUCTION",
-  "base_proven": "4b3a59117c6ccfac5d6d6d47f795cb4333566b69",
+  "lifecycle_state": "CANDIDATE",
+  "base_main": "4b3a59117c6ccfac5d6d6d47f795cb4333566b69",
+  "proof_requires": ["SAE-60", "SAE-90", "SAE-R2"],
   "required_mutants": [
     "guard_deletion",
     "authority_substitution",
@@ -13,14 +14,14 @@
     "evidence_omission",
     "no_op_detection"
   ],
-  "required_candidate_surfaces": [
+  "required_surfaces": [
     "main_review/semantic_mutation.py",
     "tests/test_semantic_mutation.py",
     "tests/test_sae130d_qualification_campaign.py",
     "docs/148-sae130d-semantic-mutation-candidate.md",
     "docs/149-sae130d-semantic-mutation-candidate-manifest.json"
   ],
-  "candidate_merge_authorized": false,
-  "authority_gain": "none",
+  "produces_on_separate_proven_closeout": ["QUALIFIED_SEMANTIC_MUTATION_CAPABILITY"],
+  "authority_gain_at_candidate_merge": "none",
   "genesis_activated": false
 }
