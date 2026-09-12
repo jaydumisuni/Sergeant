@@ -1,0 +1,58 @@
+{
+  "schema_version": "sergeant.sae130b-proven-lifecycle-closeout.v1",
+  "node": "SAE-130B",
+  "node_title": "Semantic Coupling",
+  "repository": "jaydumisuni/Sergeant",
+  "lifecycle_state": "PROVEN",
+  "proof_requires": [
+    "SAE-60",
+    "SAE-90",
+    "SAE-R2"
+  ],
+  "candidate_generation": {
+    "pull_request": 234,
+    "head": "39aaf3769a6d3582ba0d316152e1dfe271313c68",
+    "tree": "ab775c5b7df181da6490a76d8bad43e72a7b09f9",
+    "authority_blobs": {
+      "docs/140-sae130b-semantic-coupling-candidate.md": "4ec111ba35d359f040d243bbca779d047068ede1",
+      "docs/141-sae130b-semantic-coupling-candidate-manifest.json": "51b5abf7da0e3912f586e478012d4f4d910ca365",
+      "main_review/semantic_coupling.py": "f8597bf7d31dd6a14e087eac261a7da3210d1407",
+      "tests/test_semantic_coupling.py": "7179873af5a4cfd03ea50c6c9c2f96a774cffaee"
+    }
+  },
+  "canonical_candidate_merge": {
+    "commit": "cedf045782780cae8e6de24ea964f175d7acb305",
+    "tree": "01d00b84775892234a1342cb68b40a464c373da6",
+    "parents": [
+      "97c2d939df51a21828a6ea96f05458207ac0793c",
+      "39aaf3769a6d3582ba0d316152e1dfe271313c68"
+    ],
+    "exact_head_guard": "39aaf3769a6d3582ba0d316152e1dfe271313c68",
+    "candidate_authority_blobs_preserved_in_merge": true,
+    "authority_gain_at_candidate_merge": "none"
+  },
+  "candidate_proof_identity": {
+    "full_suite": "1712 passed, 2 xfailed",
+    "independent_reviewer_generation": "97c2d939df51a21828a6ea96f05458207ac0793c",
+    "verdict": "APPROVE",
+    "confidence": 0.88,
+    "required_actions": [],
+    "heavy_evidence_sha256": "a179131e9871cac41887e8bf6c1f9c5d7eab81b2840f6b07d72b9e620d883882",
+    "review_evidence_sha256": "1bb3e8afa904d7186e00cab31ea3f9d94a86a8668687b24d78da23ee2ee5bd64"
+  },
+  "required_closeout_artifacts": [
+    "tests/test_sae130b_proven_lifecycle_closeout.py",
+    "tests/test_sae130b_qualification_campaign.py",
+    "docs/142-sae130b-proven-lifecycle-closeout.md",
+    "docs/143-sae130b-proven-lifecycle-closeout-manifest.json"
+  ],
+  "produces": [
+    "QUALIFIED_SEMANTIC_COUPLING_CAPABILITY"
+  ],
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "dependent_nodes_auto_proven": false,
+  "partial_generation_activation": false,
+  "closeout_proof_required_before_authority": true,
+  "closeout_guarded_merge_required_before_authority": true
+}
