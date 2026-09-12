@@ -9,7 +9,11 @@ REVIEWER="a889f512662e0b1d62a81582025677276967806d"
 DOC=ROOT/"docs/158-sae140-proven-lifecycle-closeout.md"
 MANIFEST=ROOT/"docs/159-sae140-proven-lifecycle-closeout-manifest.json"
 BLOBS={"docs/156-sae140-assurance-learning-candidate.md":"f8858d8009720f341ec9e7d8caec286eb483d889","docs/157-sae140-assurance-learning-candidate-manifest.json":"b3bbacd1c3de6e93a70710a80a50c65e6c2e0eda","main_review/assurance_learning.py":"415387390be0c15660dc6a60540034b05b036014","tests/test_assurance_learning.py":"9dc96852d97f0782e7614c65262a054d1d21cef1","tests/test_sae140_qualification_campaign.py":"1c068f762401237d7bfcc895320038d0aabdc016"}
-def blob(ref,path): return subprocess.check_output(["git","rev-parse",f"{ref}:{path}"],cwd=ROOT,text=True).strip()
+def ensure_ref(ref):
+ try: subprocess.check_call(["git","cat-file","-e",f"{ref}^{{commit}}"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ except subprocess.CalledProcessError: subprocess.check_call(["git","fetch","--no-tags","--depth","1","origin",ref],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+def blob(ref,path):
+ ensure_ref(ref); return subprocess.check_output(["git","rev-parse",f"{ref}:{path}"],cwd=ROOT,text=True).strip()
 def test_inventory(): assert DOC.is_file() and MANIFEST.is_file() and (ROOT/"tests/test_sae140_qualification_campaign.py").is_file()
 def test_exact_candidate_merge_binding():
  m=json.loads(MANIFEST.read_text()); assert m["candidate_generation"]["head"]==CANDIDATE and m["candidate_generation"]["tree"]==TREE; assert m["canonical_candidate_merge"]["commit"]==MERGE and m["canonical_candidate_merge"]["tree"]==TREE and m["canonical_candidate_merge"]["parents"]==[REVIEWER,CANDIDATE]
