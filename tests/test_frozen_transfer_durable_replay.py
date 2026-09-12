@@ -94,3 +94,34 @@ def test_replay_allows_isolated_sae_r2_candidate_surface_only():
         pass
     else:
         raise AssertionError("existing review-engine drift must remain forbidden")
+
+
+def test_replay_allows_post_sae_r2_and_sae100_authority_surfaces_without_broadening():
+    expected = [
+        "docs/120-sae-r2-proven-lifecycle-closeout.md",
+        "docs/121-sae-r2-proven-lifecycle-closeout-manifest.json",
+        "tests/test_sae_r2_proven_lifecycle_closeout.py",
+        "tests/test_sae_r2_qualification_campaign.py",
+        "docs/122-sae100-sergeant-integration-candidate.md",
+        "docs/123-sae100-sergeant-integration-candidate-manifest.json",
+        "docs/126-sae100-task17-frozen-predecessor-authority-amendment.md",
+        "docs/127-sae100-task17-frozen-predecessor-authority-amendment-manifest.json",
+        "main_review/assurance_integration.py",
+        "main_review/cpl_campaign.py",
+        "tests/test_assurance_integration.py",
+        "tests/test_sae100_post_amendment_candidate.py",
+        "tests/test_sae100_task17_authority_amendment_record.py",
+    ]
+    validate_changed_paths(expected, ALLOWED_REPLAY_DRIFT)
+    for forbidden in [
+        "main_review/engine.py",
+        "main_review/officer_council.py",
+        "main_review/judge_assurance_adapter.py",
+        "main_review/final_proof.py",
+        ".github/workflows/release.yml",
+    ]:
+        try:
+            validate_changed_paths([forbidden], ALLOWED_REPLAY_DRIFT)
+        except ValueError:
+            continue
+        raise AssertionError(f"unrelated or frozen predecessor drift must remain forbidden: {forbidden}")

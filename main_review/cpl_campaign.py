@@ -45,6 +45,23 @@ def _text(value: object) -> str:
     return str(value or "").strip()
 
 
+def schedule_assurance_frontier(items: Iterable[object]) -> tuple[str, ...]:
+    """Return only the unique open assurance frontier in Cpl scheduling order.
+
+    This function selects the frontier only. Execution remains governed by the
+    existing Cpl/Tenfold task contracts and does not create verdict authority.
+    """
+    scheduled: list[str] = []
+    seen: set[str] = set()
+    for raw in items:
+        item = _text(raw)
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        scheduled.append(item)
+    return tuple(scheduled)
+
+
 def _contains_marker(text: str, marker: str) -> bool:
     normalized = marker.lower()
     if any(not char.isalnum() and char != "_" for char in normalized):
