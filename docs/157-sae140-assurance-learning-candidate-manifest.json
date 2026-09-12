@@ -1,0 +1,54 @@
+{
+  "schema_version": "sergeant.sae140-assurance-learning-candidate.v1",
+  "node": "SAE-140",
+  "lifecycle_state": "CANDIDATE",
+  "base_main": "a889f512662e0b1d62a81582025677276967806d",
+  "proof_requires": [
+    "SAE-20",
+    "SAE-30",
+    "SAE-60",
+    "SAE-90",
+    "SAE-110"
+  ],
+  "proposal_families": [
+    "detector",
+    "acr",
+    "cardinality",
+    "closure",
+    "falsifier",
+    "mutation",
+    "capability",
+    "evidence",
+    "relation"
+  ],
+  "governance_inputs": [
+    "project_driven_learning",
+    "teacher_prosecutor_defender",
+    "negative_controls",
+    "transfer",
+    "hidden_holdout",
+    "owner_controlled_promotion",
+    "qualification_escape_feedback",
+    "provenance_escape_feedback"
+  ],
+  "forbidden_authority_effects": [
+    "activate_acr",
+    "qualify_capability",
+    "rewrite_verdict",
+    "consume_owner_risk_acceptance_as_truth",
+    "self_promote",
+    "auto_merge"
+  ],
+  "required_surfaces": [
+    "main_review/assurance_learning.py",
+    "tests/test_assurance_learning.py",
+    "tests/test_sae140_qualification_campaign.py",
+    "docs/156-sae140-assurance-learning-candidate.md",
+    "docs/157-sae140-assurance-learning-candidate-manifest.json"
+  ],
+  "produces_on_separate_proven_closeout": [
+    "QUALIFIED_ASSURANCE_LEARNING_LOOP"
+  ],
+  "authority_gain_at_candidate_merge": "none",
+  "genesis_activated": false
+}
