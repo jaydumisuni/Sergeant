@@ -1,7 +1,7 @@
 from __future__ import annotations
 import json
 from pathlib import Path
-from main_review.genesis_qualification import REQUIRED_MUTATIONS, REQUIRED_NODES
+from main_review.genesis_qualification import REQUIRED_MUTATIONS, REQUIRED_NODES, REQUIRED_PROVEN_NODE_BINDINGS
 ROOT=Path(__file__).resolve().parents[1]
 MANIFEST=ROOT/"docs/161-sae150-genesis-qualification-candidate-manifest.json"
 
@@ -9,7 +9,10 @@ def test_required_inventory_and_dependency_generations_are_bound():
  m=json.loads(MANIFEST.read_text())
  for rel in m["required_surfaces"]: assert (ROOT/rel).is_file()
  assert set(m["proof_requires"])==set(REQUIRED_NODES)
+ assert m["proof_requires"]==REQUIRED_PROVEN_NODE_BINDINGS
  assert set(m["required_mutation_families"])==set(REQUIRED_MUTATIONS)
+ assert m["external_evidence_contract"]["record_type"]=="ExternalEvidenceProvenanceRecord"
+ assert m["external_evidence_contract"]["package_boolean_claims_authoritative"] is False
 
 def test_current_candidate_fails_closed_on_real_external_lane_gap():
  m=json.loads(MANIFEST.read_text())
