@@ -13,7 +13,7 @@
     "SAE-130D": "948c450e15f71f3823be0df1fedf27650edec067",
     "SAE-130E": "a889f512662e0b1d62a81582025677276967806d",
     "SAE-140": "126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
-    "SPIKE-EXT": "docs/69-spike-ext-proven-lifecycle-closeout-manifest.json"
+    "SPIKE-EXT": "5a42072517efef7c1e621f12a99e9e2cbf610281"
   },
   "required_surfaces": [
     "main_review/genesis_qualification.py",
@@ -46,6 +46,9 @@
     "provenance_authenticated_required": true,
     "verifier_authorization_required": true,
     "derived_independence_state_required": "INDEPENDENT",
-    "package_boolean_claims_authoritative": false
+    "package_boolean_claims_authoritative": false,
+    "review_world_binding_required": true,
+    "external_review_census_derived": true,
+    "spike_ext_blob_bound": true
   }
 }

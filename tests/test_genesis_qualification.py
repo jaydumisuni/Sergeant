@@ -23,7 +23,7 @@ CANONICAL_NODES = {
     "SAE-130D": "948c450e15f71f3823be0df1fedf27650edec067",
     "SAE-130E": "a889f512662e0b1d62a81582025677276967806d",
     "SAE-140": "126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
-    "SPIKE-EXT": "docs/69-spike-ext-proven-lifecycle-closeout-manifest.json",
+    "SPIKE-EXT": "5a42072517efef7c1e621f12a99e9e2cbf610281",
 }
 
 BASE = {
@@ -31,6 +31,7 @@ BASE = {
     "rab_generation": "rab-sha",
     "acr_generation": "acr-sha",
     "rust_generation": "rust-sha",
+    "review_world_id": hashlib.sha256(b"world").hexdigest(),
     "required_proven_nodes": dict(CANONICAL_NODES),
     "preservation_proof": True,
     "model_blackout_proof": True,
@@ -43,7 +44,6 @@ BASE = {
     },
     "unrelated_transfer": True,
     "eepr_complete": True,
-    "external_review_instance_census_complete": True,
     "residual_unknowns": [],
     "external_evidence": [],
 }
@@ -129,7 +129,7 @@ def test_authenticated_canonical_independent_lane_can_qualify_when_everything_el
 
 @pytest.mark.parametrize(
     "field",
-    ["preservation_proof", "model_blackout_proof", "cpu_proof", "historical_replay", "clean_controls", "unrelated_transfer", "eepr_complete", "external_review_instance_census_complete"],
+    ["preservation_proof", "model_blackout_proof", "cpu_proof", "historical_replay", "clean_controls", "unrelated_transfer", "eepr_complete"],
 )
 def test_required_proof_families_fail_closed(field):
     row = dict(BASE)
@@ -192,3 +192,36 @@ def test_package_booleans_cannot_forge_independent_lane():
     ]
     with pytest.raises(GenesisQualificationError):
         qualify_genesis_package(row)
+
+
+def test_generation_identifiers_must_be_typed_and_bound_into_result():
+    row = dict(BASE, candidate_generation=12345)
+    with pytest.raises(GenesisQualificationError):
+        qualify_genesis_package(row)
+
+    valid = dict(BASE, external_evidence=[_canonical_eepr(independent=True)])
+    out = qualify_genesis_package(valid)
+    assert out["generation_bindings"] == {
+        key: valid[key] for key in ("candidate_generation", "rab_generation", "acr_generation", "rust_generation")
+    }
+    assert out["generation_bindings_digest"]
+
+
+def test_external_review_census_is_derived_instead_of_trusting_completion_boolean():
+    record = _canonical_eepr(independent=True)
+    row = dict(BASE, external_evidence=[record, record])
+    with pytest.raises(GenesisQualificationError, match="census"):
+        qualify_genesis_package(row)
+
+
+def test_external_evidence_must_match_exact_review_world():
+    row = dict(BASE, external_evidence=[_canonical_eepr(independent=True)])
+    row["review_world_id"] = hashlib.sha256(b"different-world").hexdigest()
+    out = qualify_genesis_package(row)
+    assert out["qualified"] is False
+    assert "MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE" in out["blockers"]
+
+
+def test_spike_ext_prerequisite_is_bound_to_immutable_blob_identity():
+    from main_review.genesis_qualification import REQUIRED_PROVEN_NODE_BINDINGS
+    assert REQUIRED_PROVEN_NODE_BINDINGS["SPIKE-EXT"] == "5a42072517efef7c1e621f12a99e9e2cbf610281"
