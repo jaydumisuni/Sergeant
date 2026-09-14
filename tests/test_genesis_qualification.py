@@ -132,6 +132,7 @@ def _admitted(obligations=OBLIGATIONS, *, subject=WORLD, independence="INDEPENDE
     )
     registry = QualificationAuthorityRegistry.create(generation="qar-gen-1", issuers=(authorization,))
     attestations = []
+    derived = []
     for obligation in obligations:
         bound = dict(
             subject_id=subject, artifact_family=f"sergeant.genesis.{obligation}", domain="sergeant.genesis.v1",
@@ -158,17 +159,18 @@ def _admitted(obligations=OBLIGATIONS, *, subject=WORLD, independence="INDEPENDE
                 qualification_protocol_closed=True, evidence_closed=True, external_lanes_closed=True,
                 independence_verified=True, verification_secret=ISSUER_SECRET,
             )
-            _, registry = admit_qualification_attestation(
+            qualification, registry = admit_qualification_attestation(
                 registry=registry, attestation=attestation, authenticated_issuer=authenticated,
                 closure_proof=closure, issuer_verification_secret=ISSUER_SECRET,
                 expected_registry_generation=registry.generation, **bound,
                 candidate_control_lineage_id=_digest("candidate-lineage"), now=ISSUER_TIME,
             )
+            derived.append(qualification)
         attestations.append(attestation)
-    return tuple(attestations), registry
+    return tuple(attestations), registry, tuple(derived)
 
 
-ATTESTATIONS, REGISTRY = _admitted()
+ATTESTATIONS, REGISTRY, DERIVED_QUALIFICATIONS = _admitted()
 RATIFIED_LANES = (ExternalReviewLane.create("genesis-independent", 2),)
 DEFAULT_EVIDENCE = (_eepr("contractor-review", "SC-1"), _eepr("scoped-saas-hostile-engagement", "SC-6"))
 
@@ -188,10 +190,21 @@ def closed_package(*, evidence=DEFAULT_EVIDENCE, attestations=None, **overrides)
     return package
 
 
-def qualify(package, *, verifiers=((ROOTED_VERIFIER, VERIFIER_SECRET),), lanes=RATIFIED_LANES, registry=REGISTRY):
+def qualify(package, *, verifiers=((ROOTED_VERIFIER, VERIFIER_SECRET),), lanes=RATIFIED_LANES, registry=REGISTRY, derived=DERIVED_QUALIFICATIONS, trusted_evidence_bindings=None):
+    if trusted_evidence_bindings is None:
+        trusted_evidence_bindings = {
+            record.evidence_id: record.eepr_id
+            for record in package.get("external_evidence", ())
+            if isinstance(record, ExternalEvidenceProvenanceRecord)
+        }
     return qualify_genesis_package(
-        package, trusted_provenance_verifiers=verifiers,
-        ratified_external_review_lanes=lanes, qualification_registry=registry,
+        package, trusted_provenance_verifiers=verifiers, ratified_external_review_lanes=lanes,
+        qualification_registry=registry, admitted_qualifications=derived,
+        trusted_generation_bindings={
+            "candidate_generation": CANDIDATE, "rab_generation": RAB, "acr_generation": "acr-gen-1",
+            "rust_generation": "rust-gen-1", "qualification_protocol_generation": PROTOCOL,
+        },
+        trusted_external_evidence_bindings=trusted_evidence_bindings,
     )
 
 
@@ -358,8 +371,8 @@ def test_caller_boolean_obligation_claims_have_no_authority():
 
 
 def test_unadmitted_attestations_do_not_close_obligations():
-    attestations, registry = _admitted(admit=False)
-    out = qualify(closed_package(attestations=attestations), registry=registry)
+    attestations, registry, derived = _admitted(admit=False)
+    out = qualify(closed_package(attestations=attestations), registry=registry, derived=derived)
     assert out["qualified"] is False
     assert "QUALIFICATION_OBLIGATION_OPEN:cpu_proof" in out["blockers"]
 
@@ -371,8 +384,8 @@ def test_missing_trusted_registry_leaves_obligations_open():
 
 
 def test_attestation_for_another_review_world_does_not_close_obligation():
-    attestations, registry = _admitted(subject=OTHER_WORLD)
-    out = qualify(closed_package(attestations=attestations), registry=registry)
+    attestations, registry, derived = _admitted(subject=OTHER_WORLD)
+    out = qualify(closed_package(attestations=attestations), registry=registry, derived=derived)
     assert out["qualified"] is False
     assert "QUALIFICATION_OBLIGATION_OPEN:historical_replay" in out["blockers"]
 
@@ -384,7 +397,7 @@ def test_surviving_required_mutant_leaves_genesis_provisional():
 
 
 def test_suspended_issuer_cannot_close_admitted_obligations():
-    attestations, registry = _admitted()
+    attestations, registry, derived = _admitted()
     active = registry.issuers[0]
     suspended = QualificationIssuerAuthorization.create(
         issuer_identity=active.issuer_identity, key_id=active.key_id, namespace=active.namespace,
@@ -398,13 +411,13 @@ def test_suspended_issuer_cannot_close_admitted_obligations():
         generation=registry.generation, issuers=(suspended,),
         consumed_attestation_ids=registry.consumed_attestation_ids,
     )
-    out = qualify(closed_package(attestations=attestations), registry=suspended_registry)
+    out = qualify(closed_package(attestations=attestations), registry=suspended_registry, derived=derived)
     assert out["qualified"] is False
     assert "QUALIFICATION_OBLIGATION_OPEN:preservation_proof" in out["blockers"]
 
 
 def test_attestation_for_other_candidate_generation_cannot_close_obligation():
-    attestations, registry = _admitted()
+    attestations, registry, derived = _admitted()
     original = attestations[0]
     fields = original.constructor_fields()
     fields["artifact_generation"] = "d" * 40
@@ -414,7 +427,7 @@ def test_attestation_for_other_candidate_generation_cannot_close_obligation():
     forged_registry = QualificationAuthorityRegistry.create(
         generation=registry.generation, issuers=registry.issuers, consumed_attestation_ids=consumed,
     )
-    out = qualify(closed_package(attestations=altered), registry=forged_registry)
+    out = qualify(closed_package(attestations=altered), registry=forged_registry, derived=derived)
     assert out["qualified"] is False
     assert "QUALIFICATION_OBLIGATION_OPEN:preservation_proof" in out["blockers"]
 
@@ -454,15 +467,15 @@ def test_protocol_generation_and_limitations_are_mandatory(field):
 
 @pytest.mark.parametrize("obligation", ["independent_hidden_cases", "independent_hostile_implementation_review"])
 def test_hidden_cases_and_hostile_review_are_mandatory_obligations(obligation):
-    attestations, registry = _admitted(tuple(item for item in OBLIGATIONS if item != obligation))
-    out = qualify(closed_package(attestations=attestations), registry=registry)
+    attestations, registry, derived = _admitted(tuple(item for item in OBLIGATIONS if item != obligation))
+    out = qualify(closed_package(attestations=attestations), registry=registry, derived=derived)
     assert out["qualified"] is False
     assert f"QUALIFICATION_OBLIGATION_OPEN:{obligation}" in out["blockers"]
 
 
 def test_independent_obligations_require_independent_qualification():
-    attestations, registry = _admitted(independence="NOT_INDEPENDENT")
-    out = qualify(closed_package(attestations=attestations), registry=registry)
+    attestations, registry, derived = _admitted(independence="NOT_INDEPENDENT")
+    out = qualify(closed_package(attestations=attestations), registry=registry, derived=derived)
     assert out["qualified"] is False
     assert "QUALIFICATION_OBLIGATION_OPEN:independent_hostile_implementation_review" in out["blockers"]
     assert "QUALIFICATION_OBLIGATION_OPEN:cpu_proof" not in out["blockers"]
@@ -500,3 +513,57 @@ def test_proven_node_bindings_are_type_tagged():
     assert set(PROVEN_NODE_BINDING_KINDS) == set(REQUIRED_PROVEN_NODE_BINDINGS)
     assert PROVEN_NODE_BINDING_KINDS["SPIKE-EXT"] == "blob"
     assert {kind for node, kind in PROVEN_NODE_BINDING_KINDS.items() if node != "SPIKE-EXT"} == {"commit"}
+
+# --- Supervisor exact-head regressions for review of 6310dcc834f216258105cef1ed582252aa2ce720 ---
+
+def test_sae150_trusted_evidence_binding_rejects_retargeted_eepr_claims():
+    record, proof = _eepr("claims-bound", "SC-1")
+    assert proof is not None
+    forged = ExternalEvidenceProvenanceRecord.create(
+        evidence_id=record.evidence_id, evidence_digest=record.evidence_digest, review_world_id=OTHER_WORLD,
+        source_principal_id=record.source_principal_id, authenticated_source_provenance=record.authenticated_source_provenance,
+        source_organization=record.source_organization, source_class="SC-6",
+        source_authority_generation=record.source_authority_generation, creation_generation=record.creation_generation,
+        candidate_authoring_relationship=record.candidate_authoring_relationship,
+        qualification_corpus_relationship=record.qualification_corpus_relationship,
+        candidate_infrastructure_relationship=record.candidate_infrastructure_relationship,
+        reviewer_tool_lineage=record.reviewer_tool_lineage, prompt_controller=record.prompt_controller,
+        input_selector=record.input_selector, finding_selector=record.finding_selector,
+        provenance_verification_method=record.provenance_verification_method, control_lineage_facts=record.control_lineage_facts,
+        provenance_authorization=ROOTED_VERIFIER, authenticated_provenance_proof=proof,
+        provenance_verification_secret=VERIFIER_SECRET,
+    )
+    assert forged.provenance_authenticated is True  # SAE-30 legacy proof alone does not bind these claims.
+    package = closed_package(evidence=((forged, proof), DEFAULT_EVIDENCE[1]))
+    out = qualify(package, trusted_evidence_bindings={
+        record.evidence_id: record.eepr_id,
+        DEFAULT_EVIDENCE[1][0].evidence_id: DEFAULT_EVIDENCE[1][0].eepr_id,
+    })
+    assert out["qualified"] is False
+    assert f"EXTERNAL_EVIDENCE_CLAIMS_UNTRUSTED:{record.evidence_id}" in out["blockers"]
+
+
+def test_consumed_but_never_admitted_attestations_do_not_close_obligations():
+    attestations, registry, derived = _admitted(admit=False)
+    replay_only = QualificationAuthorityRegistry.create(
+        generation=registry.generation,
+        issuers=registry.issuers,
+        consumed_attestation_ids=tuple(item.attestation_id for item in attestations),
+    )
+    out = qualify(closed_package(attestations=attestations), registry=replay_only, derived=derived)
+    assert out["qualified"] is False
+    assert "QUALIFICATION_OBLIGATION_OPEN:preservation_proof" in out["blockers"]
+
+
+@pytest.mark.parametrize("field,value", [("rab_generation", _digest("different-rab")), ("rust_generation", "rust-gen-2")])
+def test_declared_rab_and_rust_generations_require_trusted_exact_binding(field, value):
+    out = qualify(closed_package(**{field: value}))
+    assert out["qualified"] is False
+    assert f"UNTRUSTED_GENERATION_BINDING:{field}" in out["blockers"]
+
+
+def test_canonical_genesis_package_identity_changes_with_full_qualification_digest():
+    base = qualify(closed_package())
+    limited = qualify(closed_package(limitations=["bounded to the Python review domain"]))
+    assert base["package_digest"] != limited["package_digest"]
+    assert base["package_id"] != limited["package_id"]

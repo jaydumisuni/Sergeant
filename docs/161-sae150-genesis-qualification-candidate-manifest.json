@@ -81,11 +81,19 @@
       "minimum_distinct_source_classes": 2
     },
     "lane_cardinality_floor_source": "docs/65 SPIKE-EXT cardinality_proposal (floor only; not ratified law)",
-    "accepted_source_classes": ["SC-1", "SC-2", "SC-3", "SC-4", "SC-6"],
-    "lane_cardinality_ratified": false
+    "accepted_source_classes": [
+      "SC-1",
+      "SC-2",
+      "SC-3",
+      "SC-4",
+      "SC-6"
+    ],
+    "lane_cardinality_ratified": false,
+    "trusted_exact_eepr_identity_binding_required": true,
+    "trusted_exact_eepr_identity_bindings_supplied_outside_package": true
   },
   "qualification_obligation_contract": {
-    "authority": "QualificationAttestation admitted (consumed) in a trusted QualificationAuthorityRegistry supplied outside the package",
+    "authority": "DerivedQualification from admit_qualification_attestation plus its consumed attestation in the trusted QualificationAuthorityRegistry supplied outside the package",
     "caller_boolean_claims_authoritative": false,
     "required_obligations": [
       "preservation_proof",
@@ -106,7 +114,16 @@
       "mutation.common_mode"
     ],
     "surviving_required_mutant_blocks": true,
-    "deferred_to_sae160": ["clean_clone_repository_only_no_private_helper_proof"]
+    "deferred_to_sae160": [
+      "clean_clone_repository_only_no_private_helper_proof"
+    ],
+    "trusted_generation_bindings_required": [
+      "candidate_generation",
+      "rab_generation",
+      "acr_generation",
+      "rust_generation",
+      "qualification_protocol_generation"
+    ]
   },
   "residual_unknown_policy": {
     "every_residual_unknown_blocks": true,
@@ -114,6 +131,7 @@
   },
   "package_identity": {
     "record_type": "GenesisQualificationPackage",
-    "full_package_digest": true
+    "full_package_digest": true,
+    "full_digest_bound_into_package_id": true
   }
 }

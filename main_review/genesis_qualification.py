@@ -23,6 +23,7 @@ from .external_evidence_provenance import (
     evaluate_external_review_census,
 )
 from .qualification_authority import (
+    DerivedQualification,
     GenesisQualificationPackage,
     IssuerState,
     QualificationAttestation,
@@ -200,20 +201,47 @@ def _lane_requirements(values: object) -> tuple[tuple[ExternalReviewLaneRequirem
     return requirements, bool(lanes)
 
 
+def _admitted_qualification_map(values: object) -> dict[str, DerivedQualification]:
+    admitted: dict[str, DerivedQualification] = {}
+    for item in _require_iterable(values, "admitted_qualifications"):
+        if not isinstance(item, DerivedQualification):
+            raise GenesisQualificationError("admitted_qualifications must contain canonical DerivedQualification values")
+        if item.state != "QUALIFIED":
+            raise GenesisQualificationError("admitted qualification must have QUALIFIED state")
+        if item.attestation_id in admitted:
+            raise GenesisQualificationError("duplicate admitted qualification attestation identity")
+        admitted[item.attestation_id] = item
+    return admitted
+
+
 def _attestation_admitted(
     attestation: QualificationAttestation, obligation: str, *, registry: QualificationAuthorityRegistry | None,
-    review_world_id: str, generations: Mapping[str, str],
+    admitted: Mapping[str, DerivedQualification], review_world_id: str, generations: Mapping[str, str],
 ) -> bool:
     if registry is None:
         return False
-    if attestation.attestation_id not in registry.consumed_attestation_ids or attestation.attestation_id in registry.revoked_attestation_ids:
+    qualification = admitted.get(attestation.attestation_id)
+    if qualification is None or attestation.attestation_id not in registry.consumed_attestation_ids:
+        return False
+    if attestation.attestation_id in registry.revoked_attestation_ids:
         return False
     try:
         issuer = registry.find(attestation.issuer_identity, attestation.issuer_generation)
     except QualificationAuthorityError:
         return False
     return (
-        issuer.state is IssuerState.ACTIVE
+        qualification.state == "QUALIFIED"
+        and qualification.subject_id == attestation.subject_id
+        and qualification.artifact_family == attestation.artifact_family
+        and qualification.domain == attestation.domain
+        and qualification.artifact_generation == attestation.artifact_generation
+        and qualification.attestation_id == attestation.attestation_id
+        and qualification.evidence_root_id == attestation.evidence_root_id
+        and qualification.independence_state == attestation.independence_state
+        and qualification.qualification_lineage_id == attestation.qualification_lineage_id
+        and qualification.authenticated_provenance_id == attestation.authenticated_provenance_id
+        and issuer.state is IssuerState.ACTIVE
+        and qualification.issuer_authorization_id == issuer.authorization_id
         and attestation.artifact_family in issuer.artifact_families
         and attestation.domain in issuer.domains
         and attestation.proof_class in issuer.proof_classes
@@ -228,10 +256,11 @@ def _attestation_admitted(
 
 
 def _closed_obligations(
-    values: object, *, registry: object, review_world_id: str, generations: Mapping[str, str],
+    values: object, *, registry: object, admitted_qualifications: object, review_world_id: str, generations: Mapping[str, str],
 ) -> dict[str, str]:
     if registry is not None and not isinstance(registry, QualificationAuthorityRegistry):
         raise GenesisQualificationError("qualification_registry must be a trusted QualificationAuthorityRegistry")
+    admitted = _admitted_qualification_map(admitted_qualifications)
     closed: dict[str, str] = {}
     seen: set[str] = set()
     for attestation in _require_sequence(values, "qualification_attestations"):
@@ -250,7 +279,10 @@ def _closed_obligations(
         if obligation in seen:
             raise GenesisQualificationError(f"duplicate qualification attestation for {obligation}")
         seen.add(obligation)
-        if _attestation_admitted(attestation, obligation, registry=registry, review_world_id=review_world_id, generations=generations):
+        if _attestation_admitted(
+            attestation, obligation, registry=registry, admitted=admitted,
+            review_world_id=review_world_id, generations=generations,
+        ):
             closed[obligation] = attestation.attestation_id
     return closed
 
@@ -261,6 +293,9 @@ def qualify_genesis_package(
     trusted_provenance_verifiers: Iterable[tuple[ProvenanceVerifierAuthorization, bytes]] = (),
     ratified_external_review_lanes: Iterable[ExternalReviewLane] = (),
     qualification_registry: QualificationAuthorityRegistry | None = None,
+    admitted_qualifications: Iterable[DerivedQualification] = (),
+    trusted_generation_bindings: Mapping[str, str] | None = None,
+    trusted_external_evidence_bindings: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     row = _require_mapping(package, "package")
     generations = _generations(row)
@@ -276,13 +311,26 @@ def qualify_genesis_package(
     survivors = _canonical_strings(row.get("surviving_mutants"), "surviving_mutants")
     unknowns = _canonical_strings(row.get("residual_unknowns"), "residual_unknowns")
     closed = _closed_obligations(
-        row.get("qualification_attestations"), registry=qualification_registry,
+        row.get("qualification_attestations"), registry=qualification_registry, admitted_qualifications=admitted_qualifications,
         review_world_id=review_world_id, generations=generations,
     )
 
     blockers: list[str] = []
+    trusted = {} if trusted_generation_bindings is None else _require_mapping(trusted_generation_bindings, "trusted_generation_bindings")
+    for field in GENERATION_FIELDS:
+        if trusted.get(field) != generations[field]:
+            blockers.append(f"UNTRUSTED_GENERATION_BINDING:{field}")
     verified = _verified_evidence(row, verifiers=_trusted_verifiers(trusted_provenance_verifiers), blockers=blockers)
-    bound = [record for record in verified if record.review_world_id == review_world_id]
+    evidence_bindings = {} if trusted_external_evidence_bindings is None else _require_mapping(
+        trusted_external_evidence_bindings, "trusted_external_evidence_bindings"
+    )
+    for record in verified:
+        if evidence_bindings.get(record.evidence_id) != record.eepr_id:
+            blockers.append(f"EXTERNAL_EVIDENCE_CLAIMS_UNTRUSTED:{record.evidence_id}")
+    bound = [
+        record for record in verified
+        if record.review_world_id == review_world_id and evidence_bindings.get(record.evidence_id) == record.eepr_id
+    ]
     if len(bound) != len(verified):
         blockers.append("EXTERNAL_EVIDENCE_REVIEW_WORLD_MISMATCH")
     requirements, ratified = _lane_requirements(ratified_external_review_lanes)
@@ -335,18 +383,8 @@ def qualify_genesis_package(
         })
         for obligation in REQUIRED_QUALIFICATION_OBLIGATIONS
     }
-    genesis_package = GenesisQualificationPackage.create(
-        review_world_id=review_world_id,
-        required_qualification_ids=obligation_ids.values(),
-        present_qualification_ids=[obligation_ids[obligation] for obligation in closed],
-        external_review_census_id=census.census_id,
-        external_review_census_satisfied=census.satisfied,
-        founding_final_proof_id=None,
-        generation=generations["candidate_generation"],
-    )
     package_body = {
-        "schema_version": "sergeant.sae150.genesis-qualification-package-candidate.v1",
-        "genesis_package_id": genesis_package.package_id,
+        "schema_version": "sergeant.sae150.genesis-qualification-package-candidate.v2",
         "generation_bindings": generations,
         "review_world_id": review_world_id,
         "required_proven_nodes": dict(REQUIRED_PROVEN_NODE_BINDINGS),
@@ -362,6 +400,16 @@ def qualify_genesis_package(
         "blockers": blockers,
         "state": state,
     }
+    package_digest = sha256_id(package_body)
+    genesis_package = GenesisQualificationPackage.create(
+        review_world_id=review_world_id,
+        required_qualification_ids=obligation_ids.values(),
+        present_qualification_ids=[obligation_ids[obligation] for obligation in closed],
+        external_review_census_id=census.census_id,
+        external_review_census_satisfied=census.satisfied,
+        founding_final_proof_id=None,
+        generation=package_digest,
+    )
     return {
         "qualified": qualified,
         "state": state,
@@ -382,7 +430,7 @@ def qualify_genesis_package(
         "limitations": limitations,
         "genesis_package": genesis_package,
         "package_id": genesis_package.package_id,
-        "package_digest": sha256_id(package_body),
+        "package_digest": package_digest,
         "authority_gain": [],
         "normal_verdict_authority": False,
         "activation_authorized": False,

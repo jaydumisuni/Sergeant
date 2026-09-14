@@ -52,7 +52,7 @@ def test_manifest_records_repaired_authority_contract():
  assert q["required_obligations"]==list(REQUIRED_QUALIFICATION_OBLIGATIONS) and q["caller_boolean_claims_authoritative"] is False
  assert q["surviving_required_mutant_blocks"] is True
  assert m["residual_unknown_policy"]=={"every_residual_unknown_blocks":True,"unknown_independence_conserved":True}
- assert m["package_identity"]=={"record_type":"GenesisQualificationPackage","full_package_digest":True}
+ assert m["package_identity"]=={"record_type":"GenesisQualificationPackage","full_package_digest":True,"full_digest_bound_into_package_id":True}
 
 def test_current_candidate_fails_closed_on_real_external_lane_gap():
  m=json.loads(MANIFEST.read_text())
