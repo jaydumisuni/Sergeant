@@ -57,8 +57,8 @@ LEGACY_BOOLEAN_CLAIMS = (
     "unrelated_transfer", "eepr_complete",
 )
 
-VERIFIER_SECRET = b"sae150-rooted-provenance-verifier"
-SELF_MINTED_SECRET = b"sae150-self-minted-verifier-key!"
+VERIFIER_SECRET = hashlib.sha256(b'test-only-rooted-provenance-verifier').digest()
+SELF_MINTED_SECRET = hashlib.sha256(b'test-only-self-minted-verifier').digest()
 
 
 def _digest(label: str) -> str:
