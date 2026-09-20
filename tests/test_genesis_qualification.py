@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import pytest
 
-from main_review.assurance_contract_registry import ExternalReviewLane
 from main_review.external_evidence_provenance import (
     AuthenticatedProvenanceProof,
     ControlLineageFacts,
@@ -14,7 +13,18 @@ from main_review.external_evidence_provenance import (
     ProvenanceVerifierAuthorization,
     ProvenanceVerifierState,
 )
-from main_review.genesis_qualification import GenesisQualificationError, qualify_genesis_package
+from main_review.genesis_qualification import (
+    GENESIS_LANE_RATIFICATION_MANIFEST,
+    GENESIS_LANE_RATIFICATION_MANIFEST_BLOB,
+    GENESIS_LANE_RATIFICATION_MERGE,
+    PROVENANCE_VERIFIER_ARTIFACT_FAMILY,
+    PROVENANCE_VERIFIER_CLOSURE_GRADE,
+    PROVENANCE_VERIFIER_DOMAIN,
+    PROVENANCE_VERIFIER_NAMESPACE,
+    PROVENANCE_VERIFIER_PROOF_CLASS,
+    GenesisQualificationError,
+    qualify_genesis_package,
+)
 from main_review.qualification_authority import (
     AuthenticatedIssuer,
     GenesisQualificationPackage,
@@ -77,6 +87,22 @@ def _verifier(identity: str, secret: bytes) -> ProvenanceVerifierAuthorization:
 
 ROOTED_VERIFIER = _verifier("owner-root-provenance-verifier", VERIFIER_SECRET)
 SELF_MINTED_VERIFIER = _verifier("candidate-provenance-verifier", SELF_MINTED_SECRET)
+CANDIDATE_CONTROL_LINEAGE_ID = _digest("candidate-lineage")
+PROVENANCE_VERIFIER_CONTROL_LINEAGE_ID = _digest("rooted-provenance-verifier-lineage")
+ROOTED_VERIFIER_ISSUER = QualificationIssuerAuthorization.create(
+    issuer_identity=ROOTED_VERIFIER.verifier_identity,
+    key_id=ROOTED_VERIFIER.key_id,
+    namespace=PROVENANCE_VERIFIER_NAMESPACE,
+    issuer_generation=ROOTED_VERIFIER.verifier_generation,
+    artifact_families=(PROVENANCE_VERIFIER_ARTIFACT_FAMILY,),
+    domains=(PROVENANCE_VERIFIER_DOMAIN,),
+    proof_classes=(PROVENANCE_VERIFIER_PROOF_CLASS,),
+    closure_grades=(PROVENANCE_VERIFIER_CLOSURE_GRADE,),
+    allowed_independence_states=(IndependenceState.INDEPENDENT.value,),
+    control_lineage_id=PROVENANCE_VERIFIER_CONTROL_LINEAGE_ID,
+    authentication_secret_digest=ROOTED_VERIFIER.verification_secret_digest,
+    state=IssuerState.ACTIVE,
+)
 
 
 def _eepr(label, source_class, *, verifier=ROOTED_VERIFIER, secret=VERIFIER_SECRET, authenticated=True, independent=True):
@@ -130,7 +156,10 @@ def _admitted(obligations=OBLIGATIONS, *, subject=WORLD, independence="INDEPENDE
         authentication_secret_digest=qualification_verification_secret_digest(ISSUER_SECRET),
         state=IssuerState.ACTIVE,
     )
-    registry = QualificationAuthorityRegistry.create(generation="qar-gen-1", issuers=(authorization,))
+    registry = QualificationAuthorityRegistry.create(
+        generation="qar-gen-1",
+        issuers=(authorization, ROOTED_VERIFIER_ISSUER),
+    )
     attestations = []
     derived = []
     for obligation in obligations:
@@ -171,7 +200,6 @@ def _admitted(obligations=OBLIGATIONS, *, subject=WORLD, independence="INDEPENDE
 
 
 ATTESTATIONS, REGISTRY, DERIVED_QUALIFICATIONS = _admitted()
-RATIFIED_LANES = (ExternalReviewLane.create("genesis-independent", 2),)
 DEFAULT_EVIDENCE = (_eepr("contractor-review", "SC-1"), _eepr("scoped-saas-hostile-engagement", "SC-6"))
 
 
@@ -190,7 +218,15 @@ def closed_package(*, evidence=DEFAULT_EVIDENCE, attestations=None, **overrides)
     return package
 
 
-def qualify(package, *, verifiers=((ROOTED_VERIFIER, VERIFIER_SECRET),), lanes=RATIFIED_LANES, registry=REGISTRY, derived=DERIVED_QUALIFICATIONS, trusted_evidence_bindings=None):
+def qualify(
+    package,
+    *,
+    verifiers=((ROOTED_VERIFIER, VERIFIER_SECRET),),
+    registry=REGISTRY,
+    derived=DERIVED_QUALIFICATIONS,
+    trusted_evidence_bindings=None,
+    candidate_lineage=CANDIDATE_CONTROL_LINEAGE_ID,
+):
     if trusted_evidence_bindings is None:
         trusted_evidence_bindings = {
             record.evidence_id: record.eepr_id
@@ -198,8 +234,9 @@ def qualify(package, *, verifiers=((ROOTED_VERIFIER, VERIFIER_SECRET),), lanes=R
             if isinstance(record, ExternalEvidenceProvenanceRecord)
         }
     return qualify_genesis_package(
-        package, trusted_provenance_verifiers=verifiers, ratified_external_review_lanes=lanes,
+        package, trusted_provenance_verifiers=verifiers,
         qualification_registry=registry, admitted_qualifications=derived,
+        candidate_control_lineage_id=candidate_lineage,
         trusted_generation_bindings={
             "candidate_generation": CANDIDATE, "rab_generation": RAB, "acr_generation": "acr-gen-1",
             "rust_generation": "rust-gen-1", "qualification_protocol_generation": PROTOCOL,
@@ -305,9 +342,9 @@ def test_trust_anchors_default_to_fail_closed():
     assert out["qualified"] is False
     assert {
         "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED",
-        "GENESIS_LANE_CARDINALITY_UNRATIFIED",
         "QUALIFICATION_OBLIGATION_OPEN:cpu_proof",
     } <= set(out["blockers"])
+    assert "GENESIS_LANE_CARDINALITY_UNRATIFIED" not in out["blockers"]
 
 
 # F1 -- the independent lane must be re-verified, not trusted from record fields.
@@ -338,8 +375,8 @@ def test_self_minted_verifier_is_not_rooted_provenance_authority():
 
 # F2 -- lane cardinality is not candidate-authored and never below the SPIKE-EXT 2/2 floor.
 
-def test_single_independent_eepr_cannot_satisfy_census_even_under_weaker_ratified_lane():
-    out = qualify(closed_package(evidence=DEFAULT_EVIDENCE[:1]), lanes=(ExternalReviewLane.create("genesis-independent", 1),))
+def test_single_independent_eepr_cannot_satisfy_canonical_ratified_census():
+    out = qualify(closed_package(evidence=DEFAULT_EVIDENCE[:1]))
     assert out["qualified"] is False
     assert "EXTERNAL_REVIEW_CENSUS_INCOMPLETE" in out["blockers"]
 
@@ -352,10 +389,15 @@ def test_non_accepted_source_class_does_not_count_toward_census(source_class):
     assert "EXTERNAL_REVIEW_CENSUS_INCOMPLETE" in out["blockers"]
 
 
-def test_unratified_lane_cardinality_leaves_genesis_provisional():
-    out = qualify(closed_package(), lanes=())
-    assert out["qualified"] is False
-    assert "GENESIS_LANE_CARDINALITY_UNRATIFIED" in out["blockers"]
+def test_genesis_lane_cardinality_is_ratified_by_exact_guarded_merge():
+    out = qualify(closed_package())
+    assert out["external_review_lane_cardinality_ratified"] is True
+    assert out["external_review_lane_authority"] == {
+        "merge_commit": GENESIS_LANE_RATIFICATION_MERGE,
+        "manifest_path": GENESIS_LANE_RATIFICATION_MANIFEST,
+        "manifest_blob": GENESIS_LANE_RATIFICATION_MANIFEST_BLOB,
+    }
+    assert "GENESIS_LANE_CARDINALITY_UNRATIFIED" not in out["blockers"]
 
 
 # F3 -- caller booleans carry no authority; obligations close only through admitted qualification.
@@ -567,3 +609,108 @@ def test_canonical_genesis_package_identity_changes_with_full_qualification_dige
     limited = qualify(closed_package(limitations=["bounded to the Python review domain"]))
     assert base["package_digest"] != limited["package_digest"]
     assert base["package_id"] != limited["package_id"]
+
+
+def _registry_with_provenance_issuer(issuer):
+    qualification_issuers = tuple(
+        item for item in REGISTRY.issuers
+        if item.issuer_identity != ROOTED_VERIFIER.verifier_identity
+    )
+    return QualificationAuthorityRegistry.create(
+        generation=REGISTRY.generation,
+        issuers=(*qualification_issuers, issuer),
+        consumed_attestation_ids=REGISTRY.consumed_attestation_ids,
+        revoked_attestation_ids=REGISTRY.revoked_attestation_ids,
+    )
+
+
+def test_provenance_verifier_requires_sae30_registry_root():
+    unrooted = QualificationAuthorityRegistry.create(
+        generation=REGISTRY.generation,
+        issuers=tuple(
+            item for item in REGISTRY.issuers
+            if item.issuer_identity != ROOTED_VERIFIER.verifier_identity
+        ),
+        consumed_attestation_ids=REGISTRY.consumed_attestation_ids,
+        revoked_attestation_ids=REGISTRY.revoked_attestation_ids,
+    )
+    out = qualify(closed_package(), registry=unrooted)
+    assert out["qualified"] is False
+    assert "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED" in out["blockers"]
+
+
+def test_candidate_control_lineage_cannot_root_its_own_provenance_verifier():
+    out = qualify(
+        closed_package(),
+        candidate_lineage=PROVENANCE_VERIFIER_CONTROL_LINEAGE_ID,
+    )
+    assert out["qualified"] is False
+    assert "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED" in out["blockers"]
+
+
+def test_suspended_registry_provenance_verifier_fails_closed():
+    suspended = QualificationIssuerAuthorization.create(
+        issuer_identity=ROOTED_VERIFIER.verifier_identity,
+        key_id=ROOTED_VERIFIER.key_id,
+        namespace=PROVENANCE_VERIFIER_NAMESPACE,
+        issuer_generation=ROOTED_VERIFIER.verifier_generation,
+        artifact_families=(PROVENANCE_VERIFIER_ARTIFACT_FAMILY,),
+        domains=(PROVENANCE_VERIFIER_DOMAIN,),
+        proof_classes=(PROVENANCE_VERIFIER_PROOF_CLASS,),
+        closure_grades=(PROVENANCE_VERIFIER_CLOSURE_GRADE,),
+        allowed_independence_states=(IndependenceState.INDEPENDENT.value,),
+        control_lineage_id=PROVENANCE_VERIFIER_CONTROL_LINEAGE_ID,
+        authentication_secret_digest=ROOTED_VERIFIER.verification_secret_digest,
+        state=IssuerState.SUSPENDED,
+    )
+    out = qualify(closed_package(), registry=_registry_with_provenance_issuer(suspended))
+    assert out["qualified"] is False
+    assert "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED" in out["blockers"]
+
+
+def test_registry_provenance_verifier_key_mismatch_fails_closed():
+    mismatched = QualificationIssuerAuthorization.create(
+        issuer_identity=ROOTED_VERIFIER.verifier_identity,
+        key_id=_digest("different-verifier-key"),
+        namespace=PROVENANCE_VERIFIER_NAMESPACE,
+        issuer_generation=ROOTED_VERIFIER.verifier_generation,
+        artifact_families=(PROVENANCE_VERIFIER_ARTIFACT_FAMILY,),
+        domains=(PROVENANCE_VERIFIER_DOMAIN,),
+        proof_classes=(PROVENANCE_VERIFIER_PROOF_CLASS,),
+        closure_grades=(PROVENANCE_VERIFIER_CLOSURE_GRADE,),
+        allowed_independence_states=(IndependenceState.INDEPENDENT.value,),
+        control_lineage_id=PROVENANCE_VERIFIER_CONTROL_LINEAGE_ID,
+        authentication_secret_digest=ROOTED_VERIFIER.verification_secret_digest,
+        state=IssuerState.ACTIVE,
+    )
+    out = qualify(closed_package(), registry=_registry_with_provenance_issuer(mismatched))
+    assert out["qualified"] is False
+    assert "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED" in out["blockers"]
+
+
+def test_registry_provenance_verifier_namespace_mismatch_fails_closed():
+    mismatched = QualificationIssuerAuthorization.create(
+        issuer_identity=ROOTED_VERIFIER.verifier_identity,
+        key_id=ROOTED_VERIFIER.key_id,
+        namespace="unrelated-qualification-namespace",
+        issuer_generation=ROOTED_VERIFIER.verifier_generation,
+        artifact_families=(PROVENANCE_VERIFIER_ARTIFACT_FAMILY,),
+        domains=(PROVENANCE_VERIFIER_DOMAIN,),
+        proof_classes=(PROVENANCE_VERIFIER_PROOF_CLASS,),
+        closure_grades=(PROVENANCE_VERIFIER_CLOSURE_GRADE,),
+        allowed_independence_states=(IndependenceState.INDEPENDENT.value,),
+        control_lineage_id=PROVENANCE_VERIFIER_CONTROL_LINEAGE_ID,
+        authentication_secret_digest=ROOTED_VERIFIER.verification_secret_digest,
+        state=IssuerState.ACTIVE,
+    )
+    out = qualify(closed_package(), registry=_registry_with_provenance_issuer(mismatched))
+    assert out["qualified"] is False
+    assert "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED" in out["blockers"]
+
+
+def test_caller_cannot_supply_or_weaken_ratified_genesis_lane():
+    with pytest.raises(TypeError, match="ratified_external_review_lanes"):
+        qualify_genesis_package(
+            closed_package(),
+            ratified_external_review_lanes=(),
+        )
