@@ -1,0 +1,119 @@
+{
+  "authority_gain": "none",
+  "base_sae150": {
+    "head": "ddf1b8b63680e124654fc6f0f541a3326c8f03c7",
+    "node": "SAE-150",
+    "state": "GENESIS_PROVISIONAL"
+  },
+  "cog_formula": {
+    "artifact_sha256": "f8dc7d64928384e2f65287e2f3e5cf957d32458ad622f89e07843dd150111287",
+    "bound_srg_head": "3a19dffe398b2b2499383782b9c89684acf25d68",
+    "current_binding": false,
+    "pending": [
+      "formula_baseline",
+      "independent_assurance",
+      "negative_controls",
+      "second_use_reuse",
+      "shadow_comparison"
+    ],
+    "qualification_state": "SHADOW"
+  },
+  "genesis_activated": false,
+  "lifecycle_state": "SIDE_CAR_DESIGN_CANDIDATE",
+  "mandatory_external_blocker": "MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE",
+  "merge_authorized": false,
+  "normal_verdict_authority": false,
+  "portable_simulation": {
+    "base_score": 80.92,
+    "digest": "741a7f2c38cd4b68305b6178a28fe408fbdf9018fa8d7b576825f9dc3cc951e9",
+    "full_with_optional_donors_score": 95.79,
+    "owned_without_donors_score": 95.01,
+    "path": "docs/164-sae150-cog-formula-successor-portable-simulation.json",
+    "schema": "sergeant.sae150-cog-formula-successor-portable-simulation.v1",
+    "script_path": "docs/evidence/sae150-cog-formula-successor-portable-simulation.py"
+  },
+  "required_hard_gates": [
+    "srg_final_authority",
+    "no_self_certification",
+    "external_independence_preserved",
+    "models_optional",
+    "unknown_conserved",
+    "judge_rust_preserved",
+    "protected_merge_forbidden"
+  ],
+  "rollout": [
+    {
+      "authority": "qualification_required",
+      "step": "rebind_current_srg_cog_formula"
+    },
+    {
+      "authority": "recommendation_only_shadow",
+      "step": "advanced_formula_search"
+    },
+    {
+      "authority": "read_only_evidence",
+      "step": "cookpit_generation_ledger"
+    },
+    {
+      "authority": "proposal_only",
+      "step": "sae140_learning_bridge"
+    },
+    {
+      "authority": "tenfold_retains_dispatch_authority",
+      "step": "adaptive_tenfold"
+    },
+    {
+      "authority": "lineage_bound_non_authoritative",
+      "step": "optional_external_donors"
+    }
+  ],
+  "schema": "sergeant.sae150-cog-formula-adaptive-successor-sidecar.v1",
+  "simulation": {
+    "artifact_sha256": "368c0f81f50ab8a14f5427ec38e19ba764f0b47a59b80851480277afbe087e10",
+    "digest": "98327781d26e94f5dc1eb7f4e929db3459521abc04afc5fe5f28c912025077e8",
+    "model_note": "Ordinal structural mechanism-coverage proxy; not an empirical defect probability.",
+    "schema": "ttg.srg.cog-formula-successor-simulation.v2",
+    "script_sha256": "57c074525b0c97f382907cb8c93a2f4caede2fa250292d84c1f2d91d56f17db0"
+  },
+  "sources": {
+    "cookpit": {
+      "blobs": {
+        "cog_formula": "44baf43d509380c710bb1091f3fa1b75012b2e35",
+        "metrics": "7144bee681c5a6d4a0da9aa839676cd8c778fa7e"
+      },
+      "finding": "Generation-bound measurement ledger and stale-measurement rejection already exist and should be reused.",
+      "head": "62a4f28af78e35c0a2acd2a95c82a428a21dd639"
+    },
+    "formula": {
+      "architecture_checkpoint": "50c0beb021d8bf02d59a177049b9c2cf1783b26a",
+      "blobs": {
+        "compiler_architecture": "290e957e037bd5050447f61ed836d29092712078",
+        "engine_runtime": "b27f94ec970c0b400272c12d40dcb97859248d00",
+        "search_economy": "a68d9492013f39710175e7d744e0c2f5555fad7d"
+      },
+      "finding": "Advanced search mathematics is designed/researched; current engine runtime remains a P0 skeleton.",
+      "head": "bd71d8cdf414a41cfcc3d29e1cdc2db1b1fe8306"
+    },
+    "iam": {
+      "head": "62102d6629113f530a50691368da909324cb3d91",
+      "readme_blob": "b2ded83eacfe112d738e23451f4bba96bf2b8c81"
+    },
+    "srg": {
+      "blobs": {
+        "sae140_contract": "f8858d8009720f341ec9e7d8caec286eb483d889",
+        "sae140_learning": "415387390be0c15660dc6a60540034b05b036014",
+        "sae150_contract": "bbed0091e8632064abd8337a9ee0436c44af61f4"
+      },
+      "finding": "SAE-140 proposal-only learning is PROVEN; typed bridge into COG/Formula priors/nogoods is not yet implemented.",
+      "head": "ddf1b8b63680e124654fc6f0f541a3326c8f03c7"
+    },
+    "tenfold": {
+      "blobs": {
+        "evolution_map": "3093ffb322cfa53a2c84ca262200c4fcbfc8ec49",
+        "scheduler": "0ace7c22806afc35c86bd123d89d7ffadb4b7e28"
+      },
+      "finding": "Current scheduler is deterministic/static-ranked; adaptive placement and learned scheduling remain separately-authorized future classes.",
+      "head": "d7d14ba5e83960662e2430522726ce85d81846ae"
+    }
+  }
+}

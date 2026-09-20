@@ -1,0 +1,176 @@
+{
+  "base": {
+    "attack_coverage": {
+      "classes": [
+        "route_goal_authority_coupling",
+        "lease_import_root_authority",
+        "admission_rollback_highwater",
+        "environment_config_injection",
+        "hidden_index_or_untracked_edit",
+        "mandatory_unknown_suppression",
+        "retry_duplicate_partial_commit"
+      ],
+      "count": 7,
+      "total": 16
+    },
+    "hard_gates": {
+      "external_independence_preserved": true,
+      "judge_rust_preserved": true,
+      "models_optional": true,
+      "no_self_certification": true,
+      "protected_merge_forbidden": true,
+      "srg_final_authority": true,
+      "unknown_conserved": true
+    },
+    "hard_pass": true,
+    "metrics": {
+      "activation_readiness": 3.0,
+      "autonomous_attack_discovery": 2.188,
+      "constitutional_safety": 5.0,
+      "currentness_binding": 5.0,
+      "deterministic_replay": 4.2,
+      "integration_safety": 4.65,
+      "learning_transfer": 4.35,
+      "measurement_rigor": 4.0,
+      "parallel_frontier": 4.0,
+      "provider_independence": 5.0,
+      "search_intelligence": 3.6
+    },
+    "soft_structural_score": 80.92
+  },
+  "full_with_optional_donors": {
+    "attack_coverage": {
+      "classes": [
+        "route_goal_authority_coupling",
+        "lease_import_root_authority",
+        "post_verification_substitution",
+        "stale_generation_measurement",
+        "reviewer_lineage_collapse",
+        "admission_rollback_highwater",
+        "environment_config_injection",
+        "hidden_index_or_untracked_edit",
+        "common_mode_external_evidence",
+        "mandatory_unknown_suppression",
+        "cross_repo_recurrence_transfer",
+        "false_positive_pattern_recurrence",
+        "evidence_retargeting",
+        "cardinality_undercount",
+        "private_helper_dependency",
+        "retry_duplicate_partial_commit"
+      ],
+      "count": 16,
+      "total": 16
+    },
+    "hard_gates": {
+      "external_independence_preserved": true,
+      "judge_rust_preserved": true,
+      "models_optional": true,
+      "no_self_certification": true,
+      "protected_merge_forbidden": true,
+      "srg_final_authority": true,
+      "unknown_conserved": true
+    },
+    "hard_pass": true,
+    "metrics": {
+      "activation_readiness": 3.0,
+      "autonomous_attack_discovery": 5.0,
+      "constitutional_safety": 5.0,
+      "currentness_binding": 5.0,
+      "deterministic_replay": 5.0,
+      "integration_safety": 3.95,
+      "learning_transfer": 5.0,
+      "measurement_rigor": 5.0,
+      "parallel_frontier": 5.0,
+      "provider_independence": 5.0,
+      "search_intelligence": 5.0
+    },
+    "soft_structural_score": 95.79
+  },
+  "model_note": "Ordinal structural mechanism-coverage proxy; not an empirical defect probability.",
+  "owned_without_donors": {
+    "attack_coverage": {
+      "classes": [
+        "route_goal_authority_coupling",
+        "lease_import_root_authority",
+        "post_verification_substitution",
+        "stale_generation_measurement",
+        "reviewer_lineage_collapse",
+        "admission_rollback_highwater",
+        "environment_config_injection",
+        "hidden_index_or_untracked_edit",
+        "mandatory_unknown_suppression",
+        "cross_repo_recurrence_transfer",
+        "false_positive_pattern_recurrence",
+        "evidence_retargeting",
+        "cardinality_undercount",
+        "private_helper_dependency",
+        "retry_duplicate_partial_commit"
+      ],
+      "count": 15,
+      "total": 16
+    },
+    "hard_gates": {
+      "external_independence_preserved": true,
+      "judge_rust_preserved": true,
+      "models_optional": true,
+      "no_self_certification": true,
+      "protected_merge_forbidden": true,
+      "srg_final_authority": true,
+      "unknown_conserved": true
+    },
+    "hard_pass": true,
+    "metrics": {
+      "activation_readiness": 3.0,
+      "autonomous_attack_discovery": 4.688,
+      "constitutional_safety": 5.0,
+      "currentness_binding": 5.0,
+      "deterministic_replay": 5.0,
+      "integration_safety": 3.95,
+      "learning_transfer": 5.0,
+      "measurement_rigor": 5.0,
+      "parallel_frontier": 5.0,
+      "provider_independence": 5.0,
+      "search_intelligence": 5.0
+    },
+    "soft_structural_score": 95.01
+  },
+  "rollout": [
+    {
+      "after": 87.48,
+      "attack_coverage": 11,
+      "before": 80.92,
+      "delta": 6.56,
+      "step": "advanced_formula_search"
+    },
+    {
+      "after": 90.86,
+      "attack_coverage": 13,
+      "before": 87.48,
+      "delta": 3.38,
+      "step": "cookpit_generation_ledger"
+    },
+    {
+      "after": 93.61,
+      "attack_coverage": 15,
+      "before": 90.86,
+      "delta": 2.75,
+      "step": "learning_bridge"
+    },
+    {
+      "after": 95.01,
+      "attack_coverage": 15,
+      "before": 93.61,
+      "delta": 1.4,
+      "step": "adaptive_tenfold"
+    },
+    {
+      "after": 95.79,
+      "attack_coverage": 16,
+      "before": 95.01,
+      "delta": 0.78,
+      "step": "optional_donors"
+    }
+  ],
+  "schema": "sergeant.sae150-cog-formula-successor-portable-simulation.v1",
+  "simulation_digest": "741a7f2c38cd4b68305b6178a28fe408fbdf9018fa8d7b576825f9dc3cc951e9"
+}
