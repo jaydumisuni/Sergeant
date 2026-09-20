@@ -20,6 +20,7 @@ from .external_evidence_provenance import (
     ExternalReviewLaneRequirement,
     IndependenceState,
     ProvenanceVerifierAuthorization,
+    ProvenanceVerifierState,
     evaluate_external_review_census,
 )
 from .qualification_authority import (
@@ -60,6 +61,15 @@ ACCEPTED_EXTERNAL_SOURCE_CLASSES = ("SC-1", "SC-2", "SC-3", "SC-4", "SC-6")
 LANE_CARDINALITY_FLOOR = 2
 LANE_SOURCE_CLASS_FLOOR = 2
 DEFAULT_GENESIS_LANE_ID = "genesis-independent"
+GENESIS_LANE_RATIFICATION_MERGE = "8f40eb95ce4666b068d97a65c1db0f2c0fae2ecc"
+GENESIS_LANE_RATIFICATION_MANIFEST = "docs/166-sae150-genesis-lane-cardinality-authority-amendment-manifest.json"
+GENESIS_LANE_RATIFICATION_MANIFEST_BLOB = "b0c3c805ef0182b6b31c9d82c5137c6bf9db1693"
+RATIFIED_GENESIS_EXTERNAL_REVIEW_LANES = (ExternalReviewLane.create(DEFAULT_GENESIS_LANE_ID, LANE_CARDINALITY_FLOOR),)
+PROVENANCE_VERIFIER_NAMESPACE = "sergeant-eepr-provenance-verifier-v1"
+PROVENANCE_VERIFIER_ARTIFACT_FAMILY = "sergeant.external-evidence-provenance.verifier"
+PROVENANCE_VERIFIER_DOMAIN = "sergeant.eepr.v2"
+PROVENANCE_VERIFIER_PROOF_CLASS = "authenticated-provenance-verification"
+PROVENANCE_VERIFIER_CLOSURE_GRADE = "EXACT"
 GENERATION_FIELDS = ("candidate_generation", "rab_generation", "acr_generation", "rust_generation", "qualification_protocol_generation")
 _MUTABLE_ALIASES = {"latest", "current", "head", "tip", "main", "master"}
 _EEPR_CREATE_FIELDS = (
@@ -126,15 +136,62 @@ def _review_world(value: object) -> str:
     return text
 
 
-def _trusted_verifiers(values: object) -> dict[str, tuple[ProvenanceVerifierAuthorization, bytes]]:
+def _trusted_verifiers(
+    values: object,
+    *,
+    registry: QualificationAuthorityRegistry | None,
+    candidate_control_lineage_id: str | None,
+) -> dict[str, tuple[ProvenanceVerifierAuthorization, bytes]]:
+    """Admit only provenance verifiers rooted by the existing SAE-30 trusted registry.
+
+    A caller-provided ProvenanceVerifierAuthorization is evidence, not trust.
+    Positive verifier authority exists only when the separately supplied
+    QualificationAuthorityRegistry independently binds the same identity,
+    generation, key and verification-secret digest under the dedicated EEPR
+    verifier ceilings, and that issuer lineage differs from the candidate.
+    """
+    candidate_lineage = None
+    if candidate_control_lineage_id is not None:
+        try:
+            candidate_lineage = require_full_sha256(
+                candidate_control_lineage_id, "candidate_control_lineage_id"
+            )
+        except (TypeError, ValueError, ReviewWorldError) as exc:
+            raise GenesisQualificationError(str(exc)) from exc
+
     trusted: dict[str, tuple[ProvenanceVerifierAuthorization, bytes]] = {}
     for item in _require_iterable(values, "trusted_provenance_verifiers"):
         if not (
             isinstance(item, tuple) and len(item) == 2
             and isinstance(item[0], ProvenanceVerifierAuthorization) and isinstance(item[1], bytes)
         ):
-            raise GenesisQualificationError("trusted provenance verifiers must be (ProvenanceVerifierAuthorization, secret) pairs")
-        trusted[item[0].authorization_id] = item
+            raise GenesisQualificationError(
+                "trusted provenance verifiers must be (ProvenanceVerifierAuthorization, secret) pairs"
+            )
+        authorization, secret = item
+        if (
+            authorization.state is not ProvenanceVerifierState.ACTIVE
+            or registry is None
+            or candidate_lineage is None
+        ):
+            continue
+        try:
+            issuer = registry.find(authorization.verifier_identity, authorization.verifier_generation)
+        except QualificationAuthorityError:
+            continue
+        if (
+            issuer.state is IssuerState.ACTIVE
+            and issuer.namespace == PROVENANCE_VERIFIER_NAMESPACE
+            and issuer.key_id == authorization.key_id
+            and issuer.authentication_secret_digest == authorization.verification_secret_digest
+            and PROVENANCE_VERIFIER_ARTIFACT_FAMILY in issuer.artifact_families
+            and PROVENANCE_VERIFIER_DOMAIN in issuer.domains
+            and PROVENANCE_VERIFIER_PROOF_CLASS in issuer.proof_classes
+            and PROVENANCE_VERIFIER_CLOSURE_GRADE in issuer.closure_grades
+            and IndependenceState.INDEPENDENT.value in issuer.allowed_independence_states
+            and issuer.control_lineage_id != candidate_lineage
+        ):
+            trusted[authorization.authorization_id] = (authorization, secret)
     return trusted
 
 
@@ -182,23 +239,25 @@ def _verified_evidence(
     return verified
 
 
-def _lane_requirements(values: object) -> tuple[tuple[ExternalReviewLaneRequirement, ...], bool]:
-    lanes = _require_iterable(values, "ratified_external_review_lanes")
-    if any(not isinstance(lane, ExternalReviewLane) for lane in lanes):
-        raise GenesisQualificationError("ratified external review lanes must be canonical ACR ExternalReviewLane values")
-    sources = lanes or (ExternalReviewLane.create(DEFAULT_GENESIS_LANE_ID, LANE_CARDINALITY_FLOOR),)
+def _lane_requirements() -> tuple[tuple[ExternalReviewLaneRequirement, ...], bool]:
+    """Return the exact Genesis lane ratified by guarded merge 8f40eb9.
+
+    Caller-supplied lane objects no longer carry authority. The merge and
+    content-addressed amendment manifest are verified by the SAE-150 campaign
+    tests and are included in the Genesis package identity below.
+    """
     try:
         requirements = tuple(
             ExternalReviewLaneRequirement.create(
                 lane_id=lane.lane_id,
-                minimum_instances=max(lane.minimum_instances, LANE_CARDINALITY_FLOOR),
+                minimum_instances=lane.minimum_instances,
                 minimum_source_classes=LANE_SOURCE_CLASS_FLOOR,
             )
-            for lane in sources
+            for lane in RATIFIED_GENESIS_EXTERNAL_REVIEW_LANES
         )
     except ExternalEvidenceProvenanceError as exc:
         raise GenesisQualificationError(f"external review lane requirement invalid: {exc}") from exc
-    return requirements, bool(lanes)
+    return requirements, True
 
 
 def _admitted_qualification_map(values: object) -> dict[str, DerivedQualification]:
@@ -291,8 +350,8 @@ def qualify_genesis_package(
     package: Mapping[str, Any],
     *,
     trusted_provenance_verifiers: Iterable[tuple[ProvenanceVerifierAuthorization, bytes]] = (),
-    ratified_external_review_lanes: Iterable[ExternalReviewLane] = (),
     qualification_registry: QualificationAuthorityRegistry | None = None,
+    candidate_control_lineage_id: str | None = None,
     admitted_qualifications: Iterable[DerivedQualification] = (),
     trusted_generation_bindings: Mapping[str, str] | None = None,
     trusted_external_evidence_bindings: Mapping[str, str] | None = None,
@@ -320,7 +379,15 @@ def qualify_genesis_package(
     for field in GENERATION_FIELDS:
         if trusted.get(field) != generations[field]:
             blockers.append(f"UNTRUSTED_GENERATION_BINDING:{field}")
-    verified = _verified_evidence(row, verifiers=_trusted_verifiers(trusted_provenance_verifiers), blockers=blockers)
+    verified = _verified_evidence(
+        row,
+        verifiers=_trusted_verifiers(
+            trusted_provenance_verifiers,
+            registry=qualification_registry,
+            candidate_control_lineage_id=candidate_control_lineage_id,
+        ),
+        blockers=blockers,
+    )
     evidence_bindings = {} if trusted_external_evidence_bindings is None else _require_mapping(
         trusted_external_evidence_bindings, "trusted_external_evidence_bindings"
     )
@@ -333,7 +400,7 @@ def qualify_genesis_package(
     ]
     if len(bound) != len(verified):
         blockers.append("EXTERNAL_EVIDENCE_REVIEW_WORLD_MISMATCH")
-    requirements, ratified = _lane_requirements(ratified_external_review_lanes)
+    requirements, ratified = _lane_requirements()
     try:
         census = evaluate_external_review_census(
             records=[record for record in bound if record.source_class in ACCEPTED_EXTERNAL_SOURCE_CLASSES],
@@ -344,8 +411,6 @@ def qualify_genesis_package(
     counted = set(census.eligible_independent_evidence_ids)
     if not counted:
         blockers.append("MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE")
-    if not ratified:
-        blockers.append("GENESIS_LANE_CARDINALITY_UNRATIFIED")
     if not census.satisfied:
         blockers.append("EXTERNAL_REVIEW_CENSUS_INCOMPLETE")
     blockers.extend(
@@ -393,6 +458,11 @@ def qualify_genesis_package(
         "external_evidence_dispositions": dispositions,
         "external_review_lane_requirement_ids": [requirement.requirement_id for requirement in requirements],
         "external_review_lane_cardinality_ratified": ratified,
+        "external_review_lane_authority": {
+            "merge_commit": GENESIS_LANE_RATIFICATION_MERGE,
+            "manifest_path": GENESIS_LANE_RATIFICATION_MANIFEST,
+            "manifest_blob": GENESIS_LANE_RATIFICATION_MANIFEST_BLOB,
+        },
         "external_review_census_id": census.census_id,
         "surviving_mutants": survivors,
         "residual_unknowns": unknowns,
@@ -423,6 +493,11 @@ def qualify_genesis_package(
         "external_evidence_count": len(verified),
         "external_evidence_dispositions": dispositions,
         "external_review_lane_cardinality_ratified": ratified,
+        "external_review_lane_authority": {
+            "merge_commit": GENESIS_LANE_RATIFICATION_MERGE,
+            "manifest_path": GENESIS_LANE_RATIFICATION_MANIFEST,
+            "manifest_blob": GENESIS_LANE_RATIFICATION_MANIFEST_BLOB,
+        },
         "external_review_census_id": census.census_id,
         "external_review_census_satisfied": census.satisfied,
         "surviving_mutants": survivors,

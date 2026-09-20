@@ -38,7 +38,9 @@
     "tests/test_genesis_qualification.py",
     "tests/test_sae150_qualification_campaign.py",
     "docs/160-sae150-genesis-qualification-candidate.md",
-    "docs/161-sae150-genesis-qualification-candidate-manifest.json"
+    "docs/161-sae150-genesis-qualification-candidate-manifest.json",
+    "docs/165-sae150-genesis-lane-cardinality-authority-amendment.md",
+    "docs/166-sae150-genesis-lane-cardinality-authority-amendment-manifest.json"
   ],
   "required_mutation_families": [
     "omission",
@@ -56,7 +58,6 @@
     "blocker": "MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE",
     "open_blockers": [
       "MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE",
-      "GENESIS_LANE_CARDINALITY_UNRATIFIED",
       "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED"
     ]
   },
@@ -80,7 +81,7 @@
       "minimum_instances": 2,
       "minimum_distinct_source_classes": 2
     },
-    "lane_cardinality_floor_source": "docs/65 SPIKE-EXT cardinality_proposal (floor only; not ratified law)",
+    "lane_cardinality_floor_source": "guarded merge 8f40eb95ce4666b068d97a65c1db0f2c0fae2ecc consuming PROVEN SPIKE-EXT floor",
     "accepted_source_classes": [
       "SC-1",
       "SC-2",
@@ -88,9 +89,20 @@
       "SC-4",
       "SC-6"
     ],
-    "lane_cardinality_ratified": false,
+    "lane_cardinality_ratified": true,
     "trusted_exact_eepr_identity_binding_required": true,
-    "trusted_exact_eepr_identity_bindings_supplied_outside_package": true
+    "trusted_exact_eepr_identity_bindings_supplied_outside_package": true,
+    "provenance_verifier_must_be_rooted_in_qualification_registry": true,
+    "candidate_control_lineage_must_differ_from_provenance_verifier_issuer": true,
+    "provenance_verifier_artifact_family": "sergeant.external-evidence-provenance.verifier",
+    "provenance_verifier_domain": "sergeant.eepr.v2",
+    "provenance_verifier_proof_class": "authenticated-provenance-verification",
+    "lane_cardinality_authority": {
+      "merge_commit": "8f40eb95ce4666b068d97a65c1db0f2c0fae2ecc",
+      "manifest_path": "docs/166-sae150-genesis-lane-cardinality-authority-amendment-manifest.json",
+      "manifest_blob": "b0c3c805ef0182b6b31c9d82c5137c6bf9db1693"
+    },
+    "provenance_verifier_namespace": "sergeant-eepr-provenance-verifier-v1"
   },
   "qualification_obligation_contract": {
     "authority": "DerivedQualification from admit_qualification_attestation plus its consumed attestation in the trusted QualificationAuthorityRegistry supplied outside the package",

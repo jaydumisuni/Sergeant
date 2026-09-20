@@ -2,7 +2,9 @@ from __future__ import annotations
 import json, subprocess
 from pathlib import Path
 from main_review.genesis_qualification import (
- ACCEPTED_EXTERNAL_SOURCE_CLASSES, LANE_CARDINALITY_FLOOR, LANE_SOURCE_CLASS_FLOOR, PROVEN_NODE_BINDING_KINDS,
+ ACCEPTED_EXTERNAL_SOURCE_CLASSES, GENESIS_LANE_RATIFICATION_MANIFEST, GENESIS_LANE_RATIFICATION_MANIFEST_BLOB,
+ GENESIS_LANE_RATIFICATION_MERGE, LANE_CARDINALITY_FLOOR, LANE_SOURCE_CLASS_FLOOR, PROVEN_NODE_BINDING_KINDS,
+ PROVENANCE_VERIFIER_ARTIFACT_FAMILY, PROVENANCE_VERIFIER_DOMAIN, PROVENANCE_VERIFIER_NAMESPACE, PROVENANCE_VERIFIER_PROOF_CLASS,
  REQUIRED_MUTATIONS, REQUIRED_NODES, REQUIRED_PROVEN_NODE_BINDINGS, REQUIRED_QUALIFICATION_OBLIGATIONS, SPIKE_EXT_CLOSEOUT_MANIFEST,
 )
 ROOT=Path(__file__).resolve().parents[1]
@@ -47,7 +49,18 @@ def test_manifest_records_repaired_authority_contract():
  assert c["trusted_provenance_verifiers_supplied_outside_package"] is True
  assert c["direct_record_construction_authoritative"] is False
  assert c["lane_cardinality_floor"]=={"minimum_instances":LANE_CARDINALITY_FLOOR,"minimum_distinct_source_classes":LANE_SOURCE_CLASS_FLOOR}
- assert c["accepted_source_classes"]==list(ACCEPTED_EXTERNAL_SOURCE_CLASSES) and c["lane_cardinality_ratified"] is False
+ assert c["accepted_source_classes"]==list(ACCEPTED_EXTERNAL_SOURCE_CLASSES) and c["lane_cardinality_ratified"] is True
+ assert c["provenance_verifier_must_be_rooted_in_qualification_registry"] is True
+ assert c["candidate_control_lineage_must_differ_from_provenance_verifier_issuer"] is True
+ assert c["provenance_verifier_artifact_family"]==PROVENANCE_VERIFIER_ARTIFACT_FAMILY
+ assert c["provenance_verifier_domain"]==PROVENANCE_VERIFIER_DOMAIN
+ assert c["provenance_verifier_namespace"]==PROVENANCE_VERIFIER_NAMESPACE
+ assert c["provenance_verifier_proof_class"]==PROVENANCE_VERIFIER_PROOF_CLASS
+ assert c["lane_cardinality_authority"]=={
+  "merge_commit":GENESIS_LANE_RATIFICATION_MERGE,
+  "manifest_path":GENESIS_LANE_RATIFICATION_MANIFEST,
+  "manifest_blob":GENESIS_LANE_RATIFICATION_MANIFEST_BLOB,
+ }
  q=m["qualification_obligation_contract"]
  assert q["required_obligations"]==list(REQUIRED_QUALIFICATION_OBLIGATIONS) and q["caller_boolean_claims_authoritative"] is False
  assert q["surviving_required_mutant_blocks"] is True
@@ -59,7 +72,8 @@ def test_current_candidate_fails_closed_on_real_external_lane_gap():
  assert m["lifecycle_state"]=="GENESIS_PROVISIONAL"
  assert m["mandatory_independent_lane"]["required"] is True
  assert m["mandatory_independent_lane"]["currently_satisfied"] is False
- assert {"MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE","GENESIS_LANE_CARDINALITY_UNRATIFIED","EXTERNAL_PROVENANCE_VERIFIER_UNROOTED"}<=set(m["mandatory_independent_lane"]["open_blockers"])
+ assert {"MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE","EXTERNAL_PROVENANCE_VERIFIER_UNROOTED"}==set(m["mandatory_independent_lane"]["open_blockers"])
+ assert "GENESIS_LANE_CARDINALITY_UNRATIFIED" not in m["mandatory_independent_lane"]["open_blockers"]
  assert m["candidate_merge_authorized"] is False
  assert m["authority_gain"]=="none" and m["genesis_activated"] is False
 
@@ -69,3 +83,13 @@ def test_spike_ext_proven_artifact_itself_records_open_external_gap():
  assert spike["lifecycle_state"]=="PROVEN"
  assert spike["sourcing_disposition"]["status"]=="OPEN_GAP"
  assert spike["sourcing_disposition"]["genesis_external_lane_satisfied"] is False
+
+
+def test_genesis_lane_ratification_is_bound_to_exact_guarded_merge():
+ m=json.loads(MANIFEST.read_text()); authority=m["external_evidence_contract"]["lane_cardinality_authority"]
+ assert authority["merge_commit"]==GENESIS_LANE_RATIFICATION_MERGE
+ assert authority["manifest_path"]==GENESIS_LANE_RATIFICATION_MANIFEST
+ assert authority["manifest_blob"]==GENESIS_LANE_RATIFICATION_MANIFEST_BLOB
+ _ensure_commit(GENESIS_LANE_RATIFICATION_MERGE)
+ assert _git("rev-parse",f"{GENESIS_LANE_RATIFICATION_MERGE}:{GENESIS_LANE_RATIFICATION_MANIFEST}")==GENESIS_LANE_RATIFICATION_MANIFEST_BLOB
+ assert _git("hash-object",GENESIS_LANE_RATIFICATION_MANIFEST)==GENESIS_LANE_RATIFICATION_MANIFEST_BLOB
