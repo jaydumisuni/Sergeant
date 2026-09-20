@@ -1,7 +1,7 @@
 # SAE-150 COG + Formula Adaptive Successor Sidecar
 
-Date: 2026-09-20  
-Status: **SIDE-CAR DESIGN CANDIDATE / NO AUTHORITY GAIN**  
+Date: 2026-09-20
+Status: **SIDE-CAR DESIGN CANDIDATE / NO AUTHORITY GAIN**
 Base SAE-150 candidate: `ddf1b8b63680e124654fc6f0f541a3326c8f03c7`
 
 This sidecar preserves a provenly useful successor direction without modifying the constitutional status of SAE-150.
