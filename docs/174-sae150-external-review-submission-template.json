@@ -1,0 +1,27 @@
+{
+  "authenticated_source_provenance": "",
+  "candidate_authoring_relationship": "",
+  "candidate_infrastructure_relationship": "",
+  "control_lineage_facts": {
+    "authoring_separate": null,
+    "corpus_separate": null,
+    "finding_selection_separate": null,
+    "infrastructure_separate": null,
+    "input_selection_separate": null,
+    "prompt_control_separate": null,
+    "source_separate": null
+  },
+  "creation_generation": "",
+  "finding_selector": "",
+  "frozen_candidate": "cd757111559b920db2a843d7ca837b2ae51eb774",
+  "input_selector": "",
+  "prompt_controller": "",
+  "qualification_corpus_relationship": "",
+  "review_world_id": "5740cbfd2df05b8d1ee59e6c6452b746d4dee706b1f7ae6ae1460f13706899af",
+  "reviewer_tool_lineage": "",
+  "schema_version": "sergeant.sae150-external-review-submission-template.v1",
+  "source_authority_generation": "",
+  "source_class": "",
+  "source_organization": "",
+  "source_principal_id": ""
+}
