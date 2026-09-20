@@ -1,0 +1,81 @@
+{
+  "activation_source": "external Owner/Root state; this repository copy carries no self-activation authority",
+  "authority_status": "PUBLIC_DESCRIPTOR_ONLY",
+  "candidate_control_lineage_id": "972cc260f0efd95f1640c089feaf56badd83b6c09e1f5e9aea980943c2b33dd3",
+  "consumed_attestation_ids": [],
+  "generation": "sae150-root-qualification-registry-v1-20260920",
+  "issuers": [
+    {
+      "allowed_independence_states": [
+        "INDEPENDENT"
+      ],
+      "artifact_families": [
+        "sergeant.external-evidence-provenance.verifier"
+      ],
+      "authentication_secret_digest": "41e6175f51dd40cde3174fa0649a85558d099c74c44bf7c7df6f2694d012a04c",
+      "authorization_id": "49bf62ad3a022088e79d126f347b3a6d1479db7b5a1347c96acd0cb1d7b9226b",
+      "closure_grades": [
+        "EXACT"
+      ],
+      "control_lineage_id": "8fcb945b884584899c0203f8d3dbb9a91f23aceb5476b58d81ae15834c67e406",
+      "domains": [
+        "sergeant.eepr.v2"
+      ],
+      "issuer_generation": "sae150-owner-root-provenance-v1-20260920",
+      "issuer_identity": "sae150-owner-root-provenance-verifier",
+      "key_id": "bd4ae3bb1fa96ab35c932bb9818657065c4ccdf237faab899d46bc04a9016c57",
+      "namespace": "sergeant-eepr-provenance-verifier-v1",
+      "proof_classes": [
+        "authenticated-provenance-verification"
+      ],
+      "schema_version": "sergeant.qualification-issuer-authorization.v3",
+      "state": "ACTIVE"
+    },
+    {
+      "allowed_independence_states": [
+        "INDEPENDENT",
+        "NOT_INDEPENDENT"
+      ],
+      "artifact_families": [
+        "sergeant.genesis.clean_controls",
+        "sergeant.genesis.cpu_proof",
+        "sergeant.genesis.historical_replay",
+        "sergeant.genesis.independent_hidden_cases",
+        "sergeant.genesis.independent_hostile_implementation_review",
+        "sergeant.genesis.model_blackout_proof",
+        "sergeant.genesis.mutation.acr",
+        "sergeant.genesis.mutation.authority",
+        "sergeant.genesis.mutation.cardinality",
+        "sergeant.genesis.mutation.common_mode",
+        "sergeant.genesis.mutation.falsifier",
+        "sergeant.genesis.mutation.material_input",
+        "sergeant.genesis.mutation.omission",
+        "sergeant.genesis.mutation.undercount",
+        "sergeant.genesis.preservation_proof",
+        "sergeant.genesis.unrelated_transfer"
+      ],
+      "authentication_secret_digest": "79694b19b03a803bf0beaf2835ee5eebd8b213b7d97dbbf9fcf204e461faf01c",
+      "authorization_id": "40041f45535c78147d2c0e53007df381caafc1680cce917320990fc9b81eba05",
+      "closure_grades": [
+        "EXACT"
+      ],
+      "control_lineage_id": "8fcb945b884584899c0203f8d3dbb9a91f23aceb5476b58d81ae15834c67e406",
+      "domains": [
+        "sergeant.sae150.genesis"
+      ],
+      "issuer_generation": "sae150-owner-root-qualification-v1-20260920",
+      "issuer_identity": "sae150-owner-root-qualification-issuer",
+      "key_id": "c5de199afbd7429dc9071cbd8e9a81549802388287486a1b0e4c3f5b27845505",
+      "namespace": "sergeant-qualification-attestation-v1",
+      "proof_classes": [
+        "sergeant-genesis-qualification-proof-v1"
+      ],
+      "schema_version": "sergeant.qualification-issuer-authorization.v3",
+      "state": "ACTIVE"
+    }
+  ],
+  "registry_id": "9e3254afa847612f679d791096f7bb0f19dea142df20cb408adb488c6fc8db72",
+  "revoked_attestation_ids": [],
+  "root_control_lineage_id": "8fcb945b884584899c0203f8d3dbb9a91f23aceb5476b58d81ae15834c67e406",
+  "schema_version": "sergeant.qualification-authority-registry.v2"
+}

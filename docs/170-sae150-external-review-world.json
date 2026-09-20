@@ -1,0 +1,34 @@
+{
+  "diff": {
+    "algorithm_generation": "git-tree-transition-v1",
+    "base_commit": "126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
+    "base_tree": "890c6bb55cdf5130ab92814d0190ff30ec796f19",
+    "diff_id": "bcd3cff639e39c14ef70026215f3f578d629334e15621266d93955178fbf0b86",
+    "head_commit": "cd757111559b920db2a843d7ca837b2ae51eb774",
+    "head_tree": "80eb4e6d1073311476d4c642e5a1ccacbd3c9274",
+    "repository": "jaydumisuni/sergeant",
+    "schema_version": "sergeant.github-diff-identity.v1",
+    "scope_id": "53ab727423e7a0dd2d839463e30d02ed400ffd46103b5c8f6604bfe482d8741d"
+  },
+  "kind": "github_pr",
+  "merge_commit": null,
+  "merge_tree": null,
+  "pr_number": 245,
+  "rab_id": "da6f2c3b23a70bce4ee4d43ba3f721e482fc6ae0d0e0a863e1dadf991cf2d1cb",
+  "repository": "jaydumisuni/sergeant",
+  "review_generation": "sae150-external-review-world-v1-20260920",
+  "review_mode": "head",
+  "review_world_id": "5740cbfd2df05b8d1ee59e6c6452b746d4dee706b1f7ae6ae1460f13706899af",
+  "schema_version": "sergeant.review-world.github-pr.v1",
+  "scope": {
+    "generated_artifacts": "excluded",
+    "generation": "scope-v1",
+    "kind": "repository",
+    "paths": [],
+    "schema_version": "sergeant.review-scope.v1",
+    "scope_id": "53ab727423e7a0dd2d839463e30d02ed400ffd46103b5c8f6604bfe482d8741d",
+    "submodules": "excluded",
+    "untracked": "excluded"
+  },
+  "unresolved_state": []
+}

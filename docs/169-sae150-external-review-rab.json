@@ -1,0 +1,86 @@
+{
+  "components": {
+    "acr_generation": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "e28e630f8b46980e380e2bd30590de1f52286197fa527e72f2fa0ae958b3da14",
+      "generation": "2a1d16f9772997d993d0f0d41e1c5161f222f136",
+      "lifecycle_state": "active",
+      "name": "acr_generation"
+    },
+    "capability_passport_registry": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "ca607d691bacea80902ec88df634a8f3604fab3c9498678f8ad548d621f8f11c",
+      "generation": "6d4ecc03782fa72d517e0b111a3757e4b2f65cf0",
+      "lifecycle_state": "active",
+      "name": "capability_passport_registry"
+    },
+    "epistemic_constitution": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "c36e941d72efece2cc017162b168967f13e430129d77b253557a4d1dec7718f9",
+      "generation": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+      "lifecycle_state": "active",
+      "name": "epistemic_constitution"
+    },
+    "evidence_law": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "0c8cfe62d7d82c041900e8c41b72025ec5c1e9794326953a0efea3421ce371eb",
+      "generation": "b6e1fe5bbbead26e885e44eecec72b873b4b6ee6",
+      "lifecycle_state": "active",
+      "name": "evidence_law"
+    },
+    "independence_law": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "4777028927a23ea6a6c064b52eac1dd7c28c956157c5a3bd6fac5ebed0f83db3",
+      "generation": "8df705d3cc6237937a8ee0bde74d44481d352679",
+      "lifecycle_state": "active",
+      "name": "independence_law"
+    },
+    "obligation_law": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "24efeabe43747e9b7a4da97799d4a820dfe9471c3ad77b07cd21742dfc1a8947",
+      "generation": "5ae80680a02562707a82064cc8d5f4e8196ddb8b",
+      "lifecycle_state": "active",
+      "name": "obligation_law"
+    },
+    "qualification_authority_registry": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "9e3254afa847612f679d791096f7bb0f19dea142df20cb408adb488c6fc8db72",
+      "generation": "sae150-root-qualification-registry-v1-20260920",
+      "lifecycle_state": "active",
+      "name": "qualification_authority_registry"
+    },
+    "root_authority": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "c36e941d72efece2cc017162b168967f13e430129d77b253557a4d1dec7718f9",
+      "generation": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+      "lifecycle_state": "active",
+      "name": "root_authority"
+    },
+    "rust_contract_kernel": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "3d95ac33f56e864b049f73f416efe7b3809cbbdfd785d9223ffeec7981141c9f",
+      "generation": "54154fd4490f437a580ea500c3ab215ee01d50ab",
+      "lifecycle_state": "active",
+      "name": "rust_contract_kernel"
+    },
+    "safety_constitution": {
+      "authority_domain": "sergeant-assurance",
+      "basis": null,
+      "content_id": "c36e941d72efece2cc017162b168967f13e430129d77b253557a4d1dec7718f9",
+      "generation": "5d1a3fe8cf4a1ba23c962eceb70fbd3a553cf910",
+      "lifecycle_state": "active",
+      "name": "safety_constitution"
+    }
+  },
+  "rab_id": "da6f2c3b23a70bce4ee4d43ba3f721e482fc6ae0d0e0a863e1dadf991cf2d1cb",
+  "schema_version": "sergeant.review-authority-bundle.v1"
+}

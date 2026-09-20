@@ -1,0 +1,58 @@
+{
+  "acr_generation": "2a1d16f9772997d993d0f0d41e1c5161f222f136",
+  "base_generation": "126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
+  "candidate_control_lineage_id": "972cc260f0efd95f1640c089feaf56badd83b6c09e1f5e9aea980943c2b33dd3",
+  "candidate_generation": "cd757111559b920db2a843d7ca837b2ae51eb774",
+  "candidate_merge_authorized": false,
+  "current_external_evidence_count": 0,
+  "external_authority_material_provisioned": true,
+  "external_evidence_satisfied": false,
+  "genesis_activated": false,
+  "independence_required": true,
+  "lifecycle_state": "INTAKE_READY_EXTERNAL_EVIDENCE_OPEN",
+  "owner_controlled_ai_does_not_count": true,
+  "provenance_verifier_authorization_id": "be6a0b564ecab3968a3f6902279e9e7ab49d9fd916a3351ef946db514a87c787",
+  "pull_request": 245,
+  "qualification_authority_registry_generation": "sae150-root-qualification-registry-v1-20260920",
+  "qualification_authority_registry_id": "9e3254afa847612f679d791096f7bb0f19dea142df20cb408adb488c6fc8db72",
+  "qualification_protocol_generation": "8df705d3cc6237937a8ee0bde74d44481d352679",
+  "rab_authorization_set_id": "693f1d4484eb668843da0c5c8f01abbe1e9385a8fd096343326b6629731af383",
+  "rab_id": "da6f2c3b23a70bce4ee4d43ba3f721e482fc6ae0d0e0a863e1dadf991cf2d1cb",
+  "remaining_blocker": "MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE",
+  "repository": "jaydumisuni/sergeant",
+  "required_review_slots": [
+    {
+      "description": "paid independent security/code-review contractor or firm",
+      "recommended_source_class": "SC-1",
+      "slot": "A",
+      "status": "OPEN_EXTERNAL"
+    },
+    {
+      "description": "separately scoped paid third-party review SaaS/professional engagement, only if Genesis-grade independence/provenance criteria close",
+      "recommended_source_class": "SC-6",
+      "slot": "B",
+      "status": "OPEN_EXTERNAL"
+    }
+  ],
+  "review_lane": {
+    "accepted_source_classes": [
+      "SC-1",
+      "SC-2",
+      "SC-3",
+      "SC-4",
+      "SC-6"
+    ],
+    "lane_id": "genesis-independent",
+    "minimum_distinct_source_classes": 2,
+    "minimum_instances": 2,
+    "standalone_excluded_source_classes": [
+      "SC-5"
+    ]
+  },
+  "review_world_id": "5740cbfd2df05b8d1ee59e6c6452b746d4dee706b1f7ae6ae1460f13706899af",
+  "root_control_lineage_id": "8fcb945b884584899c0203f8d3dbb9a91f23aceb5476b58d81ae15834c67e406",
+  "rust_generation": "54154fd4490f437a580ea500c3ab215ee01d50ab",
+  "same_human_second_account_does_not_count": true,
+  "schema_version": "sergeant.sae150-external-review-intake.v1",
+  "secrets_in_repository": false
+}

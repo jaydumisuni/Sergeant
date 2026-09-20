@@ -1,0 +1,11 @@
+{
+  "activation_source": "external Owner/Root state; verification secret is not stored in Git",
+  "authority_status": "PUBLIC_DESCRIPTOR_ONLY",
+  "authorization_id": "be6a0b564ecab3968a3f6902279e9e7ab49d9fd916a3351ef946db514a87c787",
+  "key_id": "bd4ae3bb1fa96ab35c932bb9818657065c4ccdf237faab899d46bc04a9016c57",
+  "schema_version": "sergeant.provenance-verifier-authorization.v1",
+  "state": "ACTIVE",
+  "verification_secret_digest": "41e6175f51dd40cde3174fa0649a85558d099c74c44bf7c7df6f2694d012a04c",
+  "verifier_generation": "sae150-owner-root-provenance-v1-20260920",
+  "verifier_identity": "sae150-owner-root-provenance-verifier"
+}
