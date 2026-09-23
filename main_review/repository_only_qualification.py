@@ -95,6 +95,7 @@ class RepositoryOnlyPreparation:
     satisfied: tuple[str, ...]
     blockers: tuple[str, ...]
     evidence_ids: tuple[str, ...]
+    authority_gain: str
     preparation_id: str
 
 
@@ -178,5 +179,6 @@ def evaluate_repository_only_preparation(
         satisfied=satisfied,
         blockers=tuple(sorted(blockers)),
         evidence_ids=tuple(sorted(evidence_ids)),
+        authority_gain="NONE",
         preparation_id=sha256_id(body),
     )

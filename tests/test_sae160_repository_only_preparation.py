@@ -58,6 +58,7 @@ def test_complete_repository_only_census_still_waits_while_sae150_is_provisional
     assert result.sae150_package_id == "aa" * 32
     assert result.blockers == ("sae150_prerequisite",)
     assert len(result.satisfied) == len(REQUIRED_EVIDENCE_KINDS)
+    assert result.authority_gain == "NONE"
 
 
 def test_complete_census_can_be_ready_only_after_exact_sae150_prerequisite():
@@ -65,6 +66,7 @@ def test_complete_census_can_be_ready_only_after_exact_sae150_prerequisite():
 
     assert result.state == SAE160_READY
     assert result.blockers == ()
+    assert result.authority_gain == "NONE"
 
 
 def test_missing_or_failed_repository_only_evidence_fails_closed():
