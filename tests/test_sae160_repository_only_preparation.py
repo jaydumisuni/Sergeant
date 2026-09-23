@@ -186,3 +186,11 @@ def test_preparation_identity_changes_with_exact_candidate_head():
     right = evaluate(complete_evidence("b" * 40), subject_generation="b" * 40)
 
     assert left.preparation_id != right.preparation_id
+
+
+def test_preparation_exposes_canonical_evidence_map_for_collectors():
+    result = evaluate(complete_evidence())
+
+    assert tuple(kind for kind, _ in result.evidence_by_kind) == REQUIRED_EVIDENCE_KINDS
+    assert dict(result.evidence_by_kind)[REQUIRED_EVIDENCE_KINDS[0]] == complete_evidence()[0].evidence_id
+    assert len({evidence_id for _, evidence_id in result.evidence_by_kind}) == len(REQUIRED_EVIDENCE_KINDS)

@@ -95,6 +95,7 @@ class RepositoryOnlyPreparation:
     satisfied: tuple[str, ...]
     blockers: tuple[str, ...]
     evidence_ids: tuple[str, ...]
+    evidence_by_kind: tuple[tuple[str, str], ...]
     authority_gain: str
     preparation_id: str
 
@@ -169,6 +170,7 @@ def evaluate_repository_only_preparation(
         "satisfied": list(satisfied),
         "blockers": sorted(blockers),
         "evidence_ids": sorted(evidence_ids),
+        "evidence_by_kind": [[kind, by_kind[kind].evidence_id] for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind],
         "authority_gain": "NONE",
     }
     return RepositoryOnlyPreparation(
@@ -179,6 +181,7 @@ def evaluate_repository_only_preparation(
         satisfied=satisfied,
         blockers=tuple(sorted(blockers)),
         evidence_ids=tuple(sorted(evidence_ids)),
+        evidence_by_kind=tuple((kind, by_kind[kind].evidence_id) for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind),
         authority_gain="NONE",
         preparation_id=sha256_id(body),
     )
