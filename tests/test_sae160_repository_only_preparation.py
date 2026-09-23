@@ -54,6 +54,8 @@ def test_complete_repository_only_census_still_waits_while_sae150_is_provisional
 
     assert result.state == SAE160_WAITING_SAE150
     assert result.subject_generation == HEAD
+    assert result.sae150_state == "GENESIS_PROVISIONAL"
+    assert result.sae150_package_id == "aa" * 32
     assert result.blockers == ("sae150_prerequisite",)
     assert len(result.satisfied) == len(REQUIRED_EVIDENCE_KINDS)
 
@@ -157,6 +159,24 @@ def test_preparation_id_is_deterministic_for_same_evidence_set():
     right = evaluate(reversed(complete_evidence()))
 
     assert left.preparation_id == right.preparation_id
+
+
+def test_preparation_identity_changes_with_sae150_dependency_identity():
+    left = evaluate_repository_only_preparation(
+        subject_generation=HEAD,
+        sae150_state="GENESIS_PROVISIONAL",
+        sae150_package_id="aa" * 32,
+        evidence=complete_evidence(),
+    )
+    right = evaluate_repository_only_preparation(
+        subject_generation=HEAD,
+        sae150_state="GENESIS_PROVISIONAL",
+        sae150_package_id="bb" * 32,
+        evidence=complete_evidence(),
+    )
+
+    assert left.sae150_package_id != right.sae150_package_id
+    assert left.preparation_id != right.preparation_id
 
 
 def test_preparation_identity_changes_with_exact_candidate_head():

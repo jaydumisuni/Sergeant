@@ -90,6 +90,7 @@ class RepositoryOnlyPreparation:
 
     state: str
     subject_generation: str
+    sae150_state: str
     sae150_package_id: str
     satisfied: tuple[str, ...]
     blockers: tuple[str, ...]
@@ -172,6 +173,7 @@ def evaluate_repository_only_preparation(
     return RepositoryOnlyPreparation(
         state=state,
         subject_generation=generation,
+        sae150_state=sae150_state,
         sae150_package_id=package_id,
         satisfied=satisfied,
         blockers=tuple(sorted(blockers)),
