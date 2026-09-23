@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from main_review.repository_only_qualification import (
@@ -13,40 +15,51 @@ from main_review.repository_only_qualification import (
     evaluate_repository_only_preparation,
 )
 
+HEAD = "a" * 40
 
-def evidence(kind: str, *, passed: bool = True, byte: int = 1) -> RepositoryOnlyEvidence:
+
+def evidence(
+    kind: str,
+    *,
+    passed: bool = True,
+    byte: int = 1,
+    subject_generation: str = HEAD,
+) -> RepositoryOnlyEvidence:
     return RepositoryOnlyEvidence.create(
         kind=kind,
-        evidence_id=(f"{byte:02x}" * 32),
+        subject_generation=subject_generation,
+        basis_id=(f"{byte:02x}" * 32),
         passed=passed,
     )
 
 
-def complete_evidence() -> list[RepositoryOnlyEvidence]:
+def complete_evidence(subject_generation: str = HEAD) -> list[RepositoryOnlyEvidence]:
     return [
-        evidence(kind, byte=index + 1)
+        evidence(kind, byte=index + 1, subject_generation=subject_generation)
         for index, kind in enumerate(REQUIRED_EVIDENCE_KINDS)
     ]
 
 
-def test_complete_repository_only_census_still_waits_while_sae150_is_provisional():
-    result = evaluate_repository_only_preparation(
-        sae150_state="GENESIS_PROVISIONAL",
+def evaluate(rows, *, state="GENESIS_PROVISIONAL", subject_generation=HEAD):
+    return evaluate_repository_only_preparation(
+        subject_generation=subject_generation,
+        sae150_state=state,
         sae150_package_id="aa" * 32,
-        evidence=complete_evidence(),
+        evidence=rows,
     )
 
+
+def test_complete_repository_only_census_still_waits_while_sae150_is_provisional():
+    result = evaluate(complete_evidence())
+
     assert result.state == SAE160_WAITING_SAE150
+    assert result.subject_generation == HEAD
     assert result.blockers == ("sae150_prerequisite",)
     assert len(result.satisfied) == len(REQUIRED_EVIDENCE_KINDS)
 
 
 def test_complete_census_can_be_ready_only_after_exact_sae150_prerequisite():
-    result = evaluate_repository_only_preparation(
-        sae150_state=SAE150_COMPLETE_STATE,
-        sae150_package_id="aa" * 32,
-        evidence=complete_evidence(),
-    )
+    result = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
 
     assert result.state == SAE160_READY
     assert result.blockers == ()
@@ -57,11 +70,7 @@ def test_missing_or_failed_repository_only_evidence_fails_closed():
     rows[0] = evidence(REQUIRED_EVIDENCE_KINDS[0], passed=False, byte=1)
     rows.pop()
 
-    result = evaluate_repository_only_preparation(
-        sae150_state=SAE150_COMPLETE_STATE,
-        sae150_package_id="aa" * 32,
-        evidence=rows,
-    )
+    result = evaluate(rows, state=SAE150_COMPLETE_STATE)
 
     assert result.state == SAE160_INCOMPLETE
     assert REQUIRED_EVIDENCE_KINDS[0] in result.blockers
@@ -73,51 +82,85 @@ def test_duplicate_evidence_kind_is_rejected():
     rows.append(evidence(REQUIRED_EVIDENCE_KINDS[0], byte=99))
 
     with pytest.raises(RepositoryOnlyQualificationError, match="duplicate SAE-160 evidence kind"):
-        evaluate_repository_only_preparation(
-            sae150_state=SAE150_COMPLETE_STATE,
-            sae150_package_id="aa" * 32,
-            evidence=rows,
-        )
+        evaluate(rows, state=SAE150_COMPLETE_STATE)
 
 
 def test_duplicate_evidence_identity_is_rejected():
     rows = complete_evidence()
-    rows[1] = RepositoryOnlyEvidence.create(
-        kind=REQUIRED_EVIDENCE_KINDS[1],
+    rows[1] = replace(
+        rows[1],
         evidence_id=rows[0].evidence_id,
-        passed=True,
     )
 
-    with pytest.raises(RepositoryOnlyQualificationError, match="duplicate SAE-160 evidence identity"):
-        evaluate_repository_only_preparation(
-            sae150_state=SAE150_COMPLETE_STATE,
-            sae150_package_id="aa" * 32,
-            evidence=rows,
-        )
+    with pytest.raises(RepositoryOnlyQualificationError, match="identity"):
+        evaluate(rows, state=SAE150_COMPLETE_STATE)
 
 
-def test_unknown_kind_and_noncanonical_digest_are_rejected():
+def test_unknown_kind_and_noncanonical_basis_are_rejected():
     with pytest.raises(RepositoryOnlyQualificationError, match="unknown SAE-160 evidence kind"):
-        RepositoryOnlyEvidence.create(kind="owner_says_ok", evidence_id="aa" * 32, passed=True)
+        RepositoryOnlyEvidence.create(
+            kind="owner_says_ok",
+            subject_generation=HEAD,
+            basis_id="aa" * 32,
+            passed=True,
+        )
 
     with pytest.raises(RepositoryOnlyQualificationError):
         RepositoryOnlyEvidence.create(
             kind=REQUIRED_EVIDENCE_KINDS[0],
-            evidence_id="not-a-digest",
+            subject_generation=HEAD,
+            basis_id="not-a-digest",
             passed=True,
         )
 
 
-def test_preparation_id_is_deterministic_for_same_evidence_set():
-    left = evaluate_repository_only_preparation(
-        sae150_state="GENESIS_PROVISIONAL",
-        sae150_package_id="aa" * 32,
-        evidence=complete_evidence(),
+def test_evidence_identity_binds_kind_subject_basis_and_result():
+    base = evidence(REQUIRED_EVIDENCE_KINDS[0], byte=1)
+    changed_head = evidence(
+        REQUIRED_EVIDENCE_KINDS[0],
+        byte=1,
+        subject_generation="b" * 40,
     )
-    right = evaluate_repository_only_preparation(
-        sae150_state="GENESIS_PROVISIONAL",
-        sae150_package_id="aa" * 32,
-        evidence=reversed(complete_evidence()),
+    changed_basis = evidence(REQUIRED_EVIDENCE_KINDS[0], byte=2)
+    changed_result = evidence(REQUIRED_EVIDENCE_KINDS[0], byte=1, passed=False)
+
+    assert len({
+        base.evidence_id,
+        changed_head.evidence_id,
+        changed_basis.evidence_id,
+        changed_result.evidence_id,
+    }) == 4
+
+
+def test_mixed_generation_evidence_is_rejected_before_readiness():
+    rows = complete_evidence()
+    rows[0] = evidence(
+        REQUIRED_EVIDENCE_KINDS[0],
+        byte=1,
+        subject_generation="b" * 40,
     )
 
+    with pytest.raises(RepositoryOnlyQualificationError, match="exact candidate"):
+        evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+
+def test_noncanonical_mutated_evidence_identity_is_rejected():
+    rows = complete_evidence()
+    rows[0] = replace(rows[0], passed=False)
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="non-canonical"):
+        evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+
+def test_preparation_id_is_deterministic_for_same_evidence_set():
+    left = evaluate(complete_evidence())
+    right = evaluate(reversed(complete_evidence()))
+
     assert left.preparation_id == right.preparation_id
+
+
+def test_preparation_identity_changes_with_exact_candidate_head():
+    left = evaluate(complete_evidence("a" * 40), subject_generation="a" * 40)
+    right = evaluate(complete_evidence("b" * 40), subject_generation="b" * 40)
+
+    assert left.preparation_id != right.preparation_id

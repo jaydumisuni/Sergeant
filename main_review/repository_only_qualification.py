@@ -9,7 +9,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable
 
-from .review_world import ReviewWorldError, require_full_sha256, sha256_id
+from .review_world import (
+    ReviewWorldError,
+    require_full_sha256,
+    require_git_object_id,
+    sha256_id,
+)
 
 SAE150_COMPLETE_STATE = "GENESIS_QUALIFICATION_PACKAGE_CANDIDATE"
 SAE160_READY = "READY_FOR_INDEPENDENT_QUALIFICATION"
@@ -40,20 +45,43 @@ class RepositoryOnlyEvidence:
     """One exact, content-addressed SAE-160 evidence item."""
 
     kind: str
-    evidence_id: str
+    subject_generation: str
+    basis_id: str
     passed: bool
+    evidence_id: str
 
     @classmethod
-    def create(cls, *, kind: str, evidence_id: str, passed: bool) -> "RepositoryOnlyEvidence":
+    def create(
+        cls,
+        *,
+        kind: str,
+        subject_generation: str,
+        basis_id: str,
+        passed: bool,
+    ) -> "RepositoryOnlyEvidence":
         if kind not in REQUIRED_EVIDENCE_KINDS:
             raise RepositoryOnlyQualificationError(f"unknown SAE-160 evidence kind: {kind}")
         try:
-            canonical = require_full_sha256(evidence_id, "SAE-160 evidence_id")
+            generation = require_git_object_id(subject_generation, "SAE-160 subject_generation")
+            basis = require_full_sha256(basis_id, "SAE-160 basis_id")
         except (TypeError, ValueError, ReviewWorldError) as exc:
             raise RepositoryOnlyQualificationError(str(exc)) from exc
         if not isinstance(passed, bool):
             raise RepositoryOnlyQualificationError("passed must be boolean")
-        return cls(kind=kind, evidence_id=canonical, passed=passed)
+        body = {
+            "schema_version": "sergeant.sae160.repository-only-evidence.v1",
+            "kind": kind,
+            "subject_generation": generation,
+            "basis_id": basis,
+            "passed": passed,
+        }
+        return cls(
+            kind=kind,
+            subject_generation=generation,
+            basis_id=basis,
+            passed=passed,
+            evidence_id=sha256_id(body),
+        )
 
 
 @dataclass(frozen=True)
@@ -61,6 +89,7 @@ class RepositoryOnlyPreparation:
     """Fail-closed SAE-160 preparation result with no authority gain."""
 
     state: str
+    subject_generation: str
     sae150_package_id: str
     satisfied: tuple[str, ...]
     blockers: tuple[str, ...]
@@ -70,12 +99,14 @@ class RepositoryOnlyPreparation:
 
 def evaluate_repository_only_preparation(
     *,
+    subject_generation: str,
     sae150_state: str,
     sae150_package_id: str,
     evidence: Iterable[RepositoryOnlyEvidence],
 ) -> RepositoryOnlyPreparation:
-    """Evaluate SAE-160 readiness without freezing or activating authority."""
+    """Evaluate exact-head SAE-160 readiness without freezing or activating authority."""
     try:
+        generation = require_git_object_id(subject_generation, "subject_generation")
         package_id = require_full_sha256(sae150_package_id, "sae150_package_id")
     except (TypeError, ValueError, ReviewWorldError) as exc:
         raise RepositoryOnlyQualificationError(str(exc)) from exc
@@ -90,6 +121,19 @@ def evaluate_repository_only_preparation(
     by_kind: dict[str, RepositoryOnlyEvidence] = {}
     evidence_ids: set[str] = set()
     for row in rows:
+        if row.subject_generation != generation:
+            raise RepositoryOnlyQualificationError(
+                "SAE-160 evidence subject_generation does not match exact candidate"
+            )
+        expected_id = sha256_id({
+            "schema_version": "sergeant.sae160.repository-only-evidence.v1",
+            "kind": row.kind,
+            "subject_generation": row.subject_generation,
+            "basis_id": row.basis_id,
+            "passed": row.passed,
+        })
+        if row.evidence_id != expected_id:
+            raise RepositoryOnlyQualificationError("SAE-160 evidence identity is non-canonical")
         if row.kind in by_kind:
             raise RepositoryOnlyQualificationError(f"duplicate SAE-160 evidence kind: {row.kind}")
         if row.evidence_id in evidence_ids:
@@ -117,6 +161,7 @@ def evaluate_repository_only_preparation(
     body = {
         "schema_version": "sergeant.sae160.repository-only-preparation.v1",
         "state": state,
+        "subject_generation": generation,
         "sae150_state": sae150_state,
         "sae150_package_id": package_id,
         "satisfied": list(satisfied),
@@ -126,6 +171,7 @@ def evaluate_repository_only_preparation(
     }
     return RepositoryOnlyPreparation(
         state=state,
+        subject_generation=generation,
         sae150_package_id=package_id,
         satisfied=satisfied,
         blockers=tuple(sorted(blockers)),
