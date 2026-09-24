@@ -116,6 +116,7 @@ def evaluate_repository_only_preparation(
 
     if not isinstance(sae150_state, str) or not sae150_state.strip():
         raise RepositoryOnlyQualificationError("sae150_state must be a non-empty string")
+    canonical_sae150_state = sae150_state.strip()
 
     if isinstance(evidence, (str, bytes)):
         raise RepositoryOnlyQualificationError("evidence must be a non-string iterable")
@@ -168,7 +169,7 @@ def evaluate_repository_only_preparation(
 
     if blockers:
         state = SAE160_INCOMPLETE
-    elif sae150_state != SAE150_COMPLETE_STATE:
+    elif canonical_sae150_state != SAE150_COMPLETE_STATE:
         state = SAE160_WAITING_SAE150
         blockers.append("sae150_prerequisite")
     else:
@@ -178,7 +179,7 @@ def evaluate_repository_only_preparation(
         "schema_version": "sergeant.sae160.repository-only-preparation.v1",
         "state": state,
         "subject_generation": generation,
-        "sae150_state": sae150_state,
+        "sae150_state": canonical_sae150_state,
         "sae150_package_id": package_id,
         "satisfied": list(satisfied),
         "blockers": sorted(blockers),
@@ -189,7 +190,7 @@ def evaluate_repository_only_preparation(
     return RepositoryOnlyPreparation(
         state=state,
         subject_generation=generation,
-        sae150_state=sae150_state,
+        sae150_state=canonical_sae150_state,
         sae150_package_id=package_id,
         satisfied=satisfied,
         blockers=tuple(sorted(blockers)),

@@ -198,6 +198,15 @@ def test_preparation_exposes_canonical_evidence_map_for_collectors():
     assert len({evidence_id for _, evidence_id in result.evidence_by_kind}) == len(REQUIRED_EVIDENCE_KINDS)
 
 
+def test_sae150_state_is_canonicalized_before_identity_and_readiness():
+    canonical = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
+    padded = evaluate(complete_evidence(), state=f"  {SAE150_COMPLETE_STATE}  ")
+
+    assert padded.state == SAE160_READY
+    assert padded.sae150_state == SAE150_COMPLETE_STATE
+    assert padded.preparation_id == canonical.preparation_id
+
+
 def test_sae150_state_must_be_a_non_empty_string():
     for invalid in (None, 0, False, "", "   "):
         with pytest.raises(RepositoryOnlyQualificationError, match="sae150_state"):
