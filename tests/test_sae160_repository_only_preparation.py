@@ -4,6 +4,8 @@ from dataclasses import replace
 
 import pytest
 
+from main_review.review_world import sha256_id
+
 from main_review.repository_only_qualification import (
     REQUIRED_EVIDENCE_KINDS,
     SAE150_COMPLETE_STATE,
@@ -205,3 +207,55 @@ def test_sae150_state_must_be_a_non_empty_string():
                 sae150_package_id="aa" * 32,
                 evidence=complete_evidence(),
             )
+
+
+def test_evaluator_rejects_forged_noncanonical_evidence_fields():
+    generation = "a" * 40
+    valid = RepositoryOnlyEvidence.create(
+        kind=REQUIRED_EVIDENCE_KINDS[0],
+        subject_generation=generation,
+        basis_id="b" * 64,
+        passed=True,
+    )
+
+    forged_kind = RepositoryOnlyEvidence(
+        kind="not_a_canonical_kind",
+        subject_generation=generation,
+        basis_id=valid.basis_id,
+        passed=True,
+        evidence_id=sha256_id({
+            "schema_version": "sergeant.sae160.repository-only-evidence.v1",
+            "kind": "not_a_canonical_kind",
+            "subject_generation": generation,
+            "basis_id": valid.basis_id,
+            "passed": True,
+        }),
+    )
+    with pytest.raises(RepositoryOnlyQualificationError, match="unknown SAE-160 evidence kind"):
+        evaluate_repository_only_preparation(
+            subject_generation=generation,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="c" * 64,
+            evidence=[forged_kind],
+        )
+
+    forged_basis = RepositoryOnlyEvidence(
+        kind=REQUIRED_EVIDENCE_KINDS[0],
+        subject_generation=generation,
+        basis_id="not-a-sha256",
+        passed=True,
+        evidence_id=sha256_id({
+            "schema_version": "sergeant.sae160.repository-only-evidence.v1",
+            "kind": REQUIRED_EVIDENCE_KINDS[0],
+            "subject_generation": generation,
+            "basis_id": "not-a-sha256",
+            "passed": True,
+        }),
+    )
+    with pytest.raises(RepositoryOnlyQualificationError, match="basis_id"):
+        evaluate_repository_only_preparation(
+            subject_generation=generation,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="c" * 64,
+            evidence=[forged_basis],
+        )

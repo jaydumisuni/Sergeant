@@ -127,6 +127,14 @@ def evaluate_repository_only_preparation(
     by_kind: dict[str, RepositoryOnlyEvidence] = {}
     evidence_ids: set[str] = set()
     for row in rows:
+        if row.kind not in REQUIRED_EVIDENCE_KINDS:
+            raise RepositoryOnlyQualificationError(
+                f"unknown SAE-160 evidence kind: {row.kind}"
+            )
+        try:
+            require_full_sha256(row.basis_id, "SAE-160 basis_id")
+        except (TypeError, ValueError, ReviewWorldError) as exc:
+            raise RepositoryOnlyQualificationError(str(exc)) from exc
         if row.subject_generation != generation:
             raise RepositoryOnlyQualificationError(
                 "SAE-160 evidence subject_generation does not match exact candidate"
