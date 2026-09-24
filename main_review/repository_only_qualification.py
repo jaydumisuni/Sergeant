@@ -114,6 +114,9 @@ def evaluate_repository_only_preparation(
     except (TypeError, ValueError, ReviewWorldError) as exc:
         raise RepositoryOnlyQualificationError(str(exc)) from exc
 
+    if not isinstance(sae150_state, str) or not sae150_state.strip():
+        raise RepositoryOnlyQualificationError("sae150_state must be a non-empty string")
+
     if isinstance(evidence, (str, bytes)):
         raise RepositoryOnlyQualificationError("evidence must be a non-string iterable")
 

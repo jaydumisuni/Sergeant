@@ -194,3 +194,14 @@ def test_preparation_exposes_canonical_evidence_map_for_collectors():
     assert tuple(kind for kind, _ in result.evidence_by_kind) == REQUIRED_EVIDENCE_KINDS
     assert dict(result.evidence_by_kind)[REQUIRED_EVIDENCE_KINDS[0]] == complete_evidence()[0].evidence_id
     assert len({evidence_id for _, evidence_id in result.evidence_by_kind}) == len(REQUIRED_EVIDENCE_KINDS)
+
+
+def test_sae150_state_must_be_a_non_empty_string():
+    for invalid in (None, 0, False, "", "   "):
+        with pytest.raises(RepositoryOnlyQualificationError, match="sae150_state"):
+            evaluate_repository_only_preparation(
+                subject_generation=HEAD,
+                sae150_state=invalid,
+                sae150_package_id="aa" * 32,
+                evidence=complete_evidence(),
+            )
