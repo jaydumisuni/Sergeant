@@ -259,3 +259,28 @@ def test_evaluator_rejects_forged_noncanonical_evidence_fields():
             sae150_package_id="c" * 64,
             evidence=[forged_basis],
         )
+
+
+def test_evaluator_rejects_forged_non_boolean_passed_field():
+    generation = "a" * 40
+    forged = RepositoryOnlyEvidence(
+        kind=REQUIRED_EVIDENCE_KINDS[0],
+        subject_generation=generation,
+        basis_id="b" * 64,
+        passed="yes",
+        evidence_id=sha256_id({
+            "schema_version": "sergeant.sae160.repository-only-evidence.v1",
+            "kind": REQUIRED_EVIDENCE_KINDS[0],
+            "subject_generation": generation,
+            "basis_id": "b" * 64,
+            "passed": "yes",
+        }),
+    )
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="passed must be boolean"):
+        evaluate_repository_only_preparation(
+            subject_generation=generation,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="c" * 64,
+            evidence=[forged],
+        )

@@ -135,6 +135,8 @@ def evaluate_repository_only_preparation(
             require_full_sha256(row.basis_id, "SAE-160 basis_id")
         except (TypeError, ValueError, ReviewWorldError) as exc:
             raise RepositoryOnlyQualificationError(str(exc)) from exc
+        if not isinstance(row.passed, bool):
+            raise RepositoryOnlyQualificationError("passed must be boolean")
         if row.subject_generation != generation:
             raise RepositoryOnlyQualificationError(
                 "SAE-160 evidence subject_generation does not match exact candidate"
