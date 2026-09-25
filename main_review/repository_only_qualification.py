@@ -121,7 +121,12 @@ def evaluate_repository_only_preparation(
     if isinstance(evidence, (str, bytes)):
         raise RepositoryOnlyQualificationError("evidence must be a non-string iterable")
 
-    rows = tuple(evidence)
+    try:
+        rows = tuple(evidence)
+    except TypeError as exc:
+        raise RepositoryOnlyQualificationError(
+            "evidence must be an iterable of canonical SAE-160 records"
+        ) from exc
     if not all(isinstance(row, RepositoryOnlyEvidence) for row in rows):
         raise RepositoryOnlyQualificationError("evidence contains non-canonical SAE-160 records")
 
