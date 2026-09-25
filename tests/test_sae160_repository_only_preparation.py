@@ -81,6 +81,24 @@ def test_missing_or_failed_repository_only_evidence_fails_closed():
     assert result.state == SAE160_INCOMPLETE
     assert REQUIRED_EVIDENCE_KINDS[0] in result.blockers
     assert REQUIRED_EVIDENCE_KINDS[-1] in result.blockers
+    assert result.failed == (REQUIRED_EVIDENCE_KINDS[0],)
+    assert result.missing == (REQUIRED_EVIDENCE_KINDS[-1],)
+
+
+def test_missing_and_failed_evidence_are_distinct_in_preparation_identity():
+    missing_rows = complete_evidence()[:-1]
+    failed_rows = complete_evidence()
+    failed_rows[-1] = evidence(REQUIRED_EVIDENCE_KINDS[-1], passed=False, byte=len(REQUIRED_EVIDENCE_KINDS))
+
+    missing = evaluate(missing_rows, state=SAE150_COMPLETE_STATE)
+    failed = evaluate(failed_rows, state=SAE150_COMPLETE_STATE)
+
+    assert missing.blockers == failed.blockers == (REQUIRED_EVIDENCE_KINDS[-1],)
+    assert missing.missing == (REQUIRED_EVIDENCE_KINDS[-1],)
+    assert missing.failed == ()
+    assert failed.missing == ()
+    assert failed.failed == (REQUIRED_EVIDENCE_KINDS[-1],)
+    assert missing.preparation_id != failed.preparation_id
 
 
 def test_duplicate_evidence_kind_is_rejected():

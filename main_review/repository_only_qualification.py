@@ -93,6 +93,8 @@ class RepositoryOnlyPreparation:
     sae150_state: str
     sae150_package_id: str
     satisfied: tuple[str, ...]
+    missing: tuple[str, ...]
+    failed: tuple[str, ...]
     blockers: tuple[str, ...]
     evidence_ids: tuple[str, ...]
     evidence_by_kind: tuple[tuple[str, str], ...]
@@ -167,10 +169,9 @@ def evaluate_repository_only_preparation(
         kind for kind in REQUIRED_EVIDENCE_KINDS
         if kind in by_kind and by_kind[kind].passed
     )
-    blockers = [
-        kind for kind in REQUIRED_EVIDENCE_KINDS
-        if kind not in by_kind or not by_kind[kind].passed
-    ]
+    missing = tuple(kind for kind in REQUIRED_EVIDENCE_KINDS if kind not in by_kind)
+    failed = tuple(kind for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind and not by_kind[kind].passed)
+    blockers = [*missing, *failed]
 
     if blockers:
         state = SAE160_INCOMPLETE
@@ -187,6 +188,8 @@ def evaluate_repository_only_preparation(
         "sae150_state": canonical_sae150_state,
         "sae150_package_id": package_id,
         "satisfied": list(satisfied),
+        "missing": list(missing),
+        "failed": list(failed),
         "blockers": sorted(blockers),
         "evidence_ids": sorted(evidence_ids),
         "evidence_by_kind": [[kind, by_kind[kind].evidence_id] for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind],
@@ -198,6 +201,8 @@ def evaluate_repository_only_preparation(
         sae150_state=canonical_sae150_state,
         sae150_package_id=package_id,
         satisfied=satisfied,
+        missing=missing,
+        failed=failed,
         blockers=tuple(sorted(blockers)),
         evidence_ids=tuple(sorted(evidence_ids)),
         evidence_by_kind=tuple((kind, by_kind[kind].evidence_id) for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind),
