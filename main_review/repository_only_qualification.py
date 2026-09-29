@@ -172,12 +172,14 @@ def evaluate_repository_only_preparation(
     missing = tuple(kind for kind in REQUIRED_EVIDENCE_KINDS if kind not in by_kind)
     failed = tuple(kind for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind and not by_kind[kind].passed)
     blockers = [*missing, *failed]
-
-    if blockers:
-        state = SAE160_INCOMPLETE
-    elif canonical_sae150_state != SAE150_COMPLETE_STATE:
-        state = SAE160_WAITING_SAE150
+    sae150_incomplete = canonical_sae150_state != SAE150_COMPLETE_STATE
+    if sae150_incomplete:
         blockers.append("sae150_prerequisite")
+
+    if missing or failed:
+        state = SAE160_INCOMPLETE
+    elif sae150_incomplete:
+        state = SAE160_WAITING_SAE150
     else:
         state = SAE160_READY
 

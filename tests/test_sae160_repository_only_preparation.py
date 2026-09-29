@@ -85,6 +85,17 @@ def test_missing_or_failed_repository_only_evidence_fails_closed():
     assert result.missing == (REQUIRED_EVIDENCE_KINDS[-1],)
 
 
+def test_incomplete_evidence_preserves_independent_sae150_prerequisite_blocker():
+    rows = complete_evidence()[:-1]
+
+    result = evaluate(rows, state="GENESIS_PROVISIONAL")
+
+    assert result.state == SAE160_INCOMPLETE
+    assert result.missing == (REQUIRED_EVIDENCE_KINDS[-1],)
+    assert result.blockers == (REQUIRED_EVIDENCE_KINDS[-1], "sae150_prerequisite")
+    assert result.authority_gain == "NONE"
+
+
 def test_missing_and_failed_evidence_are_distinct_in_preparation_identity():
     missing_rows = complete_evidence()[:-1]
     failed_rows = complete_evidence()
