@@ -247,6 +247,11 @@ def test_sae150_state_must_be_a_non_empty_string():
             )
 
 
+def test_sae150_state_rejects_unknown_canonical_value():
+    with pytest.raises(RepositoryOnlyQualificationError, match="unknown sae150_state"):
+        evaluate(complete_evidence(), state="QUALIFIED_BY_LABEL")
+
+
 def test_evaluator_rejects_non_iterable_evidence_through_domain_boundary():
     for invalid in (None, 0, False, object()):
         with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):

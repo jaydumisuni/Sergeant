@@ -16,7 +16,9 @@ from .review_world import (
     sha256_id,
 )
 
+SAE150_PROVISIONAL_STATE = "GENESIS_PROVISIONAL"
 SAE150_COMPLETE_STATE = "GENESIS_QUALIFICATION_PACKAGE_CANDIDATE"
+SAE150_STATES = (SAE150_PROVISIONAL_STATE, SAE150_COMPLETE_STATE)
 SAE160_READY = "READY_FOR_INDEPENDENT_QUALIFICATION"
 SAE160_WAITING_SAE150 = "PREPARED_WAITING_SAE150"
 SAE160_INCOMPLETE = "PREPARATION_INCOMPLETE"
@@ -119,6 +121,8 @@ def evaluate_repository_only_preparation(
     if not isinstance(sae150_state, str) or not sae150_state.strip():
         raise RepositoryOnlyQualificationError("sae150_state must be a non-empty string")
     canonical_sae150_state = sae150_state.strip()
+    if canonical_sae150_state not in SAE150_STATES:
+        raise RepositoryOnlyQualificationError(f"unknown sae150_state: {canonical_sae150_state}")
 
     if isinstance(evidence, (str, bytes)):
         raise RepositoryOnlyQualificationError("evidence must be a non-string iterable")
