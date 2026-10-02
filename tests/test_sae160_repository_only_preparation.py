@@ -338,3 +338,22 @@ def test_evaluator_rejects_forged_non_boolean_passed_field():
             sae150_package_id="c" * 64,
             evidence=[forged],
         )
+
+def test_evaluator_rejects_malformed_subject_generation_at_authority_boundary():
+    with pytest.raises(RepositoryOnlyQualificationError, match="subject_generation"):
+        evaluate_repository_only_preparation(
+            subject_generation="not-a-git-object-id",
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="aa" * 32,
+            evidence=[],
+        )
+
+
+def test_evaluator_rejects_malformed_sae150_package_identity_at_authority_boundary():
+    with pytest.raises(RepositoryOnlyQualificationError, match="sae150_package_id"):
+        evaluate_repository_only_preparation(
+            subject_generation=HEAD,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="not-a-sha256",
+            evidence=complete_evidence(),
+        )
