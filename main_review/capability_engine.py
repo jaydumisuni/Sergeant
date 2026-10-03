@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
+from .languages import classify_role
 from .scanner import scan_repository
 from .static_invariant_review import run_static_invariant_review
 
@@ -89,6 +90,9 @@ LOCK_RELEASE_RE = re.compile(
 )
 API_KEYWORD_RE = re.compile(r"\b(api|route|client|server|handler|schema|contract|types?)\b", re.I)
 EVALUATION_PREFIXES = ("review-benchmarks/", "battle-tests/")
+TEST_IMPACT_IMPLEMENTATION_ROLES = frozenset(
+    {"source", "ui", "database", "config", "infrastructure", "manifest"}
+)
 
 
 @dataclass(frozen=True)
@@ -873,11 +877,25 @@ def _api_contract_findings(indexes: dict[str, Any], changed: set[str]) -> list[C
 
 
 def _test_impact_findings(indexes: dict[str, Any], changed: set[str]) -> list[CapabilityFinding]:
-    insight = indexes["insight"]
-    changed_non_tests = [path for path in changed if path not in insight.tests]
-    changed_tests = [path for path in changed if path in insight.tests]
-    if changed_non_tests and not changed_tests:
-        return [CapabilityFinding("test_impact", "major", "Implementation changed without changed tests in the same PR.", evidence=f"Detected {len(changed_non_tests)} changed non-test file(s) and 0 changed test files.", confidence=0.78, related_paths=sorted(changed_non_tests)[:10])]
+    del indexes  # Role classification is path-based so deleted files remain reviewable.
+    changed_implementation = [
+        path for path in changed if classify_role(path) in TEST_IMPACT_IMPLEMENTATION_ROLES
+    ]
+    changed_tests = [path for path in changed if classify_role(path) == "test"]
+    if changed_implementation and not changed_tests:
+        return [
+            CapabilityFinding(
+                "test_impact",
+                "major",
+                "Implementation changed without changed tests in the same PR.",
+                evidence=(
+                    f"Detected {len(changed_implementation)} changed implementation file(s) "
+                    "and 0 changed test files."
+                ),
+                confidence=0.78,
+                related_paths=sorted(changed_implementation)[:10],
+            )
+        ]
     return []
 
 

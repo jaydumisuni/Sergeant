@@ -46,6 +46,48 @@ def test_capability_engine_reports_tier1_signals(tmp_path: Path) -> None:
     assert "test_impact" in capabilities
 
 
+def test_test_impact_ignores_documentation_only_change(tmp_path: Path) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "design.md").write_text("# Design\n", encoding="utf-8")
+
+    report = run_capability_engine(tmp_path, changed_files=["docs/design.md"])
+
+    assert not any(finding["capability"] == "test_impact" for finding in report["findings"])
+
+
+def test_test_impact_still_flags_source_change_without_changed_tests(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "service.py").write_text("def run():\n    return True\n", encoding="utf-8")
+
+    report = run_capability_engine(tmp_path, changed_files=["src/service.py"])
+
+    finding = next(finding for finding in report["findings"] if finding["capability"] == "test_impact")
+    assert finding["severity"] == "major"
+    assert finding["related_paths"] == ["src/service.py"]
+
+
+def test_test_impact_classifies_deleted_source_by_path(tmp_path: Path) -> None:
+    report = run_capability_engine(tmp_path, changed_files=["src/removed.py"])
+
+    finding = next(finding for finding in report["findings"] if finding["capability"] == "test_impact")
+    assert finding["related_paths"] == ["src/removed.py"]
+
+
+def test_test_impact_excludes_docs_from_related_implementation_paths(tmp_path: Path) -> None:
+    (tmp_path / "src").mkdir()
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "src" / "service.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "docs" / "design.md").write_text("# Design\n", encoding="utf-8")
+
+    report = run_capability_engine(
+        tmp_path,
+        changed_files=["src/service.py", "docs/design.md"],
+    )
+
+    finding = next(finding for finding in report["findings"] if finding["capability"] == "test_impact")
+    assert finding["related_paths"] == ["src/service.py"]
+
+
 def test_performance_finding_ignores_prose_comment_mentioning_for_twice(tmp_path: Path) -> None:
     """Regression for a real false positive: the performance detector
     used to be a raw-text regex matching any two occurrences of the word
