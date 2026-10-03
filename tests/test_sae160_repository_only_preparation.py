@@ -112,6 +112,18 @@ def test_missing_and_failed_evidence_are_distinct_in_preparation_identity():
     assert missing.preparation_id != failed.preparation_id
 
 
+def test_failed_evidence_is_not_counted_as_satisfied():
+    rows = complete_evidence()
+    rows[0] = evidence(REQUIRED_EVIDENCE_KINDS[0], passed=False, byte=1)
+
+    result = evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+    assert REQUIRED_EVIDENCE_KINDS[0] not in result.satisfied
+    assert result.failed == (REQUIRED_EVIDENCE_KINDS[0],)
+    assert result.state == SAE160_INCOMPLETE
+    assert result.authority_gain == "NONE"
+
+
 def test_duplicate_evidence_kind_is_rejected():
     rows = complete_evidence()
     rows.append(evidence(REQUIRED_EVIDENCE_KINDS[0], byte=99))
