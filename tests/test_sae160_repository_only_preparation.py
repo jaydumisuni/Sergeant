@@ -264,6 +264,17 @@ def test_sae150_state_rejects_unknown_canonical_value():
         evaluate(complete_evidence(), state="QUALIFIED_BY_LABEL")
 
 
+def test_evaluator_rejects_string_like_evidence_through_domain_boundary():
+    for invalid in ("clean_clone", b"clean_clone"):
+        with pytest.raises(RepositoryOnlyQualificationError, match="non-string iterable"):
+            evaluate_repository_only_preparation(
+                subject_generation=HEAD,
+                sae150_state=SAE150_COMPLETE_STATE,
+                sae150_package_id="aa" * 32,
+                evidence=invalid,
+            )
+
+
 def test_evaluator_rejects_non_iterable_evidence_through_domain_boundary():
     for invalid in (None, 0, False, object()):
         with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):
