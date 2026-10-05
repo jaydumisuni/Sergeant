@@ -362,6 +362,14 @@ def test_evaluator_rejects_forged_non_boolean_passed_field():
             evidence=[forged],
         )
 
+def test_evaluator_rejects_forged_malformed_evidence_subject_generation():
+    valid = evidence(REQUIRED_EVIDENCE_KINDS[0])
+    forged = replace(valid, subject_generation="not-a-git-object-id")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="subject_generation"):
+        evaluate([forged], state=SAE150_COMPLETE_STATE)
+
+
 def test_evaluator_rejects_malformed_subject_generation_at_authority_boundary():
     with pytest.raises(RepositoryOnlyQualificationError, match="subject_generation"):
         evaluate_repository_only_preparation(
