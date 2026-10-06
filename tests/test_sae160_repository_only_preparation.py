@@ -388,3 +388,18 @@ def test_evaluator_rejects_malformed_sae150_package_identity_at_authority_bounda
             sae150_package_id="not-a-sha256",
             evidence=complete_evidence(),
         )
+
+
+
+def test_evaluator_fail_closes_when_evidence_iterator_raises_value_error():
+    def broken_evidence():
+        yield complete_evidence()[0]
+        raise ValueError("collector failed while enumerating evidence")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):
+        evaluate_repository_only_preparation(
+            subject_generation=HEAD,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="aa" * 32,
+            evidence=broken_evidence(),
+        )

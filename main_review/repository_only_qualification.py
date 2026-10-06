@@ -129,7 +129,7 @@ def evaluate_repository_only_preparation(
 
     try:
         rows = tuple(evidence)
-    except TypeError as exc:
+    except (TypeError, ValueError) as exc:
         raise RepositoryOnlyQualificationError(
             "evidence must be an iterable of canonical SAE-160 records"
         ) from exc
