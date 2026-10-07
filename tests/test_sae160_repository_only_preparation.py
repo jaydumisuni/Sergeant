@@ -403,3 +403,17 @@ def test_evaluator_fail_closes_when_evidence_iterator_raises_value_error():
             sae150_package_id="aa" * 32,
             evidence=broken_evidence(),
         )
+
+
+def test_evaluator_fail_closes_when_evidence_iterator_raises_runtime_error():
+    def broken_evidence():
+        yield complete_evidence()[0]
+        raise RuntimeError("collector runtime failed while enumerating evidence")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):
+        evaluate_repository_only_preparation(
+            subject_generation=HEAD,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="aa" * 32,
+            evidence=broken_evidence(),
+        )
