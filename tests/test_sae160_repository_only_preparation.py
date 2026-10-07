@@ -417,3 +417,24 @@ def test_evaluator_fail_closes_when_evidence_iterator_raises_runtime_error():
             sae150_package_id="aa" * 32,
             evidence=broken_evidence(),
         )
+
+
+def test_evaluator_bounds_untrusted_unending_evidence_stream():
+    pulls = 0
+
+    def endless_evidence():
+        nonlocal pulls
+        while True:
+            pulls += 1
+            kind = REQUIRED_EVIDENCE_KINDS[(pulls - 1) % len(REQUIRED_EVIDENCE_KINDS)]
+            yield evidence(kind, byte=pulls)
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="duplicate SAE-160 evidence kind"):
+        evaluate_repository_only_preparation(
+            subject_generation=HEAD,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="aa" * 32,
+            evidence=endless_evidence(),
+        )
+
+    assert pulls == len(REQUIRED_EVIDENCE_KINDS) + 1

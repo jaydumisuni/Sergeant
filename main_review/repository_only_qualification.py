@@ -7,6 +7,7 @@ or activate Genesis authority. SAE-150 remains an explicit prerequisite.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import islice
 from typing import Iterable
 
 from .review_world import (
@@ -128,7 +129,8 @@ def evaluate_repository_only_preparation(
         raise RepositoryOnlyQualificationError("evidence must be a non-string iterable")
 
     try:
-        rows = tuple(evidence)
+        # A valid census has one row per kind; one extra detects unbounded streams.
+        rows = tuple(islice(evidence, len(REQUIRED_EVIDENCE_KINDS) + 1))
     except (TypeError, ValueError, RuntimeError) as exc:
         raise RepositoryOnlyQualificationError(
             "evidence must be an iterable of canonical SAE-160 records"
