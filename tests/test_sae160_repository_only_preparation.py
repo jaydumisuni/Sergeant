@@ -439,3 +439,18 @@ def test_evaluator_bounds_untrusted_unending_evidence_stream():
         )
 
     assert pulls == len(REQUIRED_EVIDENCE_KINDS) + 1
+
+
+def test_noncanonical_evidence_kind_fails_closed_before_membership():
+    class HostileKind:
+        def __eq__(self, other):
+            raise RuntimeError("hostile kind equality must not execute")
+
+    for invalid in ([], HostileKind()):
+        with pytest.raises(RepositoryOnlyQualificationError, match="non-string SAE-160 evidence kind"):
+            RepositoryOnlyEvidence.create(
+                kind=invalid, subject_generation=HEAD, basis_id="aa" * 32, passed=True
+            )
+        forged = replace(evidence(REQUIRED_EVIDENCE_KINDS[0]), kind=invalid)
+        with pytest.raises(RepositoryOnlyQualificationError, match="non-string SAE-160 evidence kind"):
+            evaluate([forged], state=SAE150_COMPLETE_STATE)
