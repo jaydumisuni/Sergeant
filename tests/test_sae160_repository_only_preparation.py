@@ -405,10 +405,11 @@ def test_evaluator_fail_closes_when_evidence_iterator_raises_value_error():
         )
 
 
-def test_evaluator_fail_closes_when_evidence_iterator_raises_runtime_error():
+@pytest.mark.parametrize("error_type", [RuntimeError, OSError, LookupError])
+def test_evaluator_fail_closes_when_evidence_collector_raises(error_type):
     def broken_evidence():
         yield complete_evidence()[0]
-        raise RuntimeError("collector runtime failed while enumerating evidence")
+        raise error_type("collector runtime failed while enumerating evidence")
 
     with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):
         evaluate_repository_only_preparation(

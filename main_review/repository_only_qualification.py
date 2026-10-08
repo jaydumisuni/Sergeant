@@ -131,7 +131,7 @@ def evaluate_repository_only_preparation(
     try:
         # A valid census has one row per kind; one extra detects unbounded streams.
         rows = tuple(islice(evidence, len(REQUIRED_EVIDENCE_KINDS) + 1))
-    except (TypeError, ValueError, RuntimeError) as exc:
+    except Exception as exc:
         raise RepositoryOnlyQualificationError(
             "evidence must be an iterable of canonical SAE-160 records"
         ) from exc
