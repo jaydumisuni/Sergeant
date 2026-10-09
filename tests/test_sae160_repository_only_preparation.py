@@ -470,3 +470,15 @@ def test_evaluator_rejects_forged_string_subclass_kind_before_membership():
     )
     with pytest.raises(RepositoryOnlyQualificationError, match="non-string SAE-160 evidence kind"):
         evaluate([forged], state=SAE150_COMPLETE_STATE)
+
+
+def test_evaluator_rejects_hostile_sae150_state_subclass_before_normalization():
+    class HostileState(str):
+        def strip(self, *args, **kwargs):
+            raise RuntimeError("hostile state normalization must not execute")
+
+        def __eq__(self, other):
+            raise RuntimeError("hostile state equality must not execute")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="sae150_state"):
+        evaluate(complete_evidence(), state=HostileState(SAE150_COMPLETE_STATE))
