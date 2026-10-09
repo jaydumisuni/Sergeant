@@ -482,3 +482,29 @@ def test_evaluator_rejects_hostile_sae150_state_subclass_before_normalization():
 
     with pytest.raises(RepositoryOnlyQualificationError, match="sae150_state"):
         evaluate(complete_evidence(), state=HostileState(SAE150_COMPLETE_STATE))
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("subject_generation", "non-string SAE-160 evidence subject_generation"),
+        ("basis_id", "non-string SAE-160 evidence basis_id"),
+        ("evidence_id", "non-string SAE-160 evidence identity"),
+    ],
+)
+def test_evaluator_rejects_hostile_evidence_identity_field_subclasses(field, message):
+    class HostileString(str):
+        def __eq__(self, other):
+            raise RuntimeError("hostile equality must not execute")
+
+        def __ne__(self, other):
+            raise RuntimeError("hostile inequality must not execute")
+
+        def __hash__(self):
+            raise RuntimeError("hostile hash must not execute")
+
+    original = evidence(REQUIRED_EVIDENCE_KINDS[0])
+    forged = replace(original, **{field: HostileString(getattr(original, field))})
+
+    with pytest.raises(RepositoryOnlyQualificationError, match=message):
+        evaluate([forged], state=SAE150_COMPLETE_STATE)

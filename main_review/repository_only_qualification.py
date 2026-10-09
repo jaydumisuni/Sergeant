@@ -145,6 +145,12 @@ def evaluate_repository_only_preparation(
     for row in rows:
         if type(row.kind) is not str:
             raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
+        if type(row.subject_generation) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence subject_generation")
+        if type(row.basis_id) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence basis_id")
+        if type(row.evidence_id) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence identity")
         if row.kind not in REQUIRED_EVIDENCE_KINDS:
             raise RepositoryOnlyQualificationError(
                 f"unknown SAE-160 evidence kind: {row.kind}"
