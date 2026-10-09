@@ -62,7 +62,7 @@ class RepositoryOnlyEvidence:
         basis_id: str,
         passed: bool,
     ) -> "RepositoryOnlyEvidence":
-        if not isinstance(kind, str):
+        if type(kind) is not str:
             raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
         if kind not in REQUIRED_EVIDENCE_KINDS:
             raise RepositoryOnlyQualificationError(f"unknown SAE-160 evidence kind: {kind}")
