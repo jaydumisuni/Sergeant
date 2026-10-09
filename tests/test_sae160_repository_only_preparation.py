@@ -454,3 +454,19 @@ def test_noncanonical_evidence_kind_fails_closed_before_membership():
         forged = replace(evidence(REQUIRED_EVIDENCE_KINDS[0]), kind=invalid)
         with pytest.raises(RepositoryOnlyQualificationError, match="non-string SAE-160 evidence kind"):
             evaluate([forged], state=SAE150_COMPLETE_STATE)
+
+
+def test_evaluator_rejects_forged_string_subclass_kind_before_membership():
+    class HostileString(str):
+        def __eq__(self, other):
+            raise RuntimeError("hostile equality must not execute")
+
+        def __hash__(self):
+            raise RuntimeError("hostile hash must not execute")
+
+    forged = replace(
+        evidence(REQUIRED_EVIDENCE_KINDS[0]),
+        kind=HostileString(REQUIRED_EVIDENCE_KINDS[0]),
+    )
+    with pytest.raises(RepositoryOnlyQualificationError, match="non-string SAE-160 evidence kind"):
+        evaluate([forged], state=SAE150_COMPLETE_STATE)

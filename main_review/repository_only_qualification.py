@@ -143,7 +143,7 @@ def evaluate_repository_only_preparation(
     by_kind: dict[str, RepositoryOnlyEvidence] = {}
     evidence_ids: set[str] = set()
     for row in rows:
-        if not isinstance(row.kind, str):
+        if type(row.kind) is not str:
             raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
         if row.kind not in REQUIRED_EVIDENCE_KINDS:
             raise RepositoryOnlyQualificationError(
