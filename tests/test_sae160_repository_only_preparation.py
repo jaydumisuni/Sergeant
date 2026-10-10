@@ -539,3 +539,43 @@ def test_evaluator_rejects_hostile_evidence_identity_field_subclasses(field, mes
 
     with pytest.raises(RepositoryOnlyQualificationError, match=message):
         evaluate([forged], state=SAE150_COMPLETE_STATE)
+
+
+def test_evaluator_rejects_first_noncanonical_row_without_pulling_next():
+    pulls = []
+
+    def hostile_collector():
+        pulls.append("first")
+        yield object()
+        pulls.append("second")
+        raise AssertionError("invalid first row must stop the collector")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="non-canonical SAE-160 records"):
+        evaluate_repository_only_preparation(
+            subject_generation=HEAD,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="aa" * 32,
+            evidence=hostile_collector(),
+        )
+
+    assert pulls == ["first"]
+
+
+def test_evaluator_rejects_invalid_kind_before_pulling_later_evidence():
+    pulls = []
+
+    def hostile_collector():
+        pulls.append("first")
+        yield replace(evidence(REQUIRED_EVIDENCE_KINDS[0]), kind="forged_kind")
+        pulls.append("second")
+        raise AssertionError("invalid first kind must stop the collector")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="unknown SAE-160 evidence kind"):
+        evaluate_repository_only_preparation(
+            subject_generation=HEAD,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="aa" * 32,
+            evidence=hostile_collector(),
+        )
+
+    assert pulls == ["first"]

@@ -7,7 +7,6 @@ or activate Genesis authority. SAE-150 remains an explicit prerequisite.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from itertools import islice
 from typing import Iterable
 
 from .review_world import (
@@ -133,18 +132,27 @@ def evaluate_repository_only_preparation(
         raise RepositoryOnlyQualificationError("evidence must be a non-string iterable")
 
     try:
-        # A valid census has one row per kind; one extra detects unbounded streams.
-        rows = tuple(islice(evidence, len(REQUIRED_EVIDENCE_KINDS) + 1))
+        iterator = iter(evidence)
     except Exception as exc:
         raise RepositoryOnlyQualificationError(
             "evidence must be an iterable of canonical SAE-160 records"
         ) from exc
-    if not all(type(row) is RepositoryOnlyEvidence for row in rows):
-        raise RepositoryOnlyQualificationError("evidence contains non-canonical SAE-160 records")
 
     by_kind: dict[str, RepositoryOnlyEvidence] = {}
     evidence_ids: set[str] = set()
-    for row in rows:
+    # Validate each item before pulling another: invalid evidence must not
+    # trigger later collector side effects. The extra pull bounds streams.
+    for _ in range(len(REQUIRED_EVIDENCE_KINDS) + 1):
+        try:
+            row = next(iterator)
+        except StopIteration:
+            break
+        except Exception as exc:
+            raise RepositoryOnlyQualificationError(
+                "evidence must be an iterable of canonical SAE-160 records"
+            ) from exc
+        if type(row) is not RepositoryOnlyEvidence:
+            raise RepositoryOnlyQualificationError("evidence contains non-canonical SAE-160 records")
         if type(row.kind) is not str:
             raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
         if type(row.subject_generation) is not str:
