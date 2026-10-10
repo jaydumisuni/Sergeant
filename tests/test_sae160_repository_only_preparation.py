@@ -286,6 +286,23 @@ def test_evaluator_rejects_non_iterable_evidence_through_domain_boundary():
             )
 
 
+def test_evaluator_rejects_subclassed_evidence_before_attribute_access():
+    class HostileEvidence(RepositoryOnlyEvidence):
+        def __getattribute__(self, name):
+            raise RuntimeError("untrusted evidence attributes must not be read")
+
+    valid = evidence(REQUIRED_EVIDENCE_KINDS[0])
+    hostile = HostileEvidence(
+        kind=valid.kind,
+        subject_generation=valid.subject_generation,
+        basis_id=valid.basis_id,
+        passed=valid.passed,
+        evidence_id=valid.evidence_id,
+    )
+    with pytest.raises(RepositoryOnlyQualificationError, match="non-canonical SAE-160 records"):
+        evaluate([hostile], state=SAE150_COMPLETE_STATE)
+
+
 def test_evaluator_rejects_forged_noncanonical_evidence_fields():
     generation = "a" * 40
     valid = RepositoryOnlyEvidence.create(

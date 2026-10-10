@@ -137,7 +137,7 @@ def evaluate_repository_only_preparation(
         raise RepositoryOnlyQualificationError(
             "evidence must be an iterable of canonical SAE-160 records"
         ) from exc
-    if not all(isinstance(row, RepositoryOnlyEvidence) for row in rows):
+    if not all(type(row) is RepositoryOnlyEvidence for row in rows):
         raise RepositoryOnlyQualificationError("evidence contains non-canonical SAE-160 records")
 
     by_kind: dict[str, RepositoryOnlyEvidence] = {}
