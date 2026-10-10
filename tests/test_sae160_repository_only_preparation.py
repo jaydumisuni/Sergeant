@@ -286,6 +286,20 @@ def test_evaluator_rejects_non_iterable_evidence_through_domain_boundary():
             )
 
 
+def test_evidence_factory_rejects_subclass_before_instantiation():
+    class HostileEvidence(RepositoryOnlyEvidence):
+        def __new__(cls, *args, **kwargs):
+            raise AssertionError("subclass constructor must not execute")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="non-canonical SAE-160 evidence factory"):
+        HostileEvidence.create(
+            kind=REQUIRED_EVIDENCE_KINDS[0],
+            subject_generation=HEAD,
+            basis_id="aa" * 32,
+            passed=True,
+        )
+
+
 def test_evaluator_rejects_subclassed_evidence_before_attribute_access():
     class HostileEvidence(RepositoryOnlyEvidence):
         def __getattribute__(self, name):
