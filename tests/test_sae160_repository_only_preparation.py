@@ -579,3 +579,12 @@ def test_evaluator_rejects_invalid_kind_before_pulling_later_evidence():
         )
 
     assert pulls == ["first"]
+
+
+def test_evaluator_fail_closes_when_iterator_construction_raises():
+    class BrokenIterable:
+        def __iter__(self):
+            raise RuntimeError("collector initialization failed")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):
+        evaluate(BrokenIterable(), state=SAE150_COMPLETE_STATE)
