@@ -588,3 +588,43 @@ def test_evaluator_fail_closes_when_iterator_construction_raises():
 
     with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):
         evaluate(BrokenIterable(), state=SAE150_COMPLETE_STATE)
+
+
+
+@pytest.mark.parametrize(
+    "boundary",
+    ["evaluator_subject", "evaluator_package", "factory_subject", "factory_basis"],
+)
+def test_hostile_top_level_and_factory_identity_subclasses_fail_closed(boundary):
+    class HostileIdentity(str):
+        def __eq__(self, other):
+            raise RuntimeError("hostile identity equality must not execute")
+
+        def __ne__(self, other):
+            raise RuntimeError("hostile identity inequality must not execute")
+
+        def __hash__(self):
+            raise RuntimeError("hostile identity hash must not execute")
+
+    if boundary == "evaluator_subject":
+        with pytest.raises(RepositoryOnlyQualificationError, match="non-string SAE-160 subject_generation"):
+            evaluate_repository_only_preparation(
+                subject_generation=HostileIdentity(HEAD),
+                sae150_state=SAE150_COMPLETE_STATE,
+                sae150_package_id="aa" * 32,
+                evidence=complete_evidence(),
+            )
+    elif boundary == "evaluator_package":
+        with pytest.raises(RepositoryOnlyQualificationError, match="non-string SAE-160 sae150_package_id"):
+            evaluate_repository_only_preparation(
+                subject_generation=HEAD,
+                sae150_state=SAE150_COMPLETE_STATE,
+                sae150_package_id=HostileIdentity("aa" * 32),
+                evidence=complete_evidence(),
+            )
+    else:
+        kwargs = dict(kind=REQUIRED_EVIDENCE_KINDS[0], subject_generation=HEAD, basis_id="aa" * 32, passed=True)
+        field = "subject_generation" if boundary == "factory_subject" else "basis_id"
+        kwargs[field] = HostileIdentity(kwargs[field])
+        with pytest.raises(RepositoryOnlyQualificationError, match=f"non-string SAE-160 {field}"):
+            RepositoryOnlyEvidence.create(**kwargs)

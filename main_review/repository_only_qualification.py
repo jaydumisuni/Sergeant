@@ -67,6 +67,10 @@ class RepositoryOnlyEvidence:
             raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
         if kind not in REQUIRED_EVIDENCE_KINDS:
             raise RepositoryOnlyQualificationError(f"unknown SAE-160 evidence kind: {kind}")
+        if type(subject_generation) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 subject_generation")
+        if type(basis_id) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 basis_id")
         try:
             generation = require_git_object_id(subject_generation, "SAE-160 subject_generation")
             basis = require_full_sha256(basis_id, "SAE-160 basis_id")
@@ -116,6 +120,10 @@ def evaluate_repository_only_preparation(
     evidence: Iterable[RepositoryOnlyEvidence],
 ) -> RepositoryOnlyPreparation:
     """Evaluate exact-head SAE-160 readiness without freezing or activating authority."""
+    if type(subject_generation) is not str:
+        raise RepositoryOnlyQualificationError("non-string SAE-160 subject_generation")
+    if type(sae150_package_id) is not str:
+        raise RepositoryOnlyQualificationError("non-string SAE-160 sae150_package_id")
     try:
         generation = require_git_object_id(subject_generation, "subject_generation")
         package_id = require_full_sha256(sae150_package_id, "sae150_package_id")
