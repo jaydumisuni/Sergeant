@@ -628,3 +628,22 @@ def test_hostile_top_level_and_factory_identity_subclasses_fail_closed(boundary)
         kwargs[field] = HostileIdentity(kwargs[field])
         with pytest.raises(RepositoryOnlyQualificationError, match=f"non-string SAE-160 {field}"):
             RepositoryOnlyEvidence.create(**kwargs)
+
+
+def test_evaluator_snapshots_validated_evidence_before_collector_mutates_it():
+    rows = complete_evidence()
+    rows[0] = evidence(REQUIRED_EVIDENCE_KINDS[0], passed=False, byte=1)
+
+    def mutable_collector():
+        yield rows[0]
+        # Frozen dataclasses can still be mutated through object.__setattr__.
+        # The collector must not rewrite already-validated authority evidence.
+        object.__setattr__(rows[0], "passed", True)
+        yield from rows[1:]
+
+    result = evaluate(mutable_collector(), state=SAE150_COMPLETE_STATE)
+
+    assert result.state == SAE160_INCOMPLETE
+    assert result.failed == (REQUIRED_EVIDENCE_KINDS[0],)
+    assert REQUIRED_EVIDENCE_KINDS[0] not in result.satisfied
+    assert result.authority_gain == "NONE"

@@ -6,7 +6,7 @@ or activate Genesis authority. SAE-150 remains an explicit prerequisite.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Iterable
 
 from .review_world import (
@@ -196,6 +196,9 @@ def evaluate_repository_only_preparation(
             raise RepositoryOnlyQualificationError(f"duplicate SAE-160 evidence kind: {row.kind}")
         if row.evidence_id in evidence_ids:
             raise RepositoryOnlyQualificationError("duplicate SAE-160 evidence identity")
+        # A collector can mutate a previously yielded frozen record before the
+        # next pull. Keep an independent validated snapshot for this evaluation.
+        row = replace(row)
         by_kind[row.kind] = row
         evidence_ids.add(row.evidence_id)
 
