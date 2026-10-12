@@ -647,3 +647,23 @@ def test_evaluator_snapshots_validated_evidence_before_collector_mutates_it():
     assert result.failed == (REQUIRED_EVIDENCE_KINDS[0],)
     assert REQUIRED_EVIDENCE_KINDS[0] not in result.satisfied
     assert result.authority_gain == "NONE"
+
+
+def test_evaluator_snapshots_validated_evidence_identity_before_collector_mutates_it():
+    baseline = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
+    rows = complete_evidence()
+
+    def mutable_collector():
+        yield rows[0]
+        # A hostile collector may mutate a frozen record after it was yielded.
+        # Neither the evidence map nor the preparation digest may be rewritten.
+        object.__setattr__(rows[0], "evidence_id", "f" * 64)
+        yield from rows[1:]
+
+    result = evaluate(mutable_collector(), state=SAE150_COMPLETE_STATE)
+
+    assert result.state == SAE160_READY
+    assert result.evidence_by_kind == baseline.evidence_by_kind
+    assert result.evidence_ids == baseline.evidence_ids
+    assert result.preparation_id == baseline.preparation_id
+    assert result.authority_gain == "NONE"
