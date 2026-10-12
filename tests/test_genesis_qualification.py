@@ -145,12 +145,12 @@ ISSUER = dict(
 )
 
 
-def _admitted(obligations=OBLIGATIONS, *, subject=WORLD, independence="INDEPENDENT", admit=True):
+def _admitted(obligations=OBLIGATIONS, *, subject=WORLD, independence="INDEPENDENT", admit=True, domain="sergeant.genesis.v1"):
     """Admit one attestation per obligation through the canonical SAE-30 admission path."""
     authorization = QualificationIssuerAuthorization.create(
         **ISSUER,
         artifact_families=tuple(f"sergeant.genesis.{obligation}" for obligation in OBLIGATIONS),
-        domains=("sergeant.genesis.v1",), proof_classes=("bounded-hostile-qualification",),
+        domains=(domain,), proof_classes=("bounded-hostile-qualification",),
         closure_grades=("EXACT",), allowed_independence_states=("INDEPENDENT", "NOT_INDEPENDENT"),
         control_lineage_id=_digest("issuer-lineage"),
         authentication_secret_digest=qualification_verification_secret_digest(ISSUER_SECRET),
@@ -164,7 +164,7 @@ def _admitted(obligations=OBLIGATIONS, *, subject=WORLD, independence="INDEPENDE
     derived = []
     for obligation in obligations:
         bound = dict(
-            subject_id=subject, artifact_family=f"sergeant.genesis.{obligation}", domain="sergeant.genesis.v1",
+            subject_id=subject, artifact_family=f"sergeant.genesis.{obligation}", domain=domain,
             artifact_generation=CANDIDATE, acr_generation="acr-gen-1", qualification_protocol_generation=PROTOCOL,
             evidence_root_id=_digest(f"evidence-root:{obligation}"), independence_state=independence,
             qualification_lineage_id=_digest("qualification-lineage"),
@@ -714,3 +714,11 @@ def test_caller_cannot_supply_or_weaken_ratified_genesis_lane():
             closed_package(),
             ratified_external_review_lanes=(),
         )
+
+
+def test_admitted_other_domain_cannot_close_genesis_obligations():
+    attestations, registry, derived = _admitted(domain="other.domain")
+    out = qualify(closed_package(attestations=attestations), registry=registry, derived=derived)
+    assert out["qualified"] is False
+    assert "QUALIFICATION_OBLIGATION_OPEN:cpu_proof" in out["blockers"]
+    assert out["authority_gain"] == []

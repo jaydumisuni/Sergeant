@@ -55,6 +55,7 @@ REQUIRED_QUALIFICATION_OBLIGATIONS = (
     "unrelated_transfer", *INDEPENDENT_OBLIGATIONS, *(f"mutation.{family}" for family in REQUIRED_MUTATIONS),
 )
 GENESIS_ARTIFACT_FAMILY_PREFIX = "sergeant.genesis."
+GENESIS_QUALIFICATION_DOMAIN = "sergeant.genesis.v1"
 # SPIKE-EXT (docs/65) accepted source classes and cardinality proposal; SC-5 vendor/account
 # diversity is not a source class. SAE-20 never ratified a Genesis lane, so this is a floor only.
 ACCEPTED_EXTERNAL_SOURCE_CLASSES = ("SC-1", "SC-2", "SC-3", "SC-4", "SC-6")
@@ -293,6 +294,7 @@ def _attestation_admitted(
         and qualification.subject_id == attestation.subject_id
         and qualification.artifact_family == attestation.artifact_family
         and qualification.domain == attestation.domain
+        and attestation.domain == GENESIS_QUALIFICATION_DOMAIN
         and qualification.artifact_generation == attestation.artifact_generation
         and qualification.attestation_id == attestation.attestation_id
         and qualification.evidence_root_id == attestation.evidence_root_id
