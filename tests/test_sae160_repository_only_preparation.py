@@ -649,6 +649,25 @@ def test_evaluator_snapshots_validated_evidence_before_collector_mutates_it():
     assert result.authority_gain == "NONE"
 
 
+def test_evaluator_snapshots_validated_basis_before_collector_mutates_it():
+    baseline = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
+    rows = complete_evidence()
+
+    def mutable_collector():
+        yield rows[0]
+        # The collector must not rewrite an already-admitted basis binding.
+        object.__setattr__(rows[0], "basis_id", "f" * 64)
+        yield from rows[1:]
+
+    result = evaluate(mutable_collector(), state=SAE150_COMPLETE_STATE)
+
+    assert result.state == SAE160_READY
+    assert result.evidence_by_kind == baseline.evidence_by_kind
+    assert result.evidence_ids == baseline.evidence_ids
+    assert result.preparation_id == baseline.preparation_id
+    assert result.authority_gain == "NONE"
+
+
 def test_evaluator_snapshots_validated_evidence_identity_before_collector_mutates_it():
     baseline = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
     rows = complete_evidence()
