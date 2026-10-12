@@ -668,6 +668,42 @@ def test_evaluator_snapshots_validated_basis_before_collector_mutates_it():
     assert result.authority_gain == "NONE"
 
 
+def test_evaluator_snapshots_validated_kind_before_collector_mutates_it():
+    baseline = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
+    rows = complete_evidence()
+
+    def mutable_collector():
+        yield rows[0]
+        # A yielded frozen record can be rewritten by its collector.
+        object.__setattr__(rows[0], "kind", REQUIRED_EVIDENCE_KINDS[1])
+        yield from rows[1:]
+
+    result = evaluate(mutable_collector(), state=SAE150_COMPLETE_STATE)
+
+    assert result.state == SAE160_READY
+    assert result.evidence_by_kind == baseline.evidence_by_kind
+    assert result.satisfied == baseline.satisfied
+    assert result.preparation_id == baseline.preparation_id
+    assert result.authority_gain == "NONE"
+
+
+def test_evaluator_snapshots_validated_generation_before_collector_mutates_it():
+    baseline = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
+    rows = complete_evidence()
+
+    def mutable_collector():
+        yield rows[0]
+        object.__setattr__(rows[0], "subject_generation", "b" * 40)
+        yield from rows[1:]
+
+    result = evaluate(mutable_collector(), state=SAE150_COMPLETE_STATE)
+
+    assert result.state == SAE160_READY
+    assert result.evidence_by_kind == baseline.evidence_by_kind
+    assert result.preparation_id == baseline.preparation_id
+    assert result.authority_gain == "NONE"
+
+
 def test_evaluator_snapshots_validated_evidence_identity_before_collector_mutates_it():
     baseline = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
     rows = complete_evidence()
