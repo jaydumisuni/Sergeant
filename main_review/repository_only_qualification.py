@@ -161,6 +161,9 @@ def evaluate_repository_only_preparation(
             ) from exc
         if type(row) is not RepositoryOnlyEvidence:
             raise RepositoryOnlyQualificationError("evidence contains non-canonical SAE-160 records")
+        # Freeze the record before validation and hashing: a collector may
+        # mutate its original frozen instance via object.__setattr__.
+        row = replace(row)
         if type(row.kind) is not str:
             raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
         if type(row.subject_generation) is not str:
@@ -196,9 +199,7 @@ def evaluate_repository_only_preparation(
             raise RepositoryOnlyQualificationError(f"duplicate SAE-160 evidence kind: {row.kind}")
         if row.evidence_id in evidence_ids:
             raise RepositoryOnlyQualificationError("duplicate SAE-160 evidence identity")
-        # A collector can mutate a previously yielded frozen record before the
-        # next pull. Keep an independent validated snapshot for this evaluation.
-        row = replace(row)
+        # Only the validated snapshot enters the preparation census.
         by_kind[row.kind] = row
         evidence_ids.add(row.evidence_id)
 

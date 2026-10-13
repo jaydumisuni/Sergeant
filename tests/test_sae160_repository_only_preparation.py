@@ -722,3 +722,30 @@ def test_evaluator_snapshots_validated_evidence_identity_before_collector_mutate
     assert result.evidence_ids == baseline.evidence_ids
     assert result.preparation_id == baseline.preparation_id
     assert result.authority_gain == "NONE"
+
+
+def test_evaluator_snapshots_record_before_hashing_against_concurrent_collector_mutation(monkeypatch):
+    import main_review.repository_only_qualification as qualification
+
+    rows = complete_evidence()
+    rows[0] = evidence(REQUIRED_EVIDENCE_KINDS[0], passed=False, byte=1)
+    original = rows[0]
+    original_hash = qualification.sha256_id
+    mutated = False
+
+    def hash_with_interleaved_collector_mutation(body):
+        nonlocal mutated
+        digest = original_hash(body)
+        if body.get("schema_version") == "sergeant.sae160.repository-only-evidence.v1" and not mutated:
+            # Simulate the collector's concurrent mutation during digest validation.
+            object.__setattr__(original, "passed", True)
+            mutated = True
+        return digest
+
+    monkeypatch.setattr(qualification, "sha256_id", hash_with_interleaved_collector_mutation)
+    result = evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+    assert mutated
+    assert result.state == SAE160_INCOMPLETE
+    assert result.failed == (REQUIRED_EVIDENCE_KINDS[0],)
+    assert result.authority_gain == "NONE"
