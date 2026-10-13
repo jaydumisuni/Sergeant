@@ -749,3 +749,31 @@ def test_evaluator_snapshots_record_before_hashing_against_concurrent_collector_
     assert result.state == SAE160_INCOMPLETE
     assert result.failed == (REQUIRED_EVIDENCE_KINDS[0],)
     assert result.authority_gain == "NONE"
+
+
+def test_evaluator_keeps_snapshot_identity_when_hash_callback_mutates_source(monkeypatch):
+    import main_review.repository_only_qualification as qualification
+
+    rows = complete_evidence()
+    baseline = evaluate(rows, state=SAE150_COMPLETE_STATE)
+    source = rows[0]
+    original_hash = qualification.sha256_id
+    mutated = False
+
+    def interleaved_hash(body):
+        nonlocal mutated
+        digest = original_hash(body)
+        if body.get("schema_version") == "sergeant.sae160.repository-only-evidence.v1" and not mutated:
+            object.__setattr__(source, "evidence_id", "f" * 64)
+            mutated = True
+        return digest
+
+    monkeypatch.setattr(qualification, "sha256_id", interleaved_hash)
+    result = evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+    assert mutated
+    assert result.state == SAE160_READY
+    assert result.evidence_ids == baseline.evidence_ids
+    assert result.evidence_by_kind == baseline.evidence_by_kind
+    assert result.preparation_id == baseline.preparation_id
+    assert result.authority_gain == "NONE"
