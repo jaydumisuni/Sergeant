@@ -883,3 +883,33 @@ def test_overfull_collector_rejects_twelfth_row_without_thirteenth_read(extra_ro
         evaluate(hostile_collector(), state=SAE150_COMPLETE_STATE)
 
     assert pulls == ["required"] * len(REQUIRED_EVIDENCE_KINDS) + ["extra"]
+
+
+def test_overfull_collector_rejects_hostile_record_subclass_without_thirteenth_read():
+    class HostileRecord(RepositoryOnlyEvidence):
+        def __getattribute__(self, name):
+            raise AssertionError("hostile twelfth-record attributes must not be accessed")
+
+    canonical = evidence(REQUIRED_EVIDENCE_KINDS[0], byte=99)
+    hostile = HostileRecord(
+        kind=canonical.kind,
+        subject_generation=canonical.subject_generation,
+        basis_id=canonical.basis_id,
+        passed=canonical.passed,
+        evidence_id=canonical.evidence_id,
+    )
+    pulls = []
+
+    def hostile_collector():
+        for row in complete_evidence():
+            pulls.append("required")
+            yield row
+        pulls.append("extra")
+        yield hostile
+        pulls.append("forbidden")
+        raise AssertionError("thirteenth evidence read must not execute")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="non-canonical SAE-160 records"):
+        evaluate(hostile_collector(), state=SAE150_COMPLETE_STATE)
+
+    assert pulls == ["required"] * len(REQUIRED_EVIDENCE_KINDS) + ["extra"]
