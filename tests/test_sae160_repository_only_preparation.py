@@ -885,6 +885,24 @@ def test_overfull_collector_rejects_twelfth_row_without_thirteenth_read(extra_ro
     assert pulls == ["required"] * len(REQUIRED_EVIDENCE_KINDS) + ["extra"]
 
 
+@pytest.mark.parametrize("error_type", [RuntimeError, OSError, ValueError])
+def test_complete_census_rejects_failed_iterator_finalization(error_type):
+    """Eleven valid records cannot conceal a failing exhaustion probe."""
+    pulls = []
+
+    def failing_finalization():
+        for row in complete_evidence():
+            pulls.append("required")
+            yield row
+        pulls.append("finalization")
+        raise error_type("collector failed after complete census")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="evidence must be an iterable"):
+        evaluate(failing_finalization(), state=SAE150_COMPLETE_STATE)
+
+    assert pulls == ["required"] * len(REQUIRED_EVIDENCE_KINDS) + ["finalization"]
+
+
 def test_overfull_collector_rejects_hostile_record_subclass_without_thirteenth_read():
     class HostileRecord(RepositoryOnlyEvidence):
         def __getattribute__(self, name):
