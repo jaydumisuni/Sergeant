@@ -845,19 +845,32 @@ def test_evaluator_keeps_passed_snapshot_when_hash_callback_flips_success(monkey
     assert result.authority_gain == "NONE"
 
 
-def test_overfull_collector_rejects_malformed_twelfth_row_without_thirteenth_read():
+@pytest.mark.parametrize(
+    ("extra_row", "expected_error"),
+    [
+        ("malformed_digest", "evidence identity is non-canonical"),
+        ("forged_full_digest", "evidence identity is non-canonical"),
+        ("valid_duplicate", "duplicate SAE-160 evidence kind"),
+    ],
+)
+def test_overfull_collector_rejects_twelfth_row_without_thirteenth_read(extra_row, expected_error):
     pulls = []
 
     def hostile_collector():
         for row in complete_evidence():
-            pulls.append('required')
+            pulls.append("required")
             yield row
-        pulls.append('extra')
-        yield replace(evidence(REQUIRED_EVIDENCE_KINDS[0], byte=99), evidence_id='not-a-digest')
-        pulls.append('forbidden')
-        raise AssertionError('thirteenth evidence read must not execute')
+        pulls.append("extra")
+        extra = evidence(REQUIRED_EVIDENCE_KINDS[0], byte=99)
+        if extra_row == "malformed_digest":
+            extra = replace(extra, evidence_id="not-a-digest")
+        elif extra_row == "forged_full_digest":
+            extra = replace(extra, evidence_id="f" * 64)
+        yield extra
+        pulls.append("forbidden")
+        raise AssertionError("thirteenth evidence read must not execute")
 
-    with pytest.raises(RepositoryOnlyQualificationError, match='evidence identity is non-canonical'):
+    with pytest.raises(RepositoryOnlyQualificationError, match=expected_error):
         evaluate(hostile_collector(), state=SAE150_COMPLETE_STATE)
 
-    assert pulls == ['required'] * len(REQUIRED_EVIDENCE_KINDS) + ['extra']
+    assert pulls == ["required"] * len(REQUIRED_EVIDENCE_KINDS) + ["extra"]
