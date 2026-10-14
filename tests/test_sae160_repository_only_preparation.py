@@ -931,3 +931,24 @@ def test_overfull_collector_rejects_hostile_record_subclass_without_thirteenth_r
         evaluate(hostile_collector(), state=SAE150_COMPLETE_STATE)
 
     assert pulls == ["required"] * len(REQUIRED_EVIDENCE_KINDS) + ["extra"]
+
+
+def test_complete_census_never_consults_collector_length_or_truthiness():
+    """Hostile size/truthiness callbacks must not influence bounded enumeration."""
+    class HostileSizedCollector:
+        def __iter__(self):
+            return iter(complete_evidence())
+
+        def __len__(self):
+            raise AssertionError("collector length must not be consulted")
+
+        def __bool__(self):
+            raise AssertionError("collector truthiness must not be consulted")
+
+        def __length_hint__(self):
+            raise AssertionError("collector length hint must not be consulted")
+
+    result = evaluate(HostileSizedCollector(), state=SAE150_COMPLETE_STATE)
+    assert result.state == SAE160_READY
+    assert len(result.satisfied) == len(REQUIRED_EVIDENCE_KINDS)
+    assert result.authority_gain == "NONE"
