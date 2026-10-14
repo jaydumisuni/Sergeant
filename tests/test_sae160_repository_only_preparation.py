@@ -851,6 +851,9 @@ def test_evaluator_keeps_passed_snapshot_when_hash_callback_flips_success(monkey
         ("malformed_digest", "evidence identity is non-canonical"),
         ("forged_full_digest", "evidence identity is non-canonical"),
         ("valid_duplicate", "duplicate SAE-160 evidence kind"),
+        ("wrong_generation", "does not match exact candidate"),
+        ("nonboolean_pass", "passed must be boolean"),
+        ("unknown_kind", "unknown SAE-160 evidence kind"),
     ],
 )
 def test_overfull_collector_rejects_twelfth_row_without_thirteenth_read(extra_row, expected_error):
@@ -866,6 +869,12 @@ def test_overfull_collector_rejects_twelfth_row_without_thirteenth_read(extra_ro
             extra = replace(extra, evidence_id="not-a-digest")
         elif extra_row == "forged_full_digest":
             extra = replace(extra, evidence_id="f" * 64)
+        elif extra_row == "wrong_generation":
+            extra = replace(extra, subject_generation="b" * 40)
+        elif extra_row == "nonboolean_pass":
+            extra = replace(extra, passed=1)
+        elif extra_row == "unknown_kind":
+            extra = replace(extra, kind="owner_says_ok")
         yield extra
         pulls.append("forbidden")
         raise AssertionError("thirteenth evidence read must not execute")
