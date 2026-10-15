@@ -991,3 +991,20 @@ def test_evaluator_rejects_nonboolean_passed_before_collector_advances(invalid_p
         evaluate(collector(), state=SAE150_COMPLETE_STATE)
 
     assert pulls == ["first"]
+
+
+@pytest.mark.parametrize("invalid_passed", [None, 0, 1, [], {}, "true"])
+def test_factory_rejects_nonboolean_passed_before_hashing(monkeypatch, invalid_passed):
+    import main_review.repository_only_qualification as qualification
+
+    def forbidden_hash(_body):
+        raise AssertionError("invalid factory verdict must not reach identity hashing")
+
+    monkeypatch.setattr(qualification, "sha256_id", forbidden_hash)
+    with pytest.raises(RepositoryOnlyQualificationError, match="passed must be boolean"):
+        RepositoryOnlyEvidence.create(
+            kind=REQUIRED_EVIDENCE_KINDS[0],
+            subject_generation=HEAD,
+            basis_id="aa" * 32,
+            passed=invalid_passed,
+        )
