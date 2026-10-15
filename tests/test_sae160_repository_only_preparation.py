@@ -974,3 +974,20 @@ def test_complete_census_never_consults_collector_length_or_truthiness():
     assert result.state == SAE160_READY
     assert len(result.satisfied) == len(REQUIRED_EVIDENCE_KINDS)
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("invalid_passed", [None, 0, 1, [], {}, "true"])
+def test_evaluator_rejects_nonboolean_passed_before_collector_advances(invalid_passed):
+    forged = replace(evidence(REQUIRED_EVIDENCE_KINDS[0]), passed=invalid_passed)
+    pulls = []
+
+    def collector():
+        pulls.append("first")
+        yield forged
+        pulls.append("second")
+        raise AssertionError("invalid passed must stop collector before another pull")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="passed must be boolean"):
+        evaluate(collector(), state=SAE150_COMPLETE_STATE)
+
+    assert pulls == ["first"]
