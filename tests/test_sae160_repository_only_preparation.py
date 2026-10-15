@@ -541,6 +541,28 @@ def test_evaluator_rejects_hostile_evidence_identity_field_subclasses(field, mes
         evaluate([forged], state=SAE150_COMPLETE_STATE)
 
 
+@pytest.mark.parametrize(
+    "missing_field",
+    ("kind", "subject_generation", "basis_id", "passed", "evidence_id"),
+)
+def test_evaluator_rejects_incomplete_canonical_records_before_next_pull(missing_field):
+    original = evidence(REQUIRED_EVIDENCE_KINDS[0])
+    forged = replace(original)
+    object.__delattr__(forged, missing_field)
+    pulls = []
+
+    def collector():
+        pulls.append("first")
+        yield forged
+        pulls.append("second")
+        raise AssertionError("invalid first record must stop the collector")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="incomplete canonical"):
+        evaluate(collector(), state=SAE150_COMPLETE_STATE)
+
+    assert pulls == ["first"]
+
+
 def test_evaluator_rejects_first_noncanonical_row_without_pulling_next():
     pulls = []
 

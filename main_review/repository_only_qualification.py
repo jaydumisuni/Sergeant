@@ -163,7 +163,12 @@ def evaluate_repository_only_preparation(
             raise RepositoryOnlyQualificationError("evidence contains non-canonical SAE-160 records")
         # Freeze the record before validation and hashing: a collector may
         # mutate its original frozen instance via object.__setattr__.
-        row = replace(row)
+        try:
+            row = replace(row)
+        except (AttributeError, TypeError) as exc:
+            raise RepositoryOnlyQualificationError(
+                "incomplete canonical SAE-160 evidence record"
+            ) from exc
         if type(row.kind) is not str:
             raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
         if type(row.subject_generation) is not str:
