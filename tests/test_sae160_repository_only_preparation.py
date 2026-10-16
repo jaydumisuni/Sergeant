@@ -1069,3 +1069,21 @@ def test_each_mandatory_census_kind_independently_blocks_readiness(kind, defect)
     assert (kind in dict(result.evidence_by_kind)) is (defect == "failed")
     assert result.preparation_id != complete.preparation_id
     assert result.authority_gain == "NONE"
+
+
+def test_all_failed_census_preserves_every_failure_and_sae150_blocker():
+    """An entirely failed census cannot mask failures or an upstream gate."""
+    rows = [
+        evidence(kind, passed=False, byte=index + 1)
+        for index, kind in enumerate(REQUIRED_EVIDENCE_KINDS)
+    ]
+    forward = evaluate(rows, state="GENESIS_PROVISIONAL")
+    reverse = evaluate(reversed(rows), state="GENESIS_PROVISIONAL")
+
+    assert forward.state == SAE160_INCOMPLETE
+    assert forward.satisfied == ()
+    assert forward.missing == ()
+    assert forward.failed == REQUIRED_EVIDENCE_KINDS
+    assert forward.blockers == tuple(sorted((*REQUIRED_EVIDENCE_KINDS, "sae150_prerequisite")))
+    assert forward.preparation_id == reverse.preparation_id
+    assert forward.authority_gain == reverse.authority_gain == "NONE"
