@@ -1008,3 +1008,18 @@ def test_factory_rejects_nonboolean_passed_before_hashing(monkeypatch, invalid_p
             basis_id="aa" * 32,
             passed=invalid_passed,
         )
+
+
+def test_failed_census_identity_is_order_independent_and_cannot_inherit_ready():
+    rows = complete_evidence()
+    rows[0] = evidence(REQUIRED_EVIDENCE_KINDS[0], passed=False, byte=1)
+    failed = evaluate(rows, state=SAE150_COMPLETE_STATE)
+    replay = evaluate(reversed(rows), state=SAE150_COMPLETE_STATE)
+    passing = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
+
+    assert failed.state == SAE160_INCOMPLETE
+    assert failed.failed == (REQUIRED_EVIDENCE_KINDS[0],)
+    assert failed.preparation_id == replay.preparation_id
+    assert failed.evidence_by_kind == replay.evidence_by_kind
+    assert failed.preparation_id != passing.preparation_id
+    assert failed.authority_gain == replay.authority_gain == "NONE"
