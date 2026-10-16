@@ -1045,3 +1045,27 @@ def test_collector_finalization_cannot_rewrite_validated_census_identity():
     assert result.evidence_by_kind == baseline.evidence_by_kind
     assert result.preparation_id == baseline.preparation_id
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("kind", REQUIRED_EVIDENCE_KINDS)
+@pytest.mark.parametrize("defect", ("omitted", "failed"))
+def test_each_mandatory_census_kind_independently_blocks_readiness(kind, defect):
+    """Every mandatory SAE-160 kind is a separate fail-closed obligation."""
+    rows = complete_evidence()
+    index = REQUIRED_EVIDENCE_KINDS.index(kind)
+    if defect == "omitted":
+        rows.pop(index)
+    else:
+        rows[index] = evidence(kind, passed=False, byte=index + 1)
+
+    result = evaluate(rows, state=SAE150_COMPLETE_STATE)
+    complete = evaluate(complete_evidence(), state=SAE150_COMPLETE_STATE)
+
+    assert result.state == SAE160_INCOMPLETE
+    assert result.blockers == (kind,)
+    assert result.satisfied == tuple(k for k in REQUIRED_EVIDENCE_KINDS if k != kind)
+    assert result.missing == ((kind,) if defect == "omitted" else ())
+    assert result.failed == ((kind,) if defect == "failed" else ())
+    assert (kind in dict(result.evidence_by_kind)) is (defect == "failed")
+    assert result.preparation_id != complete.preparation_id
+    assert result.authority_gain == "NONE"
