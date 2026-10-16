@@ -1023,3 +1023,25 @@ def test_failed_census_identity_is_order_independent_and_cannot_inherit_ready():
     assert failed.evidence_by_kind == replay.evidence_by_kind
     assert failed.preparation_id != passing.preparation_id
     assert failed.authority_gain == replay.authority_gain == "NONE"
+
+
+def test_collector_finalization_cannot_rewrite_validated_census_identity():
+    """A collector's exhaustion hook must not rewrite already-admitted rows."""
+    rows = complete_evidence()
+    baseline = evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+    def mutating_finalization():
+        yield from rows
+        object.__setattr__(rows[0], "passed", False)
+        object.__setattr__(rows[0], "evidence_id", "f" * 64)
+
+    result = evaluate(mutating_finalization(), state=SAE150_COMPLETE_STATE)
+
+    assert rows[0].passed is False
+    assert rows[0].evidence_id == "f" * 64
+    assert result.state == SAE160_READY
+    assert result.satisfied == baseline.satisfied
+    assert result.evidence_ids == baseline.evidence_ids
+    assert result.evidence_by_kind == baseline.evidence_by_kind
+    assert result.preparation_id == baseline.preparation_id
+    assert result.authority_gain == "NONE"
