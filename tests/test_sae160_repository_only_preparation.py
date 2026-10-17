@@ -1125,3 +1125,25 @@ def test_mixed_census_remains_incomplete_across_sae150_transition_and_reorder():
     assert provisional.evidence_by_kind == qualified_upstream.evidence_by_kind
     assert provisional.preparation_id != qualified_upstream.preparation_id
     assert provisional.authority_gain == qualified_upstream.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(
+    ("state", "package_id"),
+    [
+        ("OWNER_APPROVED", "aa" * 32),
+        (SAE150_COMPLETE_STATE, "not-a-sha256"),
+    ],
+)
+def test_invalid_upstream_authority_never_starts_evidence_collector(state, package_id):
+    """Rejected upstream authority must not trigger collector side effects."""
+    class ExplosiveCollector:
+        def __iter__(self):
+            raise AssertionError("invalid upstream authority must not open collector")
+
+    with pytest.raises(RepositoryOnlyQualificationError):
+        evaluate_repository_only_preparation(
+            subject_generation=HEAD,
+            sae150_state=state,
+            sae150_package_id=package_id,
+            evidence=ExplosiveCollector(),
+        )
