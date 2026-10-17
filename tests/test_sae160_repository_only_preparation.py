@@ -1103,3 +1103,25 @@ def test_all_failed_census_preserves_every_failure_and_sae150_blocker():
     assert forward.blockers == tuple(sorted((*REQUIRED_EVIDENCE_KINDS, "sae150_prerequisite")))
     assert forward.preparation_id == reverse.preparation_id
     assert forward.authority_gain == reverse.authority_gain == "NONE"
+
+
+
+def test_mixed_census_remains_incomplete_across_sae150_transition_and_reorder():
+    """Closing SAE-150 cannot hide mixed missing and failed SAE-160 obligations."""
+    rows = complete_evidence()
+    missing_kind = REQUIRED_EVIDENCE_KINDS[-1]
+    failed_kind = REQUIRED_EVIDENCE_KINDS[0]
+    rows.pop()
+    rows[0] = evidence(failed_kind, passed=False, byte=1)
+
+    provisional = evaluate(rows, state="GENESIS_PROVISIONAL")
+    qualified_upstream = evaluate(reversed(rows), state=SAE150_COMPLETE_STATE)
+
+    assert provisional.state == qualified_upstream.state == SAE160_INCOMPLETE
+    assert provisional.missing == qualified_upstream.missing == (missing_kind,)
+    assert provisional.failed == qualified_upstream.failed == (failed_kind,)
+    assert provisional.blockers == tuple(sorted((missing_kind, failed_kind, "sae150_prerequisite")))
+    assert qualified_upstream.blockers == tuple(sorted((missing_kind, failed_kind)))
+    assert provisional.evidence_by_kind == qualified_upstream.evidence_by_kind
+    assert provisional.preparation_id != qualified_upstream.preparation_id
+    assert provisional.authority_gain == qualified_upstream.authority_gain == "NONE"
