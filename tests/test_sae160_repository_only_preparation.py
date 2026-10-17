@@ -224,6 +224,22 @@ def test_preparation_identity_changes_with_sae150_dependency_identity():
     assert left.preparation_id != right.preparation_id
 
 
+def test_sae150_transition_changes_preparation_identity_without_authority_gain():
+    """A provisional package cannot replay its identity as a qualified prerequisite."""
+    rows = complete_evidence()
+    provisional = evaluate(rows, state="GENESIS_PROVISIONAL")
+    complete = evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+    assert provisional.sae150_package_id == complete.sae150_package_id
+    assert provisional.evidence_ids == complete.evidence_ids
+    assert provisional.preparation_id != complete.preparation_id
+    assert provisional.state == SAE160_WAITING_SAE150
+    assert provisional.blockers == ("sae150_prerequisite",)
+    assert complete.state == SAE160_READY
+    assert complete.blockers == ()
+    assert provisional.authority_gain == complete.authority_gain == "NONE"
+
+
 def test_preparation_identity_changes_with_exact_candidate_head():
     left = evaluate(complete_evidence("a" * 40), subject_generation="a" * 40)
     right = evaluate(complete_evidence("b" * 40), subject_generation="b" * 40)
