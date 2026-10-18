@@ -130,9 +130,9 @@ def evaluate_repository_only_preparation(
     except (TypeError, ValueError, ReviewWorldError) as exc:
         raise RepositoryOnlyQualificationError(str(exc)) from exc
 
-    if type(sae150_state) is not str or not sae150_state.strip():
+    if type(sae150_state) is not str or not sae150_state.strip(" "):
         raise RepositoryOnlyQualificationError("sae150_state must be a non-empty string")
-    canonical_sae150_state = sae150_state.strip()
+    canonical_sae150_state = sae150_state.strip(" ")
     if canonical_sae150_state not in SAE150_STATES:
         raise RepositoryOnlyQualificationError(f"unknown sae150_state: {canonical_sae150_state}")
 
