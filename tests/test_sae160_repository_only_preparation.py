@@ -143,6 +143,20 @@ def test_duplicate_evidence_identity_is_rejected():
         evaluate(rows, state=SAE150_COMPLETE_STATE)
 
 
+def test_distinct_evidence_kinds_cannot_reuse_one_content_basis():
+    """One artifact digest must not satisfy two independent SAE-160 obligations."""
+    rows = complete_evidence()
+    rows[1] = RepositoryOnlyEvidence.create(
+        kind=REQUIRED_EVIDENCE_KINDS[1],
+        subject_generation=HEAD,
+        basis_id=rows[0].basis_id,
+        passed=True,
+    )
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="duplicate SAE-160 evidence basis"):
+        evaluate(rows, state=SAE150_COMPLETE_STATE)
+
+
 def test_unknown_kind_and_noncanonical_basis_are_rejected():
     with pytest.raises(RepositoryOnlyQualificationError, match="unknown SAE-160 evidence kind"):
         RepositoryOnlyEvidence.create(

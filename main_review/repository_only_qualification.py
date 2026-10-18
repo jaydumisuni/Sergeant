@@ -148,6 +148,7 @@ def evaluate_repository_only_preparation(
 
     by_kind: dict[str, RepositoryOnlyEvidence] = {}
     evidence_ids: set[str] = set()
+    basis_ids: set[str] = set()
     # Validate each item before pulling another: invalid evidence must not
     # trigger later collector side effects. The extra pull bounds streams.
     for _ in range(len(REQUIRED_EVIDENCE_KINDS) + 1):
@@ -204,9 +205,12 @@ def evaluate_repository_only_preparation(
             raise RepositoryOnlyQualificationError(f"duplicate SAE-160 evidence kind: {row.kind}")
         if row.evidence_id in evidence_ids:
             raise RepositoryOnlyQualificationError("duplicate SAE-160 evidence identity")
+        if row.basis_id in basis_ids:
+            raise RepositoryOnlyQualificationError("duplicate SAE-160 evidence basis")
         # Only the validated snapshot enters the preparation census.
         by_kind[row.kind] = row
         evidence_ids.add(row.evidence_id)
+        basis_ids.add(row.basis_id)
 
     satisfied = tuple(
         kind for kind in REQUIRED_EVIDENCE_KINDS
