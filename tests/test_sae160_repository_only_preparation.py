@@ -1154,3 +1154,19 @@ def test_invalid_upstream_authority_never_starts_evidence_collector(state, packa
             sae150_package_id=package_id,
             evidence=ExplosiveCollector(),
         )
+
+
+@pytest.mark.parametrize("candidate", ["a" * 39, "A" * 40, None])
+def test_invalid_candidate_identity_never_starts_evidence_collector(candidate):
+    """Malformed exact-head authority cannot open an evidence collector."""
+    class ExplosiveCollector:
+        def __iter__(self):
+            raise AssertionError("invalid candidate must not open collector")
+
+    with pytest.raises(RepositoryOnlyQualificationError, match="subject_generation"):
+        evaluate_repository_only_preparation(
+            subject_generation=candidate,
+            sae150_state=SAE150_COMPLETE_STATE,
+            sae150_package_id="aa" * 32,
+            evidence=ExplosiveCollector(),
+        )
