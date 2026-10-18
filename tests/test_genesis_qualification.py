@@ -105,9 +105,9 @@ ROOTED_VERIFIER_ISSUER = QualificationIssuerAuthorization.create(
 )
 
 
-def _eepr(label, source_class, *, verifier=ROOTED_VERIFIER, secret=VERIFIER_SECRET, authenticated=True, independent=True):
+def _eepr(label, source_class, *, principal=None, verifier=ROOTED_VERIFIER, secret=VERIFIER_SECRET, authenticated=True, independent=True):
     evidence_id = _digest(label)
-    principal = f"{label}-principal"
+    principal = principal if principal is not None else f"{label}-principal"
     facts = ControlLineageFacts.create(
         source_separate=True, authoring_separate=independent, corpus_separate=True,
         infrastructure_separate=True, prompt_control_separate=True,
@@ -314,6 +314,14 @@ def test_generation_identifiers_must_be_typed_and_bound_into_result():
 def test_external_review_census_is_derived_instead_of_trusting_completion_boolean():
     with pytest.raises(GenesisQualificationError, match="census"):
         qualify(closed_package(evidence=(DEFAULT_EVIDENCE[0], DEFAULT_EVIDENCE[0])))
+
+
+def test_two_authenticated_records_from_one_reviewer_do_not_satisfy_independent_census():
+    first = _eepr("review-a", "SC-1", principal="same-human-reviewer")
+    second = _eepr("review-b", "SC-6", principal="same-human-reviewer")
+    out = qualify(closed_package(evidence=(first, second)))
+    assert out["qualified"] is False
+    assert "EXTERNAL_REVIEW_PRINCIPAL_CARDINALITY_INCOMPLETE" in out["blockers"]
 
 
 def test_external_evidence_must_match_exact_review_world():

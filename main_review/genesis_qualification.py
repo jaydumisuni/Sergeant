@@ -413,6 +413,17 @@ def qualify_genesis_package(
         blockers.append("MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE")
     if not census.satisfied:
         blockers.append("EXTERNAL_REVIEW_CENSUS_INCOMPLETE")
+    # A second record from the same reviewer is not a second independent reviewer.
+    # SAE-30 preserves record-level evidence accounting; Genesis applies its own
+    # principal-cardinality requirement without rewriting frozen SAE-30 authority.
+    independent_principals = {
+        record.source_principal_id for record in bound
+        if record.source_class in ACCEPTED_EXTERNAL_SOURCE_CLASSES
+        and record.provenance_authenticated
+        and record.independence_state is IndependenceState.INDEPENDENT
+    }
+    if any(len(independent_principals) < requirement.minimum_instances for requirement in requirements):
+        blockers.append("EXTERNAL_REVIEW_PRINCIPAL_CARDINALITY_INCOMPLETE")
     blockers.extend(
         f"QUALIFICATION_OBLIGATION_OPEN:{obligation}"
         for obligation in REQUIRED_QUALIFICATION_OBLIGATIONS if obligation not in closed
