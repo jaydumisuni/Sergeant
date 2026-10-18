@@ -1170,3 +1170,34 @@ def test_invalid_candidate_identity_never_starts_evidence_collector(candidate):
             sae150_package_id="aa" * 32,
             evidence=ExplosiveCollector(),
         )
+
+
+@pytest.mark.parametrize(
+    ("invalid_field", "invalid_value", "expected_error"),
+    [
+        ("subject_generation", "mutable-head", "subject_generation"),
+        ("sae150_package_id", "not-a-digest", "sae150_package_id"),
+        ("sae150_state", "CLAIMED_COMPLETE", "unknown sae150_state"),
+    ],
+)
+def test_invalid_authority_inputs_do_not_start_evidence_collector(
+    invalid_field, invalid_value, expected_error
+):
+    """Reject untrusted authority claims before executing collector callbacks."""
+    attempts = []
+
+    class HostileCollector:
+        def __iter__(self):
+            attempts.append("started")
+            raise AssertionError("invalid authority must not start evidence collection")
+
+    arguments = dict(
+        subject_generation=HEAD,
+        sae150_state=SAE150_COMPLETE_STATE,
+        sae150_package_id="aa" * 32,
+        evidence=HostileCollector(),
+    )
+    arguments[invalid_field] = invalid_value
+    with pytest.raises(RepositoryOnlyQualificationError, match=expected_error):
+        evaluate_repository_only_preparation(**arguments)
+    assert attempts == []
