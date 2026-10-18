@@ -130,7 +130,7 @@ def _generations(row: Mapping[str, Any]) -> dict[str, str]:
 def _review_world(value: object) -> str:
     if not isinstance(value, str):
         raise GenesisQualificationError("review_world_id must be a canonical sha256 identity")
-    text = value.strip().lower()
+    text = value
     if len(text) != 64 or any(ch not in "0123456789abcdef" for ch in text):
         raise GenesisQualificationError("review_world_id must be a canonical sha256 identity")
     return text

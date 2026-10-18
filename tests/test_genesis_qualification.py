@@ -324,6 +324,13 @@ def test_two_authenticated_records_from_one_reviewer_do_not_satisfy_independent_
     assert "EXTERNAL_REVIEW_PRINCIPAL_CARDINALITY_INCOMPLETE" in out["blockers"]
 
 
+@pytest.mark.parametrize("alias", [WORLD.upper(), f" {WORLD}", f"{WORLD} "])
+def test_review_world_identity_rejects_noncanonical_aliases(alias):
+    """Authority identities must not silently normalize case or whitespace."""
+    with pytest.raises(GenesisQualificationError, match="review_world_id"):
+        qualify(closed_package(review_world_id=alias))
+
+
 def test_external_evidence_must_match_exact_review_world():
     out = qualify(closed_package(review_world_id=OTHER_WORLD))
     assert out["qualified"] is False
