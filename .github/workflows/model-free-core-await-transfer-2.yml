@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           persist-credentials: false
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Checkout Kotlin fixing commit
         uses: actions/checkout@v4
@@ -36,7 +36,7 @@ jobs:
           ref: 6dbd927557951f6d18ded0c4b9a34e9a555bbda8
           path: await-transfer-2/matron
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Checkout React fixing commit
         uses: actions/checkout@v4
@@ -45,7 +45,7 @@ jobs:
           ref: b569158da12b996ee7007b75ea006c389c75c1e7
           path: await-transfer-2/post-app
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Checkout JavaScript ownership fixing commit
         uses: actions/checkout@v4
@@ -54,7 +54,7 @@ jobs:
           ref: d513dc101d39fe874e30c3baa7ff65f0a4fac471
           path: await-transfer-2/tomeroam
           persist-credentials: false
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Freeze defective parent revisions
         shell: bash
