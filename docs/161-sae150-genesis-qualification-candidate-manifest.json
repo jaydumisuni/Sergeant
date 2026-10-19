@@ -1,0 +1,149 @@
+{
+  "schema_version": "sergeant.sae150-genesis-qualification-candidate.v1",
+  "node": "SAE-150",
+  "lifecycle_state": "GENESIS_PROVISIONAL",
+  "base_main": "126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
+  "proof_requires": {
+    "SAE-100": "73541e17e8ef7c208d2bfa91012695b6917e549b",
+    "SAE-110": "1ba0fbbafc9423ed9b098137e0669fe941b052d0",
+    "SAE-120": "e29ffbcd6aad7336e5827cbb1e6469be398cf730",
+    "SAE-130A": "97c2d939df51a21828a6ea96f05458207ac0793c",
+    "SAE-130B": "7af19145d13e173a9fe727cd3977c483aa4c8057",
+    "SAE-130C": "4b3a59117c6ccfac5d6d6d47f795cb4333566b69",
+    "SAE-130D": "948c450e15f71f3823be0df1fedf27650edec067",
+    "SAE-130E": "a889f512662e0b1d62a81582025677276967806d",
+    "SAE-140": "126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0",
+    "SPIKE-EXT": "5a42072517efef7c1e621f12a99e9e2cbf610281"
+  },
+  "proof_requires_object_kinds": {
+    "SAE-100": "commit",
+    "SAE-110": "commit",
+    "SAE-120": "commit",
+    "SAE-130A": "commit",
+    "SAE-130B": "commit",
+    "SAE-130C": "commit",
+    "SAE-130D": "commit",
+    "SAE-130E": "commit",
+    "SAE-140": "commit",
+    "SPIKE-EXT": "blob"
+  },
+  "spike_ext_binding": {
+    "kind": "blob",
+    "path": "docs/69-spike-ext-proven-lifecycle-closeout-manifest.json",
+    "blob": "5a42072517efef7c1e621f12a99e9e2cbf610281",
+    "anchored_at": "126eeea5a70a0723a1bfb65b2a5dbeb6a84cf2e0"
+  },
+  "required_surfaces": [
+    "main_review/genesis_qualification.py",
+    "tests/test_genesis_qualification.py",
+    "tests/test_sae150_qualification_campaign.py",
+    "docs/160-sae150-genesis-qualification-candidate.md",
+    "docs/161-sae150-genesis-qualification-candidate-manifest.json",
+    "docs/165-sae150-genesis-lane-cardinality-authority-amendment.md",
+    "docs/166-sae150-genesis-lane-cardinality-authority-amendment-manifest.json"
+  ],
+  "required_mutation_families": [
+    "omission",
+    "undercount",
+    "cardinality",
+    "acr",
+    "material_input",
+    "falsifier",
+    "authority",
+    "common_mode"
+  ],
+  "mandatory_independent_lane": {
+    "required": true,
+    "currently_satisfied": false,
+    "blocker": "MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE",
+    "open_blockers": [
+      "MISSING_MATERIALLY_INDEPENDENT_EXTERNAL_EVIDENCE",
+      "EXTERNAL_PROVENANCE_VERIFIER_UNROOTED"
+    ]
+  },
+  "candidate_merge_authorized": false,
+  "authority_gain": "none",
+  "normal_verdict_authority": false,
+  "genesis_activated": false,
+  "external_evidence_contract": {
+    "record_type": "ExternalEvidenceProvenanceRecord",
+    "provenance_authenticated_required": true,
+    "verifier_authorization_required": true,
+    "derived_independence_state_required": "INDEPENDENT",
+    "package_boolean_claims_authoritative": false,
+    "review_world_binding_required": true,
+    "external_review_census_derived": true,
+    "spike_ext_blob_bound": true,
+    "provenance_rederived_through_canonical_eepr_constructor": true,
+    "trusted_provenance_verifiers_supplied_outside_package": true,
+    "direct_record_construction_authoritative": false,
+    "lane_cardinality_floor": {
+      "minimum_instances": 2,
+      "minimum_distinct_source_classes": 2
+    },
+    "lane_cardinality_floor_source": "guarded merge 8f40eb95ce4666b068d97a65c1db0f2c0fae2ecc consuming PROVEN SPIKE-EXT floor",
+    "accepted_source_classes": [
+      "SC-1",
+      "SC-2",
+      "SC-3",
+      "SC-4",
+      "SC-6"
+    ],
+    "lane_cardinality_ratified": true,
+    "trusted_exact_eepr_identity_binding_required": true,
+    "trusted_exact_eepr_identity_bindings_supplied_outside_package": true,
+    "provenance_verifier_must_be_rooted_in_qualification_registry": true,
+    "candidate_control_lineage_must_differ_from_provenance_verifier_issuer": true,
+    "provenance_verifier_artifact_family": "sergeant.external-evidence-provenance.verifier",
+    "provenance_verifier_domain": "sergeant.eepr.v2",
+    "provenance_verifier_proof_class": "authenticated-provenance-verification",
+    "lane_cardinality_authority": {
+      "merge_commit": "8f40eb95ce4666b068d97a65c1db0f2c0fae2ecc",
+      "manifest_path": "docs/166-sae150-genesis-lane-cardinality-authority-amendment-manifest.json",
+      "manifest_blob": "b0c3c805ef0182b6b31c9d82c5137c6bf9db1693"
+    },
+    "provenance_verifier_namespace": "sergeant-eepr-provenance-verifier-v1"
+  },
+  "qualification_obligation_contract": {
+    "authority": "DerivedQualification from admit_qualification_attestation plus its consumed attestation in the trusted QualificationAuthorityRegistry supplied outside the package",
+    "caller_boolean_claims_authoritative": false,
+    "required_obligations": [
+      "preservation_proof",
+      "model_blackout_proof",
+      "cpu_proof",
+      "historical_replay",
+      "clean_controls",
+      "unrelated_transfer",
+      "independent_hidden_cases",
+      "independent_hostile_implementation_review",
+      "mutation.omission",
+      "mutation.undercount",
+      "mutation.cardinality",
+      "mutation.acr",
+      "mutation.material_input",
+      "mutation.falsifier",
+      "mutation.authority",
+      "mutation.common_mode"
+    ],
+    "surviving_required_mutant_blocks": true,
+    "deferred_to_sae160": [
+      "clean_clone_repository_only_no_private_helper_proof"
+    ],
+    "trusted_generation_bindings_required": [
+      "candidate_generation",
+      "rab_generation",
+      "acr_generation",
+      "rust_generation",
+      "qualification_protocol_generation"
+    ]
+  },
+  "residual_unknown_policy": {
+    "every_residual_unknown_blocks": true,
+    "unknown_independence_conserved": true
+  },
+  "package_identity": {
+    "record_type": "GenesisQualificationPackage",
+    "full_package_digest": true,
+    "full_digest_bound_into_package_id": true
+  }
+}
