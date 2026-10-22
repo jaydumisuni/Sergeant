@@ -400,3 +400,15 @@ def test_sparse_checkout_flags_cannot_qualify_full_standalone_clone(tmp_path, mo
         assert checkout_commands == []
         assert result.authority_gain == "NONE"
         git(path, "config", "--local", "--unset", key)
+
+
+def test_external_attributes_file_is_not_standalone_authority(tmp_path):
+    """A checkout must not borrow mutable attribute rules outside its .git directory."""
+    path, head = checkout(tmp_path)
+    outside = tmp_path / "outside-attributes"
+    outside.write_text("*.txt -text\n")
+    git(path, "config", "--local", "core.attributesFile", str(outside))
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"

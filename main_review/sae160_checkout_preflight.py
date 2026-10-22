@@ -71,6 +71,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # core.fsmonitor can execute a checkout-controlled program during status;
     # reject it before issuing any Git operation that may invoke that program.
     # Checkout-controlled filter commands can also execute during Git status.
+    # core.attributesFile can borrow mutable attribute rules outside the clone.
     # Read only the local file with includes explicitly disabled; an invalid
     # config cannot establish standalone authority either.
     for config_name in ("config", "config.worktree"):
@@ -81,7 +82,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$"],
                 capture_output=True, text=True, timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
