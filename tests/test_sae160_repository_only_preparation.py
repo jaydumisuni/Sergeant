@@ -1215,3 +1215,104 @@ def test_invalid_authority_inputs_do_not_start_evidence_collector(
     with pytest.raises(RepositoryOnlyQualificationError, match=expected_error):
         evaluate_repository_only_preparation(**arguments)
     assert attempts == []
+
+
+
+def test_sae160_checkout_preflight_rejects_external_hardlinked_pack(tmp_path):
+    """A pack hardlink is mutable external checkout authority, not standalone proof."""
+    import subprocess
+
+    from main_review.sae160_checkout_preflight import inspect_checkout
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init", "-q", str(origin)], check=True)
+    (origin / "fixture.txt").write_text("fixture")
+    subprocess.run(["git", "-C", str(origin), "add", "fixture.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(origin), "-c", "user.name=Test",
+         "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
+        check=True,
+    )
+    clone = tmp_path / "standalone"
+    subprocess.run(["git", "clone", "--no-hardlinks", "-q", str(origin), str(clone)], check=True)
+    head = subprocess.check_output(
+        ["git", "-C", str(clone), "rev-parse", "HEAD"], text=True
+    ).strip()
+    assert inspect_checkout(clone, head).blockers == ()
+    external = tmp_path / "external.pack"
+    external.write_bytes(b"external mutable pack")
+    (clone / ".git" / "objects" / "pack" / "borrowed.pack").hardlink_to(external)
+    result = inspect_checkout(clone, head)
+    assert "external_object_store" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_cannot_masquerade_as_independent_clean_clone_evidence():
+    """A local checkout shape check cannot stand in for independent evidence."""
+    from main_review.sae160_checkout_preflight import CheckoutPreflight
+
+    local_check = CheckoutPreflight(expected_head=HEAD, observed_head=HEAD, blockers=())
+    assert local_check.authority_gain == "NONE"
+    with pytest.raises(RepositoryOnlyQualificationError, match="non-canonical SAE-160 records"):
+        evaluate([local_check], state=SAE150_COMPLETE_STATE)
+
+
+def test_checkout_preflight_rejects_hardlinked_nested_branch_ref(tmp_path):
+    """An externally hardlinked branch ref is mutable checkout authority."""
+    import subprocess
+
+    from main_review.sae160_checkout_preflight import inspect_checkout
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init", "-q", str(origin)], check=True)
+    (origin / "fixture.txt").write_text("fixture")
+    subprocess.run(["git", "-C", str(origin), "add", "fixture.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(origin), "-c", "user.name=Test",
+         "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
+        check=True,
+    )
+    clone = tmp_path / "standalone"
+    subprocess.run(["git", "clone", "--no-hardlinks", "-q", str(origin), str(clone)], check=True)
+    head = subprocess.check_output(["git", "-C", str(clone), "rev-parse", "HEAD"], text=True).strip()
+    branch = subprocess.check_output(
+        ["git", "-C", str(clone), "branch", "--show-current"], text=True
+    ).strip()
+    ref = clone / ".git" / "refs" / "heads" / branch
+    assert ref.is_file()
+    outside = tmp_path / "external-branch-ref"
+    outside.write_bytes(ref.read_bytes())
+    ref.unlink()
+    ref.hardlink_to(outside)
+    result = inspect_checkout(clone, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_external_worktree_config(tmp_path):
+    """Git's enabled config.worktree must not borrow external mutable authority."""
+    import subprocess
+    from main_review.sae160_checkout_preflight import inspect_checkout
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init", "-q", str(origin)], check=True)
+    (origin / "fixture.txt").write_text("fixture")
+    subprocess.run(["git", "-C", str(origin), "add", "fixture.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(origin), "-c", "user.name=Test",
+         "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
+        check=True,
+    )
+    clone = tmp_path / "standalone"
+    subprocess.run(["git", "clone", "--no-hardlinks", "-q", str(origin), str(clone)], check=True)
+    head = subprocess.check_output(["git", "-C", str(clone), "rev-parse", "HEAD"], text=True).strip()
+    subprocess.run(["git", "-C", str(clone), "config", "extensions.worktreeConfig", "true"], check=True)
+    external = tmp_path / "external-worktree-config"
+    external.write_text("[core]\n\tignorecase = true\n")
+    (clone / ".git" / "config.worktree").hardlink_to(external)
+    result = inspect_checkout(clone, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
