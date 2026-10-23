@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import os
+import stat
 import subprocess
 
 from .review_world import require_git_object_id
@@ -47,6 +48,19 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         or gitdir.is_symlink()
     ):
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
+    # A standalone checkout cannot bind immutable authority to control
+    # directories that other local principals can rewrite. Check before
+    # invoking checkout Git, which could otherwise read swapped refs/objects.
+    for relative in ("", "objects", "objects/info", "objects/pack",
+                     "refs", "refs/heads", "refs/tags", "info"):
+        authority_dir = gitdir / relative
+        try:
+            mode = authority_dir.lstat().st_mode
+        except OSError:
+            continue  # Missing/invalid stores are rejected by later checks.
+        if stat.S_ISDIR(mode) and mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+            break
     # Git control metadata can silently borrow authority from another checkout
     # even when the object store itself is local and the observed HEAD matches.
     for name in ("config", "config.worktree", "HEAD", "index", "packed-refs", "refs", "shallow"):

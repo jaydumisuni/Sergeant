@@ -490,3 +490,28 @@ def test_symlinked_checkout_parent_is_rejected_before_checkout_git(tmp_path, mon
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("mutable_dir", (".git", ".git/objects", ".git/refs/heads"))
+def test_shared_writable_git_authority_directory_rejected_before_checkout_git(tmp_path, monkeypatch, mutable_dir):
+    """A shared-writable control directory lets another actor swap Git authority."""
+    import stat
+
+    path, head = checkout(tmp_path)
+    target = path / mutable_dir
+    target.chmod(target.stat().st_mode | stat.S_IWGRP)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("shared-writable checkout Git invoked before preflight")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
