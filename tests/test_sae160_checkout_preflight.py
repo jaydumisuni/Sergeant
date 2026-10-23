@@ -4,6 +4,8 @@ from __future__ import annotations
 from pathlib import Path
 import subprocess
 
+import pytest
+
 from main_review.sae160_checkout_preflight import inspect_checkout
 
 
@@ -411,4 +413,33 @@ def test_external_attributes_file_is_not_standalone_authority(tmp_path):
     result = inspect_checkout(path, head)
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("alias_kind", ("symlink", "hardlink"))
+def test_external_split_index_alias_is_rejected_before_checkout_git(tmp_path, monkeypatch, alias_kind):
+    """A split-index alias cannot borrow mutable index authority from elsewhere."""
+    path, head = checkout(tmp_path)
+    outside = tmp_path / "external-shared-index"
+    outside.write_bytes(b"externally mutable index metadata")
+    shared_index = path / ".git" / ("sharedindex." + "a" * 40)
+    if alias_kind == "symlink":
+        shared_index.symlink_to(outside)
+    else:
+        shared_index.hardlink_to(outside)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted checkout Git invoked")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
     assert result.authority_gain == "NONE"
