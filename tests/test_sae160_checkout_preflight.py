@@ -600,3 +600,31 @@ def test_shared_writable_git_object_material_rejected_before_checkout_git(
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("metadata_file", (".git/info/exclude", ".git/info/attributes"))
+def test_shared_writable_git_info_file_rejected_before_checkout_git(
+    tmp_path, monkeypatch, metadata_file
+):
+    """A peer-writable exclude or attributes file can change Git status semantics."""
+    path, head = checkout(tmp_path)
+    target = path / metadata_file
+    if not target.exists():
+        target.write_text("*.txt -text\n")
+    target.chmod(target.stat().st_mode | 0o022)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("peer-writable info metadata reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"

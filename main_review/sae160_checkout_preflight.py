@@ -100,14 +100,20 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Git reads local exclude, attributes, and sparse-checkout rules from
     # .git/info. External aliases can mask changes from a clean status check.
     info_dir = gitdir / "info"
-    if info_dir.is_symlink() or (
-        info_dir.is_dir() and any(
-            entry.is_symlink()
-            or (entry.is_file() and entry.stat().st_nlink > 1)
-            for entry in info_dir.rglob("*")
-        )
-    ):
+    if info_dir.is_symlink():
         blockers.append("external_git_metadata")
+    elif info_dir.is_dir():
+        for entry in info_dir.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_git_metadata")
+                break
+            # A peer-writable exclude/attributes file (or its parent) can
+            # alter status semantics even without an external filesystem alias.
+            if (entry.is_file() or entry.is_dir()) and (
+                entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
