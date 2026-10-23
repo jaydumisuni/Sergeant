@@ -517,7 +517,7 @@ def test_shared_writable_git_authority_directory_rejected_before_checkout_git(tm
     assert result.authority_gain == "NONE"
 
 
-@pytest.mark.parametrize("mutable_file", (".git/config", ".git/HEAD", ".git/index"))
+@pytest.mark.parametrize("mutable_file", (".git/config", ".git/HEAD", ".git/index", ".git/refs/heads/master"))
 def test_shared_writable_git_control_file_rejected_before_checkout_git(tmp_path, monkeypatch, mutable_file):
     """Mutable Git identity and index files cannot establish standalone authority."""
     import stat
