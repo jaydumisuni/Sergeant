@@ -38,7 +38,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if authority_env.intersection(os.environ):
         blockers.append("ambient_git_authority_override")
     gitdir = root / ".git"
-    if not root.is_dir() or not gitdir.is_dir() or gitdir.is_symlink():
+    if not root.is_dir() or root.is_symlink() or not gitdir.is_dir() or gitdir.is_symlink():
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
     # Git control metadata can silently borrow authority from another checkout
     # even when the object store itself is local and the observed HEAD matches.

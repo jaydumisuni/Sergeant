@@ -443,3 +443,24 @@ def test_external_split_index_alias_is_rejected_before_checkout_git(tmp_path, mo
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+def test_symlinked_checkout_root_is_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """An aliased root is not an independently identified standalone clone."""
+    path, head = checkout(tmp_path)
+    alias = tmp_path / "checkout-alias"
+    alias.symlink_to(path, target_is_directory=True)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(alias)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted checkout Git invoked")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(alias, head)
+    assert result.blockers == ("not_standalone_checkout",)
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
