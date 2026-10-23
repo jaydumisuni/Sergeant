@@ -465,3 +465,28 @@ def test_symlinked_checkout_root_is_rejected_before_checkout_git(tmp_path, monke
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+def test_symlinked_checkout_parent_is_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A checkout reached through a symlinked parent is not independent."""
+    real_parent = tmp_path / "real-parent"
+    real_parent.mkdir()
+    path, head = checkout(real_parent)
+    alias_parent = tmp_path / "alias-parent"
+    alias_parent.symlink_to(real_parent, target_is_directory=True)
+    alias = alias_parent / path.name
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(alias)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("aliased checkout Git invoked before preflight")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(alias, head)
+    assert result.blockers == ("not_standalone_checkout",)
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"

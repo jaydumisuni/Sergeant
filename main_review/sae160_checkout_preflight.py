@@ -25,7 +25,9 @@ class CheckoutPreflight:
 def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     """Return fail-closed, local-only evidence about a checkout's shape."""
     expected = require_git_object_id(expected_head, "SAE-160 expected_head")
-    root = Path(checkout)
+    # Preserve the caller's lexical path: resolve() would conceal a symlinked
+    # parent and make an externally aliased checkout appear standalone.
+    root = Path(checkout).absolute()
     blockers: list[str] = []
     # Ambient Git overrides can redirect object, index or repository authority
     # outside the standalone checkout without changing its visible .git shape.
@@ -38,7 +40,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if authority_env.intersection(os.environ):
         blockers.append("ambient_git_authority_override")
     gitdir = root / ".git"
-    if not root.is_dir() or root.is_symlink() or not gitdir.is_dir() or gitdir.is_symlink():
+    if (
+        not root.is_dir()
+        or root != root.resolve()
+        or not gitdir.is_dir()
+        or gitdir.is_symlink()
+    ):
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
     # Git control metadata can silently borrow authority from another checkout
     # even when the object store itself is local and the observed HEAD matches.
