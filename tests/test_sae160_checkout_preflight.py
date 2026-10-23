@@ -200,6 +200,30 @@ def test_symlinked_branch_ref_cannot_borrow_external_authority(tmp_path):
     assert result.authority_gain == "NONE"
 
 
+def test_shared_writable_nested_ref_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A nested refs directory writable by peers can swap a branch ref."""
+    path, head = checkout(tmp_path)
+    git(path, "update-ref", "refs/heads/nested/topic", head)
+    nested = path / ".git" / "refs" / "heads" / "nested"
+    nested.chmod(0o777)
+    assert nested.stat().st_mode & 0o022
+
+    original_run = subprocess.run
+    checkout_commands = []
+
+    def watched_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted checkout Git executed")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", watched_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
+
+
 def test_git_info_exclude_external_alias_is_rejected(tmp_path):
     """Git's local exclude file cannot be supplied by external mutable metadata."""
     path, head = checkout(tmp_path)

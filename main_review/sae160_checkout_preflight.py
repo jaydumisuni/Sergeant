@@ -89,6 +89,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
                 break
+            # Git can resolve a nested ref through directories writable by
+            # another principal even when the ref file itself is private.
+            if entry.is_dir() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                blockers.append("mutable_git_authority_permissions")
+                break
             if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 blockers.append("mutable_git_authority_permissions")
                 break
