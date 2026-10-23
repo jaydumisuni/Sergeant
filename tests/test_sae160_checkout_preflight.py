@@ -444,6 +444,7 @@ def test_external_split_index_alias_is_rejected_before_checkout_git(tmp_path, mo
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
 
+
 def test_symlinked_checkout_root_is_rejected_before_checkout_git(tmp_path, monkeypatch):
     """An aliased root is not an independently identified standalone clone."""
     path, head = checkout(tmp_path)
