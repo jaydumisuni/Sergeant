@@ -515,3 +515,29 @@ def test_shared_writable_git_authority_directory_rejected_before_checkout_git(tm
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("mutable_file", (".git/config", ".git/HEAD", ".git/index"))
+def test_shared_writable_git_control_file_rejected_before_checkout_git(tmp_path, monkeypatch, mutable_file):
+    """Mutable Git identity and index files cannot establish standalone authority."""
+    import stat
+
+    path, head = checkout(tmp_path)
+    target = path / mutable_file
+    assert target.is_file()
+    target.chmod(target.stat().st_mode | stat.S_IWGRP)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("shared-writable Git control file reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"

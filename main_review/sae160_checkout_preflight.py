@@ -68,6 +68,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
             break
+        # Control files can be modified by other local principals even when
+        # they have no external alias. Reject before checkout Git reads them.
+        if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+            break
     # Git split-index sharedindex.* files are index authority, not ordinary
     # checkout data. Reject symlink and hardlink aliases before checkout Git.
     if any(
