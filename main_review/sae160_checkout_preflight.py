@@ -133,25 +133,36 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if (objects / "info").is_symlink() or (objects / "pack").is_symlink():
         blockers.append("external_object_store")
     pack = objects / "pack"
-    if pack.is_dir() and any(
-        entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1)
-        for entry in pack.iterdir()
-    ):
-        blockers.append("external_object_store")
+    if pack.is_dir():
+        for entry in pack.iterdir():
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_object_store")
+                break
+            if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # Loose Git objects can also borrow mutable external authority via symlinks
     # or hardlinks; checking pack files alone is insufficient.
     if objects.is_dir():
         for shard in objects.iterdir():
             if shard.name in {"info", "pack"}:
                 continue
-            if shard.is_symlink() or (
-                shard.is_dir() and any(
-                    entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1)
-                    for entry in shard.iterdir()
-                )
-            ):
+            if shard.is_symlink():
                 blockers.append("external_object_store")
                 break
+            if shard.is_dir():
+                if shard.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                    blockers.append("mutable_git_authority_permissions")
+                    break
+                for entry in shard.iterdir():
+                    if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                        blockers.append("external_object_store")
+                        break
+                    if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                        blockers.append("mutable_git_authority_permissions")
+                        break
+                if blockers:
+                    break
     # Git commit-graph and other object metadata may be read from objects/info.
     # Reject external aliases there, including split commit-graph chain members.
     info = objects / "info"

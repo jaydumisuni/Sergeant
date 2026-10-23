@@ -541,3 +541,38 @@ def test_shared_writable_git_control_file_rejected_before_checkout_git(tmp_path,
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("mutable_target", ("loose_shard", "loose_object", "pack_file"))
+def test_shared_writable_git_object_material_rejected_before_checkout_git(
+    tmp_path, monkeypatch, mutable_target
+):
+    """A different local principal must not rewrite Git objects before verification."""
+    import stat
+
+    path, head = checkout(tmp_path)
+    if mutable_target == "pack_file":
+        target = path / ".git" / "objects" / "pack" / "mutable.pack"
+        target.write_bytes(b"untrusted pack content")
+    else:
+        shard = path / ".git" / "objects" / "ab"
+        shard.mkdir(exist_ok=True)
+        target = shard if mutable_target == "loose_shard" else shard / ("0" * 38)
+        if mutable_target == "loose_object":
+            target.write_bytes(b"untrusted loose object")
+    target.chmod(target.stat().st_mode | stat.S_IWGRP)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("shared-writable Git objects reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
