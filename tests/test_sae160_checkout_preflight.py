@@ -141,6 +141,39 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
         assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("name,value", (
+    ("GIT_CONFIG_COUNT", "0"),
+    ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=/nonexistent/monitor'"),
+    ("GIT_EXTERNAL_DIFF", "/nonexistent/diff"),
+    ("GIT_TRACE2_EVENT", "/nonexistent/trace-events"),
+    ("GIT_TRACE_SETUP", "/nonexistent/setup-trace"),
+    ("GIT_TRACE_PACKET", "/nonexistent/packet-trace"),
+    ("GIT_TRACE_PACK_ACCESS", "/nonexistent/pack-trace"),
+    ("GIT_TRACE_PERFORMANCE", "/nonexistent/performance-trace"),
+    ("GIT_TRACE_CURL", "/nonexistent/curl-trace"),
+    ("GIT_TRACE2_CONFIG_PARAMS", "core.fsmonitor"),
+))
+def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypatch, name, value):
+    """Ambient Git overrides must not reach even the local config probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(name, value)
+    original_run = subprocess.run
+    git_calls = []
+
+    def reject_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("Git invoked before rejecting ambient controls")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
 def test_symlinked_git_config_is_not_standalone_authority(tmp_path):
     path, head = checkout(tmp_path)
     config = path / ".git" / "config"
@@ -401,6 +434,43 @@ def test_checkout_rejects_filter_process_execution_authority(tmp_path):
     git(path, "config", "--local", "filter.untrusted.process", "/nonexistent/checkout-filter")
     result = inspect_checkout(path, head)
     assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+
+@pytest.mark.parametrize("key", (
+    "diff.external",
+    "diff.untrusted.command",
+    "diff.untrusted.textconv",
+    "diff.nested.driver.textconv",
+))
+def test_executable_diff_configuration_is_rejected_before_checkout_git(tmp_path, monkeypatch, key):
+    """Diff drivers/textconv are executable review authority, not passive metadata."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", key, "/nonexistent/host-diff")
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def watched_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(tuple(argv))
+            raise AssertionError("checkout Git invoked before rejecting executable diff")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", watched_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+def test_ambient_external_diff_override_is_not_standalone(tmp_path, monkeypatch):
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("GIT_EXTERNAL_DIFF", "/nonexistent/host-diff")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
     assert result.authority_gain == "NONE"
 
 
@@ -686,3 +756,111 @@ def test_mutable_commit_graph_metadata_rejected_before_checkout_git(tmp_path, mo
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX directory custody")
+@pytest.mark.parametrize("level", ("checkout", "parent"))
+def test_mutable_checkout_ancestry_rejected_before_checkout_git(tmp_path, monkeypatch, level):
+    """A peer-writable parent can replace a private .git directory wholesale."""
+    import stat
+
+    path, head = checkout(tmp_path)
+    target = path if level == "checkout" else path.parent
+    original_mode = stat.S_IMODE(target.stat().st_mode)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("mutable checkout ancestor reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    try:
+        target.chmod(original_mode | stat.S_IWGRP)
+        monkeypatch.setattr(subprocess, "run", guarded_run)
+        result = inspect_checkout(path, head)
+    finally:
+        target.chmod(original_mode)
+
+    assert "mutable_checkout_ancestry" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX directory custody")
+def test_foreign_owned_checkout_parent_rejected_even_when_not_peer_writable(tmp_path, monkeypatch):
+    """Mode 0755 does not prevent the owning foreign principal replacing a child."""
+    import os
+
+    path, head = checkout(tmp_path)
+    parent = path.parent
+    actual_lstat = Path.lstat
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def foreign_parent_lstat(self, *args, **kwargs):
+        metadata = actual_lstat(self, *args, **kwargs)
+        if self == parent:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("foreign-owned checkout ancestor reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_parent_lstat)
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_checkout_ancestry" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX Git metadata custody")
+@pytest.mark.parametrize(
+    "relative",
+    (".git/HEAD", ".git/objects/info", ".git/objects/pack"),
+)
+def test_foreign_owned_git_metadata_never_reaches_git_config(
+    tmp_path, monkeypatch, relative
+):
+    """A foreign owner can rewrite a mode-0755 Git object or ref directory."""
+    import os
+
+    path, head = checkout(tmp_path)
+    target = path / relative
+    assert target.exists()
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    git_calls = []
+
+    def foreign_metadata_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self == target:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def forbid_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(list(argv))
+            raise AssertionError("foreign-owned Git metadata reached git subprocess")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_metadata_lstat)
+    monkeypatch.setattr(subprocess, "run", forbid_git_process)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
