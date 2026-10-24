@@ -404,6 +404,43 @@ def test_checkout_rejects_filter_process_execution_authority(tmp_path):
     assert result.authority_gain == "NONE"
 
 
+
+@pytest.mark.parametrize("key", (
+    "diff.external",
+    "diff.untrusted.command",
+    "diff.untrusted.textconv",
+    "diff.nested.driver.textconv",
+))
+def test_executable_diff_configuration_is_rejected_before_checkout_git(tmp_path, monkeypatch, key):
+    """Diff drivers/textconv are executable review authority, not passive metadata."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", key, "/nonexistent/host-diff")
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def watched_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(tuple(argv))
+            raise AssertionError("checkout Git invoked before rejecting executable diff")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", watched_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+def test_ambient_external_diff_override_is_not_standalone(tmp_path, monkeypatch):
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("GIT_EXTERNAL_DIFF", "/nonexistent/host-diff")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 def test_sparse_checkout_flags_cannot_qualify_full_standalone_clone(tmp_path, monkeypatch):
     """Sparse-checkout configuration can conceal missing tracked files."""
     path, head = checkout(tmp_path)
