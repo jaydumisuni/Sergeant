@@ -786,3 +786,45 @@ def test_foreign_owned_git_directory_rejected_before_checkout_git(tmp_path, monk
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX ownership custody")
+@pytest.mark.parametrize(
+    "relative",
+    ("objects/pack", "refs/heads", "refs/heads/nested", "config", "objects/info/commit-graphs"),
+)
+def test_foreign_owned_nested_git_authority_rejected_before_checkout_git(
+    tmp_path, monkeypatch, relative
+):
+    """Mode 0755/0644 cannot protect Git authority owned by a foreign principal."""
+    import os
+
+    path, head = checkout(tmp_path)
+    target = path / ".git" / relative
+    if relative in ("refs/heads/nested", "objects/info/commit-graphs"):
+        target.mkdir()
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    checkout_commands = []
+
+    def foreign_authority_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self == target:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def observed_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_authority_lstat)
+    monkeypatch.setattr(subprocess, "run", observed_run)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_git_authority_ownership" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"

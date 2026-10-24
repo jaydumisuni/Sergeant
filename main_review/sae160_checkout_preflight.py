@@ -77,6 +77,15 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         else:
             if not stat.S_ISDIR(git_control.st_mode) or git_control.st_uid not in trusted_owners:
                 blockers.append("mutable_git_authority_ownership")
+    def foreign_git_owner(entry: Path) -> bool:
+        """POSIX Git metadata is mutable by its owner even at mode 0644/0755."""
+        if os.name != "posix":
+            return False
+        try:
+            return entry.lstat().st_uid not in {0, os.geteuid()}
+        except OSError:
+            return True  # Disappearing authority cannot establish custody.
+
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
@@ -84,9 +93,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                      "refs", "refs/heads", "refs/tags", "info"):
         authority_dir = gitdir / relative
         try:
-            mode = authority_dir.lstat().st_mode
+            metadata = authority_dir.lstat()
         except OSError:
             continue  # Missing/invalid stores are rejected by later checks.
+        mode = metadata.st_mode
+        if stat.S_ISDIR(mode) and foreign_git_owner(authority_dir):
+            blockers.append("mutable_git_authority_ownership")
+            break
         if stat.S_ISDIR(mode) and mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
             break
@@ -96,6 +109,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         entry = gitdir / name
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
+            break
+        if entry.is_file() and foreign_git_owner(entry):
+            blockers.append("mutable_git_authority_ownership")
             break
         # Control files can be modified by other local principals even when
         # they have no external alias. Reject before checkout Git reads them.
@@ -107,6 +123,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     for entry in gitdir.glob("sharedindex.*"):
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
+            break
+        if entry.is_file() and foreign_git_owner(entry):
+            blockers.append("mutable_git_authority_ownership")
             break
         # A peer-writable split-index backing file can change checkout status
         # without any symlink or hardlink alias. Reject it before checkout Git.
@@ -120,6 +139,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for entry in refs.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             # Git can resolve a nested ref through directories writable by
             # another principal even when the ref file itself is private.
@@ -138,6 +160,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for entry in info_dir.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             # A peer-writable exclude/attributes file (or its parent) can
             # alter status semantics even without an external filesystem alias.
@@ -181,6 +206,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_object_store")
                 break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
+                break
             if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 blockers.append("mutable_git_authority_permissions")
                 break
@@ -194,12 +222,18 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 blockers.append("external_object_store")
                 break
             if shard.is_dir():
+                if foreign_git_owner(shard):
+                    blockers.append("mutable_git_authority_ownership")
+                    break
                 if shard.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                     blockers.append("mutable_git_authority_permissions")
                     break
                 for entry in shard.iterdir():
                     if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                         blockers.append("external_object_store")
+                        break
+                    if foreign_git_owner(entry):
+                        blockers.append("mutable_git_authority_ownership")
                         break
                     if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                         blockers.append("mutable_git_authority_permissions")
@@ -214,6 +248,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for entry in info.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_object_store")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             if (entry.is_file() or entry.is_dir()) and (
                 entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
