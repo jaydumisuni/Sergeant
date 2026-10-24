@@ -628,3 +628,37 @@ def test_shared_writable_git_info_file_rejected_before_checkout_git(
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("target_kind", ("commit_graph", "chain_directory", "chain_file"))
+def test_mutable_commit_graph_metadata_rejected_before_checkout_git(tmp_path, monkeypatch, target_kind):
+    """Git object-info authority cannot be peer-writable before checkout Git."""
+    path, head = checkout(tmp_path)
+    info = path / ".git" / "objects" / "info"
+    if target_kind == "commit_graph":
+        target = info / "commit-graph"
+        target.write_bytes(b"untrusted graph")
+    else:
+        chain = info / "commit-graphs"
+        chain.mkdir()
+        target = chain
+        if target_kind == "chain_file":
+            target = chain / "commit-graph-chain"
+            target.write_text("untrusted chain\n")
+    target.chmod(target.stat().st_mode | 0o022)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("peer-writable commit graph reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"

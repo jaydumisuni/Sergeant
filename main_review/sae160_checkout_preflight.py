@@ -174,23 +174,20 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                         break
                 if blockers:
                     break
-    # Git commit-graph and other object metadata may be read from objects/info.
-    # Reject external aliases there, including split commit-graph chain members.
+    # Git commit-graph and split-chain metadata are authority read during
+    # history/status. Reject aliases and peer-writable files or directories at
+    # every depth before issuing any checkout Git command.
     info = objects / "info"
-    if info.is_dir() and any(
-        entry.is_symlink()
-        or (entry.is_file() and entry.stat().st_nlink > 1)
-        or (
-            entry.is_dir()
-            and any(
-                child.is_symlink()
-                or (child.is_file() and child.stat().st_nlink > 1)
-                for child in entry.iterdir()
-            )
-        )
-        for entry in info.iterdir()
-    ):
-        blockers.append("external_object_store")
+    if info.is_dir():
+        for entry in info.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_object_store")
+                break
+            if (entry.is_file() or entry.is_dir()) and (
+                entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
     alternates = objects / "info" / "alternates"
     if alternates.exists() or alternates.is_symlink():
         blockers.append("external_object_alternates")
