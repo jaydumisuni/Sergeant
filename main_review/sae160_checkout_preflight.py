@@ -35,7 +35,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     authority_env = {
         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
-        "GIT_NAMESPACE", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
+        "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
     }
     if authority_env.intersection(os.environ):
@@ -122,6 +122,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # core.fsmonitor can execute a checkout-controlled program during status;
     # reject it before issuing any Git operation that may invoke that program.
     # Checkout-controlled filter commands can also execute during Git status.
+    # External diff drivers/textconv can execute during later review; status alone
+    # does not establish that this checkout has no executable diff authority.
     # core.attributesFile can borrow mutable attribute rules outside the clone.
     # Read only the local file with includes explicitly disabled; an invalid
     # config cannot establish standalone authority either.
@@ -133,7 +135,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$"],
                 capture_output=True, text=True, timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
@@ -181,7 +183,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # history/status. Reject aliases and peer-writable files or directories at
     # every depth before issuing any checkout Git command.
     info = objects / "info"
-    if info.is_dir():
+    # A symlink at the info-directory root is itself external object authority.
+    # rglob() only inspects children, so an empty or dangling borrowed directory
+    # would otherwise pass preflight before checkout Git reads its metadata.
+    if info.is_symlink():
+        blockers.append("external_object_store")
+    elif info.is_dir():
         for entry in info.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_object_store")
