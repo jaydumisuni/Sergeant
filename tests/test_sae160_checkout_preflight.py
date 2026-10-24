@@ -141,6 +141,33 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
         assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("name,value", (
+    ("GIT_CONFIG_COUNT", "0"),
+    ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=/nonexistent/monitor'"),
+    ("GIT_EXTERNAL_DIFF", "/nonexistent/diff"),
+    ("GIT_TRACE2_EVENT", "/nonexistent/trace-events"),
+))
+def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypatch, name, value):
+    """Ambient Git overrides must not reach even the local config probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(name, value)
+    original_run = subprocess.run
+    git_calls = []
+
+    def reject_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("Git invoked before rejecting ambient controls")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
 def test_symlinked_git_config_is_not_standalone_authority(tmp_path):
     path, head = checkout(tmp_path)
     config = path / ".git" / "config"
