@@ -146,6 +146,12 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
     ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=/nonexistent/monitor'"),
     ("GIT_EXTERNAL_DIFF", "/nonexistent/diff"),
     ("GIT_TRACE2_EVENT", "/nonexistent/trace-events"),
+    ("GIT_TRACE_SETUP", "/nonexistent/setup-trace"),
+    ("GIT_TRACE_PACKET", "/nonexistent/packet-trace"),
+    ("GIT_TRACE_PACK_ACCESS", "/nonexistent/pack-trace"),
+    ("GIT_TRACE_PERFORMANCE", "/nonexistent/performance-trace"),
+    ("GIT_TRACE_CURL", "/nonexistent/curl-trace"),
+    ("GIT_TRACE2_CONFIG_PARAMS", "core.fsmonitor"),
 ))
 def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypatch, name, value):
     """Ambient Git overrides must not reach even the local config probe."""
