@@ -105,7 +105,16 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             break
     # Git control metadata can silently borrow authority from another checkout
     # even when the object store itself is local and the observed HEAD matches.
-    for name in ("config", "config.worktree", "HEAD", "index", "packed-refs", "refs", "shallow"):
+    # Pseudo-refs can influence Git status, merge/rebase state, and subsequent
+    # review even when HEAD and the object store are otherwise private.
+    # Check their filesystem custody before invoking any checkout Git command.
+    control_files = (
+        "config", "config.worktree", "HEAD", "index", "packed-refs",
+        "refs", "shallow", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD",
+        "REBASE_HEAD", "FETCH_HEAD", "ORIG_HEAD", "AUTO_MERGE",
+        "BISECT_EXPECTED_REV",
+    )
+    for name in control_files:
         entry = gitdir / name
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")

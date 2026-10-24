@@ -828,3 +828,56 @@ def test_foreign_owned_nested_git_authority_rejected_before_checkout_git(
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX Git metadata custody")
+@pytest.mark.parametrize(
+    "name", ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REBASE_HEAD", "FETCH_HEAD", "ORIG_HEAD")
+)
+@pytest.mark.parametrize("alias", ("symlink", "hardlink", "peer_writable"))
+def test_pseudoref_custody_rejected_before_checkout_git(tmp_path, monkeypatch, name, alias):
+    """Pseudo-refs used by Git status/recovery cannot borrow mutable authority."""
+    path, head = checkout(tmp_path)
+    entry = path / ".git" / name
+    if entry.is_symlink() or entry.exists():
+        entry.unlink()
+    external = tmp_path / ("external-" + name)
+    external.write_text(head + "\n")
+    if alias == "symlink":
+        entry.symlink_to(external)
+    elif alias == "hardlink":
+        entry.hardlink_to(external)
+    else:
+        entry.write_text(head + "\n")
+        entry.chmod(0o666)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("mutable pseudo-ref reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    expected_blocker = (
+        "mutable_git_authority_permissions"
+        if alias == "peer_writable" else "external_git_metadata"
+    )
+    assert expected_blocker in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+
+def test_private_orig_head_does_not_borrow_external_authority(tmp_path):
+    """A normal private pseudo-ref is permitted; only mutable aliases fail."""
+    path, head = checkout(tmp_path)
+    (path / ".git" / "ORIG_HEAD").write_text(head + "\n")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
