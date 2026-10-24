@@ -686,3 +686,198 @@ def test_mutable_commit_graph_metadata_rejected_before_checkout_git(tmp_path, mo
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX directory custody")
+@pytest.mark.parametrize("level", ("checkout", "parent"))
+def test_mutable_checkout_ancestry_rejected_before_checkout_git(tmp_path, monkeypatch, level):
+    """A peer-writable parent can replace a private .git directory wholesale."""
+    import stat
+
+    path, head = checkout(tmp_path)
+    target = path if level == "checkout" else path.parent
+    original_mode = stat.S_IMODE(target.stat().st_mode)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("mutable checkout ancestor reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    try:
+        target.chmod(original_mode | stat.S_IWGRP)
+        monkeypatch.setattr(subprocess, "run", guarded_run)
+        result = inspect_checkout(path, head)
+    finally:
+        target.chmod(original_mode)
+
+    assert "mutable_checkout_ancestry" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX directory custody")
+def test_foreign_owned_checkout_parent_rejected_even_when_not_peer_writable(tmp_path, monkeypatch):
+    """Mode 0755 does not prevent the owning foreign principal replacing a child."""
+    import os
+
+    path, head = checkout(tmp_path)
+    parent = path.parent
+    actual_lstat = Path.lstat
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def foreign_parent_lstat(self, *args, **kwargs):
+        metadata = actual_lstat(self, *args, **kwargs)
+        if self == parent:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("foreign-owned checkout ancestor reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_parent_lstat)
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_checkout_ancestry" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX directory custody")
+def test_foreign_owned_git_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """An unrelated owner of .git can rewrite its private-looking metadata."""
+    import os
+
+    path, head = checkout(tmp_path)
+    gitdir = path / ".git"
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    checkout_commands = []
+
+    def foreign_gitdir_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self == gitdir:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("foreign-owned Git control directory reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_gitdir_lstat)
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_git_authority_ownership" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX ownership custody")
+@pytest.mark.parametrize(
+    "relative",
+    ("objects/pack", "refs/heads", "refs/heads/nested", "config", "objects/info/commit-graphs"),
+)
+def test_foreign_owned_nested_git_authority_rejected_before_checkout_git(
+    tmp_path, monkeypatch, relative
+):
+    """Mode 0755/0644 cannot protect Git authority owned by a foreign principal."""
+    import os
+
+    path, head = checkout(tmp_path)
+    target = path / ".git" / relative
+    if relative in ("refs/heads/nested", "objects/info/commit-graphs"):
+        target.mkdir()
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    checkout_commands = []
+
+    def foreign_authority_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self == target:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def observed_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_authority_lstat)
+    monkeypatch.setattr(subprocess, "run", observed_run)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_git_authority_ownership" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX Git metadata custody")
+@pytest.mark.parametrize(
+    "name", ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REBASE_HEAD", "FETCH_HEAD", "ORIG_HEAD")
+)
+@pytest.mark.parametrize("alias", ("symlink", "hardlink", "peer_writable"))
+def test_pseudoref_custody_rejected_before_checkout_git(tmp_path, monkeypatch, name, alias):
+    """Pseudo-refs used by Git status/recovery cannot borrow mutable authority."""
+    path, head = checkout(tmp_path)
+    entry = path / ".git" / name
+    if entry.is_symlink() or entry.exists():
+        entry.unlink()
+    external = tmp_path / ("external-" + name)
+    external.write_text(head + "\n")
+    if alias == "symlink":
+        entry.symlink_to(external)
+    elif alias == "hardlink":
+        entry.hardlink_to(external)
+    else:
+        entry.write_text(head + "\n")
+        entry.chmod(0o666)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("mutable pseudo-ref reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    expected_blocker = (
+        "mutable_git_authority_permissions"
+        if alias == "peer_writable" else "external_git_metadata"
+    )
+    assert expected_blocker in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+
+def test_private_orig_head_does_not_borrow_external_authority(tmp_path):
+    """A normal private pseudo-ref is permitted; only mutable aliases fail."""
+    path, head = checkout(tmp_path)
+    (path / ".git" / "ORIG_HEAD").write_text(head + "\n")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"

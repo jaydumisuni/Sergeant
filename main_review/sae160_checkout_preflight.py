@@ -48,6 +48,44 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         or gitdir.is_symlink()
     ):
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
+    # A private .git directory is not sufficient if another principal owns
+    # or can rewrite the checkout root or one of its ancestor directories.
+    # A trusted root-owned sticky directory (such as /tmp) is the exception:
+    # the sticky bit prevents peers from replacing someone else's entry.
+    # This is POSIX-specific custody evidence, not Windows qualification.
+    if os.name == "posix":
+        trusted_owners = {0, os.geteuid()}
+        for directory in (root, *root.parents):
+            try:
+                metadata = directory.lstat()
+            except OSError:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid not in trusted_owners:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                if metadata.st_uid != 0 or not metadata.st_mode & stat.S_ISVTX:
+                    blockers.append("mutable_checkout_ancestry")
+                    break
+        # Git control itself is a replacement authority: a foreign owner of
+        # .git may rewrite its descendants even when its mode is 0755.
+        try:
+            git_control = gitdir.lstat()
+        except OSError:
+            blockers.append("mutable_git_authority_ownership")
+        else:
+            if not stat.S_ISDIR(git_control.st_mode) or git_control.st_uid not in trusted_owners:
+                blockers.append("mutable_git_authority_ownership")
+    def foreign_git_owner(entry: Path) -> bool:
+        """POSIX Git metadata is mutable by its owner even at mode 0644/0755."""
+        if os.name != "posix":
+            return False
+        try:
+            return entry.lstat().st_uid not in {0, os.geteuid()}
+        except OSError:
+            return True  # Disappearing authority cannot establish custody.
+
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
@@ -55,18 +93,34 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                      "refs", "refs/heads", "refs/tags", "info"):
         authority_dir = gitdir / relative
         try:
-            mode = authority_dir.lstat().st_mode
+            metadata = authority_dir.lstat()
         except OSError:
             continue  # Missing/invalid stores are rejected by later checks.
+        mode = metadata.st_mode
+        if stat.S_ISDIR(mode) and foreign_git_owner(authority_dir):
+            blockers.append("mutable_git_authority_ownership")
+            break
         if stat.S_ISDIR(mode) and mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
             break
     # Git control metadata can silently borrow authority from another checkout
     # even when the object store itself is local and the observed HEAD matches.
-    for name in ("config", "config.worktree", "HEAD", "index", "packed-refs", "refs", "shallow"):
+    # Pseudo-refs can influence Git status, merge/rebase state, and subsequent
+    # review even when HEAD and the object store are otherwise private.
+    # Check their filesystem custody before invoking any checkout Git command.
+    control_files = (
+        "config", "config.worktree", "HEAD", "index", "packed-refs",
+        "refs", "shallow", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD",
+        "REBASE_HEAD", "FETCH_HEAD", "ORIG_HEAD", "AUTO_MERGE",
+        "BISECT_EXPECTED_REV",
+    )
+    for name in control_files:
         entry = gitdir / name
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
+            break
+        if entry.is_file() and foreign_git_owner(entry):
+            blockers.append("mutable_git_authority_ownership")
             break
         # Control files can be modified by other local principals even when
         # they have no external alias. Reject before checkout Git reads them.
@@ -78,6 +132,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     for entry in gitdir.glob("sharedindex.*"):
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
+            break
+        if entry.is_file() and foreign_git_owner(entry):
+            blockers.append("mutable_git_authority_ownership")
             break
         # A peer-writable split-index backing file can change checkout status
         # without any symlink or hardlink alias. Reject it before checkout Git.
@@ -91,6 +148,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for entry in refs.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             # Git can resolve a nested ref through directories writable by
             # another principal even when the ref file itself is private.
@@ -109,6 +169,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for entry in info_dir.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             # A peer-writable exclude/attributes file (or its parent) can
             # alter status semantics even without an external filesystem alias.
@@ -152,6 +215,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_object_store")
                 break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
+                break
             if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 blockers.append("mutable_git_authority_permissions")
                 break
@@ -165,12 +231,18 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 blockers.append("external_object_store")
                 break
             if shard.is_dir():
+                if foreign_git_owner(shard):
+                    blockers.append("mutable_git_authority_ownership")
+                    break
                 if shard.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                     blockers.append("mutable_git_authority_permissions")
                     break
                 for entry in shard.iterdir():
                     if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                         blockers.append("external_object_store")
+                        break
+                    if foreign_git_owner(entry):
+                        blockers.append("mutable_git_authority_ownership")
                         break
                     if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                         blockers.append("mutable_git_authority_permissions")
@@ -185,6 +257,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for entry in info.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_object_store")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             if (entry.is_file() or entry.is_dir()) and (
                 entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
