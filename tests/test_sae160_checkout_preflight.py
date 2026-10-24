@@ -752,3 +752,37 @@ def test_foreign_owned_checkout_parent_rejected_even_when_not_peer_writable(tmp_
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX directory custody")
+def test_foreign_owned_git_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """An unrelated owner of .git can rewrite its private-looking metadata."""
+    import os
+
+    path, head = checkout(tmp_path)
+    gitdir = path / ".git"
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    checkout_commands = []
+
+    def foreign_gitdir_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self == gitdir:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("foreign-owned Git control directory reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_gitdir_lstat)
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_git_authority_ownership" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"

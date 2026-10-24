@@ -68,6 +68,15 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if metadata.st_uid != 0 or not metadata.st_mode & stat.S_ISVTX:
                     blockers.append("mutable_checkout_ancestry")
                     break
+        # Git control itself is a replacement authority: a foreign owner of
+        # .git may rewrite its descendants even when its mode is 0755.
+        try:
+            git_control = gitdir.lstat()
+        except OSError:
+            blockers.append("mutable_git_authority_ownership")
+        else:
+            if not stat.S_ISDIR(git_control.st_mode) or git_control.st_uid not in trusted_owners:
+                blockers.append("mutable_git_authority_ownership")
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
