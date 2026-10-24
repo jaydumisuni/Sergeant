@@ -881,3 +881,68 @@ def test_private_orig_head_does_not_borrow_external_authority(tmp_path):
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("dangling", (False, True))
+def test_symlinked_object_info_root_rejected_before_checkout_git(
+    tmp_path, monkeypatch, dangling
+):
+    """Even empty or dangling borrowed object-info directories are not local authority."""
+    path, head = checkout(tmp_path)
+    info = path / ".git" / "objects" / "info"
+    outside = tmp_path / "outside-object-info"
+    info.rename(outside)
+    target = tmp_path / "missing-object-info" if dangling else outside
+    info.symlink_to(target, target_is_directory=True)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(tuple(argv))
+            raise AssertionError("borrowed object-info reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_object_store" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
+
+
+@pytest.mark.parametrize("key", (
+    "diff.external",
+    "diff.untrusted.command",
+    "diff.untrusted.textconv",
+    "diff.nested.driver.textconv",
+))
+def test_executable_diff_configuration_is_rejected_before_checkout_git(tmp_path, monkeypatch, key):
+    """Diff drivers/textconv are executable review authority, not passive metadata."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", key, "/nonexistent/host-diff")
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def watched_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(tuple(argv))
+            raise AssertionError("checkout Git invoked before rejecting executable diff")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", watched_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+def test_ambient_external_diff_override_is_not_standalone(tmp_path, monkeypatch):
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("GIT_EXTERNAL_DIFF", "/nonexistent/host-diff")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
