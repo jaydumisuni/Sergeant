@@ -37,9 +37,14 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
         "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
+        # Git tracing can write outside the checkout before a read-only
+        # preflight reaches its later fail-closed decision.
+        "GIT_TRACE", "GIT_TRACE2", "GIT_TRACE2_EVENT", "GIT_TRACE2_PERF",
     }
     if authority_env.intersection(os.environ):
-        blockers.append("ambient_git_authority_override")
+        # Do not even probe local config with untrusted ambient Git controls:
+        # git config itself is a Git process and can honor these overrides.
+        return CheckoutPreflight(expected, None, ("ambient_git_authority_override",))
     gitdir = root / ".git"
     if (
         not root.is_dir()
