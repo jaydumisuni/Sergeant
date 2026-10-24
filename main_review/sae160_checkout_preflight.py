@@ -41,7 +41,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # preflight reaches its later fail-closed decision.
         "GIT_TRACE", "GIT_TRACE2", "GIT_TRACE2_EVENT", "GIT_TRACE2_PERF",
     }
-    if authority_env.intersection(os.environ):
+    # Git also honors GIT_TRACE_SETUP, GIT_TRACE_PACKET, and other trace
+    # variants that can write outside the checkout during the config probe.
+    # Reject the entire trace namespace before starting any Git subprocess.
+    if authority_env.intersection(os.environ) or any(
+        name.startswith("GIT_TRACE") for name in os.environ
+    ):
         # Do not even probe local config with untrusted ambient Git controls:
         # git config itself is a Git process and can honor these overrides.
         return CheckoutPreflight(expected, None, ("ambient_git_authority_override",))
