@@ -75,12 +75,15 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             break
     # Git split-index sharedindex.* files are index authority, not ordinary
     # checkout data. Reject symlink and hardlink aliases before checkout Git.
-    if any(
-        entry.is_symlink()
-        or (entry.is_file() and entry.stat().st_nlink > 1)
-        for entry in gitdir.glob("sharedindex.*")
-    ):
-        blockers.append("external_git_metadata")
+    for entry in gitdir.glob("sharedindex.*"):
+        if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            blockers.append("external_git_metadata")
+            break
+        # A peer-writable split-index backing file can change checkout status
+        # without any symlink or hardlink alias. Reject it before checkout Git.
+        if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+            break
     # Nested refs are authority too: a symlinked or hardlinked branch/tag ref
     # can redirect an otherwise local checkout to externally mutable metadata.
     refs = gitdir / "refs"

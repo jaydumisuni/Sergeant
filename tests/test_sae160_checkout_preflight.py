@@ -469,6 +469,30 @@ def test_external_split_index_alias_is_rejected_before_checkout_git(tmp_path, mo
     assert result.authority_gain == "NONE"
 
 
+def test_peer_writable_shared_index_is_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A split-index backing file writable by peers is mutable Git index authority."""
+    path, head = checkout(tmp_path)
+    shared_index = path / ".git" / ("sharedindex." + "a" * 40)
+    shared_index.write_bytes(b"mutable split index")
+    shared_index.chmod(0o666)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("mutable split index reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
 def test_symlinked_checkout_root_is_rejected_before_checkout_git(tmp_path, monkeypatch):
     """An aliased root is not an independently identified standalone clone."""
     path, head = checkout(tmp_path)
