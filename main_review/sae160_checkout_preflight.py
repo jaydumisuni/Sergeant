@@ -78,6 +78,35 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if metadata.st_uid != 0 or not metadata.st_mode & stat.S_ISVTX:
                     blockers.append("mutable_checkout_ancestry")
                     break
+    # Mode 0755 is not sufficient custody for Git metadata: a foreign
+    # owner can replace a private ref, object, index or config regardless
+    # of its group/world mode. Inspect all .git descendants without
+    # following directory symlinks before starting even git config.
+    if os.name == "posix":
+        def _metadata_walk_error(_error: OSError) -> None:
+            blockers.append("mutable_git_authority_permissions")
+
+        for directory, child_dirs, child_files in os.walk(
+            gitdir, followlinks=False, onerror=_metadata_walk_error
+        ):
+            for entry in (Path(directory), *(
+                Path(directory) / name for name in (*child_dirs, *child_files)
+            )):
+                try:
+                    metadata = entry.lstat()
+                except OSError:
+                    blockers.append("mutable_git_authority_permissions")
+                    break
+                if metadata.st_uid not in trusted_owners:
+                    blockers.append("mutable_git_authority_permissions")
+                    break
+            if blockers:
+                break
+        # A failed ownership/ancestry check must not reach git config:
+        # that probe is itself a Git subprocess.
+        if blockers:
+            return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
+
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
