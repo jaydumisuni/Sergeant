@@ -77,6 +77,35 @@ def test_external_object_store_symlink_is_not_standalone(tmp_path):
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("dangling", (False, True))
+def test_symlinked_object_info_root_rejected_before_checkout_git(
+    tmp_path, monkeypatch, dangling
+):
+    """Even empty or dangling borrowed object-info directories are not local authority."""
+    path, head = checkout(tmp_path)
+    info = path / ".git" / "objects" / "info"
+    outside = tmp_path / "outside-object-info"
+    info.rename(outside)
+    target = tmp_path / "missing-object-info" if dangling else outside
+    info.symlink_to(target, target_is_directory=True)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(tuple(argv))
+            raise AssertionError("borrowed object-info reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_object_store" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
+
+
 def test_dangling_alternates_symlink_is_rejected(tmp_path):
     path, head = checkout(tmp_path)
     alternates = path / ".git" / "objects" / "info" / "alternates"
