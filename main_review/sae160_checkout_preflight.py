@@ -48,6 +48,26 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         or gitdir.is_symlink()
     ):
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
+    # A private .git directory is not sufficient if another principal owns
+    # or can rewrite the checkout root or one of its ancestor directories.
+    # A trusted root-owned sticky directory (such as /tmp) is the exception:
+    # the sticky bit prevents peers from replacing someone else's entry.
+    # This is POSIX-specific custody evidence, not Windows qualification.
+    if os.name == "posix":
+        trusted_owners = {0, os.geteuid()}
+        for directory in (root, *root.parents):
+            try:
+                metadata = directory.lstat()
+            except OSError:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid not in trusted_owners:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                if metadata.st_uid != 0 or not metadata.st_mode & stat.S_ISVTX:
+                    blockers.append("mutable_checkout_ancestry")
+                    break
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
