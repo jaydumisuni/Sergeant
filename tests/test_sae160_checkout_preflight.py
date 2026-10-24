@@ -822,3 +822,45 @@ def test_foreign_owned_checkout_parent_rejected_even_when_not_peer_writable(tmp_
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX Git metadata custody")
+@pytest.mark.parametrize(
+    "relative",
+    (".git/HEAD", ".git/objects/info", ".git/objects/pack"),
+)
+def test_foreign_owned_git_metadata_never_reaches_git_config(
+    tmp_path, monkeypatch, relative
+):
+    """A foreign owner can rewrite a mode-0755 Git object or ref directory."""
+    import os
+
+    path, head = checkout(tmp_path)
+    target = path / relative
+    assert target.exists()
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    git_calls = []
+
+    def foreign_metadata_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self == target:
+            fields = list(metadata)
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+            return os.stat_result(fields)
+        return metadata
+
+    def forbid_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(list(argv))
+            raise AssertionError("foreign-owned Git metadata reached git subprocess")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", foreign_metadata_lstat)
+    monkeypatch.setattr(subprocess, "run", forbid_git_process)
+    result = inspect_checkout(path, head)
+
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
