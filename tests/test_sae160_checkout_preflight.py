@@ -956,7 +956,8 @@ def test_hardlinked_hook_rejected_before_checkout_git(tmp_path, monkeypatch):
     """A hardlinked hook can be rewritten through another pathname."""
     path, head = checkout(tmp_path)
     external = tmp_path / "external-hook"
-    external.write_text("#!/bin/sh\\nexit 0\\n")
+    external.write_text("#!/bin/sh\nexit 0\n")
+    external.chmod(0o755)
     (path / ".git" / "hooks" / "pre-commit").hardlink_to(external)
     original_run = subprocess.run
     git_calls = []
