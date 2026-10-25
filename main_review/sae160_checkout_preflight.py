@@ -307,7 +307,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             )
         except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
             return None
-        return result.stdout.strip()
+        return result.stdout if "-z" in args else result.stdout.strip()
 
     toplevel = git("rev-parse", "--show-toplevel")
     if toplevel is None or Path(toplevel).resolve() != root.resolve():
@@ -328,28 +328,52 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # A populated Git submodule can leave the parent's status perfectly clean,
     # while its nested repository borrows independently configured authority.
     # Inspect index modes before status can descend into any submodule Git.
-    index_entries = git("ls-files", "--stage")
+    # NUL-delimited stage output preserves literal newlines, tabs and spaces
+    # in tracked filenames. A clean status does not prove tracked-file inode
+    # custody: hardlinks can alias external mutable data, and peer-writable
+    # files can change independently of the Git index.
+    index_entries = git("ls-files", "--stage", "-z")
     if index_entries is None:
         blockers.append("unverified_index_entries")
     else:
-        modes = tuple(line.split(" ", 1)[0] for line in index_entries.splitlines())
-        if "160000" in modes:
-            blockers.append("external_submodule_dependency")
-        # A committed symlink is clean in Git status even when it resolves to
-        # an arbitrary mutable file outside the checkout. SAE-160's standalone
-        # evidence preflight cannot authorize such an external read. Reject
-        # all tracked symlinks conservatively; internal links are not qualified
-        # by this repository-only check either.
-        if "120000" in modes:
-            blockers.append("external_worktree_symlink_dependency")
-    # Status remains safe for ordinary identity/history blockers and must still
-    # report a dirty checkout alongside a wrong HEAD. Stop before status when
-    # the index is unverified or contains gitlinks/tracked symlinks, which can
-    # borrow mutable evidence outside the standalone checkout.
+        for entry in index_entries.split("\0"):
+            if not entry:
+                continue
+            header, separator, relative_path = entry.partition("\t")
+            mode = header.split(" ", 1)[0]
+            if not separator or not relative_path:
+                blockers.append("unverified_index_entries")
+                break
+            if mode == "160000":
+                blockers.append("external_submodule_dependency")
+                continue
+            if mode == "120000":
+                blockers.append("external_worktree_symlink_dependency")
+                continue
+            if mode not in {"100644", "100755"}:
+                blockers.append("unverified_index_entries")
+                continue
+            try:
+                metadata = (root / relative_path).lstat()
+            except OSError:
+                blockers.append("unverified_worktree_file_custody")
+                continue
+            if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                blockers.append("external_worktree_file_dependency")
+            if os.name == "posix" and (
+                metadata.st_uid not in trusted_owners
+                or metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_worktree_file_permissions")
+    # Never run status against unverified index modes or tracked file aliases.
+    # A normal dirty checkout still reaches status for independent reporting.
     if any(name in blockers for name in (
         "unverified_index_entries",
         "external_submodule_dependency",
         "external_worktree_symlink_dependency",
+        "unverified_worktree_file_custody",
+        "external_worktree_file_dependency",
+        "mutable_worktree_file_permissions",
     )):
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
     # Porcelain status without --ignored hides untracked files concealed by
