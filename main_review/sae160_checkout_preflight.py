@@ -210,6 +210,27 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Git submodule control stores live under .git/modules, not .git/refs.
+    # A borrowed module config, HEAD, object, or directory can redirect
+    # submodule Git operations while the parent checkout appears clean.
+    # Inspect existing module metadata without following aliases, before
+    # any checkout Git invocation; this does not qualify submodule contents.
+    modules = gitdir / "modules"
+    if modules.is_symlink() or (modules.exists() and not modules.is_dir()):
+        blockers.append("external_git_metadata")
+    elif modules.is_dir():
+        for entry in chain((modules,), modules.rglob("*")):
+            if external_git_entry(entry):
+                blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
+                break
+            if (entry.is_file() or entry.is_dir()) and (
+                entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;

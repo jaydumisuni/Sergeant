@@ -1067,3 +1067,75 @@ def test_peer_writable_nested_reflog_directory_rejected_before_checkout_git(tmp_
     assert result.observed_head is None
     assert checkout_calls == []
     assert result.authority_gain == "NONE"
+
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX metadata custody")
+@pytest.mark.parametrize(
+    "mutation,expected_blocker",
+    (
+        ("modules_symlink", "external_git_metadata"),
+        ("modules_peer_writable", "mutable_git_authority_permissions"),
+        ("nested_config_symlink", "external_git_metadata"),
+        ("nested_config_hardlink", "external_git_metadata"),
+        ("nested_fifo", "external_git_metadata"),
+    ),
+)
+def test_git_submodule_metadata_custody_rejected_before_checkout_git(
+    tmp_path, monkeypatch, mutation, expected_blocker
+):
+    """Git submodule metadata cannot borrow externally mutable authority."""
+    import os
+
+    path, head = checkout(tmp_path)
+    modules = path / ".git" / "modules"
+    outside = tmp_path / "external-submodule-metadata"
+    outside.mkdir()
+    if mutation == "modules_symlink":
+        modules.symlink_to(outside, target_is_directory=True)
+    else:
+        modules.mkdir()
+        if mutation == "modules_peer_writable":
+            modules.chmod(0o777)
+        else:
+            nested = modules / "vendor"
+            nested.mkdir()
+            entry = nested / ("HEAD" if mutation == "nested_fifo" else "config")
+            if mutation == "nested_fifo":
+                os.mkfifo(entry)
+            else:
+                source = outside / "config"
+                source.write_text("[core]\n\trepositoryformatversion = 0\n")
+                if mutation == "nested_config_symlink":
+                    entry.symlink_to(source)
+                else:
+                    entry.hardlink_to(source)
+
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(list(argv))
+            raise AssertionError("submodule metadata reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert expected_blocker in result.blockers
+    assert result.observed_head is None
+    assert checkout_calls == []
+    assert result.authority_gain == "NONE"
+
+
+
+def test_private_submodule_metadata_does_not_reject_parent_checkout(tmp_path):
+    """Owned, non-aliased module metadata is not itself an external dependency."""
+    path, head = checkout(tmp_path)
+    module = path / ".git" / "modules" / "vendor"
+    module.mkdir(parents=True)
+    (module / "config").write_text("[core]\n\trepositoryformatversion = 0\n")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
