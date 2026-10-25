@@ -7,6 +7,7 @@ checkout was freshly cloned or that installation and external proof passed.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path
 import os
 import stat
@@ -183,6 +184,27 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 break
             # A peer-writable exclude/attributes file (or its parent) can
             # alter status semantics even without an external filesystem alias.
+            if (entry.is_file() or entry.is_dir()) and (
+                entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
+    # Reflogs are revision-selection history (HEAD@{n}, branch@{n}), not
+    # ordinary checkout content. A symlink, hardlink, foreign owner, or
+    # peer-writable directory/file can substitute history after preflight.
+    # Standalone clones may legitimately omit logs; only existing metadata
+    # must satisfy the same custody boundary as refs and object metadata.
+    logs = gitdir / "logs"
+    if logs.is_symlink() or (logs.exists() and not logs.is_dir()):
+        blockers.append("external_git_metadata")
+    elif logs.is_dir():
+        for entry in chain((logs,), logs.rglob("*")):
+            if external_git_entry(entry):
+                blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
+                break
             if (entry.is_file() or entry.is_dir()) and (
                 entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
             ):

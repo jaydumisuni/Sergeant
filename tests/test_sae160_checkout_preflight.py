@@ -1006,3 +1006,64 @@ def test_special_git_metadata_rejected_before_checkout_git(tmp_path, monkeypatch
     assert result.observed_head is None
     assert checkout_calls == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("alias", ("symlink", "hardlink", "peer_writable"))
+def test_reflog_metadata_custody_rejected_before_checkout_git(tmp_path, monkeypatch, alias):
+    """Git revision selectors can consume reflogs; external mutable logs are not standalone."""
+    path, head = checkout(tmp_path)
+    log = path / ".git" / "logs" / "HEAD"
+    outside = tmp_path / "external-reflog"
+    outside.write_bytes(log.read_bytes())
+    if alias == "symlink":
+        log.unlink()
+        log.symlink_to(outside)
+    elif alias == "hardlink":
+        log.unlink()
+        log.hardlink_to(outside)
+    else:
+        log.chmod(0o666)
+
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(list(argv))
+            raise AssertionError("mutable reflog reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    blocker = (
+        "mutable_git_authority_permissions"
+        if alias == "peer_writable"
+        else "external_git_metadata"
+    )
+    assert blocker in result.blockers
+    assert result.observed_head is None
+    assert checkout_calls == []
+    assert result.authority_gain == "NONE"
+
+
+def test_peer_writable_nested_reflog_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A peer-writable reflog parent permits a replacement even when logs are private."""
+    path, head = checkout(tmp_path)
+    logs = path / ".git" / "logs" / "refs" / "heads"
+    assert logs.is_dir()
+    logs.chmod(0o777)
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(list(argv))
+            raise AssertionError("mutable reflog directory reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_calls == []
+    assert result.authority_gain == "NONE"
