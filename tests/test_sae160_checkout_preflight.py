@@ -1139,3 +1139,74 @@ def test_private_submodule_metadata_does_not_reject_parent_checkout(tmp_path):
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX hook custody")
+@pytest.mark.parametrize(
+    "mutation,expected_blocker",
+    (
+        ("hooks_symlink", "external_git_metadata"),
+        ("hooks_peer_writable", "mutable_git_authority_permissions"),
+        ("hook_symlink", "external_git_metadata"),
+        ("hook_hardlink", "external_git_metadata"),
+        ("hook_fifo", "external_git_metadata"),
+        ("hook_peer_writable", "mutable_git_authority_permissions"),
+    ),
+)
+def test_git_hooks_metadata_custody_rejected_before_checkout_git(
+    tmp_path, monkeypatch, mutation, expected_blocker
+):
+    """Mutable hook authority cannot reach checkout Git before custody checks."""
+    import os
+
+    path, head = checkout(tmp_path)
+    hooks = path / ".git" / "hooks"
+    outside = tmp_path / "external-hooks"
+    outside.mkdir()
+    if mutation == "hooks_symlink":
+        hooks.rename(outside / "original")
+        hooks.symlink_to(outside / "original", target_is_directory=True)
+    elif mutation == "hooks_peer_writable":
+        hooks.chmod(0o777)
+    else:
+        entry = hooks / "post-checkout"
+        if mutation == "hook_fifo":
+            os.mkfifo(entry, 0o600)
+        elif mutation == "hook_peer_writable":
+            entry.write_text("#!/bin/sh\nexit 0\n")
+            entry.chmod(0o777)
+        else:
+            external = outside / "post-checkout"
+            external.write_text("#!/bin/sh\nexit 0\n")
+            if mutation == "hook_symlink":
+                entry.symlink_to(external)
+            else:
+                entry.hardlink_to(external)
+
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(list(argv))
+            raise AssertionError("mutable hook metadata reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert expected_blocker in result.blockers
+    assert result.observed_head is None
+    assert checkout_calls == []
+    assert result.authority_gain == "NONE"
+
+
+def test_private_git_hook_metadata_preserves_standalone_preflight(tmp_path):
+    """Owned private hooks remain valid without claiming hook execution proof."""
+    path, head = checkout(tmp_path)
+    hook = path / ".git" / "hooks" / "post-checkout"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o700)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
