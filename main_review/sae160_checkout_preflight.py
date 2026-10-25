@@ -35,11 +35,23 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     authority_env = {
         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
-        "GIT_NAMESPACE", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
+        "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_REPLACE_REF_BASE",
+        "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE",
+        "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
+        # Git tracing can write outside the checkout before a read-only
+        # preflight reaches its later fail-closed decision.
+        "GIT_TRACE", "GIT_TRACE2", "GIT_TRACE2_EVENT", "GIT_TRACE2_PERF",
     }
-    if authority_env.intersection(os.environ):
-        blockers.append("ambient_git_authority_override")
+    # Git also honors GIT_TRACE_SETUP, GIT_TRACE_PACKET, and other trace
+    # variants that can write outside the checkout during the config probe.
+    # Reject the entire trace namespace before starting any Git subprocess.
+    if authority_env.intersection(os.environ) or any(
+        name.startswith("GIT_TRACE") for name in os.environ
+    ):
+        # Do not even probe local config with untrusted ambient Git controls:
+        # git config itself is a Git process and can honor these overrides.
+        return CheckoutPreflight(expected, None, ("ambient_git_authority_override",))
     gitdir = root / ".git"
     if (
         not root.is_dir()
@@ -48,6 +60,55 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         or gitdir.is_symlink()
     ):
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
+    # A private .git directory is not sufficient if another principal owns
+    # or can rewrite the checkout root or one of its ancestor directories.
+    # A trusted root-owned sticky directory (such as /tmp) is the exception:
+    # the sticky bit prevents peers from replacing someone else's entry.
+    # This is POSIX-specific custody evidence, not Windows qualification.
+    if os.name == "posix":
+        trusted_owners = {0, os.geteuid()}
+        for directory in (root, *root.parents):
+            try:
+                metadata = directory.lstat()
+            except OSError:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid not in trusted_owners:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                if metadata.st_uid != 0 or not metadata.st_mode & stat.S_ISVTX:
+                    blockers.append("mutable_checkout_ancestry")
+                    break
+    # Mode 0755 is not sufficient custody for Git metadata: a foreign
+    # owner can replace a private ref, object, index or config regardless
+    # of its group/world mode. Inspect all .git descendants without
+    # following directory symlinks before starting even git config.
+    if os.name == "posix":
+        def _metadata_walk_error(_error: OSError) -> None:
+            blockers.append("mutable_git_authority_permissions")
+
+        for directory, child_dirs, child_files in os.walk(
+            gitdir, followlinks=False, onerror=_metadata_walk_error
+        ):
+            for entry in (Path(directory), *(
+                Path(directory) / name for name in (*child_dirs, *child_files)
+            )):
+                try:
+                    metadata = entry.lstat()
+                except OSError:
+                    blockers.append("mutable_git_authority_permissions")
+                    break
+                if metadata.st_uid not in trusted_owners:
+                    blockers.append("mutable_git_authority_permissions")
+                    break
+            if blockers:
+                break
+        # A failed ownership/ancestry check must not reach git config:
+        # that probe is itself a Git subprocess.
+        if blockers:
+            return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
+
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
@@ -117,11 +178,42 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Git info/grafts can rewrite commit ancestry while HEAD, the index and
+    # status remain unchanged. Even a private regular graft file is external
+    # history authority, so reject it before the first checkout Git process.
+    grafts = gitdir / "info" / "grafts"
+    if grafts.exists() or grafts.is_symlink():
+        blockers.append("git_graft_history_dependency")
+    # Default hooks are executable Git metadata. A symlinked hooks directory,
+    # a hardlinked hook or a peer-writable hook can borrow mutable code from
+    # outside this checkout even when HEAD and status are clean. Check before
+    # starting any checkout Git subprocess; a clean status cannot qualify hooks.
+    hooks_dir = gitdir / "hooks"
+    if hooks_dir.is_symlink() or (hooks_dir.exists() and not hooks_dir.is_dir()):
+        blockers.append("external_git_metadata")
+    elif hooks_dir.is_dir():
+        if os.name == "posix" and hooks_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+        for entry in hooks_dir.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_git_metadata")
+                break
+            if os.name == "posix" and (entry.is_file() or entry.is_dir()) and (
+                entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
+    # Any already-observed unsafe metadata must stop before the local Git
+    # config probe, which is itself a Git subprocess.
+    if blockers:
+        return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
     # reject it before issuing any Git operation that may invoke that program.
     # Checkout-controlled filter commands can also execute during Git status.
+    # External diff drivers/textconv can execute during later review; status alone
+    # does not establish that this checkout has no executable diff authority.
     # core.attributesFile can borrow mutable attribute rules outside the clone.
     # Read only the local file with includes explicitly disabled; an invalid
     # config cannot establish standalone authority either.
@@ -133,7 +225,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$"],
                 capture_output=True, text=True, timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
@@ -209,6 +301,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     isolated_git_env = os.environ.copy()
     isolated_git_env["GIT_CONFIG_NOSYSTEM"] = "1"
     isolated_git_env["GIT_CONFIG_GLOBAL"] = os.devnull
+    # Git replace refs can silently substitute an object while HEAD and status
+    # remain unchanged. Disable replacement during every checkout Git probe.
+    isolated_git_env["GIT_NO_REPLACE_OBJECTS"] = "1"
 
     def git(*args: str) -> str | None:
         try:
@@ -224,12 +319,35 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     toplevel = git("rev-parse", "--show-toplevel")
     if toplevel is None or Path(toplevel).resolve() != root.resolve():
         blockers.append("checkout_root_mismatch")
+    # Loose and packed refs/replace both change Git object interpretation.
+    # Reject them even though the isolated probes disable substitution.
+    replace_refs = git("for-each-ref", "--format=%(refname)", "refs/replace")
+    if replace_refs is None:
+        return CheckoutPreflight(expected, None, ("unverified_replace_refs",))
+    if replace_refs:
+        return CheckoutPreflight(expected, None, ("git_replace_object_dependency",))
     head = git("rev-parse", "--verify", "HEAD")
     if head != expected:
         blockers.append("head_mismatch")
     shallow = git("rev-parse", "--is-shallow-repository")
     if shallow != "false":
         blockers.append("shallow_or_unverified_history")
+    # A populated Git submodule can leave the parent's status perfectly clean,
+    # while its nested repository borrows independently configured authority.
+    # Inspect index modes before status can descend into any submodule Git.
+    index_entries = git("ls-files", "--stage")
+    if index_entries is None:
+        blockers.append("unverified_index_entries")
+    elif any(
+        line.startswith("160000 ") for line in index_entries.splitlines()
+    ):
+        blockers.append("external_submodule_dependency")
+    # Status remains safe for ordinary identity/history blockers and must still
+    # report a dirty checkout alongside a wrong HEAD. Only an unverified index
+    # or gitlink can invoke nested/untrusted Git during status, so stop early
+    # for those two blockers without losing independent dirty-state evidence.
+    if "unverified_index_entries" in blockers or "external_submodule_dependency" in blockers:
+        return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
     status = git("status", "--porcelain", "--untracked-files=all")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
