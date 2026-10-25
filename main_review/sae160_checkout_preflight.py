@@ -176,6 +176,25 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Default hooks are executable Git metadata. A symlinked hooks directory,
+    # a hardlinked hook or a peer-writable hook can borrow mutable code from
+    # outside this checkout even when HEAD and status are clean. Check before
+    # starting any checkout Git subprocess; a clean status cannot qualify hooks.
+    hooks_dir = gitdir / "hooks"
+    if hooks_dir.is_symlink() or (hooks_dir.exists() and not hooks_dir.is_dir()):
+        blockers.append("external_git_metadata")
+    elif hooks_dir.is_dir():
+        if os.name == "posix" and hooks_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+        for entry in hooks_dir.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_git_metadata")
+                break
+            if os.name == "posix" and (entry.is_file() or entry.is_dir()) and (
+                entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
