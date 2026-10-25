@@ -149,8 +149,8 @@ def test_tracked_regular_file_inode_custody_precedes_status(
 def test_nul_delimited_index_preserves_tracked_whitespace_filename(tmp_path):
     """Tracked filenames with embedded newlines and trailing spaces stay intact."""
     path, _ = checkout(tmp_path)
-    unusual = path / "odd\\nname "
-    unusual.write_text("ordinary tracked content\\n")
+    unusual = path / "odd\nname "
+    unusual.write_text("ordinary tracked content\n")
     git(path, "add", unusual.name)
     git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
         "commit", "-qm", "fixture: unusual tracked filename")
