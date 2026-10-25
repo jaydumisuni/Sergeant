@@ -902,3 +902,25 @@ def test_populated_gitlink_submodule_cannot_pass_standalone_preflight(tmp_path, 
     assert "external_submodule_dependency" in result.blockers
     assert result.authority_gain == "NONE"
     assert checkout_status_calls == []
+
+
+def test_unverified_index_inventory_fails_closed_before_status(tmp_path, monkeypatch):
+    """An unreadable index cannot be treated as proof of no Git submodules."""
+    path, head = checkout(tmp_path)
+    actual_run = subprocess.run
+    status_calls = []
+
+    def fail_index_read(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            if list(argv[3:]) == ["ls-files", "--stage"]:
+                raise subprocess.CalledProcessError(128, argv)
+            if "status" in argv[3:]:
+                status_calls.append(tuple(argv))
+                raise AssertionError("status ran after index inventory failure")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", fail_index_read)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("unverified_index_entries",)
+    assert result.authority_gain == "NONE"
+    assert status_calls == []
