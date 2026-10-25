@@ -1028,3 +1028,78 @@ def test_peer_writable_hooks_directory_rejected_before_checkout_git(tmp_path, mo
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert git_calls == []
+
+
+def test_graft_file_cannot_rewrite_standalone_checkout_history(tmp_path, monkeypatch):
+    """A clean HEAD and status do not prove ancestry when Git grafts are active."""
+    path, _ = checkout(tmp_path)
+    git(path, "config", "user.email", "test@example.invalid")
+    git(path, "config", "user.name", "Test")
+    (path / "tracked.txt").write_text("second commit\n")
+    git(path, "commit", "-qam", "second")
+    head = git(path, "rev-parse", "HEAD")
+    assert len(git(path, "rev-list", "--parents", "-n", "1", "HEAD").split()) == 2
+    (path / ".git" / "info" / "grafts").write_text(head + "\n")
+    assert git(path, "rev-parse", "HEAD") == head
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    assert git(path, "rev-list", "--parents", "-n", "1", "HEAD") == head
+
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("grafted history reached Git subprocess")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert "git_graft_history_dependency" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX graft symlink")
+def test_external_graft_symlink_rejected_before_checkout_git(tmp_path, monkeypatch):
+    path, head = checkout(tmp_path)
+    external = tmp_path / "outside-grafts"
+    external.write_text(head + "\n")
+    (path / ".git" / "info" / "grafts").symlink_to(external)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("external graft authority reached Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert "git_graft_history_dependency" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.parametrize("variable", ("GIT_GRAFT_FILE", "GIT_SHALLOW_FILE"))
+def test_ambient_history_file_override_rejected_without_git(tmp_path, monkeypatch, variable):
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, str(tmp_path / "external-history"))
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("ambient history override reached Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
