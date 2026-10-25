@@ -112,6 +112,55 @@ def test_tracked_symlink_cannot_qualify_standalone_checkout(tmp_path, monkeypatc
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX inode custody")
+@pytest.mark.parametrize("custody, blocker", (
+    ("external_hardlink", "external_worktree_file_dependency"),
+    ("group_writable", "mutable_worktree_file_permissions"),
+))
+def test_tracked_regular_file_inode_custody_precedes_status(
+    tmp_path, monkeypatch, custody, blocker
+):
+    """A tracked file can be clean yet aliased or writable by another principal."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    if custody == "external_hardlink":
+        (tmp_path / "outside-tracked-alias").hardlink_to(tracked)
+        assert tracked.stat().st_nlink == 2
+    else:
+        tracked.chmod(tracked.stat().st_mode | 0o020)
+        assert tracked.stat().st_mode & 0o020
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+
+    actual_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            raise AssertionError("unsafe tracked file reached checkout status")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert result.blockers == (blocker,)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+def test_nul_delimited_index_preserves_tracked_whitespace_filename(tmp_path):
+    """Tracked filenames with embedded newlines and trailing spaces stay intact."""
+    path, _ = checkout(tmp_path)
+    unusual = path / "odd\nname "
+    unusual.write_text("ordinary tracked content\n")
+    git(path, "add", unusual.name)
+    git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+        "commit", "-qm", "fixture: unusual tracked filename")
+    head = git(path, "rev-parse", "HEAD")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_wrong_head_and_dirty_checkout_fail_closed(tmp_path):
     path, head = checkout(tmp_path)
     (path / "tracked.txt").write_text("changed\n")
@@ -990,7 +1039,7 @@ def test_unverified_index_inventory_fails_closed_before_status(tmp_path, monkeyp
 
     def fail_index_read(argv, *args, **kwargs):
         if list(argv[:3]) == ["git", "-C", str(path)]:
-            if list(argv[3:]) == ["ls-files", "--stage"]:
+            if list(argv[3:]) == ["ls-files", "--stage", "-z"]:
                 raise subprocess.CalledProcessError(128, argv)
             if "status" in argv[3:]:
                 status_calls.append(tuple(argv))
