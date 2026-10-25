@@ -195,6 +195,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Any already-observed unsafe metadata must stop before the local Git
+    # config probe, which is itself a Git subprocess.
+    if blockers:
+        return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
