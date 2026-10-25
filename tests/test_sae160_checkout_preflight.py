@@ -864,3 +864,41 @@ def test_foreign_owned_git_metadata_never_reaches_git_config(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert git_calls == []
+
+
+def test_populated_gitlink_submodule_cannot_pass_standalone_preflight(tmp_path, monkeypatch):
+    """A clean parent status cannot qualify independently configured submodule Git."""
+    path, _ = checkout(tmp_path)
+    child = tmp_path / "submodule-origin"
+    child.mkdir()
+    subprocess.check_call(["git", "init", "-q", str(child)])
+    git(child, "config", "user.email", "test@example.invalid")
+    git(child, "config", "user.name", "Test")
+    (child / "child.txt").write_text("child\n")
+    git(child, "add", "child.txt")
+    git(child, "commit", "-qm", "child")
+    git(path, "config", "user.email", "test@example.invalid")
+    git(path, "config", "user.name", "Test")
+    subprocess.check_call([
+        "git", "-C", str(path), "-c", "protocol.file.allow=always",
+        "submodule", "add", "-q", str(child), "vendor/child",
+    ])
+    git(path, "commit", "-qm", "add submodule")
+    head = git(path, "rev-parse", "HEAD")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    assert "160000 " in git(path, "ls-files", "--stage")
+
+    actual_run = subprocess.run
+    checkout_status_calls = []
+
+    def forbid_checkout_status(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv[3:]:
+            checkout_status_calls.append(tuple(argv))
+            raise AssertionError("submodule-aware status ran before gitlink rejection")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_status)
+    result = inspect_checkout(path, head)
+    assert "external_submodule_dependency" in result.blockers
+    assert result.authority_gain == "NONE"
+    assert checkout_status_calls == []
