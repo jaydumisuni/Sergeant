@@ -36,6 +36,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
         "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_REPLACE_REF_BASE",
+        "GIT_GRAFT_FILE", "GIT_SHALLOW_FILE",
         "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
         # Git tracing can write outside the checkout before a read-only
@@ -177,6 +178,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Git info/grafts can rewrite commit ancestry while HEAD, the index and
+    # status remain unchanged. Even a private regular graft file is external
+    # history authority, so reject it before the first checkout Git process.
+    grafts = gitdir / "info" / "grafts"
+    if grafts.exists() or grafts.is_symlink():
+        blockers.append("git_graft_history_dependency")
     # Default hooks are executable Git metadata. A symlinked hooks directory,
     # a hardlinked hook or a peer-writable hook can borrow mutable code from
     # outside this checkout even when HEAD and status are clean. Check before
