@@ -35,7 +35,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     authority_env = {
         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
-        "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
+        "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_REPLACE_REF_BASE",
+        "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
         # Git tracing can write outside the checkout before a read-only
         # preflight reaches its later fail-closed decision.
@@ -293,6 +294,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     isolated_git_env = os.environ.copy()
     isolated_git_env["GIT_CONFIG_NOSYSTEM"] = "1"
     isolated_git_env["GIT_CONFIG_GLOBAL"] = os.devnull
+    # Git replace refs can silently substitute an object while HEAD and status
+    # remain unchanged. Disable replacement during every checkout Git probe.
+    isolated_git_env["GIT_NO_REPLACE_OBJECTS"] = "1"
 
     def git(*args: str) -> str | None:
         try:
@@ -308,6 +312,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     toplevel = git("rev-parse", "--show-toplevel")
     if toplevel is None or Path(toplevel).resolve() != root.resolve():
         blockers.append("checkout_root_mismatch")
+    # Loose and packed refs/replace both change Git object interpretation.
+    # Reject them even though the isolated probes disable substitution.
+    replace_refs = git("for-each-ref", "--format=%(refname)", "refs/replace")
+    if replace_refs is None:
+        return CheckoutPreflight(expected, None, ("unverified_replace_refs",))
+    if replace_refs:
+        return CheckoutPreflight(expected, None, ("git_replace_object_dependency",))
     head = git("rev-parse", "--verify", "HEAD")
     if head != expected:
         blockers.append("head_mismatch")
