@@ -35,6 +35,29 @@ def test_standalone_clean_exact_checkout_is_only_preflight(tmp_path):
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("packed", (False, True))
+def test_git_replace_refs_never_qualify_exact_head(tmp_path, packed):
+    """Replacement refs can alter object semantics with identical HEAD/status."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "user.email", "test@example.invalid")
+    git(path, "config", "user.name", "Test")
+    git(path, "commit", "--allow-empty", "-qm", "replacement")
+    substitute = git(path, "rev-parse", "HEAD")
+    git(path, "reset", "--hard", "-q", head)
+    git(path, "replace", head, substitute)
+    if packed:
+        git(path, "pack-refs", "--all", "--prune")
+        assert "refs/replace/" in (path / ".git" / "packed-refs").read_text()
+    assert git(path, "rev-parse", "HEAD") == head
+    assert git(path, "show", "-s", "--format=%s", "HEAD") == "replacement"
+    assert git(path, "status", "--porcelain") == ""
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("git_replace_object_dependency",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 def test_wrong_head_and_dirty_checkout_fail_closed(tmp_path):
     path, head = checkout(tmp_path)
     (path / "tracked.txt").write_text("changed\n")
@@ -145,6 +168,7 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
     ("GIT_CONFIG_COUNT", "0"),
     ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=/nonexistent/monitor'"),
     ("GIT_EXTERNAL_DIFF", "/nonexistent/diff"),
+    ("GIT_REPLACE_REF_BASE", "refs/replace/external"),
     ("GIT_TRACE2_EVENT", "/nonexistent/trace-events"),
     ("GIT_TRACE_SETUP", "/nonexistent/setup-trace"),
     ("GIT_TRACE_PACKET", "/nonexistent/packet-trace"),
