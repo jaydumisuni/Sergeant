@@ -301,7 +301,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         line.startswith("160000 ") for line in index_entries.splitlines()
     ):
         blockers.append("external_submodule_dependency")
-    if blockers:
+    # Status remains safe for ordinary identity/history blockers and must still
+    # report a dirty checkout alongside a wrong HEAD. Only an unverified index
+    # or gitlink can invoke nested/untrusted Git during status, so stop early
+    # for those two blockers without losing independent dirty-state evidence.
+    if "unverified_index_entries" in blockers or "external_submodule_dependency" in blockers:
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
     status = git("status", "--porcelain", "--untracked-files=all")
     if status is None or status:
