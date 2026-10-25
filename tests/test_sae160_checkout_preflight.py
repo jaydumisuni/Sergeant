@@ -78,6 +78,40 @@ def test_ignored_untracked_artifact_cannot_qualify_clean_clone(tmp_path, ignore_
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX symlink fixture")
+@pytest.mark.parametrize("target", (
+    "../outside-proof.txt",
+    "/etc/passwd",
+    "tracked.txt",
+))
+def test_tracked_symlink_cannot_qualify_standalone_checkout(tmp_path, monkeypatch, target):
+    """A clean Git index can still contain a mutable external symlink target."""
+    path, _ = checkout(tmp_path)
+    (path / "proof-alias").symlink_to(target)
+    git(path, "add", "proof-alias")
+    git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+        "commit", "-qm", "fixture: tracked evidence symlink")
+    head = git(path, "rev-parse", "HEAD")
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+    assert any(line.startswith("120000 ") for line in git(
+        path, "ls-files", "--stage"
+    ).splitlines())
+
+    actual_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            raise AssertionError("tracked symlink reached checkout status")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_worktree_symlink_dependency",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_wrong_head_and_dirty_checkout_fail_closed(tmp_path):
     path, head = checkout(tmp_path)
     (path / "tracked.txt").write_text("changed\n")

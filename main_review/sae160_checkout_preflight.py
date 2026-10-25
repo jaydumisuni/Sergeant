@@ -331,15 +331,26 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     index_entries = git("ls-files", "--stage")
     if index_entries is None:
         blockers.append("unverified_index_entries")
-    elif any(
-        line.startswith("160000 ") for line in index_entries.splitlines()
-    ):
-        blockers.append("external_submodule_dependency")
+    else:
+        modes = tuple(line.split(" ", 1)[0] for line in index_entries.splitlines())
+        if "160000" in modes:
+            blockers.append("external_submodule_dependency")
+        # A committed symlink is clean in Git status even when it resolves to
+        # an arbitrary mutable file outside the checkout. SAE-160's standalone
+        # evidence preflight cannot authorize such an external read. Reject
+        # all tracked symlinks conservatively; internal links are not qualified
+        # by this repository-only check either.
+        if "120000" in modes:
+            blockers.append("external_worktree_symlink_dependency")
     # Status remains safe for ordinary identity/history blockers and must still
-    # report a dirty checkout alongside a wrong HEAD. Only an unverified index
-    # or gitlink can invoke nested/untrusted Git during status, so stop early
-    # for those two blockers without losing independent dirty-state evidence.
-    if "unverified_index_entries" in blockers or "external_submodule_dependency" in blockers:
+    # report a dirty checkout alongside a wrong HEAD. Stop before status when
+    # the index is unverified or contains gitlinks/tracked symlinks, which can
+    # borrow mutable evidence outside the standalone checkout.
+    if any(name in blockers for name in (
+        "unverified_index_entries",
+        "external_submodule_dependency",
+        "external_worktree_symlink_dependency",
+    )):
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
     # Porcelain status without --ignored hides untracked files concealed by
     # tracked .gitignore or private .git/info/exclude rules. Such files are
