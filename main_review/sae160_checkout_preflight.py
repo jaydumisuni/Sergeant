@@ -291,6 +291,18 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     shallow = git("rev-parse", "--is-shallow-repository")
     if shallow != "false":
         blockers.append("shallow_or_unverified_history")
+    # A populated Git submodule can leave the parent's status perfectly clean,
+    # while its nested repository borrows independently configured authority.
+    # Inspect index modes before status can descend into any submodule Git.
+    index_entries = git("ls-files", "--stage")
+    if index_entries is None:
+        blockers.append("unverified_index_entries")
+    elif any(
+        line.startswith("160000 ") for line in index_entries.splitlines()
+    ):
+        blockers.append("external_submodule_dependency")
+    if blockers:
+        return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
     status = git("status", "--porcelain", "--untracked-files=all")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
