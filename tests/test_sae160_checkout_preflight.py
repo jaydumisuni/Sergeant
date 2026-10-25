@@ -946,3 +946,24 @@ def test_ambient_external_diff_override_is_not_standalone(tmp_path, monkeypatch)
     assert result.blockers == ("ambient_git_authority_override",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_dangling_commondir_alias_is_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A dangling common-dir alias is mutable external Git authority, not absence."""
+    path, head = checkout(tmp_path)
+    (path / ".git" / "commondir").symlink_to(tmp_path / "not-yet-present")
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def guard_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(list(argv))
+            raise AssertionError("checkout Git reached dangling common-dir authority")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guard_run)
+    result = inspect_checkout(path, head)
+    assert "shared_git_directory" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []

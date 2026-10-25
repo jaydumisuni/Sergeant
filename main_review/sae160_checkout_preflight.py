@@ -271,7 +271,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     alternates = objects / "info" / "alternates"
     if alternates.exists() or alternates.is_symlink():
         blockers.append("external_object_alternates")
-    if (gitdir / "commondir").exists():
+    # A dangling commondir symlink is still an external authority alias:
+    # exists() follows the link and incorrectly treats it as absent.
+    commondir = gitdir / "commondir"
+    if commondir.exists() or commondir.is_symlink():
         blockers.append("shared_git_directory")
 
     # Never invoke checkout Git while its configuration or metadata can
