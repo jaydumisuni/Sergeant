@@ -7,6 +7,7 @@ checkout was freshly cloned or that installation and external proof passed.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from itertools import chain
 from pathlib import Path
 import os
 import stat
@@ -35,7 +36,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     authority_env = {
         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
-        "GIT_NAMESPACE", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
+        "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
     }
     if authority_env.intersection(os.environ):
@@ -48,6 +49,52 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         or gitdir.is_symlink()
     ):
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
+    # A private .git directory is not sufficient if another principal owns
+    # or can rewrite the checkout root or one of its ancestor directories.
+    # A trusted root-owned sticky directory (such as /tmp) is the exception:
+    # the sticky bit prevents peers from replacing someone else's entry.
+    # This is POSIX-specific custody evidence, not Windows qualification.
+    if os.name == "posix":
+        trusted_owners = {0, os.geteuid()}
+        for directory in (root, *root.parents):
+            try:
+                metadata = directory.lstat()
+            except OSError:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if not stat.S_ISDIR(metadata.st_mode) or metadata.st_uid not in trusted_owners:
+                blockers.append("mutable_checkout_ancestry")
+                break
+            if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                if metadata.st_uid != 0 or not metadata.st_mode & stat.S_ISVTX:
+                    blockers.append("mutable_checkout_ancestry")
+                    break
+        # Git control itself is a replacement authority: a foreign owner of
+        # .git may rewrite its descendants even when its mode is 0755.
+        try:
+            git_control = gitdir.lstat()
+        except OSError:
+            blockers.append("mutable_git_authority_ownership")
+        else:
+            if not stat.S_ISDIR(git_control.st_mode) or git_control.st_uid not in trusted_owners:
+                blockers.append("mutable_git_authority_ownership")
+    def foreign_git_owner(entry: Path) -> bool:
+        """POSIX Git metadata is mutable by its owner even at mode 0644/0755."""
+        if os.name != "posix":
+            return False
+        try:
+            return entry.lstat().st_uid not in {0, os.geteuid()}
+        except OSError:
+            return True  # Disappearing authority cannot establish custody.
+
+    def external_git_entry(entry: Path) -> bool:
+        """Reject Git metadata aliases and special files before checkout Git."""
+        return (
+            entry.is_symlink()
+            or (entry.exists() and not entry.is_file() and not entry.is_dir())
+            or (entry.is_file() and entry.stat().st_nlink > 1)
+        )
+
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
@@ -55,18 +102,34 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                      "refs", "refs/heads", "refs/tags", "info"):
         authority_dir = gitdir / relative
         try:
-            mode = authority_dir.lstat().st_mode
+            metadata = authority_dir.lstat()
         except OSError:
             continue  # Missing/invalid stores are rejected by later checks.
+        mode = metadata.st_mode
+        if stat.S_ISDIR(mode) and foreign_git_owner(authority_dir):
+            blockers.append("mutable_git_authority_ownership")
+            break
         if stat.S_ISDIR(mode) and mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
             break
     # Git control metadata can silently borrow authority from another checkout
     # even when the object store itself is local and the observed HEAD matches.
-    for name in ("config", "config.worktree", "HEAD", "index", "packed-refs", "refs", "shallow"):
+    # Pseudo-refs can influence Git status, merge/rebase state, and subsequent
+    # review even when HEAD and the object store are otherwise private.
+    # Check their filesystem custody before invoking any checkout Git command.
+    control_files = (
+        "config", "config.worktree", "HEAD", "index", "packed-refs",
+        "refs", "shallow", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD",
+        "REBASE_HEAD", "FETCH_HEAD", "ORIG_HEAD", "AUTO_MERGE",
+        "BISECT_EXPECTED_REV",
+    )
+    for name in control_files:
         entry = gitdir / name
-        if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+        if external_git_entry(entry):
             blockers.append("external_git_metadata")
+            break
+        if entry.is_file() and foreign_git_owner(entry):
+            blockers.append("mutable_git_authority_ownership")
             break
         # Control files can be modified by other local principals even when
         # they have no external alias. Reject before checkout Git reads them.
@@ -76,8 +139,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Git split-index sharedindex.* files are index authority, not ordinary
     # checkout data. Reject symlink and hardlink aliases before checkout Git.
     for entry in gitdir.glob("sharedindex.*"):
-        if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+        if external_git_entry(entry):
             blockers.append("external_git_metadata")
+            break
+        if entry.is_file() and foreign_git_owner(entry):
+            blockers.append("mutable_git_authority_ownership")
             break
         # A peer-writable split-index backing file can change checkout status
         # without any symlink or hardlink alias. Reject it before checkout Git.
@@ -89,8 +155,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     refs = gitdir / "refs"
     if refs.is_dir() and not refs.is_symlink():
         for entry in refs.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             # Git can resolve a nested ref through directories writable by
             # another principal even when the ref file itself is private.
@@ -107,8 +176,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         blockers.append("external_git_metadata")
     elif info_dir.is_dir():
         for entry in info_dir.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             # A peer-writable exclude/attributes file (or its parent) can
             # alter status semantics even without an external filesystem alias.
@@ -117,11 +189,57 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Reflogs are revision-selection history (HEAD@{n}, branch@{n}), not
+    # ordinary checkout content. A symlink, hardlink, foreign owner, or
+    # peer-writable directory/file can substitute history after preflight.
+    # Standalone clones may legitimately omit logs; only existing metadata
+    # must satisfy the same custody boundary as refs and object metadata.
+    logs = gitdir / "logs"
+    if logs.is_symlink() or (logs.exists() and not logs.is_dir()):
+        blockers.append("external_git_metadata")
+    elif logs.is_dir():
+        for entry in chain((logs,), logs.rglob("*")):
+            if external_git_entry(entry):
+                blockers.append("external_git_metadata")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
+                break
+            if (entry.is_file() or entry.is_dir()) and (
+                entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
+    # Submodule control stores and executable hook paths are both Git
+    # authority. A borrowed .git/modules entry can redirect submodule Git;
+    # a borrowed .git/hooks entry can execute during later Git operations.
+    # Reject external aliases, special files, foreign owners, and peer-writable
+    # directories/files before invoking checkout Git. This does not prove hook
+    # execution safety or qualify submodule contents.
+    for metadata_root in ("modules", "hooks"):
+        root_entry = gitdir / metadata_root
+        if root_entry.is_symlink() or (root_entry.exists() and not root_entry.is_dir()):
+            blockers.append("external_git_metadata")
+        elif root_entry.is_dir():
+            for entry in chain((root_entry,), root_entry.rglob("*")):
+                if external_git_entry(entry):
+                    blockers.append("external_git_metadata")
+                    break
+                if foreign_git_owner(entry):
+                    blockers.append("mutable_git_authority_ownership")
+                    break
+                if (entry.is_file() or entry.is_dir()) and (
+                    entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+                ):
+                    blockers.append("mutable_git_authority_permissions")
+                    break
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
     # reject it before issuing any Git operation that may invoke that program.
     # Checkout-controlled filter commands can also execute during Git status.
+    # Executable diff drivers/textconv can run during subsequent review, even
+    # when status is clean; reject their configuration before checkout Git.
     # core.attributesFile can borrow mutable attribute rules outside the clone.
     # Read only the local file with includes explicitly disabled; an invalid
     # config cannot establish standalone authority either.
@@ -133,7 +251,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$"],
                 capture_output=True, text=True, timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
@@ -149,8 +267,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     pack = objects / "pack"
     if pack.is_dir():
         for entry in pack.iterdir():
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_object_store")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 blockers.append("mutable_git_authority_permissions")
@@ -165,12 +286,18 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 blockers.append("external_object_store")
                 break
             if shard.is_dir():
+                if foreign_git_owner(shard):
+                    blockers.append("mutable_git_authority_ownership")
+                    break
                 if shard.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                     blockers.append("mutable_git_authority_permissions")
                     break
                 for entry in shard.iterdir():
-                    if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                    if external_git_entry(entry):
                         blockers.append("external_object_store")
+                        break
+                    if foreign_git_owner(entry):
+                        blockers.append("mutable_git_authority_ownership")
                         break
                     if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                         blockers.append("mutable_git_authority_permissions")
@@ -183,8 +310,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     info = objects / "info"
     if info.is_dir():
         for entry in info.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_object_store")
+                break
+            if foreign_git_owner(entry):
+                blockers.append("mutable_git_authority_ownership")
                 break
             if (entry.is_file() or entry.is_dir()) and (
                 entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
@@ -194,7 +324,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     alternates = objects / "info" / "alternates"
     if alternates.exists() or alternates.is_symlink():
         blockers.append("external_object_alternates")
-    if (gitdir / "commondir").exists():
+    # A dangling commondir symlink is still an external authority alias:
+    # exists() follows the link and incorrectly treats it as absent.
+    commondir = gitdir / "commondir"
+    if commondir.exists() or commondir.is_symlink():
         blockers.append("shared_git_directory")
 
     # Never invoke checkout Git while its configuration or metadata can
@@ -230,7 +363,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     shallow = git("rev-parse", "--is-shallow-repository")
     if shallow != "false":
         blockers.append("shallow_or_unverified_history")
-    status = git("status", "--porcelain", "--untracked-files=all")
+    # Plain porcelain status hides ignored untracked files, including files
+    # concealed by a checkout-owned .gitignore or .git/info/exclude. SAE-160
+    # clean-clone custody must not accept hidden mutable workspace content.
+    status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
     return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
