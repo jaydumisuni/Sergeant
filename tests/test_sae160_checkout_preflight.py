@@ -146,6 +146,48 @@ def test_tracked_regular_file_inode_custody_precedes_status(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX parent custody")
+@pytest.mark.parametrize(("custody", "blocker"), (
+    ("group_writable", "mutable_worktree_directory_permissions"),
+    ("other_writable", "mutable_worktree_directory_permissions"),
+    ("symlinked_parent", "external_worktree_directory_dependency"),
+))
+def test_tracked_file_parent_custody_precedes_git_status(
+    tmp_path, monkeypatch, custody, blocker
+):
+    """A private tracked inode is not standalone when its parent is mutable."""
+    path, _ = checkout(tmp_path)
+    parent = path / "nested"
+    parent.mkdir()
+    (parent / "evidence.txt").write_text("pinned\\n")
+    git(path, "add", "nested/evidence.txt")
+    git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+        "commit", "-qm", "fixture: nested tracked evidence")
+    head = git(path, "rev-parse", "HEAD")
+
+    if custody == "symlinked_parent":
+        outside = tmp_path / "outside-evidence-directory"
+        parent.rename(outside)
+        parent.symlink_to(outside, target_is_directory=True)
+    else:
+        parent.chmod(parent.stat().st_mode | (0o020 if custody == "group_writable" else 0o002))
+        assert git(path, "status", "--porcelain", "--untracked-files=all",
+                   "--ignored=matching") == ""
+
+    actual_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            raise AssertionError("mutable tracked parent reached Git status")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert result.blockers == (blocker,)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_nul_delimited_index_preserves_tracked_whitespace_filename(tmp_path):
     """Tracked filenames with embedded newlines and trailing spaces stay intact."""
     path, _ = checkout(tmp_path)

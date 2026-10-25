@@ -353,6 +353,38 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if mode not in {"100644", "100755"}:
                 blockers.append("unverified_index_entries")
                 continue
+            # The tracked inode can be private while an intermediate directory
+            # is writable by a peer (or replaced with a symlink). Reject such
+            # path custody before running Git status, which may read that path.
+            indexed_path = Path(relative_path)
+            if indexed_path.is_absolute() or any(
+                part in {".", ".."} for part in indexed_path.parts
+            ):
+                blockers.append("unverified_index_entries")
+                continue
+            parent = root
+            parent_failed = False
+            for component in indexed_path.parts[:-1]:
+                parent = parent / component
+                try:
+                    parent_metadata = parent.lstat()
+                except OSError:
+                    blockers.append("unverified_worktree_directory_custody")
+                    parent_failed = True
+                    break
+                if not stat.S_ISDIR(parent_metadata.st_mode):
+                    blockers.append("external_worktree_directory_dependency")
+                    parent_failed = True
+                    break
+                if os.name == "posix" and (
+                    parent_metadata.st_uid not in trusted_owners
+                    or parent_metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+                ):
+                    blockers.append("mutable_worktree_directory_permissions")
+                    parent_failed = True
+                    break
+            if parent_failed:
+                continue
             try:
                 metadata = (root / relative_path).lstat()
             except OSError:
@@ -374,6 +406,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "unverified_worktree_file_custody",
         "external_worktree_file_dependency",
         "mutable_worktree_file_permissions",
+        "unverified_worktree_directory_custody",
+        "external_worktree_directory_dependency",
+        "mutable_worktree_directory_permissions",
     )):
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
     # Porcelain status without --ignored hides untracked files concealed by
