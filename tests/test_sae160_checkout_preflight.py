@@ -924,3 +924,82 @@ def test_unverified_index_inventory_fails_closed_before_status(tmp_path, monkeyp
     assert result.blockers == ("unverified_index_entries",)
     assert result.authority_gain == "NONE"
     assert status_calls == []
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX Git hooks custody")
+def test_symlinked_hooks_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A private .git with externally supplied hooks is not standalone."""
+    path, head = checkout(tmp_path)
+    hooks = path / ".git" / "hooks"
+    external = tmp_path / "external-hooks"
+    hooks.rename(external)
+    hooks.symlink_to(external, target_is_directory=True)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("Git executed before rejecting external hooks")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX Git hooks custody")
+def test_hardlinked_hook_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A hardlinked hook can be rewritten through another pathname."""
+    path, head = checkout(tmp_path)
+    external = tmp_path / "external-hook"
+    external.write_text("#!/bin/sh\\nexit 0\\n")
+    (path / ".git" / "hooks" / "pre-commit").hardlink_to(external)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("Git executed before rejecting hardlinked hook")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX Git hooks custody")
+def test_peer_writable_hooks_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A peer can install a hook without touching private refs or objects."""
+    import stat
+
+    path, head = checkout(tmp_path)
+    hooks = path / ".git" / "hooks"
+    original_mode = stat.S_IMODE(hooks.stat().st_mode)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("Git executed before rejecting mutable hooks")
+        return original_run(argv, *args, **kwargs)
+
+    try:
+        hooks.chmod(original_mode | stat.S_IWGRP)
+        monkeypatch.setattr(subprocess, "run", forbid_git)
+        result = inspect_checkout(path, head)
+    finally:
+        hooks.chmod(original_mode)
+
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
