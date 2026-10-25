@@ -967,3 +967,42 @@ def test_dangling_commondir_alias_is_rejected_before_checkout_git(tmp_path, monk
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX FIFO metadata")
+@pytest.mark.parametrize(
+    "relative,blocker",
+    (
+        ("HEAD", "external_git_metadata"),
+        ("config", "external_git_metadata"),
+        ("refs/heads/master", "external_git_metadata"),
+        ("objects/info/commit-graph", "external_object_store"),
+        ("objects/pack/pack-bogus.pack", "external_object_store"),
+        ("objects/ab/" + "0" * 38, "external_object_store"),
+    ),
+)
+def test_special_git_metadata_rejected_before_checkout_git(tmp_path, monkeypatch, relative, blocker):
+    """Git authority supplied as a FIFO must fail closed without blocking Git."""
+    import os
+
+    path, head = checkout(tmp_path)
+    entry = path / ".git" / relative
+    if entry.exists():
+        entry.unlink()
+    entry.parent.mkdir(parents=True, exist_ok=True)
+    os.mkfifo(entry, 0o600)
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(list(argv))
+            raise AssertionError("special Git metadata reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert blocker in result.blockers
+    assert result.observed_head is None
+    assert checkout_calls == []
+    assert result.authority_gain == "NONE"

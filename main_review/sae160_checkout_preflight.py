@@ -86,6 +86,14 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         except OSError:
             return True  # Disappearing authority cannot establish custody.
 
+    def external_git_entry(entry: Path) -> bool:
+        """Reject Git metadata aliases and special files before checkout Git."""
+        return (
+            entry.is_symlink()
+            or (entry.exists() and not entry.is_file() and not entry.is_dir())
+            or (entry.is_file() and entry.stat().st_nlink > 1)
+        )
+
     # A standalone checkout cannot bind immutable authority to control
     # directories that other local principals can rewrite. Check before
     # invoking checkout Git, which could otherwise read swapped refs/objects.
@@ -116,7 +124,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     )
     for name in control_files:
         entry = gitdir / name
-        if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+        if external_git_entry(entry):
             blockers.append("external_git_metadata")
             break
         if entry.is_file() and foreign_git_owner(entry):
@@ -130,7 +138,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Git split-index sharedindex.* files are index authority, not ordinary
     # checkout data. Reject symlink and hardlink aliases before checkout Git.
     for entry in gitdir.glob("sharedindex.*"):
-        if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+        if external_git_entry(entry):
             blockers.append("external_git_metadata")
             break
         if entry.is_file() and foreign_git_owner(entry):
@@ -146,7 +154,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     refs = gitdir / "refs"
     if refs.is_dir() and not refs.is_symlink():
         for entry in refs.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_git_metadata")
                 break
             if foreign_git_owner(entry):
@@ -167,7 +175,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         blockers.append("external_git_metadata")
     elif info_dir.is_dir():
         for entry in info_dir.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_git_metadata")
                 break
             if foreign_git_owner(entry):
@@ -214,7 +222,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     pack = objects / "pack"
     if pack.is_dir():
         for entry in pack.iterdir():
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_object_store")
                 break
             if foreign_git_owner(entry):
@@ -240,7 +248,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     blockers.append("mutable_git_authority_permissions")
                     break
                 for entry in shard.iterdir():
-                    if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                    if external_git_entry(entry):
                         blockers.append("external_object_store")
                         break
                     if foreign_git_owner(entry):
@@ -257,7 +265,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     info = objects / "info"
     if info.is_dir():
         for entry in info.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if external_git_entry(entry):
                 blockers.append("external_object_store")
                 break
             if foreign_git_owner(entry):
