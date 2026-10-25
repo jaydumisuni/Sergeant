@@ -341,7 +341,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # for those two blockers without losing independent dirty-state evidence.
     if "unverified_index_entries" in blockers or "external_submodule_dependency" in blockers:
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
-    status = git("status", "--porcelain", "--untracked-files=all")
+    # Porcelain status without --ignored hides untracked files concealed by
+    # tracked .gitignore or private .git/info/exclude rules. Such files are
+    # mutable workspace inputs and cannot satisfy clean-clone custody.
+    status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
     return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))

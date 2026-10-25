@@ -58,6 +58,26 @@ def test_git_replace_refs_never_qualify_exact_head(tmp_path, packed):
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("ignore_source", ("local_exclude", "tracked_gitignore"))
+def test_ignored_untracked_artifact_cannot_qualify_clean_clone(tmp_path, ignore_source):
+    """Hidden mutable artifacts must not qualify a standalone clean clone."""
+    path, head = checkout(tmp_path)
+    if ignore_source == "local_exclude":
+        (path / ".git" / "info" / "exclude").write_text("hidden-evidence.txt\n")
+    else:
+        (path / ".gitignore").write_text("hidden-evidence.txt\n")
+        git(path, "add", ".gitignore")
+        git(path, "config", "--local", "user.email", "fixture@example.invalid")
+        git(path, "config", "--local", "user.name", "Fixture")
+        git(path, "commit", "-qm", "fixture: tracked ignore rule")
+        head = git(path, "rev-parse", "HEAD")
+    (path / "hidden-evidence.txt").write_text("unreviewed content\n")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert "dirty_or_unverified_checkout" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
 def test_wrong_head_and_dirty_checkout_fail_closed(tmp_path):
     path, head = checkout(tmp_path)
     (path / "tracked.txt").write_text("changed\n")
