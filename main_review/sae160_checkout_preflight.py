@@ -363,7 +363,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     shallow = git("rev-parse", "--is-shallow-repository")
     if shallow != "false":
         blockers.append("shallow_or_unverified_history")
-    status = git("status", "--porcelain", "--untracked-files=all")
+    # Plain porcelain status hides ignored untracked files, including files
+    # concealed by a checkout-owned .gitignore or .git/info/exclude. SAE-160
+    # clean-clone custody must not accept hidden mutable workspace content.
+    status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
     return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
