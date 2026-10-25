@@ -1039,7 +1039,7 @@ def test_unverified_index_inventory_fails_closed_before_status(tmp_path, monkeyp
 
     def fail_index_read(argv, *args, **kwargs):
         if list(argv[:3]) == ["git", "-C", str(path)]:
-            if list(argv[3:]) == ["ls-files", "--stage"]:
+            if list(argv[3:]) == ["ls-files", "--stage", "-z"]:
                 raise subprocess.CalledProcessError(128, argv)
             if "status" in argv[3:]:
                 status_calls.append(tuple(argv))
