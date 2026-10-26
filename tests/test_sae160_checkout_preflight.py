@@ -380,6 +380,48 @@ def test_optional_git_control_symlink_appearing_after_status_is_rejected(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("mutation", ("replace_config", "introduce_worktree_config"))
+def test_config_probe_custody_is_bound_before_checkout_git(
+    tmp_path, monkeypatch, mutation
+):
+    """A post-probe config substitution must not reach executable Git status."""
+    path, head = checkout(tmp_path)
+    gitdir = path / ".git"
+    assert not (gitdir / "config.worktree").exists()
+    original_run = subprocess.run
+    mutated = []
+    checkout_calls = []
+
+    def replace_after_config_probe(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unverified config reached checkout Git")
+        result = original_run(argv, *args, **kwargs)
+        if (not mutated and list(argv[:3]) == ["git", "config", "--no-includes"]
+                and "--file" in argv):
+            if mutation == "replace_config":
+                config = gitdir / "config"
+                replacement = gitdir / "config.replacement"
+                replacement.write_text(
+                    config.read_text() + "\n[core]\n\tfsmonitor = /bin/false\n"
+                )
+                replacement.replace(config)
+            else:
+                (gitdir / "config.worktree").write_text(
+                    "[core]\n\tfsmonitor = /bin/false\n"
+                )
+            mutated.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", replace_after_config_probe)
+    result = inspect_checkout(path, head)
+    assert mutated == [True]
+    assert result.blockers == ("git_control_metadata_changed",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
 def test_wrong_head_and_dirty_checkout_fail_closed(tmp_path):
     path, head = checkout(tmp_path)
     (path / "tracked.txt").write_text("changed\n")
