@@ -250,9 +250,9 @@ def test_nul_delimited_index_preserves_tracked_whitespace_filename(tmp_path):
 def test_undecodable_tracked_index_entry_fails_closed(tmp_path):
     """Git allows non-UTF8 path bytes; decoding must not crash preflight."""
     path, _ = checkout(tmp_path)
-    raw_path = os.fsencode(path) + b"/non-utf8-\\xff.txt"
+    raw_path = os.fsencode(path) + b"/non-utf8-\xff.txt"
     with open(raw_path, "wb") as stream:
-        stream.write(b"immutable evidence\\n")
+        stream.write(b"immutable evidence\n")
     git(path, "add", "-A")
     git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
         "commit", "-qm", "fixture: non-UTF8 tracked filename")
