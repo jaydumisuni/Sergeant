@@ -1554,3 +1554,45 @@ def test_untracked_empty_directory_cannot_qualify_clean_clone(tmp_path, nested):
     result = inspect_checkout(path, head)
     assert "untracked_worktree_directory" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX late checkout-root custody")
+@pytest.mark.parametrize("mutation", ("peer_writable", "foreign_owner"))
+def test_late_unsafe_checkout_root_snapshot_never_reaches_status(
+    tmp_path, monkeypatch, mutation
+):
+    """An initially private root can become unsafe before its tracked snapshot."""
+    path, head = checkout(tmp_path)
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    root_reads = 0
+    checkout_status_calls = []
+
+    def late_root_lstat(self, *args, **kwargs):
+        nonlocal root_reads
+        metadata = original_lstat(self, *args, **kwargs)
+        if self != path:
+            return metadata
+        root_reads += 1
+        if root_reads == 1:
+            return metadata  # The earlier ancestry admission sees a private root.
+        fields = list(metadata)
+        if mutation == "peer_writable":
+            fields[0] |= 0o020
+        else:
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+        return os.stat_result(fields)
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv[3:]:
+            checkout_status_calls.append(tuple(argv))
+            raise AssertionError("late unsafe checkout root reached Git status")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", late_root_lstat)
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert root_reads >= 2
+    assert "mutable_checkout_ancestry" in result.blockers
+    assert result.authority_gain == "NONE"
+    assert checkout_status_calls == []

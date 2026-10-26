@@ -393,6 +393,27 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             return None
         return result.stdout if "-z" in args else result.stdout.strip()
 
+    # The ancestry walk and later Git probes are not atomic. Re-admit the
+    # checkout root immediately before the first checkout Git subprocess:
+    # a newly peer-writable or foreign-owned root must not become a trusted
+    # snapshot merely because its changed identity stays stable thereafter.
+    def checkout_root_custody_safe(metadata: os.stat_result) -> bool:
+        if not stat.S_ISDIR(metadata.st_mode):
+            return False
+        if os.name != "posix":
+            return True
+        if metadata.st_uid not in trusted_owners:
+            return False
+        if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            return metadata.st_uid == 0 and bool(metadata.st_mode & stat.S_ISVTX)
+        return True
+
+    try:
+        if not checkout_root_custody_safe(root.lstat()):
+            return CheckoutPreflight(expected, None, ("mutable_checkout_ancestry",))
+    except OSError:
+        return CheckoutPreflight(expected, None, ("mutable_checkout_ancestry",))
+
     toplevel = git("rev-parse", "--show-toplevel")
     if toplevel is None or Path(toplevel).resolve() != root.resolve():
         blockers.append("checkout_root_mismatch")
@@ -428,8 +449,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         )
 
     try:
+        root_metadata = root.lstat()
+        if not checkout_root_custody_safe(root_metadata):
+            return CheckoutPreflight(expected, head, ("mutable_checkout_ancestry",))
         tracked_custody: dict[Path, tuple[int, ...]] = {
-            root: custody_identity(root.lstat())
+            root: custody_identity(root_metadata)
         }
     except OSError:
         return CheckoutPreflight(expected, head, ("unverified_worktree_directory_custody",))
