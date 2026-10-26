@@ -234,7 +234,16 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             return "ABSENT"
         except OSError:
             return None
-        if not stat.S_ISREG(metadata.st_mode):
+        # The initial metadata walk is not atomic with this snapshot. A
+        # control file can acquire an external hardlink or peer-write access
+        # after that walk but before the first identity is recorded. Never
+        # accept such a stable-but-unsafe identity as the baseline.
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            return None
+        if os.name == "posix" and (
+            metadata.st_uid not in trusted_owners
+            or metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+        ):
             return None
         return (
             metadata.st_dev, metadata.st_ino, metadata.st_mode,

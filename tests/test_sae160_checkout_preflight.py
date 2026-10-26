@@ -380,6 +380,42 @@ def test_optional_git_control_symlink_appearing_after_status_is_rejected(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX control-file custody")
+@pytest.mark.parametrize("control_name", ("HEAD", "index", "config"))
+@pytest.mark.parametrize("mutation", ("late_hardlink", "late_peer_write"))
+def test_control_snapshot_rejects_newly_unsafe_identity_before_checkout_git(
+    tmp_path, monkeypatch, control_name, mutation
+):
+    """A late unsafe identity must not become the trusted snapshot baseline."""
+    import sys
+
+    path, head = checkout(tmp_path)
+    control = path / ".git" / control_name
+    original_lstat = Path.lstat
+    mutated = False
+
+    def inject_before_snapshot(self, *args, **kwargs):
+        nonlocal mutated
+        if (
+            not mutated
+            and self == path / ".git" / "HEAD"
+            and sys._getframe(1).f_code.co_name == "control_identity"
+        ):
+            if mutation == "late_hardlink":
+                (tmp_path / "external-control-alias").hardlink_to(control)
+            else:
+                control.chmod(control.stat().st_mode | 0o020)
+            mutated = True
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", inject_before_snapshot)
+    result = inspect_checkout(path, head)
+    assert mutated
+    assert result.blockers == ("unverified_git_control_custody",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize("mutation", ("replace_config", "introduce_worktree_config"))
 def test_config_probe_custody_is_bound_before_checkout_git(
     tmp_path, monkeypatch, mutation
