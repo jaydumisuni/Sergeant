@@ -408,10 +408,19 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             return metadata.st_uid == 0 and bool(metadata.st_mode & stat.S_ISVTX)
         return True
 
-    try:
-        if not checkout_root_custody_safe(root.lstat()):
-            return CheckoutPreflight(expected, None, ("mutable_checkout_ancestry",))
-    except OSError:
+    # The initial ancestry walk precedes metadata/config inspection. Recheck
+    # every ancestor, not only the root: a newly peer-writable or foreign-owned
+    # parent could otherwise replace the checkout before the first Git probe.
+    def checkout_ancestry_custody_safe() -> bool:
+        try:
+            return all(
+                checkout_root_custody_safe(directory.lstat())
+                for directory in (root, *root.parents)
+            )
+        except OSError:
+            return False
+
+    if not checkout_ancestry_custody_safe():
         return CheckoutPreflight(expected, None, ("mutable_checkout_ancestry",))
 
     toplevel = git("rev-parse", "--show-toplevel")
@@ -608,4 +617,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if observed_identity != original_identity:
             blockers.append("tracked_worktree_custody_changed")
             break
+    # A clean status is not proof if checkout ancestry lost custody during
+    # the Git probes. This is a bounded readback, not an atomic snapshot.
+    if not checkout_ancestry_custody_safe():
+        blockers.append("mutable_checkout_ancestry")
     return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
