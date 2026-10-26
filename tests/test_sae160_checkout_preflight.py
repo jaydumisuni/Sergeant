@@ -285,13 +285,16 @@ def test_git_index_probe_decodes_explicit_utf8_on_every_host(tmp_path, monkeypat
     assert result.authority_gain == "NONE"
 
 
-@pytest.mark.parametrize("control_name", ("index", "HEAD"))
+@pytest.mark.parametrize("control_name", ("index", "HEAD", "config", "packed-refs"))
 def test_same_byte_git_control_swap_after_clean_status_is_rejected(
     tmp_path, monkeypatch, control_name
 ):
     """A clean status cannot admit a replacement Git index or HEAD inode."""
     path, head = checkout(tmp_path)
+    if control_name == "packed-refs":
+        git(path, "pack-refs", "--all")
     control = path / ".git" / control_name
+    assert control.is_file()
     original_run = subprocess.run
     replaced = []
 
@@ -310,6 +313,34 @@ def test_same_byte_git_control_swap_after_clean_status_is_rejected(
     monkeypatch.setattr(subprocess, "run", replace_after_status)
     result = inspect_checkout(path, head)
     assert replaced == [True]
+    assert result.blockers == ("git_control_metadata_changed",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+
+def test_optional_git_control_appearing_after_clean_status_is_rejected(
+    tmp_path, monkeypatch
+):
+    """A newly introduced worktree config cannot escape status custody."""
+    path, head = checkout(tmp_path)
+    control = path / ".git" / "config.worktree"
+    assert not control.exists()
+    original_run = subprocess.run
+    introduced = []
+
+    def introduce_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            assert result.returncode == 0
+            assert result.stdout == ""
+            control.write_text("[core]\\n\\tbare = false\\n")
+            introduced.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", introduce_after_status)
+    result = inspect_checkout(path, head)
+    assert introduced == [True]
     assert result.blockers == ("git_control_metadata_changed",)
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
