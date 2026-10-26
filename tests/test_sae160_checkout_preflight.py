@@ -289,7 +289,7 @@ def test_git_index_probe_decodes_explicit_utf8_on_every_host(tmp_path, monkeypat
 def test_same_byte_git_control_swap_after_clean_status_is_rejected(
     tmp_path, monkeypatch, control_name
 ):
-    """A clean status cannot admit a replacement Git index or HEAD inode."""
+    """A clean status cannot admit a replaced Git control metadata inode."""
     path, head = checkout(tmp_path)
     if control_name == "packed-refs":
         git(path, "pack-refs", "--all")
@@ -334,7 +334,7 @@ def test_optional_git_control_appearing_after_clean_status_is_rejected(
         if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
             assert result.returncode == 0
             assert result.stdout == ""
-            control.write_text("[core]\\n\\tbare = false\\n")
+            control.write_text("[core]\n\tbare = false\n")
             introduced.append(True)
         return result
 
