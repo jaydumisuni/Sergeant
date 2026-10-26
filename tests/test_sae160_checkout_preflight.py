@@ -1502,3 +1502,30 @@ def test_hardlinked_or_special_git_metadata_fails_before_git_probe(
     assert result.observed_head is None
     assert git_invocations == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("index_flag", ("--assume-unchanged", "--skip-worktree"))
+def test_index_visibility_flags_cannot_hide_modified_tracked_evidence(
+    tmp_path, monkeypatch, index_flag
+):
+    """An exact HEAD and clean status are false evidence under index visibility flags."""
+    path, head = checkout(tmp_path)
+    git(path, "update-index", index_flag, "tracked.txt")
+    (path / "tracked.txt").write_text("tampered\n")
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+    assert git(path, "ls-files", "-v").startswith(
+        "h " if index_flag == "--assume-unchanged" else "S "
+    )
+
+    actual_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            raise AssertionError("hidden tracked evidence reached checkout status")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("unverified_index_visibility",)
+    assert result.authority_gain == "NONE"

@@ -527,6 +527,18 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "tracked_worktree_custody_changed",
     )):
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
+    # Index visibility flags can make a modified tracked file appear clean:
+    # assume-unchanged (lowercase tag) and skip-worktree (S) both suppress
+    # normal status checks. Refuse those flags before trusting status; the
+    # standalone evidence checkout requires ordinary tracked-file visibility.
+    index_visibility = git("ls-files", "-v", "-z")
+    if index_visibility is None or index_entries is None:
+        return CheckoutPreflight(expected, head, ("unverified_index_visibility",))
+    visible_entries = [entry for entry in index_visibility.split("\0") if entry]
+    staged_entries = [entry for entry in index_entries.split("\0") if entry]
+    if (len(visible_entries) != len(staged_entries)
+            or any(not entry.startswith("H ") for entry in visible_entries)):
+        return CheckoutPreflight(expected, head, ("unverified_index_visibility",))
     # Porcelain status without --ignored hides untracked files concealed by
     # tracked .gitignore or private .git/info/exclude rules. Such files are
     # mutable workspace inputs and cannot satisfy clean-clone custody.
