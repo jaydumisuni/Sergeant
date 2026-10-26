@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import subprocess
 
 import pytest
@@ -241,6 +242,26 @@ def test_nul_delimited_index_preserves_tracked_whitespace_filename(tmp_path):
     head = git(path, "rev-parse", "HEAD")
     result = inspect_checkout(path, head)
     assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="raw-byte POSIX filename fixture")
+def test_undecodable_tracked_index_entry_fails_closed(tmp_path):
+    """Git allows non-UTF8 path bytes; decoding must not crash preflight."""
+    path, _ = checkout(tmp_path)
+    raw_path = os.fsencode(path) + b"/non-utf8-\\xff.txt"
+    with open(raw_path, "wb") as stream:
+        stream.write(b"immutable evidence\\n")
+    git(path, "add", "-A")
+    git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+        "commit", "-qm", "fixture: non-UTF8 tracked filename")
+    head = git(path, "rev-parse", "HEAD")
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("unverified_index_entries",)
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
 
