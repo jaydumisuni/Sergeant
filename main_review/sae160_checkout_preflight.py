@@ -305,7 +305,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 capture_output=True, text=True, check=True, timeout=10,
                 env=isolated_git_env,
             )
-        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired,
+                UnicodeDecodeError):
+            # Git permits raw-byte POSIX filenames; undecodable index/status
+            # output is unverified evidence, not a preflight exception.
             return None
         return result.stdout if "-z" in args else result.stdout.strip()
 
