@@ -98,7 +98,28 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 except OSError:
                     blockers.append("mutable_git_authority_permissions")
                     break
-                if metadata.st_uid not in trusted_owners:
+                # Every Git metadata entry is control-plane material, even
+                # pseudorefs, reflogs and submodule stores. A symlink (including
+                # a dangling one), hardlink or special file can borrow external
+                # authority before the first config probe. os.walk deliberately
+                # does not follow directory links; lstat still sees the alias.
+                mode = metadata.st_mode
+                if (stat.S_ISLNK(mode)
+                        or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode))
+                        or (stat.S_ISREG(mode) and metadata.st_nlink > 1)):
+                    relative = entry.relative_to(gitdir)
+                    if relative.parts == ("objects", "info", "alternates"):
+                        blocker = "external_object_alternates"
+                    elif relative.parts[:1] == ("objects",):
+                        blocker = "external_object_store"
+                    elif relative.parts[:1] == ("modules",):
+                        blocker = "external_submodule_dependency"
+                    else:
+                        blocker = "external_git_metadata"
+                    blockers.append(blocker)
+                    break
+                if (metadata.st_uid not in trusted_owners
+                        or mode & (stat.S_IWGRP | stat.S_IWOTH)):
                     blockers.append("mutable_git_authority_permissions")
                     break
             if blockers:

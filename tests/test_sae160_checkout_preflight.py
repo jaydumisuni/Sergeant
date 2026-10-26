@@ -1392,3 +1392,75 @@ def test_peer_writable_hooks_directory_rejected_before_checkout_git(tmp_path, mo
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert git_calls == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX metadata aliases")
+@pytest.mark.parametrize("metadata_name", ("logs", "modules", "commondir", "MERGE_HEAD"))
+def test_metadata_aliases_fail_before_git_config_probe(tmp_path, monkeypatch, metadata_name):
+    """Git metadata aliases must be rejected before any Git process is started."""
+    path, head = checkout(tmp_path)
+    entry = path / ".git" / metadata_name
+    if entry.exists():
+        entry.rename(tmp_path / ("saved-" + metadata_name))
+    external = tmp_path / ("external-" + metadata_name)
+    is_directory = metadata_name in ("logs", "modules")
+    if is_directory:
+        external.mkdir()
+    elif metadata_name != "commondir":
+        external.write_text(head + "\n")
+    # commondir is deliberately dangling: exists() must not conceal it.
+    entry.symlink_to(external, target_is_directory=is_directory)
+
+    actual_run = subprocess.run
+    git_invocations = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_invocations.append(tuple(argv))
+            raise AssertionError("untrusted Git metadata reached a Git subprocess")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    expected_blocker = (
+        "external_submodule_dependency" if metadata_name == "modules"
+        else "external_git_metadata"
+    )
+    assert expected_blocker in result.blockers
+    assert result.observed_head is None
+    assert git_invocations == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX hardlink/FIFO metadata")
+@pytest.mark.parametrize("alias_kind", ("hardlink", "fifo"))
+def test_hardlinked_or_special_git_metadata_fails_before_git_probe(
+    tmp_path, monkeypatch, alias_kind
+):
+    """Reflog aliases and special pseudorefs cannot reach the config probe."""
+    path, head = checkout(tmp_path)
+    if alias_kind == "hardlink":
+        entry = path / ".git" / "logs" / "HEAD"
+        entry.rename(tmp_path / "original-head-log")
+        external = tmp_path / "external-reflog"
+        external.write_text("untrusted revision history\n")
+        entry.hardlink_to(external)
+    else:
+        entry = path / ".git" / "REBASE_HEAD"
+        os.mkfifo(entry)
+
+    actual_run = subprocess.run
+    git_invocations = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_invocations.append(tuple(argv))
+            raise AssertionError("untrusted Git metadata reached a Git subprocess")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert git_invocations == []
+    assert result.authority_gain == "NONE"
