@@ -266,6 +266,27 @@ def test_undecodable_tracked_index_entry_fails_closed(tmp_path):
     assert result.authority_gain == "NONE"
 
 
+
+def test_git_index_probe_decodes_explicit_utf8_on_every_host(tmp_path, monkeypatch):
+    """The index decoder must not inherit a permissive host locale."""
+    path, head = checkout(tmp_path)
+    actual_run = subprocess.run
+    observed_encodings = []
+
+    def capture_index_probe(argv, *args, **kwargs):
+        if (list(argv[:3]) == ["git", "-C", str(path)]
+                and list(argv[3:]) == ["ls-files", "--stage", "-z"]):
+            observed_encodings.append(kwargs.get("encoding"))
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", capture_index_probe)
+    result = inspect_checkout(path, head)
+    assert observed_encodings == ["utf-8"]
+    assert result.blockers == ()
+    assert result.authority_gain == "NONE"
+
+
+
 def test_wrong_head_and_dirty_checkout_fail_closed(tmp_path):
     path, head = checkout(tmp_path)
     (path / "tracked.txt").write_text("changed\n")
