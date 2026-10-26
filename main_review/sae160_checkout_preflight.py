@@ -36,6 +36,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
         "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_REPLACE_REF_BASE",
+        # Helper lookup and shallow-history metadata are external Git inputs.
+        # Reject before even the local config subprocess is started.
+        "GIT_EXEC_PATH", "GIT_SHALLOW_FILE",
         "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
         # Git tracing can write outside the checkout before a read-only
@@ -98,7 +101,28 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 except OSError:
                     blockers.append("mutable_git_authority_permissions")
                     break
-                if metadata.st_uid not in trusted_owners:
+                # Every Git metadata entry is control-plane material, even
+                # pseudorefs, reflogs and submodule stores. A symlink (including
+                # a dangling one), hardlink or special file can borrow external
+                # authority before the first config probe. os.walk deliberately
+                # does not follow directory links; lstat still sees the alias.
+                mode = metadata.st_mode
+                if (stat.S_ISLNK(mode)
+                        or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode))
+                        or (stat.S_ISREG(mode) and metadata.st_nlink > 1)):
+                    relative = entry.relative_to(gitdir)
+                    if relative.parts == ("objects", "info", "alternates"):
+                        blocker = "external_object_alternates"
+                    elif relative.parts[:1] == ("objects",):
+                        blocker = "external_object_store"
+                    elif relative.parts[:1] == ("modules",):
+                        blocker = "external_submodule_dependency"
+                    else:
+                        blocker = "external_git_metadata"
+                    blockers.append(blocker)
+                    break
+                if (metadata.st_uid not in trusted_owners
+                        or mode & (stat.S_IWGRP | stat.S_IWOTH)):
                     blockers.append("mutable_git_authority_permissions")
                     break
             if blockers:
@@ -210,7 +234,16 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             return "ABSENT"
         except OSError:
             return None
-        if not stat.S_ISREG(metadata.st_mode):
+        # The initial metadata walk is not atomic with this snapshot. A
+        # control file can acquire an external hardlink or peer-write access
+        # after that walk but before the first identity is recorded. Never
+        # accept such a stable-but-unsafe identity as the baseline.
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            return None
+        if os.name == "posix" and (
+            metadata.st_uid not in trusted_owners
+            or metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+        ):
             return None
         return (
             metadata.st_dev, metadata.st_ino, metadata.st_mode,
@@ -402,6 +435,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         return CheckoutPreflight(expected, head, ("unverified_worktree_directory_custody",))
 
     index_entries = git("ls-files", "--stage", "-z")
+    indexed_directories = {root}
     if index_entries is None:
         blockers.append("unverified_index_entries")
     else:
@@ -459,6 +493,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     parent_failed = True
                     break
                 tracked_custody[parent] = observed_parent
+                indexed_directories.add(parent)
             if parent_failed:
                 continue
             tracked_file = root / relative_path
@@ -494,12 +529,44 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "tracked_worktree_custody_changed",
     )):
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
+    # Index visibility flags can make a modified tracked file appear clean:
+    # assume-unchanged (lowercase tag) and skip-worktree (S) both suppress
+    # normal status checks. Refuse those flags before trusting status; the
+    # standalone evidence checkout requires ordinary tracked-file visibility.
+    index_visibility = git("ls-files", "-v", "-z")
+    if index_visibility is None or index_entries is None:
+        return CheckoutPreflight(expected, head, ("unverified_index_visibility",))
+    visible_entries = [entry for entry in index_visibility.split("\0") if entry]
+    staged_entries = [entry for entry in index_entries.split("\0") if entry]
+    if (len(visible_entries) != len(staged_entries)
+            or any(not entry.startswith("H ") for entry in visible_entries)):
+        return CheckoutPreflight(expected, head, ("unverified_index_visibility",))
     # Porcelain status without --ignored hides untracked files concealed by
     # tracked .gitignore or private .git/info/exclude rules. Such files are
     # mutable workspace inputs and cannot satisfy clean-clone custody.
     status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
+    # Git status does not report empty untracked directories, including empty
+    # descendants beneath tracked parents. A clean-clone evidence checkout must
+    # not silently admit additional mutable workspace paths. Compare direct
+    # directory children with the parents derived from the tracked index; do
+    # not follow symlinks or mistake the checkout's own .git for an artifact.
+    for directory in indexed_directories:
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if directory == root and entry.name == ".git":
+                        continue
+                    if (entry.is_dir(follow_symlinks=False)
+                            and Path(entry.path) not in indexed_directories):
+                        blockers.append("untracked_worktree_directory")
+                        break
+        except OSError:
+            blockers.append("unverified_worktree_directory_custody")
+            break
+        if "untracked_worktree_directory" in blockers:
+            break
     # A same-byte replacement or appearance/disappearance of Git control
     # metadata after one probe is not made safe by a clean status.
     if any(control_identity(entry) != original_controls[entry]

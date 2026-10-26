@@ -380,6 +380,42 @@ def test_optional_git_control_symlink_appearing_after_status_is_rejected(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX control-file custody")
+@pytest.mark.parametrize("control_name", ("HEAD", "index", "config"))
+@pytest.mark.parametrize("mutation", ("late_hardlink", "late_peer_write"))
+def test_control_snapshot_rejects_newly_unsafe_identity_before_checkout_git(
+    tmp_path, monkeypatch, control_name, mutation
+):
+    """A late unsafe identity must not become the trusted snapshot baseline."""
+    import sys
+
+    path, head = checkout(tmp_path)
+    control = path / ".git" / control_name
+    original_lstat = Path.lstat
+    mutated = False
+
+    def inject_before_snapshot(self, *args, **kwargs):
+        nonlocal mutated
+        if (
+            not mutated
+            and self == path / ".git" / "HEAD"
+            and sys._getframe(1).f_code.co_name == "control_identity"
+        ):
+            if mutation == "late_hardlink":
+                (tmp_path / "external-control-alias").hardlink_to(control)
+            else:
+                control.chmod(control.stat().st_mode | 0o020)
+            mutated = True
+        return original_lstat(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", inject_before_snapshot)
+    result = inspect_checkout(path, head)
+    assert mutated
+    assert result.blockers == ("unverified_git_control_custody",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize("mutation", ("replace_config", "introduce_worktree_config"))
 def test_config_probe_custody_is_bound_before_checkout_git(
     tmp_path, monkeypatch, mutation
@@ -530,6 +566,8 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
 
 @pytest.mark.parametrize("name,value", (
     ("GIT_CONFIG_COUNT", "0"),
+    ("GIT_EXEC_PATH", "/nonexistent/untrusted-git-helpers"),
+    ("GIT_SHALLOW_FILE", "/nonexistent/untrusted-shallow-metadata"),
     ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=/nonexistent/monitor'"),
     ("GIT_EXTERNAL_DIFF", "/nonexistent/diff"),
     ("GIT_REPLACE_REF_BASE", "refs/replace/external"),
@@ -1392,3 +1430,127 @@ def test_peer_writable_hooks_directory_rejected_before_checkout_git(tmp_path, mo
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert git_calls == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX metadata aliases")
+@pytest.mark.parametrize("metadata_name", ("logs", "modules", "commondir", "MERGE_HEAD"))
+def test_metadata_aliases_fail_before_git_config_probe(tmp_path, monkeypatch, metadata_name):
+    """Git metadata aliases must be rejected before any Git process is started."""
+    path, head = checkout(tmp_path)
+    entry = path / ".git" / metadata_name
+    if entry.exists():
+        entry.rename(tmp_path / ("saved-" + metadata_name))
+    external = tmp_path / ("external-" + metadata_name)
+    is_directory = metadata_name in ("logs", "modules")
+    if is_directory:
+        external.mkdir()
+    elif metadata_name != "commondir":
+        external.write_text(head + "\n")
+    # commondir is deliberately dangling: exists() must not conceal it.
+    entry.symlink_to(external, target_is_directory=is_directory)
+
+    actual_run = subprocess.run
+    git_invocations = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_invocations.append(tuple(argv))
+            raise AssertionError("untrusted Git metadata reached a Git subprocess")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    expected_blocker = (
+        "external_submodule_dependency" if metadata_name == "modules"
+        else "external_git_metadata"
+    )
+    assert expected_blocker in result.blockers
+    assert result.observed_head is None
+    assert git_invocations == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX hardlink/FIFO metadata")
+@pytest.mark.parametrize("alias_kind", ("hardlink", "fifo"))
+def test_hardlinked_or_special_git_metadata_fails_before_git_probe(
+    tmp_path, monkeypatch, alias_kind
+):
+    """Reflog aliases and special pseudorefs cannot reach the config probe."""
+    path, head = checkout(tmp_path)
+    if alias_kind == "hardlink":
+        entry = path / ".git" / "logs" / "HEAD"
+        entry.rename(tmp_path / "original-head-log")
+        external = tmp_path / "external-reflog"
+        external.write_text("untrusted revision history\n")
+        entry.hardlink_to(external)
+    else:
+        entry = path / ".git" / "REBASE_HEAD"
+        os.mkfifo(entry)
+
+    actual_run = subprocess.run
+    git_invocations = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_invocations.append(tuple(argv))
+            raise AssertionError("untrusted Git metadata reached a Git subprocess")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert git_invocations == []
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("index_flag", ("--assume-unchanged", "--skip-worktree"))
+def test_index_visibility_flags_cannot_hide_modified_tracked_evidence(
+    tmp_path, monkeypatch, index_flag
+):
+    """An exact HEAD and clean status are false evidence under index visibility flags."""
+    path, head = checkout(tmp_path)
+    git(path, "update-index", index_flag, "tracked.txt")
+    (path / "tracked.txt").write_text("tampered\n")
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+    assert git(path, "ls-files", "-v").startswith(
+        "h " if index_flag == "--assume-unchanged" else "S "
+    )
+
+    actual_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            raise AssertionError("hidden tracked evidence reached checkout status")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("unverified_index_visibility",)
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("nested", (False, True))
+def test_untracked_empty_directory_cannot_qualify_clean_clone(tmp_path, nested):
+    """Git status omits empty directories, but clean-clone custody cannot."""
+    path, head = checkout(tmp_path)
+    if nested:
+        tracked_parent = path / "tracked-parent"
+        tracked_parent.mkdir()
+        (tracked_parent / "evidence.txt").write_text("pinned\n")
+        git(path, "add", "tracked-parent/evidence.txt")
+        git(path, "-c", "user.name=Fixture", "-c",
+            "user.email=fixture@example.invalid", "commit", "-qm",
+            "fixture: tracked directory")
+        head = git(path, "rev-parse", "HEAD")
+        empty = tracked_parent / "untracked-empty"
+    else:
+        empty = path / "untracked-empty"
+    assert inspect_checkout(path, head).blockers == ()
+    empty.mkdir()
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+    result = inspect_checkout(path, head)
+    assert "untracked_worktree_directory" in result.blockers
+    assert result.authority_gain == "NONE"
