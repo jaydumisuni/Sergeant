@@ -1529,3 +1529,28 @@ def test_index_visibility_flags_cannot_hide_modified_tracked_evidence(
     result = inspect_checkout(path, head)
     assert result.blockers == ("unverified_index_visibility",)
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("nested", (False, True))
+def test_untracked_empty_directory_cannot_qualify_clean_clone(tmp_path, nested):
+    """Git status omits empty directories, but clean-clone custody cannot."""
+    path, head = checkout(tmp_path)
+    if nested:
+        tracked_parent = path / "tracked-parent"
+        tracked_parent.mkdir()
+        (tracked_parent / "evidence.txt").write_text("pinned\n")
+        git(path, "add", "tracked-parent/evidence.txt")
+        git(path, "-c", "user.name=Fixture", "-c",
+            "user.email=fixture@example.invalid", "commit", "-qm",
+            "fixture: tracked directory")
+        head = git(path, "rev-parse", "HEAD")
+        empty = tracked_parent / "untracked-empty"
+    else:
+        empty = path / "untracked-empty"
+    assert inspect_checkout(path, head).blockers == ()
+    empty.mkdir()
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+    result = inspect_checkout(path, head)
+    assert "untracked_worktree_directory" in result.blockers
+    assert result.authority_gain == "NONE"

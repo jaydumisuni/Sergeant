@@ -435,6 +435,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         return CheckoutPreflight(expected, head, ("unverified_worktree_directory_custody",))
 
     index_entries = git("ls-files", "--stage", "-z")
+    indexed_directories = {root}
     if index_entries is None:
         blockers.append("unverified_index_entries")
     else:
@@ -492,6 +493,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     parent_failed = True
                     break
                 tracked_custody[parent] = observed_parent
+                indexed_directories.add(parent)
             if parent_failed:
                 continue
             tracked_file = root / relative_path
@@ -545,6 +547,26 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
+    # Git status does not report empty untracked directories, including empty
+    # descendants beneath tracked parents. A clean-clone evidence checkout must
+    # not silently admit additional mutable workspace paths. Compare direct
+    # directory children with the parents derived from the tracked index; do
+    # not follow symlinks or mistake the checkout's own .git for an artifact.
+    for directory in indexed_directories:
+        try:
+            with os.scandir(directory) as entries:
+                for entry in entries:
+                    if directory == root and entry.name == ".git":
+                        continue
+                    if (entry.is_dir(follow_symlinks=False)
+                            and Path(entry.path) not in indexed_directories):
+                        blockers.append("untracked_worktree_directory")
+                        break
+        except OSError:
+            blockers.append("unverified_worktree_directory_custody")
+            break
+        if "untracked_worktree_directory" in blockers:
+            break
     # A same-byte replacement or appearance/disappearance of Git control
     # metadata after one probe is not made safe by a clean status.
     if any(control_identity(entry) != original_controls[entry]
