@@ -315,14 +315,22 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
         )
 
-    # HEAD and index are separately read by rev-parse, ls-files and status.
-    # A clean status alone cannot attest that their named inodes remained
-    # stable. This is bounded before/after custody, not atomic filesystem proof.
-    control_entries = (gitdir / "HEAD", gitdir / "index")
+    # HEAD/index and optional configuration/ref tables are independently
+    # consulted by Git probes. Bind their pathname identities across the
+    # final clean status; missing optional files must remain missing.
+    # This is before/after custody, not an atomic filesystem snapshot.
+    required_controls = (gitdir / "HEAD", gitdir / "index")
+    optional_controls = (
+        gitdir / "config", gitdir / "config.worktree", gitdir / "packed-refs",
+    )
+    control_entries = (*required_controls, *optional_controls)
     original_controls = {
         entry: control_identity(entry) for entry in control_entries
     }
-    if any(identity is None for identity in original_controls.values()):
+    if (any(original_controls[entry] is None for entry in required_controls)
+            or any(entry.is_symlink() or (
+                entry.exists() and original_controls[entry] is None
+            ) for entry in optional_controls)):
         return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
 
     def git(*args: str) -> str | None:
@@ -479,8 +487,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
-    # A same-byte replacement of HEAD or index after one Git probe is not
-    # made safe by another probe returning clean. Keep authority at NONE.
+    # A same-byte replacement or appearance/disappearance of Git control
+    # metadata after one probe is not made safe by a clean status.
     if any(control_identity(entry) != original_controls[entry]
            for entry in control_entries):
         blockers.append("git_control_metadata_changed")
