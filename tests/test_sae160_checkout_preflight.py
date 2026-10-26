@@ -266,7 +266,6 @@ def test_undecodable_tracked_index_entry_fails_closed(tmp_path):
     assert result.authority_gain == "NONE"
 
 
-
 def test_git_index_probe_decodes_explicit_utf8_on_every_host(tmp_path, monkeypatch):
     """The index decoder must not inherit a permissive host locale."""
     path, head = checkout(tmp_path)
@@ -284,7 +283,6 @@ def test_git_index_probe_decodes_explicit_utf8_on_every_host(tmp_path, monkeypat
     assert observed_encodings == ["utf-8"]
     assert result.blockers == ()
     assert result.authority_gain == "NONE"
-
 
 
 def test_wrong_head_and_dirty_checkout_fail_closed(tmp_path):
