@@ -1596,3 +1596,88 @@ def test_late_unsafe_checkout_root_snapshot_never_reaches_status(
     assert "mutable_checkout_ancestry" in result.blockers
     assert result.authority_gain == "NONE"
     assert checkout_status_calls == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX late ancestor custody")
+@pytest.mark.parametrize("mutation", ("peer_writable", "foreign_owner"))
+def test_late_unsafe_checkout_ancestor_cannot_reach_checkout_git(
+    tmp_path, monkeypatch, mutation
+):
+    """A parent made unsafe after config probing cannot authorize checkout Git."""
+    parent = tmp_path / "private-parent"
+    parent.mkdir()
+    path, head = checkout(parent)
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    config_probed = False
+    checkout_commands = []
+
+    def changed_parent_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self != parent or not config_probed:
+            return metadata
+        fields = list(metadata)
+        if mutation == "peer_writable":
+            fields[0] |= 0o020
+        else:
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+        return os.stat_result(fields)
+
+    def guarded_run(argv, *args, **kwargs):
+        nonlocal config_probed
+        if list(argv[:3]) == ["git", "config", "--no-includes"]:
+            config_probed = True
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(tuple(argv))
+            raise AssertionError("unsafe ancestor reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "lstat", changed_parent_lstat)
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert config_probed
+    assert result.blockers == ("mutable_checkout_ancestry",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX post-status ancestor custody")
+@pytest.mark.parametrize("mutation", ("peer_writable", "foreign_owner"))
+def test_checkout_ancestor_losing_custody_after_clean_status_is_rejected(
+    tmp_path, monkeypatch, mutation
+):
+    """A clean status cannot qualify ancestry that changes before final readback."""
+    parent = tmp_path / "private-parent"
+    parent.mkdir()
+    path, head = checkout(parent)
+    original_lstat = Path.lstat
+    original_run = subprocess.run
+    status_completed = False
+
+    def changed_parent_lstat(self, *args, **kwargs):
+        metadata = original_lstat(self, *args, **kwargs)
+        if self != parent or not status_completed:
+            return metadata
+        fields = list(metadata)
+        if mutation == "peer_writable":
+            fields[0] |= 0o020
+        else:
+            fields[4] = 424242 if os.geteuid() != 424242 else 424243
+        return os.stat_result(fields)
+
+    def observe_status(argv, *args, **kwargs):
+        nonlocal status_completed
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv[3:]:
+            assert result.stdout == ""
+            status_completed = True
+        return result
+
+    monkeypatch.setattr(Path, "lstat", changed_parent_lstat)
+    monkeypatch.setattr(subprocess, "run", observe_status)
+    result = inspect_checkout(path, head)
+    assert status_completed
+    assert "mutable_checkout_ancestry" in result.blockers
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
