@@ -36,6 +36,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_OBJECT_DIRECTORY",
         "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_INDEX_FILE",
         "GIT_NAMESPACE", "GIT_EXTERNAL_DIFF", "GIT_REPLACE_REF_BASE",
+        # Helper lookup and shallow-history metadata are external Git inputs.
+        # Reject before even the local config subprocess is started.
+        "GIT_EXEC_PATH", "GIT_SHALLOW_FILE",
         "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
         # Git tracing can write outside the checkout before a read-only
