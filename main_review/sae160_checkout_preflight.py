@@ -301,10 +301,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # is being compared across independent Git probes.
     isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
 
-    def control_identity(entry: Path) -> tuple[int, ...] | None:
-        """Snapshot an authority file without following a substituted symlink."""
+    def control_identity(entry: Path) -> tuple[int, ...] | str | None:
+        """Distinguish absent controls from invalid or substituted metadata."""
         try:
             metadata = entry.lstat()
+        except FileNotFoundError:
+            return "ABSENT"
         except OSError:
             return None
         if not stat.S_ISREG(metadata.st_mode):
@@ -315,14 +317,25 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
         )
 
-    # HEAD and index are separately read by rev-parse, ls-files and status.
-    # A clean status alone cannot attest that their named inodes remained
-    # stable. This is bounded before/after custody, not atomic filesystem proof.
-    control_entries = (gitdir / "HEAD", gitdir / "index")
+    # HEAD/index and optional configuration/ref tables are independently
+    # consulted by Git probes. Bind their pathname identities across the
+    # final clean status; missing optional files must remain missing.
+    # This is before/after custody, not an atomic filesystem snapshot.
+    required_controls = (gitdir / "HEAD", gitdir / "index")
+    optional_controls = (
+        gitdir / "config", gitdir / "config.worktree", gitdir / "packed-refs",
+    )
+    control_entries = (*required_controls, *optional_controls)
     original_controls = {
         entry: control_identity(entry) for entry in control_entries
     }
-    if any(identity is None for identity in original_controls.values()):
+    # A missing optional entry is allowed only while it stays missing.
+    # Symlinks (including dangling ones), directories and stat failures are
+    # invalid, not equivalent to absence; HEAD/index must be regular files.
+    if (any(not isinstance(original_controls[entry], tuple)
+            for entry in required_controls)
+            or any(original_controls[entry] is None
+                   for entry in optional_controls)):
         return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
 
     def git(*args: str) -> str | None:
@@ -479,8 +492,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
-    # A same-byte replacement of HEAD or index after one Git probe is not
-    # made safe by another probe returning clean. Keep authority at NONE.
+    # A same-byte replacement or appearance/disappearance of Git control
+    # metadata after one probe is not made safe by a clean status.
     if any(control_identity(entry) != original_controls[entry]
            for entry in control_entries):
         blockers.append("git_control_metadata_changed")
