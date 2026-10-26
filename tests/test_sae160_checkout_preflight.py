@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import os
 import subprocess
 
 import pytest
@@ -241,6 +242,75 @@ def test_nul_delimited_index_preserves_tracked_whitespace_filename(tmp_path):
     head = git(path, "rev-parse", "HEAD")
     result = inspect_checkout(path, head)
     assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="raw-byte POSIX filename fixture")
+def test_undecodable_tracked_index_entry_fails_closed(tmp_path):
+    """Git allows non-UTF8 path bytes; decoding must not crash preflight."""
+    path, _ = checkout(tmp_path)
+    raw_path = os.fsencode(path) + b"/non-utf8-\xff.txt"
+    with open(raw_path, "wb") as stream:
+        stream.write(b"immutable evidence\n")
+    git(path, "add", "-A")
+    git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+        "commit", "-qm", "fixture: non-UTF8 tracked filename")
+    head = git(path, "rev-parse", "HEAD")
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("unverified_index_entries",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+def test_git_index_probe_decodes_explicit_utf8_on_every_host(tmp_path, monkeypatch):
+    """The index decoder must not inherit a permissive host locale."""
+    path, head = checkout(tmp_path)
+    actual_run = subprocess.run
+    observed_encodings = []
+
+    def capture_index_probe(argv, *args, **kwargs):
+        if (list(argv[:3]) == ["git", "-C", str(path)]
+                and list(argv[3:]) == ["ls-files", "--stage", "-z"]):
+            observed_encodings.append(kwargs.get("encoding"))
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", capture_index_probe)
+    result = inspect_checkout(path, head)
+    assert observed_encodings == ["utf-8"]
+    assert result.blockers == ()
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("control_name", ("index", "HEAD"))
+def test_same_byte_git_control_swap_after_clean_status_is_rejected(
+    tmp_path, monkeypatch, control_name
+):
+    """A clean status cannot admit a replacement Git index or HEAD inode."""
+    path, head = checkout(tmp_path)
+    control = path / ".git" / control_name
+    original_run = subprocess.run
+    replaced = []
+
+    def replace_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            assert result.returncode == 0
+            assert result.stdout == ""
+            assert kwargs["env"]["GIT_OPTIONAL_LOCKS"] == "0"
+            staged = control.with_name(control.name + ".replacement")
+            staged.write_bytes(control.read_bytes())
+            os.replace(staged, control)
+            replaced.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", replace_after_status)
+    result = inspect_checkout(path, head)
+    assert replaced == [True]
+    assert result.blockers == ("git_control_metadata_changed",)
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
 
