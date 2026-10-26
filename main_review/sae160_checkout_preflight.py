@@ -200,6 +200,45 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # config probe, which is itself a Git subprocess.
     if blockers:
         return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
+    # Snapshot control metadata before the safe config probe. A replacement
+    # between that probe and checkout Git must not inherit unchecked settings.
+    def control_identity(entry: Path) -> tuple[int, ...] | str | None:
+        """Distinguish absent controls from invalid or substituted metadata."""
+        try:
+            metadata = entry.lstat()
+        except FileNotFoundError:
+            return "ABSENT"
+        except OSError:
+            return None
+        if not stat.S_ISREG(metadata.st_mode):
+            return None
+        return (
+            metadata.st_dev, metadata.st_ino, metadata.st_mode,
+            metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+            metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
+        )
+
+    # HEAD/index and optional configuration/ref tables are independently
+    # consulted by Git probes. Bind their pathname identities across the
+    # final clean status; missing optional files must remain missing.
+    # This is before/after custody, not an atomic filesystem snapshot.
+    required_controls = (gitdir / "HEAD", gitdir / "index")
+    optional_controls = (
+        gitdir / "config", gitdir / "config.worktree", gitdir / "packed-refs",
+    )
+    control_entries = (*required_controls, *optional_controls)
+    original_controls = {
+        entry: control_identity(entry) for entry in control_entries
+    }
+    # A missing optional entry is allowed only while it stays missing.
+    # Symlinks (including dangling ones), directories and stat failures are
+    # invalid, not equivalent to absence; HEAD/index must be regular files.
+    if (any(not isinstance(original_controls[entry], tuple)
+            for entry in required_controls)
+            or any(original_controls[entry] is None
+                   for entry in optional_controls)):
+        return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
+
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
@@ -226,6 +265,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             continue
         if config_probe.returncode not in (0, 1) or config_probe.stdout.strip():
             blockers.append("external_git_metadata")
+    # A config probe is safe only for the exact control identities it read.
+    # In particular, a late core.fsmonitor/filter injection must be rejected
+    # before any checkout Git subprocess can execute the new configuration.
+    if any(control_identity(entry) != original_controls[entry]
+           for entry in control_entries):
+        return CheckoutPreflight(expected, None, ("git_control_metadata_changed",))
     objects = gitdir / "objects"
     if objects.is_symlink() or not objects.is_dir():
         blockers.append("external_object_store")
@@ -300,43 +345,6 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # A read-only status must not refresh the index while its inode identity
     # is being compared across independent Git probes.
     isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
-
-    def control_identity(entry: Path) -> tuple[int, ...] | str | None:
-        """Distinguish absent controls from invalid or substituted metadata."""
-        try:
-            metadata = entry.lstat()
-        except FileNotFoundError:
-            return "ABSENT"
-        except OSError:
-            return None
-        if not stat.S_ISREG(metadata.st_mode):
-            return None
-        return (
-            metadata.st_dev, metadata.st_ino, metadata.st_mode,
-            metadata.st_uid, metadata.st_gid, metadata.st_nlink,
-            metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
-        )
-
-    # HEAD/index and optional configuration/ref tables are independently
-    # consulted by Git probes. Bind their pathname identities across the
-    # final clean status; missing optional files must remain missing.
-    # This is before/after custody, not an atomic filesystem snapshot.
-    required_controls = (gitdir / "HEAD", gitdir / "index")
-    optional_controls = (
-        gitdir / "config", gitdir / "config.worktree", gitdir / "packed-refs",
-    )
-    control_entries = (*required_controls, *optional_controls)
-    original_controls = {
-        entry: control_identity(entry) for entry in control_entries
-    }
-    # A missing optional entry is allowed only while it stays missing.
-    # Symlinks (including dangling ones), directories and stat failures are
-    # invalid, not equivalent to absence; HEAD/index must be regular files.
-    if (any(not isinstance(original_controls[entry], tuple)
-            for entry in required_controls)
-            or any(original_controls[entry] is None
-                   for entry in optional_controls)):
-        return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
 
     def git(*args: str) -> str | None:
         try:
