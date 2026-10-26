@@ -302,8 +302,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         try:
             result = subprocess.run(
                 ["git", "-C", str(root), *args],
-                capture_output=True, text=True, check=True, timeout=10,
-                env=isolated_git_env,
+                capture_output=True, text=True, encoding="utf-8",
+                check=True, timeout=10, env=isolated_git_env,
             )
         except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired,
                 UnicodeDecodeError):
