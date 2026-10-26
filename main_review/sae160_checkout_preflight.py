@@ -301,10 +301,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # is being compared across independent Git probes.
     isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
 
-    def control_identity(entry: Path) -> tuple[int, ...] | None:
-        """Snapshot an authority file without following a substituted symlink."""
+    def control_identity(entry: Path) -> tuple[int, ...] | str | None:
+        """Distinguish absent controls from invalid or substituted metadata."""
         try:
             metadata = entry.lstat()
+        except FileNotFoundError:
+            return "ABSENT"
         except OSError:
             return None
         if not stat.S_ISREG(metadata.st_mode):
@@ -327,10 +329,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     original_controls = {
         entry: control_identity(entry) for entry in control_entries
     }
-    if (any(original_controls[entry] is None for entry in required_controls)
-            or any(entry.is_symlink() or (
-                entry.exists() and original_controls[entry] is None
-            ) for entry in optional_controls)):
+    # A missing optional entry is allowed only while it stays missing.
+    # Symlinks (including dangling ones), directories and stat failures are
+    # invalid, not equivalent to absence; HEAD/index must be regular files.
+    if (any(not isinstance(original_controls[entry], tuple)
+            for entry in required_controls)
+            or any(original_controls[entry] is None
+                   for entry in optional_controls)):
         return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
 
     def git(*args: str) -> str | None:
