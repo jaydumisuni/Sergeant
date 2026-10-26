@@ -332,6 +332,24 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # in tracked filenames. A clean status does not prove tracked-file inode
     # custody: hardlinks can alias external mutable data, and peer-writable
     # files can change independently of the Git index.
+    # Bind the observed worktree inodes and ancestor directories to the final
+    # status result. A clean Git status alone cannot detect a same-byte path
+    # replacement immediately after its scan. This is a bounded readback,
+    # not a claim of atomic or race-free filesystem custody.
+    def custody_identity(metadata: os.stat_result) -> tuple[int, ...]:
+        return (
+            metadata.st_dev, metadata.st_ino, metadata.st_mode,
+            metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+            metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
+        )
+
+    try:
+        tracked_custody: dict[Path, tuple[int, ...]] = {
+            root: custody_identity(root.lstat())
+        }
+    except OSError:
+        return CheckoutPreflight(expected, head, ("unverified_worktree_directory_custody",))
+
     index_entries = git("ls-files", "--stage", "-z")
     if index_entries is None:
         blockers.append("unverified_index_entries")
@@ -383,13 +401,26 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     blockers.append("mutable_worktree_directory_permissions")
                     parent_failed = True
                     break
+                observed_parent = custody_identity(parent_metadata)
+                if (parent in tracked_custody
+                        and tracked_custody[parent] != observed_parent):
+                    blockers.append("tracked_worktree_custody_changed")
+                    parent_failed = True
+                    break
+                tracked_custody[parent] = observed_parent
             if parent_failed:
                 continue
+            tracked_file = root / relative_path
             try:
-                metadata = (root / relative_path).lstat()
+                metadata = tracked_file.lstat()
             except OSError:
                 blockers.append("unverified_worktree_file_custody")
                 continue
+            observed_file = custody_identity(metadata)
+            if (tracked_file in tracked_custody
+                    and tracked_custody[tracked_file] != observed_file):
+                blockers.append("tracked_worktree_custody_changed")
+            tracked_custody[tracked_file] = observed_file
             if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
                 blockers.append("external_worktree_file_dependency")
             if os.name == "posix" and (
@@ -409,6 +440,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "unverified_worktree_directory_custody",
         "external_worktree_directory_dependency",
         "mutable_worktree_directory_permissions",
+        "tracked_worktree_custody_changed",
     )):
         return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))
     # Porcelain status without --ignored hides untracked files concealed by
@@ -417,4 +449,16 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
+    # Recheck every tracked file and intermediate directory after status.
+    # Device/inode plus metadata timestamps catch stable substitutions and
+    # in-place writes that occurred across the non-atomic Git status scan.
+    for tracked_path, original_identity in tracked_custody.items():
+        try:
+            observed_identity = custody_identity(tracked_path.lstat())
+        except OSError:
+            blockers.append("tracked_worktree_custody_changed")
+            break
+        if observed_identity != original_identity:
+            blockers.append("tracked_worktree_custody_changed")
+            break
     return CheckoutPreflight(expected, head, tuple(sorted(set(blockers))))

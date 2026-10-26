@@ -188,6 +188,48 @@ def test_tracked_file_parent_custody_precedes_git_status(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.skipif(__import__("os").name != "posix", reason="POSIX inode custody")
+@pytest.mark.parametrize("replacement", ("tracked_file", "tracked_parent"))
+def test_same_byte_worktree_substitution_after_clean_status_is_rejected(
+    tmp_path, monkeypatch, replacement
+):
+    """Status is not an atomic custody snapshot of the tracked worktree."""
+    path, _ = checkout(tmp_path)
+    parent = path / "nested"
+    parent.mkdir()
+    tracked_file = parent / "evidence.txt"
+    tracked_file.write_text("pinned\\n")
+    git(path, "add", "nested/evidence.txt")
+    git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+        "commit", "-qm", "fixture: nested tracked evidence")
+    head = git(path, "rev-parse", "HEAD")
+
+    actual_run = subprocess.run
+    clean_status_observed = []
+
+    def replace_after_status(argv, *args, **kwargs):
+        result = actual_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            assert result.returncode == 0
+            assert result.stdout == ""
+            if replacement == "tracked_parent":
+                parent.rename(tmp_path / "original-parent")
+                parent.mkdir()
+                tracked_file.write_text("pinned\\n")
+            else:
+                tracked_file.rename(tmp_path / "original-evidence.txt")
+                tracked_file.write_text("pinned\\n")
+            clean_status_observed.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", replace_after_status)
+    result = inspect_checkout(path, head)
+    assert clean_status_observed == [True]
+    assert result.blockers == ("tracked_worktree_custody_changed",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_nul_delimited_index_preserves_tracked_whitespace_filename(tmp_path):
     """Tracked filenames with embedded newlines and trailing spaces stay intact."""
     path, _ = checkout(tmp_path)
