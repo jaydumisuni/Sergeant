@@ -297,6 +297,33 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Git replace refs can silently substitute an object while HEAD and status
     # remain unchanged. Disable replacement during every checkout Git probe.
     isolated_git_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    # A read-only status must not refresh the index while its inode identity
+    # is being compared across independent Git probes.
+    isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
+
+    def control_identity(entry: Path) -> tuple[int, ...] | None:
+        """Snapshot an authority file without following a substituted symlink."""
+        try:
+            metadata = entry.lstat()
+        except OSError:
+            return None
+        if not stat.S_ISREG(metadata.st_mode):
+            return None
+        return (
+            metadata.st_dev, metadata.st_ino, metadata.st_mode,
+            metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+            metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
+        )
+
+    # HEAD and index are separately read by rev-parse, ls-files and status.
+    # A clean status alone cannot attest that their named inodes remained
+    # stable. This is bounded before/after custody, not atomic filesystem proof.
+    control_entries = (gitdir / "HEAD", gitdir / "index")
+    original_controls = {
+        entry: control_identity(entry) for entry in control_entries
+    }
+    if any(identity is None for identity in original_controls.values()):
+        return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
 
     def git(*args: str) -> str | None:
         try:
@@ -452,6 +479,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
+    # A same-byte replacement of HEAD or index after one Git probe is not
+    # made safe by another probe returning clean. Keep authority at NONE.
+    if any(control_identity(entry) != original_controls[entry]
+           for entry in control_entries):
+        blockers.append("git_control_metadata_changed")
     # Recheck every tracked file and intermediate directory after status.
     # Device/inode plus metadata timestamps catch stable substitutions and
     # in-place writes that occurred across the non-atomic Git status scan.
