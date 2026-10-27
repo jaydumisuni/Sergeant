@@ -633,6 +633,10 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
     ("GIT_TRACE_PERFORMANCE", "/nonexistent/performance-trace"),
     ("GIT_TRACE_CURL", "/nonexistent/curl-trace"),
     ("GIT_TRACE2_CONFIG_PARAMS", "core.fsmonitor"),
+    ("LD_PRELOAD", "/tmp/untrusted-preload.so"),
+    ("LD_LIBRARY_PATH", "/tmp/untrusted-loader-path"),
+    ("LD_AUDIT", "/tmp/untrusted-audit.so"),
+    ("DYLD_INSERT_LIBRARIES", "/tmp/untrusted-dylib.dylib"),
 ))
 def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypatch, name, value):
     """Ambient Git overrides must not reach even the local config probe."""

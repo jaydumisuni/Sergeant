@@ -48,8 +48,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Git also honors GIT_TRACE_SETUP, GIT_TRACE_PACKET, and other trace
     # variants that can write outside the checkout during the config probe.
     # Reject the entire trace namespace before starting any Git subprocess.
+    # Dynamic-loader controls can replace Git code before any config probe.
+    # A read-only Git command is not safe under caller-supplied loader hooks.
     if authority_env.intersection(os.environ) or any(
-        name.startswith("GIT_TRACE") for name in os.environ
+        name.startswith(("GIT_TRACE", "LD_", "DYLD_"))
+        for name in os.environ
     ):
         # Do not even probe local config with untrusted ambient Git controls:
         # git config itself is a Git process and can honor these overrides.
