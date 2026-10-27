@@ -278,6 +278,41 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                    for entry in optional_controls)):
         return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
 
+    # Loose refs are independent Git authority. A clean status and a stable
+    # symbolic HEAD file cannot prove that its target ref (or another ref)
+    # was not swapped or introduced during the Git probes. Bind the entire
+    # loose-ref namespace before config and again after the final status.
+    def loose_ref_snapshot() -> tuple[tuple[str, tuple[int, ...]], ...] | None:
+        ref_root = gitdir / "refs"
+        try:
+            entries = (ref_root, *ref_root.rglob("*"))
+            observed = []
+            for entry in entries:
+                metadata = entry.lstat()
+                mode = metadata.st_mode
+                if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+                    return None
+                if stat.S_ISREG(mode) and metadata.st_nlink != 1:
+                    return None
+                if os.name == "posix" and (
+                    metadata.st_uid not in trusted_owners
+                    or mode & (stat.S_IWGRP | stat.S_IWOTH)
+                ):
+                    return None
+                observed.append((
+                    str(entry.relative_to(gitdir)),
+                    (metadata.st_dev, metadata.st_ino, mode,
+                     metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+                     metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns),
+                ))
+            return tuple(sorted(observed))
+        except OSError:
+            return None
+
+    original_loose_refs = loose_ref_snapshot()
+    if original_loose_refs is None:
+        return CheckoutPreflight(expected, None, ("unverified_git_ref_custody",))
+
     # A caller-controlled PATH can substitute Git itself before any local
     # config or checkout probe. On POSIX, constrain executable lookup to the
     # system's standard command directories; never inherit a workspace or
@@ -324,6 +359,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if any(control_identity(entry) != original_controls[entry]
            for entry in control_entries):
         return CheckoutPreflight(expected, None, ("git_control_metadata_changed",))
+    if loose_ref_snapshot() != original_loose_refs:
+        return CheckoutPreflight(expected, None, ("git_ref_metadata_changed",))
     objects = gitdir / "objects"
     if objects.is_symlink() or not objects.is_dir():
         blockers.append("external_object_store")
@@ -628,6 +665,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if any(control_identity(entry) != original_controls[entry]
            for entry in control_entries):
         blockers.append("git_control_metadata_changed")
+    if loose_ref_snapshot() != original_loose_refs:
+        blockers.append("git_ref_metadata_changed")
     # Recheck every tracked file and intermediate directory after status.
     # Device/inode plus metadata timestamps catch stable substitutions and
     # in-place writes that occurred across the non-atomic Git status scan.

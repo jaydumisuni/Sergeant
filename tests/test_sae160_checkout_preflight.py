@@ -348,6 +348,40 @@ def test_same_byte_git_control_swap_after_clean_status_is_rejected(
 
 
 
+@pytest.mark.parametrize("mutation", ("replace_ref", "add_ref"))
+def test_git_ref_tree_mutation_after_clean_status_is_rejected(
+    tmp_path, monkeypatch, mutation
+):
+    """An exact HEAD and clean status do not bind mutable loose ref metadata."""
+    path, head = checkout(tmp_path)
+    branch = git(path, "symbolic-ref", "--short", "HEAD")
+    ref = path / ".git" / "refs" / "heads" / branch
+    assert ref.is_file()
+    original_run = subprocess.run
+    mutations = []
+
+    def mutate_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            assert result.returncode == 0
+            assert result.stdout == ""
+            if mutation == "replace_ref":
+                replacement = ref.with_name(ref.name + ".replacement")
+                replacement.write_bytes(ref.read_bytes())
+                os.replace(replacement, ref)
+            else:
+                (ref.parent / "unreviewed-ref").write_text(head + "\n")
+            mutations.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", mutate_after_status)
+    result = inspect_checkout(path, head)
+    assert mutations == [True]
+    assert result.blockers == ("git_ref_metadata_changed",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_optional_git_control_appearing_after_clean_status_is_rejected(
     tmp_path, monkeypatch
 ):
