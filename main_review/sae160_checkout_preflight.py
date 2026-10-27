@@ -42,6 +42,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # Helper lookup and shallow-history metadata are external Git inputs.
         # Reject before even the local config subprocess is started.
         "GIT_EXEC_PATH", "GIT_SHALLOW_FILE",
+        # Git's credential/SSH helper environment can nominate executable
+        # transports outside this checkout. Standalone evidence preflight
+        # must not inherit those process-launch authorities even if its
+        # current read-only probe sequence never needs network access.
+        "GIT_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND",
+        "GIT_SSH_VARIANT", "GIT_PROXY_COMMAND",
         "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
         # Git tracing can write outside the checkout before a read-only
