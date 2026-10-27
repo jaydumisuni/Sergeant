@@ -278,6 +278,19 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                    for entry in optional_controls)):
         return CheckoutPreflight(expected, None, ("unverified_git_control_custody",))
 
+    # A caller-controlled PATH can substitute Git itself before any local
+    # config or checkout probe. On POSIX, constrain executable lookup to the
+    # system's standard command directories; never inherit a workspace or
+    # user-writable tool directory for an authority-bearing Git subprocess.
+    # This is POSIX source custody, not Windows executable qualification.
+    isolated_git_env = os.environ.copy()
+    if os.name == "posix":
+        isolated_git_env["PATH"] = os.defpath
+    isolated_git_env["GIT_CONFIG_NOSYSTEM"] = "1"
+    isolated_git_env["GIT_CONFIG_GLOBAL"] = os.devnull
+    isolated_git_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
+
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
@@ -298,6 +311,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                  "--name-only", "--get-regexp",
                  r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$"],
                 capture_output=True, text=True, timeout=10,
+                env=isolated_git_env,
             )
         except (OSError, subprocess.TimeoutExpired):
             blockers.append("external_git_metadata")
@@ -372,18 +386,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if blockers:
         return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
 
-    # Checkout Git must not inherit host-global or system configuration.
-    # In particular, an ambient core.fsmonitor can execute external code
-    # during status even when the checkout's local config is clean.
-    isolated_git_env = os.environ.copy()
-    isolated_git_env["GIT_CONFIG_NOSYSTEM"] = "1"
-    isolated_git_env["GIT_CONFIG_GLOBAL"] = os.devnull
-    # Git replace refs can silently substitute an object while HEAD and status
-    # remain unchanged. Disable replacement during every checkout Git probe.
-    isolated_git_env["GIT_NO_REPLACE_OBJECTS"] = "1"
-    # A read-only status must not refresh the index while its inode identity
-    # is being compared across independent Git probes.
-    isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
+    # All checkout Git probes reuse the pre-config, system-path environment.
+    # Replacement refs and optional index writes remain disabled throughout.
 
     def git(*args: str) -> str | None:
         try:

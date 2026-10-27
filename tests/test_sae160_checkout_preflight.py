@@ -38,6 +38,25 @@ def checkout(tmp_path: Path) -> tuple[Path, str]:
     return clone, git(clone, "rev-parse", "HEAD")
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX system Git path custody")
+def test_shadow_git_on_ambient_path_cannot_execute_during_preflight(tmp_path, monkeypatch):
+    """Caller-controlled PATH must not substitute Git before config admission."""
+    path, head = checkout(tmp_path)
+    shadow = tmp_path / "shadow-bin"
+    shadow.mkdir()
+    marker = tmp_path / "shadow-git-executed"
+    fake_git = shadow / "git"
+    fake_git.write_text("#!/bin/sh\nprintf shadow > " + str(marker) + "\nexit 91\n")
+    fake_git.chmod(0o755)
+    monkeypatch.setenv("PATH", str(shadow) + os.pathsep + os.environ["PATH"])
+
+    result = inspect_checkout(path, head)
+    assert not marker.exists(), "untrusted PATH executed a substituted Git binary"
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_standalone_clean_exact_checkout_is_only_preflight(tmp_path):
     path, head = checkout(tmp_path)
     result = inspect_checkout(path, head)
