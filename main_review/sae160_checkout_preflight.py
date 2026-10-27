@@ -542,6 +542,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             tracked_custody[tracked_file] = observed_file
             if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
                 blockers.append("external_worktree_file_dependency")
+            # Git status may ignore executable-bit drift when core.filemode=false.
+            # Bind the physical POSIX executable bits to the staged Git mode
+            # directly; a clean status cannot establish this parity.
+            if os.name == "posix" and stat.S_ISREG(metadata.st_mode) and (
+                bool(metadata.st_mode & 0o111) != (mode == "100755")
+            ):
+                blockers.append("tracked_worktree_mode_mismatch")
             if os.name == "posix" and (
                 metadata.st_uid not in trusted_owners
                 or metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
@@ -556,6 +563,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "unverified_worktree_file_custody",
         "external_worktree_file_dependency",
         "mutable_worktree_file_permissions",
+        "tracked_worktree_mode_mismatch",
         "unverified_worktree_directory_custody",
         "external_worktree_directory_dependency",
         "mutable_worktree_directory_permissions",

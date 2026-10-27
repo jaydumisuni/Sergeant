@@ -1681,3 +1681,44 @@ def test_checkout_ancestor_losing_custody_after_clean_status_is_rejected(
     assert "mutable_checkout_ancestry" in result.blockers
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX index executable-mode custody")
+@pytest.mark.parametrize("index_executable", (False, True))
+def test_index_executable_mode_mismatch_cannot_qualify(tmp_path, index_executable):
+    """core.filemode=false must not hide an index/worktree executable mismatch."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    if index_executable:
+        git(path, "config", "user.email", "fixture@example.invalid")
+        git(path, "config", "user.name", "Fixture")
+        git(path, "update-index", "--chmod=+x", "tracked.txt")
+        git(path, "commit", "-qm", "fixture: executable index entry")
+        head = git(path, "rev-parse", "HEAD")
+        tracked.chmod(0o644)
+    else:
+        tracked.chmod(0o755)
+    git(path, "config", "core.filemode", "false")
+    assert git(path, "status", "--porcelain", "--untracked-files=all", "--ignored=matching") == ""
+
+    result = inspect_checkout(path, head)
+    assert "tracked_worktree_mode_mismatch" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX executable-mode positive control")
+def test_matching_index_executable_mode_remains_preflight_clean(tmp_path):
+    """An executable file matching its index mode remains admissible."""
+    path, _ = checkout(tmp_path)
+    git(path, "config", "user.email", "fixture@example.invalid")
+    git(path, "config", "user.name", "Fixture")
+    tracked = path / "tracked.txt"
+    tracked.chmod(0o755)
+    git(path, "add", "tracked.txt")
+    git(path, "commit", "-qm", "fixture: matching executable file")
+    head = git(path, "rev-parse", "HEAD")
+    git(path, "config", "core.filemode", "false")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
