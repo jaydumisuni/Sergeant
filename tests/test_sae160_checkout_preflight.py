@@ -57,6 +57,27 @@ def test_shadow_git_on_ambient_path_cannot_execute_during_preflight(tmp_path, mo
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("variable", (
+    "GIT_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND",
+    "GIT_SSH_VARIANT", "GIT_PROXY_COMMAND",
+))
+def test_ambient_git_helper_override_rejected_before_any_git_process(
+    tmp_path, monkeypatch, variable
+):
+    """Executable Git transport/credential helpers cannot enter local preflight."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "/untrusted/helper")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient helper override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize(("config_key", "config_value"), (
     ("extensions.partialClone", "origin"),
     ("remote.origin.promisor", "true"),
