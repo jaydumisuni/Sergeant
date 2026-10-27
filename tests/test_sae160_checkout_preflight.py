@@ -2102,3 +2102,111 @@ def test_tracked_file_capability_xattr_appearing_after_status_is_rejected(
     assert observed_status
     assert "tracked_worktree_xattr_changed" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "getxattr"),
+    reason="POSIX extended-attribute value custody",
+)
+def test_tracked_file_xattr_value_mutation_after_status_is_rejected(
+    tmp_path, monkeypatch,
+):
+    """The same xattr name with changed bytes is not the same checkout."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_run = subprocess.run
+    original_listxattr = os.listxattr
+    original_getxattr = os.getxattr
+    observed_status = False
+
+    def mark_status(argv, *args, **kwargs):
+        nonlocal observed_status
+        result = original_run(argv, *args, **kwargs)
+        if argv and argv[0] == "git" and "status" in argv:
+            observed_status = True
+        return result
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            return ["user.sae160.custody"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    def getxattr(entry, name, *args, **kwargs):
+        if Path(entry) == tracked and name == "user.sae160.custody":
+            return b"changed" if observed_status else b"original"
+        return original_getxattr(entry, name, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", mark_status)
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    monkeypatch.setattr(os, "getxattr", getxattr)
+    result = inspect_checkout(path, head)
+    assert observed_status
+    assert "tracked_worktree_xattr_changed" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "getxattr"),
+    reason="POSIX extended-attribute value custody",
+)
+def test_unreadable_tracked_xattr_value_rejected_before_git_status(
+    tmp_path, monkeypatch,
+):
+    """An enumerated but unreadable attribute cannot earn clean authority."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_listxattr = os.listxattr
+    original_getxattr = os.getxattr
+    original_run = subprocess.run
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            return ["user.sae160.custody"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    def getxattr(entry, name, *args, **kwargs):
+        if Path(entry) == tracked and name == "user.sae160.custody":
+            raise OSError("attribute content unreadable")
+        return original_getxattr(entry, name, *args, **kwargs)
+
+    def reject_status(argv, *args, **kwargs):
+        if argv and argv[0] == "git" and "status" in argv:
+            raise AssertionError("Git status ran before xattr value custody")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    monkeypatch.setattr(os, "getxattr", getxattr)
+    monkeypatch.setattr(subprocess, "run", reject_status)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("unverified_worktree_xattr_custody",)
+    assert result.authority_gain == "NONE"
+
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "getxattr"),
+    reason="POSIX extended-attribute value custody",
+)
+def test_stable_tracked_xattr_value_keeps_clean_preflight(tmp_path, monkeypatch):
+    """A private stable user attribute is not a capability or a dirty tree."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_listxattr = os.listxattr
+    original_getxattr = os.getxattr
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            return ["user.sae160.custody"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    def getxattr(entry, name, *args, **kwargs):
+        if Path(entry) == tracked and name == "user.sae160.custody":
+            return b"stable"
+        return original_getxattr(entry, name, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    monkeypatch.setattr(os, "getxattr", getxattr)
+    result = inspect_checkout(path, head)
+    assert result.observed_head == head
+    assert result.blockers == ()
+    assert result.authority_gain == "NONE"

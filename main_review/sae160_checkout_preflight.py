@@ -621,7 +621,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     index_entries = git("ls-files", "--stage", "-z")
     indexed_directories = {root}
     indexed_files: set[Path] = set()
-    tracked_xattrs: dict[Path, tuple[str, ...]] = {}
+    tracked_xattrs: dict[Path, tuple[tuple[str, bytes], ...]] = {}
     if index_entries is None:
         blockers.append("unverified_index_entries")
     else:
@@ -699,18 +699,24 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             # Git does not store POSIX extended attributes. A capability xattr
             # can grant executable privilege without changing the indexed blob
             # or executable bit, so status cannot establish its absence.
-            # Failure to enumerate xattrs is unknown, never a clean checkout.
+            # Bind nonprivileged attribute *values* as well as names: the same
+            # name with changed bytes is a different untracked filesystem input.
+            # Failure to read any value is unknown, never a clean checkout.
             if os.name == "posix":
                 try:
-                    attributes = tuple(sorted(os.listxattr(
+                    names = tuple(sorted(os.listxattr(
                         tracked_file, follow_symlinks=False
                     )))
-                except (OSError, AttributeError, TypeError):
-                    blockers.append("unverified_worktree_xattr_custody")
-                else:
-                    tracked_xattrs[tracked_file] = attributes
-                    if "security.capability" in attributes:
+                    if "security.capability" in names:
                         blockers.append("tracked_worktree_privileged_xattr")
+                    else:
+                        tracked_xattrs[tracked_file] = tuple(
+                            (name, os.getxattr(
+                                tracked_file, name, follow_symlinks=False
+                            )) for name in names
+                        )
+                except (OSError, AttributeError, TypeError, ValueError):
+                    blockers.append("unverified_worktree_xattr_custody")
             # Git status may ignore executable-bit drift when core.filemode=false.
             # Bind the physical POSIX executable bits to the staged Git mode
             # directly; a clean status cannot establish this parity.
@@ -814,14 +820,23 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if observed_identity != original_identity:
             blockers.append("tracked_worktree_custody_changed")
             break
-    # A capability xattr introduced after the index walk is not represented
-    # by Git status. Bind the xattr name inventory across the final readback.
+    # Bind attribute names and contents across Git status. Check names first
+    # so a newly introduced capability is rejected even if its bytes cannot
+    # be read; a stable name with modified bytes is equally unverified.
     for tracked_path, original_attributes in tracked_xattrs.items():
         try:
-            observed_attributes = tuple(sorted(os.listxattr(
+            names = tuple(sorted(os.listxattr(
                 tracked_path, follow_symlinks=False
             )))
-        except (OSError, AttributeError, TypeError):
+            if names != tuple(name for name, _ in original_attributes):
+                blockers.append("tracked_worktree_xattr_changed")
+                break
+            observed_attributes = tuple(
+                (name, os.getxattr(
+                    tracked_path, name, follow_symlinks=False
+                )) for name in names
+            )
+        except (OSError, AttributeError, TypeError, ValueError):
             blockers.append("unverified_worktree_xattr_custody")
             break
         if observed_attributes != original_attributes:
