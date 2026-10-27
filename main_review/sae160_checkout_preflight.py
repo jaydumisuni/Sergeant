@@ -545,10 +545,14 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             # Git status may ignore executable-bit drift when core.filemode=false.
             # Bind the physical POSIX executable bits to the staged Git mode
             # directly; a clean status cannot establish this parity.
-            if os.name == "posix" and stat.S_ISREG(metadata.st_mode) and (
-                bool(metadata.st_mode & 0o111) != (mode == "100755")
-            ):
-                blockers.append("tracked_worktree_mode_mismatch")
+            if os.name == "posix" and stat.S_ISREG(metadata.st_mode):
+                # Git records only 100644/100755 executable parity, not set-ID
+                # privilege transitions. A clean status cannot admit a tracked
+                # file carrying an unrepresented set-user/group-ID bit.
+                if metadata.st_mode & (stat.S_ISUID | stat.S_ISGID):
+                    blockers.append("tracked_worktree_privileged_mode")
+                if bool(metadata.st_mode & 0o111) != (mode == "100755"):
+                    blockers.append("tracked_worktree_mode_mismatch")
             if os.name == "posix" and (
                 metadata.st_uid not in trusted_owners
                 or metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH)
@@ -564,6 +568,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "external_worktree_file_dependency",
         "mutable_worktree_file_permissions",
         "tracked_worktree_mode_mismatch",
+        "tracked_worktree_privileged_mode",
         "unverified_worktree_directory_custody",
         "external_worktree_directory_dependency",
         "mutable_worktree_directory_permissions",
