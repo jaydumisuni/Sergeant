@@ -614,6 +614,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
 
     index_entries = git("ls-files", "--stage", "-z")
     indexed_directories = {root}
+    indexed_files: set[Path] = set()
     if index_entries is None:
         blockers.append("unverified_index_entries")
     else:
@@ -675,6 +676,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if parent_failed:
                 continue
             tracked_file = root / relative_path
+            indexed_files.add(tracked_file)
             try:
                 metadata = tracked_file.lstat()
             except OSError:
@@ -738,25 +740,32 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     status = git("status", "--porcelain", "--untracked-files=all", "--ignored=matching")
     if status is None or status:
         blockers.append("dirty_or_unverified_checkout")
-    # Git status does not report empty untracked directories, including empty
-    # descendants beneath tracked parents. A clean-clone evidence checkout must
-    # not silently admit additional mutable workspace paths. Compare direct
-    # directory children with the parents derived from the tracked index; do
-    # not follow symlinks or mistake the checkout's own .git for an artifact.
-    for directory in indexed_directories:
+    # Git status can hide untracked case-folded aliases when core.ignorecase
+    # is enabled on a case-sensitive filesystem. It also omits empty untracked
+    # directories. Enumerate every direct child of each indexed directory
+    # against the exact, case-sensitive index path set. This is independent of
+    # Git's ignore/casefold heuristics and does not follow symlink targets.
+    # Ordinary dirty status already blocks admission; this closes the false
+    # clean result without changing the established dirty-checkout verdict.
+    for directory in (indexed_directories if status == "" else ()):
         try:
             with os.scandir(directory) as entries:
                 for entry in entries:
                     if directory == root and entry.name == ".git":
                         continue
-                    if (entry.is_dir(follow_symlinks=False)
-                            and Path(entry.path) not in indexed_directories):
-                        blockers.append("untracked_worktree_directory")
+                    child = Path(entry.path)
+                    if entry.is_dir(follow_symlinks=False):
+                        if child not in indexed_directories:
+                            blockers.append("untracked_worktree_directory")
+                            break
+                    elif child not in indexed_files:
+                        blockers.append("untracked_worktree_entry")
                         break
         except OSError:
             blockers.append("unverified_worktree_directory_custody")
             break
-        if "untracked_worktree_directory" in blockers:
+        if ("untracked_worktree_directory" in blockers
+                or "untracked_worktree_entry" in blockers):
             break
     # A same-byte replacement or appearance/disappearance of Git control
     # metadata after one probe is not made safe by a clean status.

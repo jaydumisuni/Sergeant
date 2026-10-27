@@ -87,6 +87,35 @@ def test_partial_clone_promisor_config_is_not_repository_only(
     assert checkout_calls == []
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX case-folded alias custody")
+@pytest.mark.parametrize("nested", (False, True))
+def test_git_ignorecase_cannot_hide_untracked_casefolded_alias(tmp_path, nested):
+    """A clean Git status must not admit a second physical path absent from the index."""
+    path, head = checkout(tmp_path)
+    if nested:
+        parent = path / "nested"
+        parent.mkdir()
+        (parent / "pinned.txt").write_text("pinned\n")
+        git(path, "add", "nested/pinned.txt")
+        git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+            "commit", "-qm", "fixture: nested pinned path")
+        head = git(path, "rev-parse", "HEAD")
+        shadow = parent / "PINNED.TXT"
+    else:
+        shadow = path / "TRACKED.TXT"
+    if shadow.exists():
+        pytest.skip("filesystem cannot represent distinct case-folded aliases")
+    git(path, "config", "core.ignorecase", "true")
+    shadow.write_text("untracked shadow\n")
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("untracked_worktree_entry",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_standalone_clean_exact_checkout_is_only_preflight(tmp_path):
     path, head = checkout(tmp_path)
     result = inspect_checkout(path, head)
