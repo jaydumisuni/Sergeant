@@ -1869,3 +1869,33 @@ def test_setid_tracked_file_cannot_qualify_standalone_checkout(tmp_path, privile
     result = inspect_checkout(path, head)
     assert "tracked_worktree_privileged_mode" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX pack-index inode custody")
+def test_object_pack_index_replacement_after_clean_status_is_rejected(
+    tmp_path, monkeypatch
+):
+    """A clean status cannot qualify a same-byte swapped Git pack index."""
+    path, head = checkout(tmp_path)
+    git(path, "repack", "-ad")
+    pack_index = next((path / ".git" / "objects" / "pack").glob("*.idx"))
+    replacement = tmp_path / "same-bytes.idx"
+    replacement.write_bytes(pack_index.read_bytes())
+    original_run = subprocess.run
+    replaced = False
+
+    def swap_after_status(argv, *args, **kwargs):
+        nonlocal replaced
+        result = original_run(argv, *args, **kwargs)
+        if (not replaced and list(argv[:3]) == ["git", "-C", str(path)]
+                and "status" in argv[3:]):
+            assert result.stdout == ""
+            os.replace(replacement, pack_index)
+            replaced = True
+        return result
+
+    monkeypatch.setattr(subprocess, "run", swap_after_status)
+    result = inspect_checkout(path, head)
+    assert replaced
+    assert "git_object_store_changed" in result.blockers
+    assert result.authority_gain == "NONE"

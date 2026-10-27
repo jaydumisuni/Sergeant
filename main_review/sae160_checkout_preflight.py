@@ -313,6 +313,51 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if original_loose_refs is None:
         return CheckoutPreflight(expected, None, ("unverified_git_ref_custody",))
 
+    # Object packs, loose objects and commit-graph metadata are independent
+    # authority read by checkout Git. A same-byte pack-index replacement can
+    # leave HEAD and status unchanged, so bind every object-store pathname
+    # and inode across the non-atomic read-only probes.
+    def object_store_snapshot() -> tuple[tuple[str, tuple[int, ...]], ...] | None:
+        object_root = gitdir / "objects"
+        observed: list[tuple[str, tuple[int, ...]]] = []
+
+        def walk_error(error: OSError) -> None:
+            raise error
+
+        try:
+            if not object_root.is_dir() or object_root.is_symlink():
+                return None
+            for directory, child_dirs, child_files in os.walk(
+                object_root, followlinks=False, onerror=walk_error
+            ):
+                for entry in (Path(directory), *(
+                    Path(directory) / name for name in (*child_dirs, *child_files)
+                )):
+                    metadata = entry.lstat()
+                    mode = metadata.st_mode
+                    if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+                        return None
+                    if stat.S_ISREG(mode) and metadata.st_nlink != 1:
+                        return None
+                    if os.name == "posix" and (
+                        metadata.st_uid not in trusted_owners
+                        or mode & (stat.S_IWGRP | stat.S_IWOTH)
+                    ):
+                        return None
+                    observed.append((
+                        str(entry.relative_to(gitdir)),
+                        (metadata.st_dev, metadata.st_ino, mode,
+                         metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+                         metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns),
+                    ))
+            return tuple(sorted(observed))
+        except OSError:
+            return None
+
+    original_objects = object_store_snapshot()
+    if original_objects is None:
+        return CheckoutPreflight(expected, None, ("unverified_git_object_store_custody",))
+
     # A caller-controlled PATH can substitute Git itself before any local
     # config or checkout probe. On POSIX, constrain executable lookup to the
     # system's standard command directories; never inherit a workspace or
@@ -361,6 +406,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         return CheckoutPreflight(expected, None, ("git_control_metadata_changed",))
     if loose_ref_snapshot() != original_loose_refs:
         return CheckoutPreflight(expected, None, ("git_ref_metadata_changed",))
+    if object_store_snapshot() != original_objects:
+        return CheckoutPreflight(expected, None, ("git_object_store_changed",))
     objects = gitdir / "objects"
     if objects.is_symlink() or not objects.is_dir():
         blockers.append("external_object_store")
@@ -667,6 +714,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         blockers.append("git_control_metadata_changed")
     if loose_ref_snapshot() != original_loose_refs:
         blockers.append("git_ref_metadata_changed")
+    if object_store_snapshot() != original_objects:
+        blockers.append("git_object_store_changed")
     # Recheck every tracked file and intermediate directory after status.
     # Device/inode plus metadata timestamps catch stable substitutions and
     # in-place writes that occurred across the non-atomic Git status scan.
