@@ -701,6 +701,27 @@ def test_symlinked_commit_graph_cannot_borrow_external_object_metadata(tmp_path)
     assert result.authority_gain == "NONE"
 
 
+def test_ambient_git_attribute_source_cannot_rewrite_checkout_evidence(tmp_path, monkeypatch):
+    """A caller-selected attribute tree must be rejected before any Git probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("GIT_ATTR_SOURCE", "refs/heads/unreviewed-attributes")
+    actual_run = subprocess.run
+    git_calls = []
+
+    def reject_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("external Git attribute source reached a Git subprocess")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
 def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch):
     path, head = checkout(tmp_path)
     external = tmp_path / "external-objects"
