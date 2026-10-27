@@ -1722,3 +1722,24 @@ def test_matching_index_executable_mode_remains_preflight_clean(tmp_path):
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX set-ID mode custody")
+@pytest.mark.parametrize("privileged_mode", (0o4644, 0o2644, 0o4755, 0o2755, 0o6755))
+def test_setid_tracked_file_cannot_qualify_standalone_checkout(tmp_path, privileged_mode):
+    """Git stores only executable parity; set-ID privilege bits must not be hidden."""
+    path, _ = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    if privileged_mode & 0o111:
+        tracked.chmod(0o755)
+        git(path, "add", "tracked.txt")
+        git(path, "-c", "user.name=Fixture", "-c",
+            "user.email=fixture@example.invalid", "commit", "-qm", "executable fixture")
+    head = git(path, "rev-parse", "HEAD")
+    tracked.chmod(privileged_mode)
+    assert tracked.stat().st_mode & 0o6000 == privileged_mode & 0o6000
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+    result = inspect_checkout(path, head)
+    assert "tracked_worktree_privileged_mode" in result.blockers
+    assert result.authority_gain == "NONE"
