@@ -251,13 +251,16 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
         )
 
-    # HEAD/index and optional configuration/ref tables are independently
-    # consulted by Git probes. Bind their pathname identities across the
-    # final clean status; missing optional files must remain missing.
+    # HEAD/index, optional configuration/ref tables, and local info rules are
+    # independently consulted by Git probes. In particular, info/exclude can
+    # conceal untracked evidence and info/attributes can alter path semantics
+    # without changing HEAD or the index. Bind their pathname identities across
+    # the final clean status; missing optional files must remain missing.
     # This is before/after custody, not an atomic filesystem snapshot.
     required_controls = (gitdir / "HEAD", gitdir / "index")
     optional_controls = (
         gitdir / "config", gitdir / "config.worktree", gitdir / "packed-refs",
+        gitdir / "info" / "exclude", gitdir / "info" / "attributes",
     )
     control_entries = (*required_controls, *optional_controls)
     original_controls = {

@@ -380,6 +380,61 @@ def test_optional_git_control_symlink_appearing_after_status_is_rejected(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("control_name", ("info/exclude", "info/attributes"))
+def test_same_byte_git_info_rules_swap_after_status_is_rejected(
+    tmp_path, monkeypatch, control_name
+):
+    """Local ignore/attribute rules are Git control inputs even with clean status."""
+    path, head = checkout(tmp_path)
+    control = path / ".git" / control_name
+    if not control.exists():
+        control.write_text("")
+    assert inspect_checkout(path, head).blockers == ()
+    original_run = subprocess.run
+    swapped = []
+
+    def replace_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            assert result.returncode == 0 and result.stdout == ""
+            replacement = control.with_name(control.name + ".replacement")
+            replacement.write_bytes(control.read_bytes())
+            os.replace(replacement, control)
+            swapped.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", replace_after_status)
+    result = inspect_checkout(path, head)
+    assert swapped == [True]
+    assert result.blockers == ("git_control_metadata_changed",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+def test_git_info_attributes_appearing_after_status_is_rejected(tmp_path, monkeypatch):
+    """A new attributes rule must not inherit a previously clean snapshot."""
+    path, head = checkout(tmp_path)
+    control = path / ".git" / "info" / "attributes"
+    assert not control.exists()
+    original_run = subprocess.run
+    introduced = []
+
+    def introduce_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            assert result.returncode == 0 and result.stdout == ""
+            control.write_text("*.txt -text\n")
+            introduced.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", introduce_after_status)
+    result = inspect_checkout(path, head)
+    assert introduced == [True]
+    assert result.blockers == ("git_control_metadata_changed",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.skipif(os.name != "posix", reason="POSIX control-file custody")
 @pytest.mark.parametrize("control_name", ("HEAD", "index", "config"))
 @pytest.mark.parametrize("mutation", ("late_hardlink", "late_peer_write"))
