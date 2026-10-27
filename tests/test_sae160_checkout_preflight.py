@@ -641,7 +641,11 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
 def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypatch, name, value):
     """Ambient Git overrides must not reach even the local config probe."""
     path, head = checkout(tmp_path)
+    if name.startswith(("LD_", "DYLD_")):
+        assert not any(key.startswith(("LD_", "DYLD_")) for key in os.environ)
     monkeypatch.setenv(name, value)
+    if name.startswith(("LD_", "DYLD_")):
+        assert {key for key in os.environ if key.startswith(("LD_", "DYLD_"))} == {name}
     original_run = subprocess.run
     git_calls = []
 
