@@ -2031,3 +2031,74 @@ def test_object_pack_index_replacement_after_clean_status_is_rejected(
     assert replaced
     assert "git_object_store_changed" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "listxattr"),
+    reason="POSIX extended-attribute custody",
+)
+@pytest.mark.parametrize("failure", [False, True])
+def test_tracked_file_capability_xattr_rejected_before_status(
+    tmp_path, monkeypatch, failure,
+):
+    """Git cannot represent Linux file capabilities or verify their absence."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_listxattr = os.listxattr
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            if failure:
+                raise OSError("unverifiable tracked-file xattrs")
+            return ["security.capability"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    original_run = subprocess.run
+
+    def reject_status(argv, *args, **kwargs):
+        if argv and argv[0] == "git" and "status" in argv:
+            raise AssertionError("Git status ran before xattr custody admission")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_status)
+    result = inspect_checkout(path, head)
+    assert result.authority_gain == "NONE"
+    assert result.blockers == (
+        ("unverified_worktree_xattr_custody",) if failure
+        else ("tracked_worktree_privileged_xattr",)
+    )
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "listxattr"),
+    reason="POSIX extended-attribute custody",
+)
+def test_tracked_file_capability_xattr_appearing_after_status_is_rejected(
+    tmp_path, monkeypatch,
+):
+    """A post-status capability change cannot inherit the clean Git result."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_run = subprocess.run
+    original_listxattr = os.listxattr
+    observed_status = False
+
+    def mark_status(argv, *args, **kwargs):
+        nonlocal observed_status
+        result = original_run(argv, *args, **kwargs)
+        if argv and argv[0] == "git" and "status" in argv:
+            observed_status = True
+        return result
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked and observed_status:
+            return ["security.capability"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", mark_status)
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    result = inspect_checkout(path, head)
+    assert observed_status
+    assert "tracked_worktree_xattr_changed" in result.blockers
+    assert result.authority_gain == "NONE"
