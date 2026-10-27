@@ -57,6 +57,36 @@ def test_shadow_git_on_ambient_path_cannot_execute_during_preflight(tmp_path, mo
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("extensions.partialClone", "origin"),
+    ("remote.origin.promisor", "true"),
+    ("remote.origin.partialCloneFilter", "blob:none"),
+))
+def test_partial_clone_promisor_config_is_not_repository_only(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """A clean local object store cannot admit future remote object fetches."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("promisor checkout reached a Git object probe")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
 def test_standalone_clean_exact_checkout_is_only_preflight(tmp_path):
     path, head = checkout(tmp_path)
     result = inspect_checkout(path, head)
