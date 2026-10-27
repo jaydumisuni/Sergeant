@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import os
 
 import pytest
 
@@ -18,6 +19,15 @@ from main_review.repository_only_qualification import (
 )
 
 HEAD = "a" * 40
+
+
+@pytest.fixture(autouse=True)
+def _isolate_inherited_loader_controls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exclude runner loader paths from SAE-160 checkout qualification fixtures."""
+    # SAE-10 freezes shared tests/conftest.py; do not rewrite that authority.
+    for name in tuple(os.environ):
+        if name.startswith(("LD_", "DYLD_")):
+            monkeypatch.delenv(name, raising=False)
 
 
 def evidence(

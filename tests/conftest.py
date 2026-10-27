@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -49,11 +48,6 @@ def _isolate_model_routes_and_usage_state(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    # CI Python setup can export loader search paths. Keep production fail-closed
-    # admission intact while making each test explicitly own its loader inputs.
-    for name in tuple(os.environ):
-        if name.startswith(("LD_", "DYLD_")):
-            monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("SERGEANT_LLM_ENABLED", "false")
     monkeypatch.setenv(
         "SERGEANT_CLOUDFLARE_USAGE_STATE",

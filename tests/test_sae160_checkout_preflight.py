@@ -10,6 +10,16 @@ import pytest
 from main_review.sae160_checkout_preflight import inspect_checkout
 
 
+@pytest.fixture(autouse=True)
+def _isolate_inherited_loader_controls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep runner loader paths out of this module's explicit threat fixtures."""
+    # SAE-10 freezes tests/conftest.py by blob identity; keep this isolation
+    # local to SAE-160 without weakening production pre-Git admission.
+    for name in tuple(os.environ):
+        if name.startswith(("LD_", "DYLD_")):
+            monkeypatch.delenv(name, raising=False)
+
+
 def git(path: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
 
