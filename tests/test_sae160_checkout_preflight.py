@@ -382,6 +382,37 @@ def test_git_ref_tree_mutation_after_clean_status_is_rejected(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX Git metadata custody")
+@pytest.mark.parametrize("directory", (".git", ".git/hooks", ".git/info"))
+def test_git_metadata_directory_mode_changed_after_status_is_rejected(
+    tmp_path, monkeypatch, directory
+):
+    """A late peer-writable Git directory cannot inherit an earlier clean status."""
+    path, head = checkout(tmp_path)
+    target = path / directory
+    assert target.is_dir()
+    original_mode = target.stat().st_mode & 0o777
+    actual_run = subprocess.run
+    changed = []
+
+    def chmod_after_status(argv, *args, **kwargs):
+        result = actual_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv[3:]:
+            assert result.returncode == 0 and result.stdout == ""
+            target.chmod(original_mode | 0o020)
+            changed.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", chmod_after_status)
+    try:
+        result = inspect_checkout(path, head)
+        assert changed == [True]
+        assert "git_metadata_tree_changed" in result.blockers
+        assert result.authority_gain == "NONE"
+    finally:
+        target.chmod(original_mode)
+
+
 def test_optional_git_control_appearing_after_clean_status_is_rejected(
     tmp_path, monkeypatch
 ):

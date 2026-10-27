@@ -227,6 +227,48 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # config probe, which is itself a Git subprocess.
     if blockers:
         return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
+    # Git reads more than HEAD, refs and objects. Directory permissions or
+    # hook/info/log metadata can change after the initial safe walk without
+    # changing HEAD, the index or the observed worktree. Bind the complete
+    # local .git tree, including its root, across all read-only Git probes.
+    def git_metadata_tree_snapshot() -> tuple[tuple[str, tuple[int, ...]], ...] | None:
+        observed: list[tuple[str, tuple[int, ...]]] = []
+
+        def walk_error(error: OSError) -> None:
+            raise error
+
+        try:
+            for directory, child_dirs, child_files in os.walk(
+                gitdir, followlinks=False, onerror=walk_error
+            ):
+                for entry in (Path(directory), *(
+                    Path(directory) / name for name in (*child_dirs, *child_files)
+                )):
+                    metadata = entry.lstat()
+                    mode = metadata.st_mode
+                    if not (stat.S_ISDIR(mode) or stat.S_ISREG(mode)):
+                        return None
+                    if stat.S_ISREG(mode) and metadata.st_nlink != 1:
+                        return None
+                    if os.name == "posix" and (
+                        metadata.st_uid not in trusted_owners
+                        or mode & (stat.S_IWGRP | stat.S_IWOTH)
+                    ):
+                        return None
+                    observed.append((
+                        str(entry.relative_to(gitdir)),
+                        (metadata.st_dev, metadata.st_ino, mode,
+                         metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+                         metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns),
+                    ))
+            return tuple(sorted(observed))
+        except OSError:
+            return None
+
+    original_git_metadata = git_metadata_tree_snapshot()
+    if original_git_metadata is None:
+        return CheckoutPreflight(expected, None, ("unverified_git_metadata_custody",))
+
     # Snapshot control metadata before the safe config probe. A replacement
     # between that probe and checkout Git must not inherit unchecked settings.
     def control_identity(entry: Path) -> tuple[int, ...] | str | None:
@@ -408,6 +450,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         return CheckoutPreflight(expected, None, ("git_ref_metadata_changed",))
     if object_store_snapshot() != original_objects:
         return CheckoutPreflight(expected, None, ("git_object_store_changed",))
+    if git_metadata_tree_snapshot() != original_git_metadata:
+        return CheckoutPreflight(expected, None, ("git_metadata_tree_changed",))
     objects = gitdir / "objects"
     if objects.is_symlink() or not objects.is_dir():
         blockers.append("external_object_store")
@@ -716,6 +760,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         blockers.append("git_ref_metadata_changed")
     if object_store_snapshot() != original_objects:
         blockers.append("git_object_store_changed")
+    if not blockers and git_metadata_tree_snapshot() != original_git_metadata:
+        blockers.append("git_metadata_tree_changed")
     # Recheck every tracked file and intermediate directory after status.
     # Device/inode plus metadata timestamps catch stable substitutions and
     # in-place writes that occurred across the non-atomic Git status scan.
