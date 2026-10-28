@@ -2345,6 +2345,7 @@ def test_local_git_review_executable_config_rejected_before_checkout_git(
 @pytest.mark.parametrize(("config_key", "config_value"), (
     ("difftool.review.cmd", "/untrusted/diff-tool"),
     ("mergetool.review.cmd", "/untrusted/merge-tool"),
+    ("merge.review.driver", "/untrusted/merge-driver %O %A %B"),
     ("interactive.diffFilter", "/untrusted/diff-filter"),
     ("core.alternateRefsCommand", "/untrusted/alternate-refs"),
 ))
