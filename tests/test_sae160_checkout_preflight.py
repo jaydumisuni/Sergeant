@@ -2340,3 +2340,33 @@ def test_local_git_review_executable_config_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("difftool.review.cmd", "/untrusted/diff-tool"),
+    ("mergetool.review.cmd", "/untrusted/merge-tool"),
+    ("interactive.diffFilter", "/untrusted/diff-filter"),
+    ("core.alternateRefsCommand", "/untrusted/alternate-refs"),
+))
+def test_local_git_auxiliary_executable_config_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Standalone review cannot borrow executable Git tool/alternate-ref helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound executable helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
