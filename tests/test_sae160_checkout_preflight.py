@@ -858,6 +858,34 @@ def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypa
     assert git_calls == []
 
 
+@pytest.mark.parametrize("name,value", (
+    ("GIT_PAGER", "/untrusted/pager"),
+    ("GIT_EDITOR", "/untrusted/editor"),
+    ("GIT_SEQUENCE_EDITOR", "/untrusted/sequence-editor"),
+))
+def test_ambient_git_review_helpers_rejected_before_config_probe(
+    tmp_path, monkeypatch, name, value
+):
+    """Ambient executable review helpers are not standalone Git authority."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(name, value)
+    original_run = subprocess.run
+    git_calls = []
+
+    def reject_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("Git invoked before rejecting ambient review helper")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
 def test_symlinked_git_config_is_not_standalone_authority(tmp_path):
     path, head = checkout(tmp_path)
     config = path / ".git" / "config"
