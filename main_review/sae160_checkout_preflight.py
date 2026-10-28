@@ -306,7 +306,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     split_index = (
                         entry.parent == gitdir
                         and entry.name.startswith("sharedindex.")
-                        and len(entry.name) == len("sharedindex.") + 40
+                        and len(entry.name) - len("sharedindex.") in (40, 64)
                         and all(ch in "0123456789abcdef"
                                 for ch in entry.name[len("sharedindex."):])
                     )

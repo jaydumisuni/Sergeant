@@ -24,10 +24,10 @@ def git(path: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
 
 
-def checkout(tmp_path: Path) -> tuple[Path, str]:
+def checkout(tmp_path: Path, *, object_format: str = "sha1") -> tuple[Path, str]:
     origin = tmp_path / "origin"
     origin.mkdir()
-    subprocess.check_call(["git", "init", "-q", str(origin)])
+    subprocess.check_call(["git", "init", f"--object-format={object_format}", "-q", str(origin)])
     git(origin, "config", "user.email", "test@example.invalid")
     git(origin, "config", "user.name", "Test")
     (origin / "tracked.txt").write_text("fixed\n")
@@ -2404,12 +2404,14 @@ def test_local_git_auxiliary_executable_config_rejected_before_checkout_git(
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX split-index timestamp custody")
-def test_split_index_timestamp_refresh_preserves_clean_custody(tmp_path):
+@pytest.mark.parametrize("object_format", ("sha1", "sha256"))
+def test_split_index_timestamp_refresh_preserves_clean_custody(tmp_path, object_format):
     """Git's own shared-index timestamp refresh is not a checkout mutation."""
-    path, head = checkout(tmp_path)
+    path, head = checkout(tmp_path, object_format=object_format)
     git(path, "update-index", "--split-index")
     shared = list((path / ".git").glob("sharedindex.*"))
     assert len(shared) == 1
+    assert len(shared[0].name) == len("sharedindex.") + len(head)
     assert git(path, "status", "--porcelain") == ""
     result = inspect_checkout(path, head)
     assert result.blockers == ()
@@ -2418,9 +2420,10 @@ def test_split_index_timestamp_refresh_preserves_clean_custody(tmp_path):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX split-index byte custody")
-def test_split_index_content_mutation_after_status_is_rejected(tmp_path, monkeypatch):
+@pytest.mark.parametrize("object_format", ("sha1", "sha256"))
+def test_split_index_content_mutation_after_status_is_rejected(tmp_path, monkeypatch, object_format):
     """Changed shared-index bytes remain unsafe even when timestamps are ignored."""
-    path, head = checkout(tmp_path)
+    path, head = checkout(tmp_path, object_format=object_format)
     git(path, "update-index", "--split-index")
     shared, = (path / ".git").glob("sharedindex.*")
     original_run = subprocess.run
