@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import hashlib
 import os
 import stat
 import subprocess
@@ -264,11 +265,50 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                         or mode & (stat.S_IWGRP | stat.S_IWOTH)
                     ):
                         return None
+                    identity = (
+                        metadata.st_dev, metadata.st_ino, mode,
+                        metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+                        metadata.st_size,
+                    )
+                    # Git refreshes split-index timestamps during read probes.
+                    # Bind the bytes, inode, size and permissions instead;
+                    # all other Git metadata retains strict timestamp custody.
+                    split_index = (
+                        entry.parent == gitdir
+                        and entry.name.startswith("sharedindex.")
+                        and len(entry.name) == len("sharedindex.") + 40
+                        and all(ch in "0123456789abcdef"
+                                for ch in entry.name[len("sharedindex."):])
+                    )
+                    if split_index:
+                        if not stat.S_ISREG(mode):
+                            return None
+                        digest = hashlib.sha256()
+                        fd = os.open(entry, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0))
+                        with os.fdopen(fd, "rb") as source:
+                            before = os.fstat(source.fileno())
+                            if (
+                                before.st_dev, before.st_ino, before.st_mode,
+                                before.st_uid, before.st_gid, before.st_nlink,
+                                before.st_size,
+                            ) != identity:
+                                return None
+                            for chunk in iter(lambda: source.read(1048576), b""):
+                                digest.update(chunk)
+                            after = os.fstat(source.fileno())
+                            if (
+                                after.st_dev, after.st_ino, after.st_mode,
+                                after.st_uid, after.st_gid, after.st_nlink,
+                                after.st_size,
+                            ) != identity:
+                                return None
+                        fingerprint = identity + (int.from_bytes(digest.digest(), "big"),)
+                    else:
+                        fingerprint = identity + (
+                            metadata.st_mtime_ns, metadata.st_ctime_ns,
+                        )
                     observed.append((
-                        str(entry.relative_to(gitdir)),
-                        (metadata.st_dev, metadata.st_ino, mode,
-                         metadata.st_uid, metadata.st_gid, metadata.st_nlink,
-                         metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns),
+                        str(entry.relative_to(gitdir)), fingerprint,
                     ))
             return tuple(sorted(observed))
         except OSError:

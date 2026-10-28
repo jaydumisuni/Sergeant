@@ -2370,3 +2370,43 @@ def test_local_git_auxiliary_executable_config_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX split-index timestamp custody")
+def test_split_index_timestamp_refresh_preserves_clean_custody(tmp_path):
+    """Git's own shared-index timestamp refresh is not a checkout mutation."""
+    path, head = checkout(tmp_path)
+    git(path, "update-index", "--split-index")
+    shared = list((path / ".git").glob("sharedindex.*"))
+    assert len(shared) == 1
+    assert git(path, "status", "--porcelain") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX split-index byte custody")
+def test_split_index_content_mutation_after_status_is_rejected(tmp_path, monkeypatch):
+    """Changed shared-index bytes remain unsafe even when timestamps are ignored."""
+    path, head = checkout(tmp_path)
+    git(path, "update-index", "--split-index")
+    shared, = (path / ".git").glob("sharedindex.*")
+    original_run = subprocess.run
+    changed = []
+
+    def mutate_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv[3:]:
+            data = bytearray(shared.read_bytes())
+            assert data
+            data[-1] ^= 1
+            shared.write_bytes(data)
+            changed.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", mutate_after_status)
+    result = inspect_checkout(path, head)
+    assert changed == [True]
+    assert "git_metadata_tree_changed" in result.blockers
+    assert result.authority_gain == "NONE"
