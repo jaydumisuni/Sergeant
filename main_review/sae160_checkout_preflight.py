@@ -421,6 +421,17 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     isolated_git_env["GIT_CONFIG_GLOBAL"] = os.devnull
     isolated_git_env["GIT_NO_REPLACE_OBJECTS"] = "1"
     isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
+    # Git reads default XDG/HOME attributes and ignore files even when its
+    # global configuration is disabled. Those mutable files can change status
+    # interpretation without changing the checkout or pinned local config.
+    # Command-scope overrides retain repository-tracked .gitattributes and
+    # .gitignore while eliminating ambient default attribute/ignore authority.
+    isolated_git_env["GIT_ATTR_NOSYSTEM"] = "1"
+    isolated_git_env["GIT_CONFIG_COUNT"] = "2"
+    isolated_git_env["GIT_CONFIG_KEY_0"] = "core.attributesFile"
+    isolated_git_env["GIT_CONFIG_VALUE_0"] = os.devnull
+    isolated_git_env["GIT_CONFIG_KEY_1"] = "core.excludesFile"
+    isolated_git_env["GIT_CONFIG_VALUE_1"] = os.devnull
 
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.

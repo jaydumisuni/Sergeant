@@ -2270,3 +2270,39 @@ def test_local_git_remote_transport_helpers_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+def test_global_git_attribute_and_ignore_files_cannot_affect_checkout_probes(
+    tmp_path, monkeypatch
+):
+    """Git's default XDG attribute/ignore files are unbound external authority."""
+    path, head = checkout(tmp_path)
+    xdg = tmp_path / "xdg"
+    (xdg / "git").mkdir(parents=True)
+    (xdg / "git" / "attributes").write_text("*.txt text eol=lf\n")
+    (xdg / "git" / "ignore").write_text("shadow.txt\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    original_run = subprocess.run
+    observed = []
+
+    def verify_status_environment(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            env = kwargs["env"]
+            attributes = original_run(
+                ["git", "-C", str(path), "check-attr", "-a", "--", "tracked.txt"],
+                env=env, capture_output=True, text=True, check=True,
+            )
+            ignored = original_run(
+                ["git", "-C", str(path), "check-ignore", "--", "shadow.txt"],
+                env=env, capture_output=True, text=True,
+            )
+            observed.append((attributes.stdout, ignored.returncode))
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", verify_status_environment)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.authority_gain == "NONE"
+    assert observed == [("", 1)], "checkout Git borrowed global attribute/ignore files"
