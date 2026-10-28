@@ -123,6 +123,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 # authority before the first config probe. os.walk deliberately
                 # does not follow directory links; lstat still sees the alias.
                 mode = metadata.st_mode
+                # Set-ID Git control files, including executable hooks, carry
+                # privilege not represented by HEAD or a clean worktree status.
+                # Reject before even the first local Git config subprocess.
+                if stat.S_ISREG(mode) and mode & (stat.S_ISUID | stat.S_ISGID):
+                    blockers.append("privileged_git_metadata")
+                    break
                 if (stat.S_ISLNK(mode)
                         or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode))
                         or (stat.S_ISREG(mode) and metadata.st_nlink > 1)):

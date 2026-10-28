@@ -2458,3 +2458,32 @@ def test_external_ssh_signature_trust_files_cannot_qualify_repository_only_check
     assert result.blockers == ("external_git_metadata",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX privileged Git hook mode custody")
+@pytest.mark.parametrize("privilege_bit", (0o4000, 0o2000))
+def test_privileged_git_hook_mode_rejected_before_checkout_git(
+    tmp_path, monkeypatch, privilege_bit
+):
+    """Set-ID Git hook metadata is not a standalone repository authority."""
+    path, head = checkout(tmp_path)
+    hook = path / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o755 | privilege_bit)
+    assert hook.stat().st_mode & privilege_bit
+
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("privileged hook reached a Git subprocess")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    assert "privileged_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
