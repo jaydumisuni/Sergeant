@@ -2309,6 +2309,9 @@ def test_global_git_attribute_and_ignore_files_cannot_affect_checkout_probes(
 
 
 @pytest.mark.parametrize(("config_key", "config_value"), (
+    ("core.askpass", "/untrusted/askpass"),
+    ("core.editor", "/untrusted/editor"),
+    ("sequence.editor", "/untrusted/sequence-editor"),
     ("core.pager", "/untrusted/pager"),
     ("pager.log", "/untrusted/log-pager"),
     ("gpg.program", "/untrusted/gpg"),
@@ -2318,7 +2321,7 @@ def test_global_git_attribute_and_ignore_files_cannot_affect_checkout_probes(
 def test_local_git_review_executable_config_rejected_before_checkout_git(
     tmp_path, monkeypatch, config_key, config_value
 ):
-    """A clean clone must not borrow executable pager or signature authority."""
+    """A clean clone must not borrow executable helper, editor, or signer authority."""
     path, head = checkout(tmp_path)
     git(path, "config", "--local", config_key, config_value)
     assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
