@@ -494,6 +494,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Auxiliary diff/merge tools, custom merge drivers, interactive diff
     # filters and alternate-ref commands are executable local config, not
     # bound by a clean status. merge.<name>.driver is separate from mergetool.
+    # Git shell aliases and SSH default-key commands are also executable
+    # review/signing helpers even when HEAD/status remain clean.
     # Partial-clone/promisor settings can lazily borrow missing objects from a
     # remote even when the present local HEAD and status appear clean. A
     # repository-only checkout must reject those settings before Git object
@@ -508,7 +510,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs)$|^url\..+\.(insteadof|pushinsteadof)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs)$|^url\..+\.(insteadof|pushinsteadof)$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )

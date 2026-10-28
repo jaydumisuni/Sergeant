@@ -2317,6 +2317,8 @@ def test_global_git_attribute_and_ignore_files_cannot_affect_checkout_probes(
     ("gpg.program", "/untrusted/gpg"),
     ("gpg.ssh.program", "/untrusted/ssh-sign"),
     ("gpg.x509.program", "/untrusted/x509-sign"),
+    ("gpg.ssh.defaultKeyCommand", "/untrusted/key-command"),
+    ("alias.review", "!/untrusted/alias-review"),
 ))
 def test_local_git_review_executable_config_rejected_before_checkout_git(
     tmp_path, monkeypatch, config_key, config_value
