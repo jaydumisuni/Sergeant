@@ -2441,3 +2441,20 @@ def test_split_index_content_mutation_after_status_is_rejected(tmp_path, monkeyp
     assert changed == [True]
     assert "git_metadata_tree_changed" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("config_key", (
+    "gpg.ssh.allowedSignersFile", "gpg.ssh.revocationFile",
+))
+def test_external_ssh_signature_trust_files_cannot_qualify_repository_only_checkout(
+    tmp_path, config_key
+):
+    """External signature trust/revocation inputs are not frozen by checkout HEAD."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, str(tmp_path / "external-signers"))
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
