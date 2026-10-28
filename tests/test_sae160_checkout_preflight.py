@@ -2245,11 +2245,13 @@ def test_local_git_executable_helpers_rejected_before_checkout_git(
     ("remote.origin.uploadpack", "/untrusted/git-upload-pack"),
     ("remote.origin.receivepack", "/untrusted/git-receive-pack"),
     ("remote.origin.vcs", "untrusted-remote-helper"),
+    ("url.https://untrusted.invalid/.insteadOf", "https://github.com/"),
+    ("url.https://untrusted.invalid/.pushInsteadOf", "https://github.com/"),
 ))
 def test_local_git_remote_transport_helpers_rejected_before_checkout_git(
     tmp_path, monkeypatch, config_key, config_value
 ):
-    """Remote-specific executable transport overrides cannot qualify a clean clone."""
+    """Remote transport and URL rewrite controls cannot qualify a clean clone."""
     path, head = checkout(tmp_path)
     git(path, "config", "--local", config_key, config_value)
     assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
