@@ -430,6 +430,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # External diff drivers/textconv can execute during later review; status alone
     # does not establish that this checkout has no executable diff authority.
     # core.attributesFile can borrow mutable attribute rules outside the clone.
+    # Local SSH/proxy and credential helpers are executable transport
+    # authorities just like their ambient environment equivalents. Reject
+    # them before any checkout Git probe, including URL-scoped helpers.
     # Partial-clone/promisor settings can lazily borrow missing objects from a
     # remote even when the present local HEAD and status appear clean. A
     # repository-only checkout must reject those settings before Git object
@@ -444,7 +447,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter)$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )

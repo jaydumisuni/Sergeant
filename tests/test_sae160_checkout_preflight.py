@@ -2210,3 +2210,32 @@ def test_stable_tracked_xattr_value_keeps_clean_preflight(tmp_path, monkeypatch)
     assert result.observed_head == head
     assert result.blockers == ()
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("core.sshCommand", "/untrusted/ssh-wrapper"),
+    ("core.gitProxy", "/untrusted/git-proxy"),
+    ("credential.helper", "!/untrusted/credential-helper"),
+    ("credential.https://example.invalid.helper", "!/untrusted/scoped-helper"),
+))
+def test_local_git_executable_helpers_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Local config must not admit executable transport or credential helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("local executable helper reached a checkout Git probe")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
