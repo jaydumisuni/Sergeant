@@ -2239,3 +2239,32 @@ def test_local_git_executable_helpers_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("remote.origin.uploadpack", "/untrusted/git-upload-pack"),
+    ("remote.origin.receivepack", "/untrusted/git-receive-pack"),
+    ("remote.origin.vcs", "untrusted-remote-helper"),
+))
+def test_local_git_remote_transport_helpers_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Remote-specific executable transport overrides cannot qualify a clean clone."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("remote transport helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
