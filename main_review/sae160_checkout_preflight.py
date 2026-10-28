@@ -129,6 +129,18 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if stat.S_ISREG(mode) and mode & (stat.S_ISUID | stat.S_ISGID):
                     blockers.append("privileged_git_metadata")
                     break
+                # Linux file capabilities can grant executable privilege
+                # without changing the Git mode or HEAD. Fail before Git.
+                if os.name == "posix" and stat.S_ISREG(mode):
+                    try:
+                        if "security.capability" in os.listxattr(
+                            entry, follow_symlinks=False
+                        ):
+                            blockers.append("privileged_git_metadata_xattr")
+                            break
+                    except (OSError, AttributeError, TypeError, ValueError):
+                        blockers.append("unverified_git_metadata_xattr_custody")
+                        break
                 if (stat.S_ISLNK(mode)
                         or not (stat.S_ISDIR(mode) or stat.S_ISREG(mode))
                         or (stat.S_ISREG(mode) and metadata.st_nlink > 1)):
@@ -269,6 +281,15 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                         return None
                     if stat.S_ISREG(mode) and metadata.st_nlink != 1:
                         return None
+                    # Revalidate capability custody at each Git readback.
+                    if os.name == "posix" and stat.S_ISREG(mode):
+                        try:
+                            if "security.capability" in os.listxattr(
+                                entry, follow_symlinks=False
+                            ):
+                                return None
+                        except (OSError, AttributeError, TypeError, ValueError):
+                            return None
                     if os.name == "posix" and (
                         metadata.st_uid not in trusted_owners
                         or mode & (stat.S_IWGRP | stat.S_IWOTH)

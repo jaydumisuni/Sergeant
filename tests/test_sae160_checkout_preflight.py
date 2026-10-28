@@ -2487,3 +2487,47 @@ def test_privileged_git_hook_mode_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert git_calls == []
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "listxattr"),
+    reason="POSIX privileged Git metadata xattr custody",
+)
+@pytest.mark.parametrize("failure", [False, True])
+def test_privileged_git_hook_capability_xattr_rejected_before_checkout_git(
+    tmp_path, monkeypatch, failure,
+):
+    """A capability-bearing Git hook must fail before any checkout Git probe."""
+    path, head = checkout(tmp_path)
+    hook = path / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o755)
+    original_listxattr = os.listxattr
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == hook:
+            if failure:
+                raise OSError("unverifiable Git hook capability metadata")
+            return ["security.capability"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("capability-bearing hook reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    expected = (
+        "unverified_git_metadata_xattr_custody" if failure
+        else "privileged_git_metadata_xattr"
+    )
+    assert expected in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
