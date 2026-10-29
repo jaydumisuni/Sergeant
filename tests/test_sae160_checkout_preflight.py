@@ -2579,3 +2579,47 @@ def test_standard_remote_url_preserves_repository_only_preflight(tmp_path, remot
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("http.sslCAInfo", "/untrusted/ca.pem"),
+    ("http.sslCAPath", "/untrusted/ca-directory"),
+    ("http.sslCert", "/untrusted/client.pem"),
+    ("http.sslKey", "/untrusted/client.key"),
+    ("http.cookieFile", "/untrusted/cookies"),
+    ("http.extraHeader", "Authorization: Basic untrusted"),
+    ("http.proxy", "http://untrusted-proxy.invalid"),
+    ("http.https://example.invalid.extraHeader", "Authorization: Bearer untrusted"),
+))
+def test_local_git_http_trust_and_credential_inputs_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Standalone preflight cannot inherit external HTTP trust/credential authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("HTTP authority reached a checkout Git probe")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+def test_local_git_http_non_authority_tuning_preserves_clean_preflight(tmp_path):
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "http.version", "HTTP/1.1")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
