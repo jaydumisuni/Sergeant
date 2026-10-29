@@ -44,6 +44,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # Helper lookup and shallow-history metadata are external Git inputs.
         # Reject before even the local config subprocess is started.
         "GIT_EXEC_PATH", "GIT_SHALLOW_FILE",
+        # Git init/clone can import executable hooks from an ambient template.
+        # A repository-only qualification caller must not supply that source.
+        "GIT_TEMPLATE_DIR",
         # Git's credential/SSH helper environment can nominate executable
         # transports outside this checkout. Standalone evidence preflight
         # must not inherit those process-launch authorities even if its
