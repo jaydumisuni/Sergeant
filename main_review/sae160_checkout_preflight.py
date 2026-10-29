@@ -560,7 +560,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # A normal origin URL is permitted, but Git's remote-helper syntax
         # (ext::, custom:: or custom://) selects executable transports outside
         # this checkout. Inspect values, not merely config keys, and preserve
-        # legitimate https/ssh/git/file remote URLs.
+        # legitimate https/ssh/git/file remote URLs, including Git's built-in
+        # git+ssh and ssh+git aliases (both dispatch through ordinary SSH).
         try:
             remote_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
@@ -587,7 +588,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if transport and (
                     transport.group(2) == "::"
                     or transport.group(1)
-                    not in {"http", "https", "ssh", "git", "file"}
+                    not in {"http", "https", "ssh", "git+ssh", "ssh+git", "git", "file"}
                 ):
                     blockers.append("external_git_metadata")
                     break

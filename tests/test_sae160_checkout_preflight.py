@@ -2567,14 +2567,19 @@ def test_local_git_protocol_and_remote_helper_controls_rejected_before_checkout_
     assert checkout_calls == []
 
 
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
 @pytest.mark.parametrize("remote_url", (
     "https://example.invalid/repository.git",
     "ssh://git@example.invalid/repository.git",
+    "git+ssh://git@example.invalid/repository.git",
+    "ssh+git://git@example.invalid/repository.git",
 ))
-def test_standard_remote_url_preserves_repository_only_preflight(tmp_path, remote_url):
-    """Normal remote metadata must not be mistaken for executable helpers."""
+def test_standard_remote_url_preserves_repository_only_preflight(
+    tmp_path, config_key, remote_url
+):
+    """Git's built-in SSH aliases must not be mistaken for remote helpers."""
     path, head = checkout(tmp_path)
-    git(path, "config", "--local", "remote.origin.url", remote_url)
+    git(path, "config", "--local", config_key, remote_url)
     result = inspect_checkout(path, head)
     assert result.blockers == ()
     assert result.observed_head == head
