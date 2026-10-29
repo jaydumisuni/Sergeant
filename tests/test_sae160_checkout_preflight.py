@@ -2534,3 +2534,48 @@ def test_privileged_git_hook_capability_xattr_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert git_calls == []
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("protocol.ext.allow", "always"),
+    ("protocol.custom.allow", "always"),
+    ("remote.origin.url", "ext::echo forbidden"),
+    ("remote.origin.pushurl", "custom::/untrusted/helper"),
+    ("remote.origin.url", "custom://example.invalid/repository"),
+))
+def test_local_git_protocol_and_remote_helper_controls_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Executable remote protocols are not frozen by HEAD or clean status."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("external remote helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("remote_url", (
+    "https://example.invalid/repository.git",
+    "ssh://git@example.invalid/repository.git",
+))
+def test_standard_remote_url_preserves_repository_only_preflight(tmp_path, remote_url):
+    """Normal remote metadata must not be mistaken for executable helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url", remote_url)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"

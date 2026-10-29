@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import hashlib
 import os
+import re
 import stat
 import subprocess
 
@@ -527,6 +528,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # SSH signature signer/revocation files borrow external trust inputs.
     # Git shell aliases and SSH default-key commands are also executable
     # review/signing helpers even when HEAD/status remain clean.
+    # Custom remote protocols may launch git-remote-* helpers even without
+    # remote.<name>.vcs; protocol.*.allow can enable ext:: shell transports.
+    # Reject these unbound executable transports before checkout Git probes.
     # Partial-clone/promisor settings can lazily borrow missing objects from a
     # remote even when the present local HEAD and status appear clean. A
     # repository-only checkout must reject those settings before Git object
@@ -541,7 +545,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs)$|^url\..+\.(insteadof|pushinsteadof)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )
@@ -550,6 +554,40 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             continue
         if config_probe.returncode not in (0, 1) or config_probe.stdout.strip():
             blockers.append("external_git_metadata")
+        # A normal origin URL is permitted, but Git's remote-helper syntax
+        # (ext::, custom:: or custom://) selects executable transports outside
+        # this checkout. Inspect values, not merely config keys, and preserve
+        # legitimate https/ssh/git/file remote URLs.
+        try:
+            remote_probe = subprocess.run(
+                ["git", "config", "--no-includes", "--file", str(config_file),
+                 "--null", "--get-regexp", r"^remote\..+\.(url|pushurl)$"],
+                capture_output=True, text=True, encoding="utf-8", timeout=10,
+                env=isolated_git_env,
+            )
+        except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError):
+            blockers.append("external_git_metadata")
+            continue
+        if remote_probe.returncode not in (0, 1):
+            blockers.append("external_git_metadata")
+        elif remote_probe.returncode == 0:
+            for record in remote_probe.stdout.split("\0"):
+                if not record:
+                    continue
+                key, separator, url = record.partition("\n")
+                if not separator or not key or not url:
+                    blockers.append("external_git_metadata")
+                    break
+                transport = re.match(
+                    r"^([A-Za-z][A-Za-z0-9+.-]*)(::|://)", url
+                )
+                if transport and (
+                    transport.group(2) == "::"
+                    or transport.group(1).lower()
+                    not in {"http", "https", "ssh", "git", "file"}
+                ):
+                    blockers.append("external_git_metadata")
+                    break
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
     # before any checkout Git subprocess can execute the new configuration.
