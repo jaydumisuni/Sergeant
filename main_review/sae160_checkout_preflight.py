@@ -540,8 +540,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # HTTP TLS roots, client credentials, cookies, headers and proxies can
     # borrow external trust or secret material; reject local and URL-scoped
     # variants before invoking checkout Git, without banning benign tuning.
-    # Explicit HTTP TLS verification overrides (including URL-scoped and
-    # proxy TLS settings) are unbound transport trust policy as well.
+    # Explicit HTTP TLS verification, backend, protocol/cipher and Schannel
+    # revocation/CA policy (including URL scopes) are unbound transport trust
+    # decisions even when no external credential file is named.
     # Partial-clone/promisor settings can lazily borrow missing objects from a
     # remote even when the present local HEAD and status appear clean. A
     # repository-only checkout must reject those settings before Git object
@@ -556,7 +557,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|sslverify|proxysslverify)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|sslverify|proxysslverify|sslbackend|sslversion|sslcipherlist|schannelcheckrevoke|schannelusesslcainfo)$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )
