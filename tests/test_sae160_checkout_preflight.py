@@ -2635,6 +2635,10 @@ def test_standard_remote_url_preserves_repository_only_preflight(
     ("http.cookieFile", "/untrusted/cookies"),
     ("http.extraHeader", "Authorization: Basic untrusted"),
     ("http.proxy", "http://untrusted-proxy.invalid"),
+    ("http.sslVerify", "false"),
+    ("http.proxySSLVerify", "false"),
+    ("http.https://example.invalid.sslVerify", "false"),
+    ("http.https://example.invalid.proxySSLVerify", "false"),
     ("http.https://example.invalid.extraHeader", "Authorization: Bearer untrusted"),
 ))
 def test_local_git_http_trust_and_credential_inputs_rejected_before_checkout_git(
