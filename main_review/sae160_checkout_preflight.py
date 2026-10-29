@@ -55,6 +55,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "GIT_PAGER", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR",
         "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
+        # Reject inherited system-config suppression as caller policy even
+        # though isolated Git probes independently pin their own setting.
+        "GIT_CONFIG_NOSYSTEM",
         # Git tracing can write outside the checkout before a read-only
         # preflight reaches its later fail-closed decision.
         "GIT_TRACE", "GIT_TRACE2", "GIT_TRACE2_EVENT", "GIT_TRACE2_PERF",

@@ -816,6 +816,7 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
 
 @pytest.mark.parametrize("name,value", (
     ("GIT_CONFIG_COUNT", "0"),
+    ("GIT_CONFIG_NOSYSTEM", "1"),
     ("GIT_EXEC_PATH", "/nonexistent/untrusted-git-helpers"),
     ("GIT_SHALLOW_FILE", "/nonexistent/untrusted-shallow-metadata"),
     ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=/nonexistent/monitor'"),
