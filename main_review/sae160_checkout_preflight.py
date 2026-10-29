@@ -65,9 +65,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Dynamic-loader controls can replace Git code before any config probe.
     # Ambient Git TLS overrides can also replace remote trust roots, client
     # identities or verification policy without appearing in local config.
+    # Proxy TLS has a separate GIT_PROXY_SSL_* environment namespace; it
+    # can replace proxy trust roots and client credentials independently.
     # A read-only Git command cannot certify those unbound authorities.
     if authority_env.intersection(os.environ) or any(
-        name.startswith(("GIT_TRACE", "GIT_SSL_", "LD_", "DYLD_"))
+        name.startswith(("GIT_TRACE", "GIT_SSL_", "GIT_PROXY_SSL_", "LD_", "DYLD_"))
         for name in os.environ
     ):
         # Do not even probe local config with untrusted ambient Git controls:

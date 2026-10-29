@@ -2862,3 +2862,26 @@ def test_ambient_git_tls_authority_rejected_before_git_probe(
     assert result.blockers == ("ambient_git_authority_override",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_PROXY_SSL_CAINFO", "/untrusted/proxy-ca.pem"),
+    ("GIT_PROXY_SSL_CAPATH", "/untrusted/proxy-certs"),
+    ("GIT_PROXY_SSL_CERT", "/untrusted/proxy-client.pem"),
+    ("GIT_PROXY_SSL_KEY", "/untrusted/proxy-client.key"),
+    ("GIT_PROXY_SSL_CERT_PASSWORD", "untrusted-proxy-secret"),
+))
+def test_ambient_git_proxy_tls_authority_rejected_before_git_probe(
+    tmp_path, monkeypatch, variable, value
+):
+    """Proxy TLS overrides must fail before the first Git subprocess."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def forbid_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient proxy TLS override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", forbid_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
