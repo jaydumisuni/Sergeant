@@ -53,6 +53,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # current read-only probe sequence never needs network access.
         "GIT_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND",
         "GIT_SSH_VARIANT", "GIT_PROXY_COMMAND",
+        # Git protocol allow-lists and wire negotiation are caller-controlled
+        # transport policy, even if the current checkout probes are local.
+        "GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER", "GIT_PROTOCOL",
         # Executable pager/editor overrides remain unbound even when the
         # current read-only probe does not invoke an interactive command.
         "GIT_PAGER", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR",

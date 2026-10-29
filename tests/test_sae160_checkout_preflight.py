@@ -57,6 +57,28 @@ def test_shadow_git_on_ambient_path_cannot_execute_during_preflight(tmp_path, mo
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_ALLOW_PROTOCOL", "file"),
+    ("GIT_PROTOCOL_FROM_USER", "1"),
+    ("GIT_PROTOCOL", "version=2"),
+))
+def test_ambient_git_protocol_authority_rejected_before_git(
+    tmp_path, monkeypatch, variable, value
+):
+    """Caller-supplied Git protocol policy must not enter source preflight."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def reject_git_process(*args, **kwargs):
+        raise AssertionError("ambient protocol authority reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize("variable", (
     "GIT_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND",
     "GIT_SSH_VARIANT", "GIT_PROXY_COMMAND",
