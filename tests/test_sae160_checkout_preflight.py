@@ -2785,3 +2785,54 @@ def test_sae160_reviewed_transport_and_http_file_controls_http(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "https://example.invalid/repository.git",
+    "git+ssh://git@example.invalid/repository.git",
+    "ssh+git://git@example.invalid/repository.git",
+))
+def test_worktree_scoped_remote_transport_custody_allows_builtin_aliases(
+    tmp_path, config_key, remote_url
+):
+    """Worktree-local Git configuration preserves built-in transport aliases."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--worktree", config_key, remote_url)
+    assert (path / ".git" / "config.worktree").is_file()
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "1custom::untrusted",
+    "HTTP://example.invalid/repository.git",
+    "custom://example.invalid/repository.git",
+))
+def test_worktree_scoped_remote_transport_custody_rejects_helpers(
+    tmp_path, monkeypatch, config_key, remote_url
+):
+    """Executable worktree-scoped remote helpers fail before checkout Git."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--worktree", config_key, remote_url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("worktree remote helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
