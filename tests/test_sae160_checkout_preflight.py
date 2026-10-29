@@ -2836,3 +2836,29 @@ def test_worktree_scoped_remote_transport_custody_rejects_helpers(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_SSL_NO_VERIFY", "true"),
+    ("GIT_SSL_CAINFO", "/untrusted/ca.pem"),
+    ("GIT_SSL_CAPATH", "/untrusted/certs"),
+    ("GIT_SSL_CERT", "/untrusted/client.pem"),
+    ("GIT_SSL_KEY", "/untrusted/client.key"),
+    ("GIT_SSL_VERSION", "tlsv1.0"),
+    ("GIT_SSL_CIPHER_LIST", "DEFAULT:@SECLEVEL=0"),
+))
+def test_ambient_git_tls_authority_rejected_before_git_probe(
+    tmp_path, monkeypatch, variable, value
+):
+    """Caller TLS overrides must not reach even the first Git config probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def forbid_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient TLS override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", forbid_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"

@@ -63,9 +63,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # variants that can write outside the checkout during the config probe.
     # Reject the entire trace namespace before starting any Git subprocess.
     # Dynamic-loader controls can replace Git code before any config probe.
-    # A read-only Git command is not safe under caller-supplied loader hooks.
+    # Ambient Git TLS overrides can also replace remote trust roots, client
+    # identities or verification policy without appearing in local config.
+    # A read-only Git command cannot certify those unbound authorities.
     if authority_env.intersection(os.environ) or any(
-        name.startswith(("GIT_TRACE", "LD_", "DYLD_"))
+        name.startswith(("GIT_TRACE", "GIT_SSL_", "LD_", "DYLD_"))
         for name in os.environ
     ):
         # Do not even probe local config with untrusted ambient Git controls:
