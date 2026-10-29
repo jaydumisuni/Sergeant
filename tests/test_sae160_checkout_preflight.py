@@ -2492,6 +2492,47 @@ def test_privileged_git_hook_mode_rejected_before_checkout_git(
     assert git_calls == []
 
 
+@pytest.mark.skipif(os.name != "posix", reason="POSIX late set-ID Git metadata")
+@pytest.mark.parametrize("privilege_bit", (0o4000, 0o2000))
+def test_setid_hook_added_after_initial_walk_rejected_at_snapshot(
+    tmp_path, monkeypatch, privilege_bit
+):
+    """An unsafe Git hook must not become the trusted snapshot baseline."""
+    path, head = checkout(tmp_path)
+    hook = path / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o755)
+    original_walk = os.walk
+    walks = 0
+
+    def late_privileged_walk(top, *args, **kwargs):
+        nonlocal walks
+        if Path(top) == path / ".git":
+            walks += 1
+            if walks == 2:
+                hook.chmod(0o755 | privilege_bit)
+        return original_walk(top, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", late_privileged_walk)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("privileged late Git hook reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    assert git_calls == []
+    assert walks >= 2
+    assert hook.stat().st_mode & privilege_bit
+    assert result.blockers == ("unverified_git_metadata_custody",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.skipif(
     os.name != "posix" or not hasattr(os, "listxattr"),
     reason="POSIX privileged Git metadata xattr custody",

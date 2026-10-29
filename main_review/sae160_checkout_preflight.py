@@ -282,6 +282,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                         return None
                     if stat.S_ISREG(mode) and metadata.st_nlink != 1:
                         return None
+                    # The initial walk is not atomic with this snapshot.
+                    # Never freeze a newly set-ID Git file as trusted metadata.
+                    if stat.S_ISREG(mode) and mode & (stat.S_ISUID | stat.S_ISGID):
+                        return None
                     # Revalidate capability custody at each Git readback.
                     if os.name == "posix" and stat.S_ISREG(mode):
                         try:
