@@ -548,7 +548,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|cookiefile|extraheader|proxy)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy)$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )
@@ -582,11 +582,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     blockers.append("external_git_metadata")
                     break
                 transport = re.match(
-                    r"^([A-Za-z][A-Za-z0-9+.-]*)(::|://)", url
+                    r"^([^:/\s]+)(::|://)", url
                 )
                 if transport and (
                     transport.group(2) == "::"
-                    or transport.group(1).lower()
+                    or transport.group(1)
                     not in {"http", "https", "ssh", "git", "file"}
                 ):
                     blockers.append("external_git_metadata")

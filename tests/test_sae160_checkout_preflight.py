@@ -2623,3 +2623,70 @@ def test_local_git_http_non_authority_tuning_preserves_clean_preflight(tmp_path)
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("remote_url", (
+    "1custom::whatever",
+    "HTTP://example.invalid/repo",
+    "HTTPS://example.invalid/repo",
+    "SSH://example.invalid/repo",
+    "1custom://example.invalid/repo",
+))
+def test_sae160_reviewed_transport_and_http_file_controls_remote(
+    tmp_path, monkeypatch, remote_url,
+):
+    """Review P2: remote helpers use digit-leading and case-sensitive transport names."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url", remote_url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound transport reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", (
+    "http.proxySSLCAInfo",
+    "http.proxySSLCert",
+    "http.proxySSLKey",
+    "http.pinnedPubkey",
+    "http.proxySSLCAPath",
+    "http.https://example.invalid.proxySSLCAInfo",
+    "http.https://example.invalid.proxySSLCert",
+    "http.https://example.invalid.proxySSLKey",
+    "http.https://example.invalid.pinnedPubkey",
+    "http.https://example.invalid.proxySSLCAPath",
+))
+def test_sae160_reviewed_transport_and_http_file_controls_http(
+    tmp_path, monkeypatch, config_key,
+):
+    """Review P2: reject proxy TLS and public-key pin files, including URL scopes."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, "/untrusted/external-authority.pem")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("external HTTP trust reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
