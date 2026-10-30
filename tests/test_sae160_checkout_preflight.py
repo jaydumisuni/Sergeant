@@ -2909,3 +2909,37 @@ def test_ambient_git_proxy_tls_authority_rejected_before_git_probe(
     assert result.blockers == ("ambient_git_authority_override",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("hostile_first", (False, True))
+def test_multivalue_remote_transport_checks_every_entry_before_checkout_git(
+    tmp_path, monkeypatch, scope, config_key, hostile_first,
+):
+    """A benign remote value must not mask a later executable helper (or vice versa)."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    values = ("1custom::untrusted", "https://example.invalid/repository.git")
+    if not hostile_first:
+        values = tuple(reversed(values))
+    for value in values:
+        git(path, "config", "--" + scope, "--add", config_key, value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("multivalue remote helper reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
