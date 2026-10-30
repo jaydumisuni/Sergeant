@@ -205,3 +205,62 @@ def test_live_github_comments_cli_uses_environment_token_and_writes_proof(tmp_pa
     assert printed == saved
     assert saved["proof_version"] == "sergeant.live-github-proof.v1"
     assert saved["token_scope_assessment"]["scope_evidence"] == "verified-read-only"
+
+
+@pytest.mark.parametrize("endpoint", ["issues/12/comments", "pulls/12/comments"])
+def test_live_github_numeric_pagination_requires_verified_base_repo_id(
+    monkeypatch: pytest.MonkeyPatch, endpoint: str
+) -> None:
+    """GitHub's canonical numeric Link is accepted only for the verified PR base."""
+    calls: list[str] = []
+
+    def fake_urlopen(request, timeout: int):  # type: ignore[no-untyped-def]
+        url = request.full_url
+        calls.append(url)
+        if url.endswith("/pulls/12"):
+            payload = _pr_payload()
+            payload["base"]["repo"]["id"] = 24680
+            return _FakeResponse(payload, url=url)
+        if url.endswith(f"/repos/owner/repo/{endpoint}?per_page=100"):
+            link = f'<https://example.test/repositories/24680/{endpoint}?per_page=100&page=2>; rel="next"'
+            return _FakeResponse([{"id": 1}], url=url, headers={"Link": link})
+        if url.endswith(f"/repositories/24680/{endpoint}?per_page=100&page=2"):
+            return _FakeResponse([{"id": 2}], url=url)
+        return _FakeResponse([], url=url)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    result = fetch_pr_comments_live(
+        "owner/repo", 12, base_url="https://example.test", allowed_hosts=["example.test"]
+    )
+    items = result.issue_comments if endpoint.startswith("issues/") else result.review_comments
+    assert [item["id"] for item in items] == [1, 2]
+    assert any("/repositories/24680/" in url for url in calls)
+
+
+@pytest.mark.parametrize("numeric_id,endpoint,include_id", [
+    (24681, "issues/12/comments", True),
+    (24680, "pulls/12/comments", True),
+    (24680, "issues/13/comments", True),
+    (24680, "issues/12/comments", False),
+])
+def test_live_github_numeric_pagination_rejects_unbound_identity(
+    monkeypatch: pytest.MonkeyPatch, numeric_id: int, endpoint: str, include_id: bool
+) -> None:
+    """A numeric path cannot redirect the issue-comment stream or borrow another repo."""
+    def fake_urlopen(request, timeout: int):  # type: ignore[no-untyped-def]
+        url = request.full_url
+        if url.endswith("/pulls/12"):
+            payload = _pr_payload()
+            if include_id:
+                payload["base"]["repo"]["id"] = 24680
+            return _FakeResponse(payload, url=url)
+        if "/repos/owner/repo/issues/12/comments" in url:
+            link = f'<https://example.test/repositories/{numeric_id}/{endpoint}?page=2>; rel="next"'
+            return _FakeResponse([{"id": 1}], url=url, headers={"Link": link})
+        return _FakeResponse([], url=url)
+
+    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
+    with pytest.raises(GitHubFetchError, match="pagination URL"):
+        fetch_pr_comments_live(
+            "owner/repo", 12, base_url="https://example.test", allowed_hosts=["example.test"]
+        )
