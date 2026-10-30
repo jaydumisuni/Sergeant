@@ -105,6 +105,7 @@ def fetch_pr_diff_live(
         base_url=base_url,
         repository=repository,
         pr_number=pr_number,
+        repository_id=identity["base"]["repo"]["id"],
         allowed_hosts=trusted_hosts,
         allow_insecure_loopback=allow_insecure_loopback,
         max_pages=max_pages,
