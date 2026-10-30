@@ -520,6 +520,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     isolated_git_env["GIT_CONFIG_NOSYSTEM"] = "1"
     isolated_git_env["GIT_CONFIG_GLOBAL"] = os.devnull
     isolated_git_env["GIT_NO_REPLACE_OBJECTS"] = "1"
+    # Repository-only evidence must never trigger a promisor remote fetch.
+    # Override even an inherited GIT_NO_LAZY_FETCH=0 before config or object probes.
+    isolated_git_env["GIT_NO_LAZY_FETCH"] = "1"
     isolated_git_env["GIT_OPTIONAL_LOCKS"] = "0"
     # Git reads default XDG/HOME attributes and ignore files even when its
     # global configuration is disabled. Those mutable files can change status

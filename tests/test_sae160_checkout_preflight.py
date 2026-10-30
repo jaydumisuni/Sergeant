@@ -1148,6 +1148,27 @@ def test_core_worktree_redirect_is_rejected_before_checkout_git(tmp_path, monkey
     assert result.authority_gain == "NONE"
 
 
+def test_repository_only_git_probes_disable_lazy_fetch_even_if_inherited(tmp_path, monkeypatch):
+    """No local Git probe may borrow missing objects from a promisor remote."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("GIT_NO_LAZY_FETCH", "0")
+    original_run = subprocess.run
+    checked = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            checked.append(tuple(argv))
+            assert kwargs.get("env", {}).get("GIT_NO_LAZY_FETCH") == "1"
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert checked, "preflight did not perform any Git subprocess"
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_global_fsmonitor_is_isolated_from_checkout_git(tmp_path, monkeypatch):
     """Checkout Git must not inherit host-global executable configuration."""
     import os
