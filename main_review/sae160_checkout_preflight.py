@@ -134,6 +134,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # of its group/world mode. Inspect all .git descendants without
     # following directory symlinks before starting even git config.
     if os.name == "posix":
+        # The safety walk is a pre-Git authority read. Retain each directory's
+        # identity so an entry inserted after its listing cannot silently
+        # become part of the later trusted metadata snapshot.
+        initial_directory_epochs: dict[Path, tuple[int, ...]] = {}
+
         def _metadata_walk_error(_error: OSError) -> None:
             blockers.append("mutable_git_authority_permissions")
 
@@ -154,6 +159,16 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 # authority before the first config probe. os.walk deliberately
                 # does not follow directory links; lstat still sees the alias.
                 mode = metadata.st_mode
+                if stat.S_ISDIR(mode):
+                    epoch = (
+                        metadata.st_dev, metadata.st_ino, mode,
+                        metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+                        metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
+                    )
+                    previous = initial_directory_epochs.setdefault(entry, epoch)
+                    if previous != epoch:
+                        blockers.append("git_metadata_directory_epoch_changed")
+                        break
                 # Set-ID Git control files, including executable hooks, carry
                 # privilege not represented by HEAD or a clean worktree status.
                 # Reject before even the first local Git config subprocess.
@@ -192,6 +207,24 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     break
             if blockers:
                 break
+        # os.walk lists children before yielding their parent. A late addition
+        # after that listing can otherwise enter the first complete-tree
+        # snapshot as a stable, apparently trusted baseline. Recheck every
+        # directory epoch before even the first Git config subprocess.
+        if not blockers:
+            for entry, before in initial_directory_epochs.items():
+                try:
+                    metadata = entry.lstat()
+                    after = (
+                        metadata.st_dev, metadata.st_ino, metadata.st_mode,
+                        metadata.st_uid, metadata.st_gid, metadata.st_nlink,
+                        metadata.st_size, metadata.st_mtime_ns, metadata.st_ctime_ns,
+                    )
+                except OSError:
+                    after = None
+                if after != before:
+                    blockers.append("git_metadata_directory_epoch_changed")
+                    break
         # A failed ownership/ancestry check must not reach git config:
         # that probe is itself a Git subprocess.
         if blockers:

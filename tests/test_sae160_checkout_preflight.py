@@ -3032,3 +3032,37 @@ def test_multivalue_remote_transport_checks_every_entry_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX metadata directory epochs")
+def test_metadata_directory_epoch_after_initial_walk_rejected_before_git(
+    tmp_path, monkeypatch
+):
+    """An entry inserted after the safety walk must not become trusted baseline."""
+    path, head = checkout(tmp_path)
+    gitdir = path / ".git"
+    original_walk = os.walk
+    injected = []
+    original_run = subprocess.run
+    git_calls = []
+
+    def inject_after_first_git_metadata_walk(top, *args, **kwargs):
+        yield from original_walk(top, *args, **kwargs)
+        if Path(top) == gitdir and not injected:
+            (gitdir / "info" / "late-epoch-entry").write_text("late\n")
+            injected.append(True)
+
+    def record_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", inject_after_first_git_metadata_walk)
+    monkeypatch.setattr(subprocess, "run", record_git)
+    result = inspect_checkout(path, head)
+    assert injected == [True]
+    assert result.blockers == ("git_metadata_directory_epoch_changed",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
