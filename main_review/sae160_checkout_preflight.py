@@ -664,6 +664,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if not separator or not key or not url:
                     blockers.append("external_git_metadata")
                     break
+                # HTTP userinfo carries a remote authentication identity or
+                # secret outside the independently qualified checkout policy.
+                # A clean HEAD does not authorize credentials embedded in a
+                # fetch or push URL; ordinary SSH user@host remains permitted.
+                if re.match(r"^https?://[^/?#]*@", url):
+                    blockers.append("external_git_metadata")
+                    break
                 transport = re.match(
                     r"^([^:/\s]+)(::|://)", url
                 )

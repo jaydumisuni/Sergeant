@@ -3088,3 +3088,33 @@ def test_metadata_directory_epoch_after_initial_walk_rejected_before_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert git_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "https://user:secret@example.invalid/repository.git",
+    "http://user@example.invalid/repository.git",
+    "https://user%40alias:secret@example.invalid/repository.git",
+))
+def test_remote_http_userinfo_credentials_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, remote_url
+):
+    """A remote URL cannot supply unpinned HTTP authentication identity."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, remote_url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("remote URL credential reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
