@@ -81,6 +81,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # the first Git subprocess rather than copying them into its env.
         "http_proxy", "https_proxy", "all_proxy", "no_proxy",
         "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+        # TLS libraries and curl can inherit trust-store locations independently
+        # of Git's own GIT_SSL_* overrides. SSLKEYLOGFILE can additionally
+        # redirect TLS session-key material to a caller-selected destination.
+        # Neither trust input nor key-log output belongs to this checkout.
+        "SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE", "SSLKEYLOGFILE",
     }
     # Git also honors GIT_TRACE_SETUP, GIT_TRACE_PACKET, and other trace
     # variants that can write outside the checkout during the config probe.

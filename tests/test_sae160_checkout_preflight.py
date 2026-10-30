@@ -20,6 +20,8 @@ def _isolate_inherited_checkout_transport_controls(monkeypatch: pytest.MonkeyPat
             "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GIT_TERMINAL_PROMPT",
             "http_proxy", "https_proxy", "all_proxy", "no_proxy",
             "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+            "SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE",
+            "SSLKEYLOGFILE",
         ):
             monkeypatch.delenv(name, raising=False)
 
@@ -142,6 +144,26 @@ def test_ambient_curl_proxy_authority_rejected_before_any_git_process(
 
     def reject_git_subprocess(*args, **kwargs):
         raise AssertionError("inherited curl proxy authority reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable", (
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE", "SSLKEYLOGFILE",
+))
+def test_ambient_curl_tls_trust_or_keylog_rejected_before_git(
+    tmp_path, monkeypatch, variable
+):
+    """Unpinned TLS trust and key-log destinations cannot enter checkout Git."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, str(tmp_path / "untrusted-tls-authority"))
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient TLS trust or keylog reached Git")
 
     monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
     result = inspect_checkout(path, head)
