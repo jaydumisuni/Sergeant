@@ -3176,3 +3176,31 @@ def test_remote_http_slash_prefixed_authority_is_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", (
+    "credential.username",
+    "credential.https://example.invalid.username",
+))
+def test_local_credential_username_identity_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key
+):
+    """Local credential identities are unbound HTTP auth authority, even without helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, "borrowed-identity")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound credential identity reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []

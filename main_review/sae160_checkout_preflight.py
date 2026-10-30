@@ -587,6 +587,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # External diff drivers/textconv can execute during later review; status alone
     # does not establish that this checkout has no executable diff authority.
     # core.attributesFile can borrow mutable attribute rules outside the clone.
+    # Credential username settings (global or URL-scoped) also supply an
+    # unpinned HTTP authentication identity without a credential helper.
     # Local SSH/proxy and credential helpers are executable transport
     # authorities just like their ambient environment equivalents. Reject
     # them before any checkout Git probe, including URL-scoped helpers.
@@ -630,7 +632,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|.+\.helper)$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|sslverify|proxysslverify|proxyauthmethod|emptyauth|delegation|sslbackend|sslversion|sslcipherlist|schannelcheckrevoke|schannelusesslcainfo)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|username|.+\.(helper|username))$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|sslverify|proxysslverify|proxyauthmethod|emptyauth|delegation|sslbackend|sslversion|sslcipherlist|schannelcheckrevoke|schannelusesslcainfo)$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )
