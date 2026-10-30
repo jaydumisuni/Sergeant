@@ -11,13 +11,13 @@ from main_review.sae160_checkout_preflight import inspect_checkout
 
 
 @pytest.fixture(autouse=True)
-def _isolate_inherited_loader_controls(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Keep runner loader paths out of this module's explicit threat fixtures."""
+def _isolate_inherited_checkout_transport_controls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep runner loader and transport overrides out of explicit threat fixtures."""
     # SAE-10 freezes tests/conftest.py by blob identity; keep this isolation
     # local to SAE-160 without weakening production pre-Git admission.
     for name in tuple(os.environ):
-        if name.startswith(("LD_", "DYLD_")) or name in (
-            "SSH_AUTH_SOCK", "SSH_AGENT_PID"
+        if name.startswith(("LD_", "DYLD_", "GIT_HTTP_", "GIT_CURL_")) or name in (
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GIT_TERMINAL_PROMPT"
         ):
             monkeypatch.delenv(name, raising=False)
 
@@ -95,6 +95,30 @@ def test_ambient_git_helper_override_rejected_before_any_git_process(
 
     def reject_git_subprocess(*args, **kwargs):
         raise AssertionError("ambient helper override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_TERMINAL_PROMPT", "0"),
+    ("GIT_CURL_VERBOSE", "1"),
+    ("GIT_HTTP_LOW_SPEED_LIMIT", "1"),
+    ("GIT_HTTP_LOW_SPEED_TIME", "1"),
+    ("GIT_HTTP_MAX_REQUESTS", "1"),
+))
+def test_ambient_git_http_transport_policy_rejected_before_git(
+    tmp_path, monkeypatch, variable, value
+):
+    """Unpinned HTTP/credential policy must not reach a checkout Git probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient HTTP transport policy reached Git")
 
     monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
     result = inspect_checkout(path, head)

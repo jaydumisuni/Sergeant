@@ -63,6 +63,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # Git protocol allow-lists and wire negotiation are caller-controlled
         # transport policy, even if the current checkout probes are local.
         "GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER", "GIT_PROTOCOL",
+        # Terminal prompting is inherited credential interaction policy.
+        "GIT_TERMINAL_PROMPT",
         # Executable pager/editor overrides remain unbound even when the
         # current read-only probe does not invoke an interactive command.
         "GIT_PAGER", "GIT_EDITOR", "GIT_SEQUENCE_EDITOR",
@@ -84,8 +86,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Proxy TLS has a separate GIT_PROXY_SSL_* environment namespace; it
     # can replace proxy trust roots and client credentials independently.
     # A read-only Git command cannot certify those unbound authorities.
+    # Git HTTP and curl environment namespaces also change transport
+    # timeouts, parallelism, diagnostics and credential interaction.
     if authority_env.intersection(os.environ) or any(
-        name.startswith(("GIT_TRACE", "GIT_SSL_", "GIT_PROXY_SSL_", "LD_", "DYLD_"))
+        name.startswith(("GIT_TRACE", "GIT_SSL_", "GIT_PROXY_SSL_",
+                         "GIT_HTTP_", "GIT_CURL_", "LD_", "DYLD_"))
         for name in os.environ
     ):
         # Do not even probe local config with untrusted ambient Git controls:
