@@ -668,7 +668,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 # secret outside the independently qualified checkout policy.
                 # A clean HEAD does not authorize credentials embedded in a
                 # fetch or push URL; ordinary SSH user@host remains permitted.
-                if re.match(r"^https?://[^/?#]*@", url):
+                # libcurl can interpret http:///user:secret@host as an
+                # authenticated HTTP endpoint despite the extra slash.
+                # Require a nonempty authority immediately after // rather
+                # than trusting the first slash to delimit credentials.
+                if (re.match(r"^https?:///", url)
+                        or re.match(r"^https?://[^/?#]*@", url)):
                     blockers.append("external_git_metadata")
                     break
                 transport = re.match(
