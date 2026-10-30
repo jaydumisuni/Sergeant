@@ -17,7 +17,9 @@ def _isolate_inherited_checkout_transport_controls(monkeypatch: pytest.MonkeyPat
     # local to SAE-160 without weakening production pre-Git admission.
     for name in tuple(os.environ):
         if name.startswith(("LD_", "DYLD_", "GIT_HTTP_", "GIT_CURL_")) or name in (
-            "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GIT_TERMINAL_PROMPT"
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GIT_TERMINAL_PROMPT",
+            "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+            "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
         ):
             monkeypatch.delenv(name, raising=False)
 
@@ -119,6 +121,27 @@ def test_ambient_git_http_transport_policy_rejected_before_git(
 
     def reject_git_subprocess(*args, **kwargs):
         raise AssertionError("ambient HTTP transport policy reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable", (
+    "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+))
+def test_ambient_curl_proxy_authority_rejected_before_any_git_process(
+    tmp_path, monkeypatch, variable
+):
+    """Proxy routing and bypass policy must not enter repository-only Git."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "http://user:secret@untrusted.invalid:8080")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("inherited curl proxy authority reached Git")
 
     monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
     result = inspect_checkout(path, head)

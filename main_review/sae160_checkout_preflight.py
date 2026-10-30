@@ -76,6 +76,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # Git tracing can write outside the checkout before a read-only
         # preflight reaches its later fail-closed decision.
         "GIT_TRACE", "GIT_TRACE2", "GIT_TRACE2_EVENT", "GIT_TRACE2_PERF",
+        # libcurl inherits proxy destinations, credentials and bypass rules
+        # independently of Git's http.proxy configuration. Reject before
+        # the first Git subprocess rather than copying them into its env.
+        "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+        "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
     }
     # Git also honors GIT_TRACE_SETUP, GIT_TRACE_PACKET, and other trace
     # variants that can write outside the checkout during the config probe.
