@@ -16,7 +16,9 @@ def _isolate_inherited_loader_controls(monkeypatch: pytest.MonkeyPatch) -> None:
     # SAE-10 freezes tests/conftest.py by blob identity; keep this isolation
     # local to SAE-160 without weakening production pre-Git admission.
     for name in tuple(os.environ):
-        if name.startswith(("LD_", "DYLD_")):
+        if name.startswith(("LD_", "DYLD_")) or name in (
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID"
+        ):
             monkeypatch.delenv(name, raising=False)
 
 
@@ -93,6 +95,24 @@ def test_ambient_git_helper_override_rejected_before_any_git_process(
 
     def reject_git_subprocess(*args, **kwargs):
         raise AssertionError("ambient helper override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable", ("SSH_AUTH_SOCK", "SSH_AGENT_PID"))
+def test_ambient_ssh_agent_authority_rejected_before_any_git_process(
+    tmp_path, monkeypatch, variable
+):
+    """Inherited SSH agent identity is credential authority outside checkout."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "/untrusted/ssh-agent")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient SSH agent authority reached Git")
 
     monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
     result = inspect_checkout(path, head)

@@ -57,6 +57,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # Git's own GIT_ASKPASS setting; REQUIRE controls when it is used.
         # Neither is bound by an exact checkout HEAD or local config.
         "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE",
+        # An inherited SSH agent socket exposes credential-bearing transport
+        # outside this checkout even when Git's own helper env is unset.
+        "SSH_AUTH_SOCK", "SSH_AGENT_PID",
         # Git protocol allow-lists and wire negotiation are caller-controlled
         # transport policy, even if the current checkout probes are local.
         "GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER", "GIT_PROTOCOL",

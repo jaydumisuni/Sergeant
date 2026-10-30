@@ -26,7 +26,9 @@ def _isolate_inherited_loader_controls(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exclude runner loader paths from SAE-160 checkout qualification fixtures."""
     # SAE-10 freezes shared tests/conftest.py; do not rewrite that authority.
     for name in tuple(os.environ):
-        if name.startswith(("LD_", "DYLD_")):
+        if name.startswith(("LD_", "DYLD_")) or name in (
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID"
+        ):
             monkeypatch.delenv(name, raising=False)
 
 
