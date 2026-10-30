@@ -53,6 +53,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         # current read-only probe sequence never needs network access.
         "GIT_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND",
         "GIT_SSH_VARIANT", "GIT_PROXY_COMMAND",
+        # OpenSSH can execute an inherited askpass helper independently of
+        # Git's own GIT_ASKPASS setting; REQUIRE controls when it is used.
+        # Neither is bound by an exact checkout HEAD or local config.
+        "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE",
         # Git protocol allow-lists and wire negotiation are caller-controlled
         # transport policy, even if the current checkout probes are local.
         "GIT_ALLOW_PROTOCOL", "GIT_PROTOCOL_FROM_USER", "GIT_PROTOCOL",

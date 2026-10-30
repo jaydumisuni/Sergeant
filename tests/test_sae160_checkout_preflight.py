@@ -82,6 +82,7 @@ def test_ambient_git_protocol_authority_rejected_before_git(
 @pytest.mark.parametrize("variable", (
     "GIT_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND",
     "GIT_SSH_VARIANT", "GIT_PROXY_COMMAND",
+    "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE",
 ))
 def test_ambient_git_helper_override_rejected_before_any_git_process(
     tmp_path, monkeypatch, variable
