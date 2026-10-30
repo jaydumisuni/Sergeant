@@ -3121,6 +3121,33 @@ def test_remote_http_userinfo_credentials_rejected_before_checkout_git(
 
 
 @pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("prefix", ("\n", "\r", "\t", "\x7f"))
+def test_remote_http_control_prefixed_authority_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, prefix
+):
+    """Control-prefixed remote URLs are unqualified metadata, not safe authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key,
+        prefix + "https://user:secret@example.invalid/repository.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("control-prefixed remote reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
 @pytest.mark.parametrize("remote_url", (
     "http:///user:secret@example.invalid/repository.git",
     "https:///user:secret@example.invalid/repository.git",

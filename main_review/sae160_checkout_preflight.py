@@ -664,6 +664,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if not separator or not key or not url:
                     blockers.append("external_git_metadata")
                     break
+                # Git config can store leading control bytes in a remote URL.
+                # They bypass scheme-anchored credential checks while leaving
+                # HEAD and the worktree clean; no such URL is qualified input.
+                if any(ord(char) < 0x20 or ord(char) == 0x7f for char in url):
+                    blockers.append("external_git_metadata")
+                    break
                 # HTTP userinfo carries a remote authentication identity or
                 # secret outside the independently qualified checkout policy.
                 # A clean HEAD does not authorize credentials embedded in a
