@@ -733,6 +733,52 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     ):
                         blockers.append("external_git_metadata")
                         break
+        # Fetch refspecs are write authority over local Git references.
+        # Ordinary origin tracking may use a forced +refs/heads/* mapping,
+        # but a destination outside that remote's tracking namespace could
+        # overwrite local branches, tags or HEAD during a later fetch.
+        # Bind each local/worktree entry before any checkout Git probes.
+        try:
+            fetch_probe = subprocess.run(
+                ["git", "config", "--no-includes", "--file", str(config_file),
+                 "--null", "--get-regexp", r"^remote\..+\.fetch$"],
+                capture_output=True, text=True, encoding="utf-8", timeout=10,
+                env=isolated_git_env,
+            )
+        except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError):
+            blockers.append("external_git_metadata")
+            continue
+        if fetch_probe.returncode not in (0, 1):
+            blockers.append("external_git_metadata")
+        elif fetch_probe.returncode == 0:
+            for record in fetch_probe.stdout.split("\0"):
+                if not record:
+                    continue
+                key, separator, refspec = record.partition("\n")
+                remote = key[len("remote."):-len(".fetch")]
+                if not separator or not remote or not refspec:
+                    blockers.append("external_git_metadata")
+                    break
+                if refspec.startswith("^"):
+                    # Exclusion refspecs cannot name a write destination.
+                    safe = refspec[1:].startswith("refs/") and ":" not in refspec
+                else:
+                    source, has_destination, destination = (
+                        refspec.lstrip("+").partition(":")
+                    )
+                    tracking_prefix = f"refs/remotes/{remote}/"
+                    suffix = destination[len(tracking_prefix):]
+                    safe = source.startswith("refs/") and (
+                        not has_destination or (
+                            destination.startswith(tracking_prefix)
+                            and bool(suffix)
+                            and all(part not in ("", ".", "..")
+                                    for part in suffix.split("/"))
+                        )
+                    )
+                if not safe:
+                    blockers.append("external_git_metadata")
+                    break
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
     # before any checkout Git subprocess can execute the new configuration.
