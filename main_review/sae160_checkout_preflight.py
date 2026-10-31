@@ -593,6 +593,22 @@ def inspect_checkout(
     future_fetch_remotes: set[str] = set()
     future_fetch_no_tags: set[str] = set()
 
+    def canonical_remote_name(remote: str) -> bool:
+        """Reject visually concealed remote identities before trusting Git config."""
+        return (
+            bool(remote)
+            and "\\" not in remote
+            and all(part not in ("", ".", "..") for part in remote.split("/"))
+            and not any(
+                ord(char) < 0x20
+                or 0x7f <= ord(char) <= 0x9f
+                or unicodedata.category(char) == "Cf"
+                or (ord(char) > 0x7f
+                    and unicodedata.category(char).startswith("Z"))
+                for char in remote
+            )
+        )
+
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
@@ -684,7 +700,16 @@ def inspect_checkout(
                 if not record:
                     continue
                 key, separator, url = record.partition("\n")
-                if not separator or not key or not url:
+                # Git permits bidi/format controls and Unicode separators in
+                # remote names. Validate the key as well as the URL value:
+                # otherwise the reviewed fetch identity can be concealed.
+                remote = (
+                    key[len("remote."):-len(".pushurl")]
+                    if key.endswith(".pushurl")
+                    else key[len("remote."):-len(".url")]
+                )
+                if (not separator or not url
+                        or not canonical_remote_name(remote)):
                     blockers.append("external_git_metadata")
                     break
                 # Git config can store C0/C1 Unicode controls in remote URLs.
@@ -749,14 +774,6 @@ def inspect_checkout(
                 # therefore bind configured fetch URLs as well as refspecs.
                 # Push-only URLs do not confer fetch authority.
                 if require_configured_no_tags and key.endswith(".url"):
-                    remote = key[len("remote."):-len(".url")]
-                    if (
-                        not remote or "\\" in remote
-                        or any(part in ("", ".", "..")
-                               for part in remote.split("/"))
-                    ):
-                        blockers.append("external_git_metadata")
-                        break
                     future_fetch_remotes.add(remote)
 
         # Fetch refspecs are write authority over local Git references.
@@ -784,9 +801,8 @@ def inspect_checkout(
                 key, separator, refspec = record.partition("\n")
                 remote = key[len("remote."):-len(".fetch")]
                 if (
-                    not separator or not remote or not refspec
-                    or "\\" in remote
-                    or any(part in ("", ".", "..") for part in remote.split("/"))
+                    not separator or not canonical_remote_name(remote)
+                    or not refspec
                 ):
                     blockers.append("external_git_metadata")
                     break
@@ -878,6 +894,9 @@ def inspect_checkout(
                 key, separator, value = record.partition("\n")
                 if (not separator or not key.startswith("remote.")
                         or not key.endswith(".tagopt")
+                        or not canonical_remote_name(
+                            key[len("remote."):-len(".tagopt")]
+                        )
                         or value != "--no-tags"):
                     blockers.append("external_git_metadata")
                     break
@@ -912,10 +931,7 @@ def inspect_checkout(
                     else None
                 )
                 valid_key = key == "fetch.prunetags" or (
-                    remote is not None and bool(remote)
-                    and "\\" not in remote
-                    and all(part not in ("", ".", "..")
-                            for part in remote.split("/"))
+                    remote is not None and canonical_remote_name(remote)
                 )
                 if (not separator or not valid_key
                         or value.lower() not in {"false", "no", "off", "0"}):

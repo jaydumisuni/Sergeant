@@ -3686,3 +3686,41 @@ def test_future_fetch_strict_mode_does_not_treat_pushurl_as_fetch_remote(tmp_pat
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("remote", ("hidden\u202epeer", "space\u00a0peer", "control\u0085peer"))
+@pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
+def test_checkout_rejects_concealed_git_remote_names(
+    tmp_path, scope, remote, suffix,
+):
+    """Git accepts invisible remote names, but review custody must not."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    value = {
+        "url": "https://example.invalid/remote.git",
+        "fetch": f"+refs/heads/*:refs/remotes/{remote}/*",
+        "tagOpt": "--no-tags",
+        "pruneTags": "false",
+    }[suffix]
+    git(path, "config", "--" + scope, f"remote.{remote}.{suffix}", value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+def test_checkout_preserves_visible_unicode_remote_names(tmp_path, scope):
+    """Visible Unicode identities are not confused with hidden controls."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, "remote.visible-Ω.url",
+        "https://example.invalid/remote.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
