@@ -2844,6 +2844,8 @@ def test_standard_remote_url_preserves_repository_only_preflight(
     ("http.proxyAuthMethod", "basic"),
     ("http.emptyAuth", "true"),
     ("http.delegation", "always"),
+    ("http.followRedirects", "true"),
+    ("http.https://example.invalid.followRedirects", "true"),
     ("http.https://example.invalid.proxyAuthMethod", "digest"),
     ("http.https://example.invalid.emptyAuth", "true"),
     ("http.https://example.invalid.delegation", "always"),
