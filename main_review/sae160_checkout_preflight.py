@@ -679,13 +679,16 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 # In particular, U+0085 is Unicode whitespace and bypasses
                 # scheme-anchored checks while leaving HEAD/worktree clean.
                 # Neither fetch nor push metadata may borrow that authority.
-                # Unicode format controls (Cf) can conceal or visually
-                # reorder the reviewed remote destination without changing
-                # the exact checkout HEAD. Reject them before checkout Git.
+                # Unicode format controls (Cf) and non-ASCII separators
+                # (Zs/Zl/Zp) can conceal, split or visually reorder the
+                # reviewed destination without changing the checkout HEAD.
+                # Preserve ordinary ASCII path spaces and visible Unicode.
                 if any(
                     ord(char) < 0x20
                     or 0x7f <= ord(char) <= 0x9f
                     or unicodedata.category(char) == "Cf"
+                    or (ord(char) > 0x7f
+                        and unicodedata.category(char).startswith("Z"))
                     for char in url
                 ):
                     blockers.append("external_git_metadata")
