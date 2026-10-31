@@ -3121,7 +3121,7 @@ def test_remote_http_userinfo_credentials_rejected_before_checkout_git(
 
 
 @pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
-@pytest.mark.parametrize("prefix", ("\n", "\r", "\t", "\x7f"))
+@pytest.mark.parametrize("prefix", ("\n", "\r", "\t", "\x7f", "\x80", "\x85", "\x9b", "\x9f"))
 def test_remote_http_control_prefixed_authority_rejected_before_checkout_git(
     tmp_path, monkeypatch, config_key, prefix
 ):
