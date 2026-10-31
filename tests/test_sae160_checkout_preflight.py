@@ -44,6 +44,38 @@ def test_ambient_indexed_git_config_rejected_before_git(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("url", (
+    "https://", "http://", "ssh://", "git://",
+    "git+ssh://", "ssh+git://", "file://",
+    "https://?query", "ssh://#fragment",
+))
+def test_empty_remote_url_authority_is_not_standalone(tmp_path, url):
+    """A scheme without a destination is not a bound Git remote authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url", url)
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("url", (
+    "https://example.invalid/repo",
+    "ssh://git@example.invalid/repo",
+    "file:///tmp/fixture.git",
+))
+def test_well_formed_remote_url_authority_remains_supported(tmp_path, url):
+    """The admission guard must not reject ordinary remote schemes."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url", url)
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_local_ignorestat_cannot_override_checkout_cleanliness(tmp_path, monkeypatch):
     """Git's assume-unchanged status policy is not bound by a clean HEAD."""
     path, head = checkout(tmp_path)

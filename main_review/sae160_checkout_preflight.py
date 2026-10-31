@@ -702,6 +702,22 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 ):
                     blockers.append("external_git_metadata")
                     break
+                # A recognized scheme alone is not a destination. Git's
+                # remote metadata must name a host (network transports) or
+                # a path/authority (file transport); a blank URL or query-only
+                # suffix cannot qualify as a bound checkout remote.
+                if transport and transport.group(2) == "://":
+                    destination = url[transport.end():]
+                    authority = re.split(r"[/?#]", destination, maxsplit=1)[0]
+                    if (
+                        transport.group(1) == "file"
+                        and (not destination or destination[0] in "?#")
+                    ) or (
+                        transport.group(1) != "file"
+                        and not authority.rsplit("@", 1)[-1].split(":", 1)[0]
+                    ):
+                        blockers.append("external_git_metadata")
+                        break
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
     # before any checkout Git subprocess can execute the new configuration.
