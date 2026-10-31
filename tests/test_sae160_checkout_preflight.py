@@ -3644,3 +3644,45 @@ def test_default_checkout_preflight_does_not_claim_future_fetch_tag_safety(tmp_p
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+def test_future_fetch_strict_mode_binds_url_only_remote_tag_policy(
+    tmp_path, scope,
+):
+    """A URL-only remote can auto-follow tags when fetched by explicit refspec."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.tagOpt", "--no-tags")
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, "remote.urlonly.url",
+        "https://example.invalid/remote.git")
+
+    strict = inspect_checkout(path, head, require_configured_no_tags=True)
+    assert strict.blockers == ("unbound_future_fetch_tag_autofollow",)
+    assert strict.observed_head is None
+    assert strict.authority_gain == "NONE"
+
+    # The default checkout-only mode has no future-fetch qualification.
+    default = inspect_checkout(path, head)
+    assert default.blockers == ()
+    assert default.observed_head == head
+    assert default.authority_gain == "NONE"
+
+    git(path, "config", "--" + scope, "remote.urlonly.tagOpt", "--no-tags")
+    strict = inspect_checkout(path, head, require_configured_no_tags=True)
+    assert strict.blockers == ()
+    assert strict.observed_head == head
+    assert strict.authority_gain == "NONE"
+
+
+def test_future_fetch_strict_mode_does_not_treat_pushurl_as_fetch_remote(tmp_path):
+    """Push-only URLs must not expand the future-fetch remote set."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.tagOpt", "--no-tags")
+    git(path, "config", "--local", "remote.pushonly.pushurl",
+        "https://example.invalid/push.git")
+    result = inspect_checkout(path, head, require_configured_no_tags=True)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"

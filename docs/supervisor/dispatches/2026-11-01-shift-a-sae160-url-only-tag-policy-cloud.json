@@ -1,0 +1,84 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.cloud.v1",
+  "shift": "A",
+  "project": "srg",
+  "project_repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE-160 opt-in future-fetch tag policy: URL-only remotes",
+  "canonical_registry": {
+    "repository": "jaydumisuni/cookpit",
+    "ref": "main",
+    "file": "registry.json",
+    "blob_sha": "b3d88fe65be9b5514b46d1b8d028c844bc4b78eb",
+    "project_enabled": true,
+    "oracle_phase27_enabled": false
+  },
+  "before": {
+    "head": "ff8196d9f2e282e520b79cc23b079d57f58f5331",
+    "pr": 280,
+    "state": "Configured fetch-refspec remotes bound to --no-tags; URL-only fetch remotes omitted"
+  },
+  "action": {
+    "kind": "cloud_source_only_implementation",
+    "worker": "Shift A authenticated GitHub fallback",
+    "branch": "supervisor/shift-a-sae160-url-only-tag-policy-20261101-0004",
+    "description": "Include validated remote.*.url identities in strict future-fetch tag policy, excluding push-only URLs",
+    "files": [
+      "main_review/sae160_checkout_preflight.py",
+      "tests/test_sae160_checkout_preflight.py"
+    ],
+    "new_regression_cases": 3
+  },
+  "after": {
+    "implementation_head": "86d57d928014fca0a20a2a123fc9f93a8697af4d",
+    "pr": 281,
+    "source_blob_sha": "95cfb9ef98f0cfd3937694bfdec4f662c939f854",
+    "test_blob_sha": "a65f73f2d8e21ea9107f54e84aa5be1c28141af7",
+    "source_test_readback": "MATCH",
+    "ancestry": "2 ahead 0 behind",
+    "project_branch_published": true
+  },
+  "proof": {
+    "disposable_real_git_url_only_remote_implicit_tag_autofollow": "REPRODUCED_1_TAG",
+    "disposable_real_git_explicit_no_tags": "PREVENTED_0_TAGS",
+    "inserted_predicate_syntax": "PASS_ISOLATED",
+    "new_project_tests": "AUTHORED_NOT_EXECUTED",
+    "native_project_pytest": "UNVERIFIED",
+    "kratos_patrol": "UNVERIFIED",
+    "hosted_exact_head_ci": "NO_RUN_RETURNED_AT_OBSERVATION",
+    "independent_review": "PENDING_0_REVIEWS",
+    "external_qualification": "NOT_PROVEN"
+  },
+  "health": "ORACLE_CLOUD_ROSTER_FAILED;KRATOS_TERMINAL_UNAVAILABLE;GITHUB_AVAILABLE",
+  "movement": "SOURCE_HEAD_ADVANCED",
+  "supervisor_pool": {
+    "A": "CURRENT_SLOT_WITHIN_GRACE",
+    "B": "HEALTHY",
+    "C": "HEALTHY",
+    "D": "HEALTHY",
+    "E": "HEALTHY",
+    "confirmed_missed": 0,
+    "catchups": 0,
+    "all_enabled": true,
+    "schedules_changed": false
+  },
+  "nodie": {
+    "roster": "UNVERIFIED",
+    "geographic_location": "NOT_CONFIRMED",
+    "device_touched": false
+  },
+  "dependency": {
+    "upstream": "SAE-160 safe repository-only preparation",
+    "gated_by": "SAE-150 external independent qualification",
+    "downstream": "Genesis HOLD"
+  },
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "protected_merge": false,
+  "local_cookpit_attention_reconciled": false,
+  "local_dispatch_receipt_reconciled": false,
+  "disposition": "SOURCE_PUBLISHED_CLOUD_RECEIPT_NATIVE_PENDING",
+  "observed_at_utc": "2026-10-31T22:07:36.664Z",
+  "reconciliation": [
+    "When KRATOS returns, verify canonical origin/main registry, exact Sergeant PR #281 branch and preceding cloud receipts; run Patrol/preflight in real SAE-160 worktree; run focused and adjacent native pytest; reconcile local attention and dispatch exactly once; do not merge, promote, or rebound guarded Cookpit control without independent authorization."
+  ]
+}
