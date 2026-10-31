@@ -828,6 +828,33 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                             break
                     if blockers:
                         break
+        # An explicit remote tag policy can expand a tracking-only fetch into
+        # writes under refs/tags. Reject any override except --no-tags before
+        # checkout Git probes; ordinary default tag auto-follow is a separate
+        # future-fetch boundary, not qualified by this local preflight.
+        try:
+            tag_probe = subprocess.run(
+                ["git", "config", "--no-includes", "--file", str(config_file),
+                 "--null", "--get-regexp", r"^remote\..+\.tagopt$"],
+                capture_output=True, text=True, encoding="utf-8", timeout=10,
+                env=isolated_git_env,
+            )
+        except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError):
+            blockers.append("external_git_metadata")
+            continue
+        if tag_probe.returncode not in (0, 1):
+            blockers.append("external_git_metadata")
+        elif tag_probe.returncode == 0:
+            for record in tag_probe.stdout.split("\0"):
+                if not record:
+                    continue
+                key, separator, value = record.partition("\n")
+                if (not separator or not key.startswith("remote.")
+                        or not key.endswith(".tagopt")
+                        or value != "--no-tags"):
+                    blockers.append("external_git_metadata")
+                    break
+
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
     # before any checkout Git subprocess can execute the new configuration.
