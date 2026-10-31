@@ -10,14 +10,48 @@ import pytest
 from main_review.sae160_checkout_preflight import inspect_checkout
 
 
+@pytest.fixture(autouse=True)
+def _isolate_inherited_checkout_transport_controls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep runner loader and transport overrides out of explicit threat fixtures."""
+    # SAE-10 freezes tests/conftest.py by blob identity; keep this isolation
+    # local to SAE-160 without weakening production pre-Git admission.
+    for name in tuple(os.environ):
+        if name.startswith(("LD_", "DYLD_", "GIT_HTTP_", "GIT_CURL_")) or name in (
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GIT_TERMINAL_PROMPT",
+            "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+            "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+            "SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE",
+            "SSLKEYLOGFILE",
+        ):
+            monkeypatch.delenv(name, raising=False)
+
+
+@pytest.mark.parametrize("variable", ("GIT_CONFIG_KEY_7", "GIT_CONFIG_VALUE_7"))
+def test_ambient_indexed_git_config_rejected_before_git(
+    tmp_path, monkeypatch, variable
+):
+    """Even orphaned indexed Git config variables are unbound caller policy."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "untrusted-control")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient indexed config reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 def git(path: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
 
 
-def checkout(tmp_path: Path) -> tuple[Path, str]:
+def checkout(tmp_path: Path, *, object_format: str = "sha1") -> tuple[Path, str]:
     origin = tmp_path / "origin"
     origin.mkdir()
-    subprocess.check_call(["git", "init", "-q", str(origin)])
+    subprocess.check_call(["git", "init", f"--object-format={object_format}", "-q", str(origin)])
     git(origin, "config", "user.email", "test@example.invalid")
     git(origin, "config", "user.name", "Test")
     (origin / "tracked.txt").write_text("fixed\n")
@@ -26,6 +60,211 @@ def checkout(tmp_path: Path) -> tuple[Path, str]:
     clone = tmp_path / "clone"
     subprocess.check_call(["git", "clone", "--no-hardlinks", "-q", str(origin), str(clone)])
     return clone, git(clone, "rev-parse", "HEAD")
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX system Git path custody")
+def test_shadow_git_on_ambient_path_cannot_execute_during_preflight(tmp_path, monkeypatch):
+    """Caller-controlled PATH must not substitute Git before config admission."""
+    path, head = checkout(tmp_path)
+    shadow = tmp_path / "shadow-bin"
+    shadow.mkdir()
+    marker = tmp_path / "shadow-git-executed"
+    fake_git = shadow / "git"
+    fake_git.write_text("#!/bin/sh\nprintf shadow > " + str(marker) + "\nexit 91\n")
+    fake_git.chmod(0o755)
+    monkeypatch.setenv("PATH", str(shadow) + os.pathsep + os.environ["PATH"])
+
+    result = inspect_checkout(path, head)
+    assert not marker.exists(), "untrusted PATH executed a substituted Git binary"
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_ALLOW_PROTOCOL", "file"),
+    ("GIT_PROTOCOL_FROM_USER", "1"),
+    ("GIT_PROTOCOL", "version=2"),
+))
+def test_ambient_git_protocol_authority_rejected_before_git(
+    tmp_path, monkeypatch, variable, value
+):
+    """Caller-supplied Git protocol policy must not enter source preflight."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def reject_git_process(*args, **kwargs):
+        raise AssertionError("ambient protocol authority reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable", (
+    "GIT_ASKPASS", "GIT_SSH", "GIT_SSH_COMMAND",
+    "GIT_SSH_VARIANT", "GIT_PROXY_COMMAND",
+    "SSH_ASKPASS", "SSH_ASKPASS_REQUIRE",
+))
+def test_ambient_git_helper_override_rejected_before_any_git_process(
+    tmp_path, monkeypatch, variable
+):
+    """Executable Git transport/credential helpers cannot enter local preflight."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "/untrusted/helper")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient helper override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_TERMINAL_PROMPT", "0"),
+    ("GIT_CURL_VERBOSE", "1"),
+    ("GIT_HTTP_LOW_SPEED_LIMIT", "1"),
+    ("GIT_HTTP_LOW_SPEED_TIME", "1"),
+    ("GIT_HTTP_MAX_REQUESTS", "1"),
+))
+def test_ambient_git_http_transport_policy_rejected_before_git(
+    tmp_path, monkeypatch, variable, value
+):
+    """Unpinned HTTP/credential policy must not reach a checkout Git probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient HTTP transport policy reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable", (
+    "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+))
+def test_ambient_curl_proxy_authority_rejected_before_any_git_process(
+    tmp_path, monkeypatch, variable
+):
+    """Proxy routing and bypass policy must not enter repository-only Git."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "http://user:secret@untrusted.invalid:8080")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("inherited curl proxy authority reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable", (
+    "SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE", "SSLKEYLOGFILE",
+))
+def test_ambient_curl_tls_trust_or_keylog_rejected_before_git(
+    tmp_path, monkeypatch, variable
+):
+    """Unpinned TLS trust and key-log destinations cannot enter checkout Git."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, str(tmp_path / "untrusted-tls-authority"))
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient TLS trust or keylog reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable", ("SSH_AUTH_SOCK", "SSH_AGENT_PID"))
+def test_ambient_ssh_agent_authority_rejected_before_any_git_process(
+    tmp_path, monkeypatch, variable
+):
+    """Inherited SSH agent identity is credential authority outside checkout."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "/untrusted/ssh-agent")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient SSH agent authority reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("extensions.partialClone", "origin"),
+    ("remote.origin.promisor", "true"),
+    ("remote.origin.partialCloneFilter", "blob:none"),
+))
+def test_partial_clone_promisor_config_is_not_repository_only(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """A clean local object store cannot admit future remote object fetches."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("promisor checkout reached a Git object probe")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX case-folded alias custody")
+@pytest.mark.parametrize("nested", (False, True))
+def test_git_ignorecase_cannot_hide_untracked_casefolded_alias(tmp_path, nested):
+    """A clean Git status must not admit a second physical path absent from the index."""
+    path, head = checkout(tmp_path)
+    if nested:
+        parent = path / "nested"
+        parent.mkdir()
+        (parent / "pinned.txt").write_text("pinned\n")
+        git(path, "add", "nested/pinned.txt")
+        git(path, "-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid",
+            "commit", "-qm", "fixture: nested pinned path")
+        head = git(path, "rev-parse", "HEAD")
+        shadow = parent / "PINNED.TXT"
+    else:
+        shadow = path / "TRACKED.TXT"
+    if shadow.exists():
+        pytest.skip("filesystem cannot represent distinct case-folded aliases")
+    git(path, "config", "core.ignorecase", "true")
+    shadow.write_text("untracked shadow\n")
+    assert git(path, "status", "--porcelain", "--untracked-files=all",
+               "--ignored=matching") == ""
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("untracked_worktree_entry",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
 
 
 def test_standalone_clean_exact_checkout_is_only_preflight(tmp_path):
@@ -319,6 +558,71 @@ def test_same_byte_git_control_swap_after_clean_status_is_rejected(
 
 
 
+@pytest.mark.parametrize("mutation", ("replace_ref", "add_ref"))
+def test_git_ref_tree_mutation_after_clean_status_is_rejected(
+    tmp_path, monkeypatch, mutation
+):
+    """An exact HEAD and clean status do not bind mutable loose ref metadata."""
+    path, head = checkout(tmp_path)
+    branch = git(path, "symbolic-ref", "--short", "HEAD")
+    ref = path / ".git" / "refs" / "heads" / branch
+    assert ref.is_file()
+    original_run = subprocess.run
+    mutations = []
+
+    def mutate_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            assert result.returncode == 0
+            assert result.stdout == ""
+            if mutation == "replace_ref":
+                replacement = ref.with_name(ref.name + ".replacement")
+                replacement.write_bytes(ref.read_bytes())
+                os.replace(replacement, ref)
+            else:
+                (ref.parent / "unreviewed-ref").write_text(head + "\n")
+            mutations.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", mutate_after_status)
+    result = inspect_checkout(path, head)
+    assert mutations == [True]
+    assert result.blockers == ("git_ref_metadata_changed",)
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX Git metadata custody")
+@pytest.mark.parametrize("directory", (".git", ".git/hooks", ".git/info"))
+def test_git_metadata_directory_mode_changed_after_status_is_rejected(
+    tmp_path, monkeypatch, directory
+):
+    """A late peer-writable Git directory cannot inherit an earlier clean status."""
+    path, head = checkout(tmp_path)
+    target = path / directory
+    assert target.is_dir()
+    original_mode = target.stat().st_mode & 0o777
+    actual_run = subprocess.run
+    changed = []
+
+    def chmod_after_status(argv, *args, **kwargs):
+        result = actual_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv[3:]:
+            assert result.returncode == 0 and result.stdout == ""
+            target.chmod(original_mode | 0o020)
+            changed.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", chmod_after_status)
+    try:
+        result = inspect_checkout(path, head)
+        assert changed == [True]
+        assert "git_metadata_tree_changed" in result.blockers
+        assert result.authority_gain == "NONE"
+    finally:
+        target.chmod(original_mode)
+
+
 def test_optional_git_control_appearing_after_clean_status_is_rejected(
     tmp_path, monkeypatch
 ):
@@ -607,6 +911,27 @@ def test_symlinked_commit_graph_cannot_borrow_external_object_metadata(tmp_path)
     assert result.authority_gain == "NONE"
 
 
+def test_ambient_git_attribute_source_cannot_rewrite_checkout_evidence(tmp_path, monkeypatch):
+    """A caller-selected attribute tree must be rejected before any Git probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("GIT_ATTR_SOURCE", "refs/heads/unreviewed-attributes")
+    actual_run = subprocess.run
+    git_calls = []
+
+    def reject_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("external Git attribute source reached a Git subprocess")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
 def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch):
     path, head = checkout(tmp_path)
     external = tmp_path / "external-objects"
@@ -621,7 +946,9 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
 
 @pytest.mark.parametrize("name,value", (
     ("GIT_CONFIG_COUNT", "0"),
+    ("GIT_CONFIG_NOSYSTEM", "1"),
     ("GIT_EXEC_PATH", "/nonexistent/untrusted-git-helpers"),
+    ("GIT_TEMPLATE_DIR", "/nonexistent/untrusted-git-template-hooks"),
     ("GIT_SHALLOW_FILE", "/nonexistent/untrusted-shallow-metadata"),
     ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=/nonexistent/monitor'"),
     ("GIT_EXTERNAL_DIFF", "/nonexistent/diff"),
@@ -633,9 +960,45 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
     ("GIT_TRACE_PERFORMANCE", "/nonexistent/performance-trace"),
     ("GIT_TRACE_CURL", "/nonexistent/curl-trace"),
     ("GIT_TRACE2_CONFIG_PARAMS", "core.fsmonitor"),
+    ("LD_PRELOAD", "/tmp/untrusted-preload.so"),
+    ("LD_LIBRARY_PATH", "/tmp/untrusted-loader-path"),
+    ("LD_AUDIT", "/tmp/untrusted-audit.so"),
+    ("DYLD_INSERT_LIBRARIES", "/tmp/untrusted-dylib.dylib"),
 ))
 def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypatch, name, value):
     """Ambient Git overrides must not reach even the local config probe."""
+    path, head = checkout(tmp_path)
+    if name.startswith(("LD_", "DYLD_")):
+        assert not any(key.startswith(("LD_", "DYLD_")) for key in os.environ)
+    monkeypatch.setenv(name, value)
+    if name.startswith(("LD_", "DYLD_")):
+        assert {key for key in os.environ if key.startswith(("LD_", "DYLD_"))} == {name}
+    original_run = subprocess.run
+    git_calls = []
+
+    def reject_git_process(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("Git invoked before rejecting ambient controls")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_git_process)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.parametrize("name,value", (
+    ("GIT_PAGER", "/untrusted/pager"),
+    ("GIT_EDITOR", "/untrusted/editor"),
+    ("GIT_SEQUENCE_EDITOR", "/untrusted/sequence-editor"),
+))
+def test_ambient_git_review_helpers_rejected_before_config_probe(
+    tmp_path, monkeypatch, name, value
+):
+    """Ambient executable review helpers are not standalone Git authority."""
     path, head = checkout(tmp_path)
     monkeypatch.setenv(name, value)
     original_run = subprocess.run
@@ -644,7 +1007,7 @@ def test_ambient_git_controls_rejected_before_any_git_process(tmp_path, monkeypa
     def reject_git_process(argv, *args, **kwargs):
         if argv and argv[0] == "git":
             git_calls.append(tuple(argv))
-            raise AssertionError("Git invoked before rejecting ambient controls")
+            raise AssertionError("Git invoked before rejecting ambient review helper")
         return original_run(argv, *args, **kwargs)
 
     monkeypatch.setattr(subprocess, "run", reject_git_process)
@@ -845,6 +1208,27 @@ def test_core_worktree_redirect_is_rejected_before_checkout_git(tmp_path, monkey
     result = inspect_checkout(path, head)
     assert "external_git_metadata" in result.blockers
     assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
+def test_repository_only_git_probes_disable_lazy_fetch_even_if_inherited(tmp_path, monkeypatch):
+    """No local Git probe may borrow missing objects from a promisor remote."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("GIT_NO_LAZY_FETCH", "0")
+    original_run = subprocess.run
+    checked = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            checked.append(tuple(argv))
+            assert kwargs.get("env", {}).get("GIT_NO_LAZY_FETCH") == "1"
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert checked, "preflight did not perform any Git subprocess"
+    assert result.blockers == ()
+    assert result.observed_head == head
     assert result.authority_gain == "NONE"
 
 
@@ -1798,3 +2182,1043 @@ def test_setid_tracked_file_cannot_qualify_standalone_checkout(tmp_path, privile
     result = inspect_checkout(path, head)
     assert "tracked_worktree_privileged_mode" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX pack-index inode custody")
+def test_object_pack_index_replacement_after_clean_status_is_rejected(
+    tmp_path, monkeypatch
+):
+    """A clean status cannot qualify a same-byte swapped Git pack index."""
+    path, head = checkout(tmp_path)
+    git(path, "repack", "-ad")
+    pack_index = next((path / ".git" / "objects" / "pack").glob("*.idx"))
+    replacement = tmp_path / "same-bytes.idx"
+    replacement.write_bytes(pack_index.read_bytes())
+    original_run = subprocess.run
+    replaced = False
+
+    def swap_after_status(argv, *args, **kwargs):
+        nonlocal replaced
+        result = original_run(argv, *args, **kwargs)
+        if (not replaced and list(argv[:3]) == ["git", "-C", str(path)]
+                and "status" in argv[3:]):
+            assert result.stdout == ""
+            os.replace(replacement, pack_index)
+            replaced = True
+        return result
+
+    monkeypatch.setattr(subprocess, "run", swap_after_status)
+    result = inspect_checkout(path, head)
+    assert replaced
+    assert "git_object_store_changed" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "listxattr"),
+    reason="POSIX extended-attribute custody",
+)
+@pytest.mark.parametrize("failure", [False, True])
+def test_tracked_file_capability_xattr_rejected_before_status(
+    tmp_path, monkeypatch, failure,
+):
+    """Git cannot represent Linux file capabilities or verify their absence."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_listxattr = os.listxattr
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            if failure:
+                raise OSError("unverifiable tracked-file xattrs")
+            return ["security.capability"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    original_run = subprocess.run
+
+    def reject_status(argv, *args, **kwargs):
+        if argv and argv[0] == "git" and "status" in argv:
+            raise AssertionError("Git status ran before xattr custody admission")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_status)
+    result = inspect_checkout(path, head)
+    assert result.authority_gain == "NONE"
+    assert result.blockers == (
+        ("unverified_worktree_xattr_custody",) if failure
+        else ("tracked_worktree_privileged_xattr",)
+    )
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "listxattr"),
+    reason="POSIX extended-attribute custody",
+)
+def test_tracked_file_capability_xattr_appearing_after_status_is_rejected(
+    tmp_path, monkeypatch,
+):
+    """A post-status capability change cannot inherit the clean Git result."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_run = subprocess.run
+    original_listxattr = os.listxattr
+    observed_status = False
+
+    def mark_status(argv, *args, **kwargs):
+        nonlocal observed_status
+        result = original_run(argv, *args, **kwargs)
+        if argv and argv[0] == "git" and "status" in argv:
+            observed_status = True
+        return result
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked and observed_status:
+            return ["security.capability"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", mark_status)
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    result = inspect_checkout(path, head)
+    assert observed_status
+    assert "tracked_worktree_xattr_changed" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "getxattr"),
+    reason="POSIX extended-attribute value custody",
+)
+def test_tracked_file_xattr_value_mutation_after_status_is_rejected(
+    tmp_path, monkeypatch,
+):
+    """The same xattr name with changed bytes is not the same checkout."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_run = subprocess.run
+    original_listxattr = os.listxattr
+    original_getxattr = os.getxattr
+    observed_status = False
+
+    def mark_status(argv, *args, **kwargs):
+        nonlocal observed_status
+        result = original_run(argv, *args, **kwargs)
+        if argv and argv[0] == "git" and "status" in argv:
+            observed_status = True
+        return result
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            return ["user.sae160.custody"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    def getxattr(entry, name, *args, **kwargs):
+        if Path(entry) == tracked and name == "user.sae160.custody":
+            return b"changed" if observed_status else b"original"
+        return original_getxattr(entry, name, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", mark_status)
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    monkeypatch.setattr(os, "getxattr", getxattr)
+    result = inspect_checkout(path, head)
+    assert observed_status
+    assert "tracked_worktree_xattr_changed" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "getxattr"),
+    reason="POSIX extended-attribute value custody",
+)
+def test_unreadable_tracked_xattr_value_rejected_before_git_status(
+    tmp_path, monkeypatch,
+):
+    """An enumerated but unreadable attribute cannot earn clean authority."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_listxattr = os.listxattr
+    original_getxattr = os.getxattr
+    original_run = subprocess.run
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            return ["user.sae160.custody"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    def getxattr(entry, name, *args, **kwargs):
+        if Path(entry) == tracked and name == "user.sae160.custody":
+            raise OSError("attribute content unreadable")
+        return original_getxattr(entry, name, *args, **kwargs)
+
+    def reject_status(argv, *args, **kwargs):
+        if argv and argv[0] == "git" and "status" in argv:
+            raise AssertionError("Git status ran before xattr value custody")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    monkeypatch.setattr(os, "getxattr", getxattr)
+    monkeypatch.setattr(subprocess, "run", reject_status)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("unverified_worktree_xattr_custody",)
+    assert result.authority_gain == "NONE"
+
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "getxattr"),
+    reason="POSIX extended-attribute value custody",
+)
+def test_stable_tracked_xattr_value_keeps_clean_preflight(tmp_path, monkeypatch):
+    """A private stable user attribute is not a capability or a dirty tree."""
+    path, head = checkout(tmp_path)
+    tracked = path / "tracked.txt"
+    original_listxattr = os.listxattr
+    original_getxattr = os.getxattr
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == tracked:
+            return ["user.sae160.custody"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    def getxattr(entry, name, *args, **kwargs):
+        if Path(entry) == tracked and name == "user.sae160.custody":
+            return b"stable"
+        return original_getxattr(entry, name, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    monkeypatch.setattr(os, "getxattr", getxattr)
+    result = inspect_checkout(path, head)
+    assert result.observed_head == head
+    assert result.blockers == ()
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("core.sshCommand", "/untrusted/ssh-wrapper"),
+    ("core.gitProxy", "/untrusted/git-proxy"),
+    ("credential.helper", "!/untrusted/credential-helper"),
+    ("credential.https://example.invalid.helper", "!/untrusted/scoped-helper"),
+))
+def test_local_git_executable_helpers_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Local config must not admit executable transport or credential helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("local executable helper reached a checkout Git probe")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("remote.origin.uploadpack", "/untrusted/git-upload-pack"),
+    ("remote.origin.receivepack", "/untrusted/git-receive-pack"),
+    ("remote.origin.vcs", "untrusted-remote-helper"),
+    ("url.https://untrusted.invalid/.insteadOf", "https://github.com/"),
+    ("url.https://untrusted.invalid/.pushInsteadOf", "https://github.com/"),
+))
+def test_local_git_remote_transport_helpers_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Remote transport and URL rewrite controls cannot qualify a clean clone."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("remote transport helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+def test_global_git_attribute_and_ignore_files_cannot_affect_checkout_probes(
+    tmp_path, monkeypatch
+):
+    """Git's default XDG attribute/ignore files are unbound external authority."""
+    path, head = checkout(tmp_path)
+    xdg = tmp_path / "xdg"
+    (xdg / "git").mkdir(parents=True)
+    (xdg / "git" / "attributes").write_text("*.txt text eol=lf\n")
+    (xdg / "git" / "ignore").write_text("shadow.txt\n")
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(xdg))
+    monkeypatch.setenv("HOME", str(tmp_path / "home"))
+
+    original_run = subprocess.run
+    observed = []
+
+    def verify_status_environment(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv:
+            env = kwargs["env"]
+            attributes = original_run(
+                ["git", "-C", str(path), "check-attr", "-a", "--", "tracked.txt"],
+                env=env, capture_output=True, text=True, check=True,
+            )
+            ignored = original_run(
+                ["git", "-C", str(path), "check-ignore", "--", "shadow.txt"],
+                env=env, capture_output=True, text=True,
+            )
+            observed.append((attributes.stdout, ignored.returncode))
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", verify_status_environment)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.authority_gain == "NONE"
+    assert observed == [("", 1)], "checkout Git borrowed global attribute/ignore files"
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("core.askpass", "/untrusted/askpass"),
+    ("core.editor", "/untrusted/editor"),
+    ("sequence.editor", "/untrusted/sequence-editor"),
+    ("core.pager", "/untrusted/pager"),
+    ("pager.log", "/untrusted/log-pager"),
+    ("gpg.program", "/untrusted/gpg"),
+    ("gpg.ssh.program", "/untrusted/ssh-sign"),
+    ("gpg.x509.program", "/untrusted/x509-sign"),
+    ("gpg.ssh.defaultKeyCommand", "/untrusted/key-command"),
+    ("alias.review", "!/untrusted/alias-review"),
+))
+def test_local_git_review_executable_config_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """A clean clone must not borrow executable helper, editor, or signer authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("untrusted Git review executable reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("difftool.review.cmd", "/untrusted/diff-tool"),
+    ("mergetool.review.cmd", "/untrusted/merge-tool"),
+    ("merge.review.driver", "/untrusted/merge-driver %O %A %B"),
+    ("interactive.diffFilter", "/untrusted/diff-filter"),
+    ("core.alternateRefsCommand", "/untrusted/alternate-refs"),
+))
+def test_local_git_auxiliary_executable_config_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Standalone review cannot borrow executable Git tool/alternate-ref helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound executable helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX split-index timestamp custody")
+@pytest.mark.parametrize("object_format", ("sha1", "sha256"))
+def test_split_index_timestamp_refresh_preserves_clean_custody(tmp_path, object_format):
+    """Git's own shared-index timestamp refresh is not a checkout mutation."""
+    path, head = checkout(tmp_path, object_format=object_format)
+    git(path, "update-index", "--split-index")
+    shared = list((path / ".git").glob("sharedindex.*"))
+    assert len(shared) == 1
+    assert len(shared[0].name) == len("sharedindex.") + len(head)
+    assert git(path, "status", "--porcelain") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX split-index byte custody")
+@pytest.mark.parametrize("object_format", ("sha1", "sha256"))
+def test_split_index_content_mutation_after_status_is_rejected(tmp_path, monkeypatch, object_format):
+    """Changed shared-index bytes remain unsafe even when timestamps are ignored."""
+    path, head = checkout(tmp_path, object_format=object_format)
+    git(path, "update-index", "--split-index")
+    shared, = (path / ".git").glob("sharedindex.*")
+    original_run = subprocess.run
+    changed = []
+
+    def mutate_after_status(argv, *args, **kwargs):
+        result = original_run(argv, *args, **kwargs)
+        if list(argv[:3]) == ["git", "-C", str(path)] and "status" in argv[3:]:
+            data = bytearray(shared.read_bytes())
+            assert data
+            data[-1] ^= 1
+            shared.write_bytes(data)
+            changed.append(True)
+        return result
+
+    monkeypatch.setattr(subprocess, "run", mutate_after_status)
+    result = inspect_checkout(path, head)
+    assert changed == [True]
+    assert "git_metadata_tree_changed" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("config_key", (
+    "gpg.ssh.allowedSignersFile", "gpg.ssh.revocationFile",
+))
+def test_external_ssh_signature_trust_files_cannot_qualify_repository_only_checkout(
+    tmp_path, config_key
+):
+    """External signature trust/revocation inputs are not frozen by checkout HEAD."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, str(tmp_path / "external-signers"))
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX privileged Git hook mode custody")
+@pytest.mark.parametrize("privilege_bit", (0o4000, 0o2000))
+def test_privileged_git_hook_mode_rejected_before_checkout_git(
+    tmp_path, monkeypatch, privilege_bit
+):
+    """Set-ID Git hook metadata is not a standalone repository authority."""
+    path, head = checkout(tmp_path)
+    hook = path / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o755 | privilege_bit)
+    assert hook.stat().st_mode & privilege_bit
+
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("privileged hook reached a Git subprocess")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    assert "privileged_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX late set-ID Git metadata")
+@pytest.mark.parametrize("privilege_bit", (0o4000, 0o2000))
+def test_setid_hook_added_after_initial_walk_rejected_at_snapshot(
+    tmp_path, monkeypatch, privilege_bit
+):
+    """An unsafe Git hook must not become the trusted snapshot baseline."""
+    path, head = checkout(tmp_path)
+    hook = path / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o755)
+    original_walk = os.walk
+    walks = 0
+
+    def late_privileged_walk(top, *args, **kwargs):
+        nonlocal walks
+        if Path(top) == path / ".git":
+            walks += 1
+            if walks == 2:
+                hook.chmod(0o755 | privilege_bit)
+        return original_walk(top, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", late_privileged_walk)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("privileged late Git hook reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    assert git_calls == []
+    assert walks >= 2
+    assert hook.stat().st_mode & privilege_bit
+    assert result.blockers == ("unverified_git_metadata_custody",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(
+    os.name != "posix" or not hasattr(os, "listxattr"),
+    reason="POSIX privileged Git metadata xattr custody",
+)
+@pytest.mark.parametrize("failure", [False, True])
+def test_privileged_git_hook_capability_xattr_rejected_before_checkout_git(
+    tmp_path, monkeypatch, failure,
+):
+    """A capability-bearing Git hook must fail before any checkout Git probe."""
+    path, head = checkout(tmp_path)
+    hook = path / ".git" / "hooks" / "pre-commit"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o755)
+    original_listxattr = os.listxattr
+
+    def listxattr(entry, *args, **kwargs):
+        if Path(entry) == hook:
+            if failure:
+                raise OSError("unverifiable Git hook capability metadata")
+            return ["security.capability"]
+        return original_listxattr(entry, *args, **kwargs)
+
+    monkeypatch.setattr(os, "listxattr", listxattr)
+    original_run = subprocess.run
+    git_calls = []
+
+    def forbid_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+            raise AssertionError("capability-bearing hook reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_git)
+    result = inspect_checkout(path, head)
+    expected = (
+        "unverified_git_metadata_xattr_custody" if failure
+        else "privileged_git_metadata_xattr"
+    )
+    assert expected in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("protocol.ext.allow", "always"),
+    ("protocol.custom.allow", "always"),
+    ("remote.origin.url", "ext::echo forbidden"),
+    ("remote.origin.pushurl", "custom::/untrusted/helper"),
+    ("remote.origin.url", "custom://example.invalid/repository"),
+))
+def test_local_git_protocol_and_remote_helper_controls_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Executable remote protocols are not frozen by HEAD or clean status."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("external remote helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "https://example.invalid/repository.git",
+    "ssh://git@example.invalid/repository.git",
+    "git+ssh://git@example.invalid/repository.git",
+    "ssh+git://git@example.invalid/repository.git",
+))
+def test_standard_remote_url_preserves_repository_only_preflight(
+    tmp_path, config_key, remote_url
+):
+    """Git's built-in SSH aliases must not be mistaken for remote helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, remote_url)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("http.sslCAInfo", "/untrusted/ca.pem"),
+    ("http.sslCAPath", "/untrusted/ca-directory"),
+    ("http.sslCert", "/untrusted/client.pem"),
+    ("http.sslKey", "/untrusted/client.key"),
+    ("http.cookieFile", "/untrusted/cookies"),
+    ("http.extraHeader", "Authorization: Basic untrusted"),
+    ("http.proxy", "http://untrusted-proxy.invalid"),
+    ("http.sslVerify", "false"),
+    ("http.proxySSLVerify", "false"),
+    ("http.proxyAuthMethod", "basic"),
+    ("http.emptyAuth", "true"),
+    ("http.delegation", "always"),
+    ("http.https://example.invalid.proxyAuthMethod", "digest"),
+    ("http.https://example.invalid.emptyAuth", "true"),
+    ("http.https://example.invalid.delegation", "always"),
+    ('http.sslBackend', 'schannel'),
+    ('http.sslVersion', 'tlsv1.0'),
+    ('http.sslCipherList', 'DEFAULT:@SECLEVEL=0'),
+    ('http.schannelCheckRevoke', 'false'),
+    ('http.schannelUseSSLCAInfo', 'true'),
+    ('http.https://example.invalid.sslBackend', 'schannel'),
+    ('http.https://example.invalid.sslVersion', 'tlsv1.0'),
+    ('http.https://example.invalid.sslCipherList', 'DEFAULT:@SECLEVEL=0'),
+    ('http.https://example.invalid.schannelCheckRevoke', 'false'),
+    ('http.https://example.invalid.schannelUseSSLCAInfo', 'true'),
+    ("http.https://example.invalid.sslVerify", "false"),
+    ("http.https://example.invalid.proxySSLVerify", "false"),
+    ("http.https://example.invalid.extraHeader", "Authorization: Bearer untrusted"),
+))
+def test_local_git_http_trust_and_credential_inputs_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Standalone preflight cannot inherit external HTTP trust/credential authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("HTTP authority reached a checkout Git probe")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("config_key", "config_value"), (
+    ("remote.origin.proxy", "http://untrusted-proxy.invalid:8080"),
+    ("remote.origin.proxyAuthMethod", "basic"),
+))
+def test_remote_specific_proxy_authority_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, config_value
+):
+    """Remote-scoped proxy and authentication choices are external transport authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, config_value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("remote proxy authority reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+def test_local_git_http_non_authority_tuning_preserves_clean_preflight(tmp_path):
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "http.version", "HTTP/1.1")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("remote_url", (
+    "1custom::whatever",
+    "HTTP://example.invalid/repo",
+    "HTTPS://example.invalid/repo",
+    "SSH://example.invalid/repo",
+    "1custom://example.invalid/repo",
+))
+def test_sae160_reviewed_transport_and_http_file_controls_remote(
+    tmp_path, monkeypatch, remote_url,
+):
+    """Review P2: remote helpers use digit-leading and case-sensitive transport names."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url", remote_url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound transport reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", (
+    "http.proxySSLCAInfo",
+    "http.proxySSLCert",
+    "http.proxySSLKey",
+    "http.pinnedPubkey",
+    "http.proxySSLCAPath",
+    "http.https://example.invalid.proxySSLCAInfo",
+    "http.https://example.invalid.proxySSLCert",
+    "http.https://example.invalid.proxySSLKey",
+    "http.https://example.invalid.pinnedPubkey",
+    "http.https://example.invalid.proxySSLCAPath",
+))
+def test_sae160_reviewed_transport_and_http_file_controls_http(
+    tmp_path, monkeypatch, config_key,
+):
+    """Review P2: reject proxy TLS and public-key pin files, including URL scopes."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, "/untrusted/external-authority.pem")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("external HTTP trust reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "https://example.invalid/repository.git",
+    "git+ssh://git@example.invalid/repository.git",
+    "ssh+git://git@example.invalid/repository.git",
+))
+def test_worktree_scoped_remote_transport_custody_allows_builtin_aliases(
+    tmp_path, config_key, remote_url
+):
+    """Worktree-local Git configuration preserves built-in transport aliases."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--worktree", config_key, remote_url)
+    assert (path / ".git" / "config.worktree").is_file()
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "1custom::untrusted",
+    "HTTP://example.invalid/repository.git",
+    "custom://example.invalid/repository.git",
+))
+def test_worktree_scoped_remote_transport_custody_rejects_helpers(
+    tmp_path, monkeypatch, config_key, remote_url
+):
+    """Executable worktree-scoped remote helpers fail before checkout Git."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--worktree", config_key, remote_url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("worktree remote helper reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_SSL_NO_VERIFY", "true"),
+    ("GIT_SSL_CAINFO", "/untrusted/ca.pem"),
+    ("GIT_SSL_CAPATH", "/untrusted/certs"),
+    ("GIT_SSL_CERT", "/untrusted/client.pem"),
+    ("GIT_SSL_KEY", "/untrusted/client.key"),
+    ("GIT_SSL_VERSION", "tlsv1.0"),
+    ("GIT_SSL_CIPHER_LIST", "DEFAULT:@SECLEVEL=0"),
+))
+def test_ambient_git_tls_authority_rejected_before_git_probe(
+    tmp_path, monkeypatch, variable, value
+):
+    """Caller TLS overrides must not reach even the first Git config probe."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def forbid_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient TLS override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", forbid_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+@pytest.mark.parametrize(("variable", "value"), (
+    ("GIT_PROXY_SSL_CAINFO", "/untrusted/proxy-ca.pem"),
+    ("GIT_PROXY_SSL_CAPATH", "/untrusted/proxy-certs"),
+    ("GIT_PROXY_SSL_CERT", "/untrusted/proxy-client.pem"),
+    ("GIT_PROXY_SSL_KEY", "/untrusted/proxy-client.key"),
+    ("GIT_PROXY_SSL_CERT_PASSWORD", "untrusted-proxy-secret"),
+))
+def test_ambient_git_proxy_tls_authority_rejected_before_git_probe(
+    tmp_path, monkeypatch, variable, value
+):
+    """Proxy TLS overrides must fail before the first Git subprocess."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, value)
+
+    def forbid_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient proxy TLS override reached a Git subprocess")
+
+    monkeypatch.setattr(subprocess, "run", forbid_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("hostile_first", (False, True))
+def test_multivalue_remote_transport_checks_every_entry_before_checkout_git(
+    tmp_path, monkeypatch, scope, config_key, hostile_first,
+):
+    """A benign remote value must not mask a later executable helper (or vice versa)."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    values = ("1custom::untrusted", "https://example.invalid/repository.git")
+    if not hostile_first:
+        values = tuple(reversed(values))
+    for value in values:
+        git(path, "config", "--" + scope, "--add", config_key, value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+
+    original_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("multivalue remote helper reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX metadata directory epochs")
+def test_metadata_directory_epoch_after_initial_walk_rejected_before_git(
+    tmp_path, monkeypatch
+):
+    """An entry inserted after the safety walk must not become trusted baseline."""
+    path, head = checkout(tmp_path)
+    gitdir = path / ".git"
+    original_walk = os.walk
+    injected = []
+    original_run = subprocess.run
+    git_calls = []
+
+    def inject_after_first_git_metadata_walk(top, *args, **kwargs):
+        yield from original_walk(top, *args, **kwargs)
+        if Path(top) == gitdir and not injected:
+            (gitdir / "info" / "late-epoch-entry").write_text("late\n")
+            injected.append(True)
+
+    def record_git(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            git_calls.append(tuple(argv))
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", inject_after_first_git_metadata_walk)
+    monkeypatch.setattr(subprocess, "run", record_git)
+    result = inspect_checkout(path, head)
+    assert injected == [True]
+    assert result.blockers == ("git_metadata_directory_epoch_changed",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert git_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "https://user:secret@example.invalid/repository.git",
+    "http://user@example.invalid/repository.git",
+    "https://user%40alias:secret@example.invalid/repository.git",
+))
+def test_remote_http_userinfo_credentials_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, remote_url
+):
+    """A remote URL cannot supply unpinned HTTP authentication identity."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, remote_url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("remote URL credential reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("prefix", ("\n", "\r", "\t", "\x7f", "\x80", "\x85", "\x9b", "\x9f"))
+def test_remote_http_control_prefixed_authority_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, prefix
+):
+    """Control-prefixed remote URLs are unqualified metadata, not safe authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key,
+        prefix + "https://user:secret@example.invalid/repository.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("control-prefixed remote reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("remote_url", (
+    "http:///user:secret@example.invalid/repository.git",
+    "https:///user:secret@example.invalid/repository.git",
+    "http:////user:secret@example.invalid/repository.git",
+    "https:////user:secret@example.invalid/repository.git",
+))
+def test_remote_http_slash_prefixed_authority_is_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, remote_url
+):
+    """Extra URL slashes must not conceal HTTP credential authority."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, remote_url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("slash-prefixed remote URL reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("config_key", (
+    "credential.username",
+    "credential.https://example.invalid.username",
+))
+def test_local_credential_username_identity_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key
+):
+    """Local credential identities are unbound HTTP auth authority, even without helpers."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key, "borrowed-identity")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound credential identity reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []

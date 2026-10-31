@@ -173,18 +173,33 @@ def _next_link(headers: Mapping[str, str]) -> str | None:
     return None
 
 
-def _validate_pagination_url(next_url: str, base_url: str, repository: str, pr_number: int) -> str:
+def _validate_pagination_url(
+    next_url: str, base_url: str, repository: str, pr_number: int,
+    first_url: str, repository_id: int | None,
+) -> str:
     candidate = urljoin(base_url + "/", next_url)
     parsed = urlparse(candidate)
     base = urlparse(base_url)
     if (parsed.scheme, parsed.hostname, parsed.port) != (base.scheme, base.hostname, base.port):
         raise GitHubFetchError("GitHub pagination attempted to leave the trusted API host.")
     path = parsed.path.removeprefix("/api/v3") if base.path == "/api/v3" else parsed.path
-    allowed_paths = {
+    first_path = urlparse(first_url).path
+    first_path = first_path.removeprefix("/api/v3") if base.path == "/api/v3" else first_path
+    named_paths = {
         f"/repos/{repository}/issues/{pr_number}/comments",
         f"/repos/{repository}/pulls/{pr_number}/comments",
         f"/repos/{repository}/pulls/{pr_number}/files",
     }
+    if first_path not in named_paths:
+        raise GitHubFetchError("GitHub pagination URL has an invalid initial endpoint.")
+    allowed_paths = {first_path}
+    if repository_id is not None:
+        # The canonical numeric alias must preserve the *same* endpoint.
+        # Neither another repository ID nor issue/review stream substitution
+        # can be admitted by a same-host pagination Link.
+        allowed_paths.add(first_path.replace(
+            f"/repos/{repository}/", f"/repositories/{repository_id}/", 1
+        ))
     if path not in allowed_paths:
         raise GitHubFetchError("GitHub pagination URL does not match an allowed endpoint for the requested repository and pull request.")
     return candidate
@@ -197,6 +212,7 @@ def _fetch_pages(
     base_url: str,
     repository: str,
     pr_number: int,
+    repository_id: int | None,
     allowed_hosts: Iterable[str],
     allow_insecure_loopback: bool,
     max_pages: int,
@@ -226,15 +242,21 @@ def _fetch_pages(
         headers_seen.append(response.headers)
         evidence.append({"method": "GET", "url": url, "status": response.status, "page": page, "item_count": len(response.payload)})
         next_url = _next_link(response.headers)
-        url = _validate_pagination_url(next_url, base_url, repository, pr_number) if next_url else None
+        url = _validate_pagination_url(
+            next_url, base_url, repository, pr_number, first_url, repository_id
+        ) if next_url else None
     return items, evidence, headers_seen
 
 
 def _safe_repo(repo: object) -> dict[str, Any]:
     value = repo if isinstance(repo, dict) else {}
+    repository_id = value.get("id")
     return {
         "full_name": value.get("full_name"),
         "private": bool(value.get("private", False)),
+        # GitHub may use /repositories/<numeric-id>/ in its Link headers.
+        # Bind that alias only to the independently verified PR base repo.
+        "id": repository_id if type(repository_id) is int and repository_id > 0 else None,
     }
 
 
@@ -347,6 +369,7 @@ def fetch_pr_comments_live(
         base_url=base,
         repository=repository,
         pr_number=pr_number,
+        repository_id=pull_request["base"]["repo"]["id"],
         allowed_hosts=trusted_hosts,
         allow_insecure_loopback=allow_insecure_loopback,
         max_pages=max_pages,
@@ -357,6 +380,7 @@ def fetch_pr_comments_live(
         base_url=base,
         repository=repository,
         pr_number=pr_number,
+        repository_id=pull_request["base"]["repo"]["id"],
         allowed_hosts=trusted_hosts,
         allow_insecure_loopback=allow_insecure_loopback,
         max_pages=max_pages,

@@ -22,14 +22,15 @@ def test_fetch_pr_diff_live_parses_verified_metadata_and_paginated_files(monkeyp
             payload={
                 "number": 12,
                 "state": "open",
-                "base": {"ref": "main", "sha": "base123", "repo": {"full_name": "owner/repo", "private": False}},
+                "base": {"ref": "main", "sha": "base123", "repo": {"id": 43872, "full_name": "owner/repo", "private": False}},
                 "head": {"ref": "feature", "sha": "head456", "repo": {"full_name": "fork/repo", "private": False}},
             },
             headers={},
             status=200,
         )
 
-    def fake_fetch_pages(first_url: str, token: str | None, **kwargs):
+    def fake_fetch_pages(first_url: str, token: str | None, *, repository_id: int | None, **kwargs):
+        assert repository_id == 43872
         calls.append(first_url)
         return ([{
             "filename": "src/app.py",
