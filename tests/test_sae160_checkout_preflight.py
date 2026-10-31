@@ -3689,7 +3689,7 @@ def test_future_fetch_strict_mode_does_not_treat_pushurl_as_fetch_remote(tmp_pat
 
 
 @pytest.mark.parametrize("scope", ("local", "worktree"))
-@pytest.mark.parametrize("remote", ("hidden\\u202epeer", "space\\u00a0peer", "control\\u0085peer"))
+@pytest.mark.parametrize("remote", ("hidden\u202epeer", "space\u00a0peer", "control\u0085peer"))
 @pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
 def test_checkout_rejects_concealed_git_remote_names(
     tmp_path, scope, remote, suffix,
