@@ -103,6 +103,44 @@ def test_remote_unicode_format_controls_rejected_before_checkout_git(
     assert checkout_calls == []
 
 
+
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("separator", ("\u00a0", "\u2007", "\u2028", "\u2029", "\u3000"))
+def test_remote_unicode_separator_cannot_spoof_destination_before_checkout_git(
+    tmp_path, monkeypatch, config_key, separator
+):
+    """Unicode space/line separators must not split or hide reviewed remote identity."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key,
+        "https://exa" + separator + "mple.invalid/repository.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("separator-spoofed remote reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+def test_remote_visible_international_hostname_remains_supported(tmp_path):
+    """Do not ban legitimate nonseparator Unicode hostname characters."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url",
+        "https://münchen.example/repository.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
 def test_local_ignorestat_cannot_override_checkout_cleanliness(tmp_path, monkeypatch):
     """Git's assume-unchanged status policy is not bound by a clean HEAD."""
     path, head = checkout(tmp_path)
