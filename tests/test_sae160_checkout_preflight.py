@@ -44,6 +44,25 @@ def test_ambient_indexed_git_config_rejected_before_git(
     assert result.authority_gain == "NONE"
 
 
+def test_local_ignorestat_cannot_override_checkout_cleanliness(tmp_path, monkeypatch):
+    """Git's assume-unchanged status policy is not bound by a clean HEAD."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "core.ignoreStat", "true")
+
+    actual_run = subprocess.run
+
+    def reject_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("unbound ignoreStat policy reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", reject_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 def git(path: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
 
