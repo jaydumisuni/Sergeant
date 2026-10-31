@@ -3525,3 +3525,49 @@ def test_explicit_no_tags_policy_preserves_checkout_admission(tmp_path, scope):
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("config_key", ("fetch.pruneTags", "remote.origin.pruneTags"))
+@pytest.mark.parametrize("value", ("true", "yes", "on", "1", "", "bogus"))
+def test_explicit_tag_pruning_cannot_delete_unbound_local_tags(
+    tmp_path, monkeypatch, scope, config_key, value,
+):
+    """A future fetch --prune can delete tags outside remote tracking refs."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, config_key, value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("tag pruning reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("config_key", ("fetch.pruneTags", "remote.origin.pruneTags"))
+@pytest.mark.parametrize("value", ("false", "no", "off", "0"))
+def test_explicit_disabled_tag_pruning_preserves_checkout_admission(
+    tmp_path, scope, config_key, value,
+):
+    """An explicit false tag-prune policy cannot expand fetch writes."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, config_key, value)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
