@@ -26,6 +26,24 @@ def _isolate_inherited_checkout_transport_controls(monkeypatch: pytest.MonkeyPat
             monkeypatch.delenv(name, raising=False)
 
 
+@pytest.mark.parametrize("variable", ("GIT_CONFIG_KEY_7", "GIT_CONFIG_VALUE_7"))
+def test_ambient_indexed_git_config_rejected_before_git(
+    tmp_path, monkeypatch, variable
+):
+    """Even orphaned indexed Git config variables are unbound caller policy."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv(variable, "untrusted-control")
+
+    def reject_git_subprocess(*args, **kwargs):
+        raise AssertionError("ambient indexed config reached Git")
+
+    monkeypatch.setattr(subprocess, "run", reject_git_subprocess)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 def git(path: Path, *args: str) -> str:
     return subprocess.check_output(["git", "-C", str(path), *args], text=True).strip()
 

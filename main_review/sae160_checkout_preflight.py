@@ -98,9 +98,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # A read-only Git command cannot certify those unbound authorities.
     # Git HTTP and curl environment namespaces also change transport
     # timeouts, parallelism, diagnostics and credential interaction.
+    # Orphaned indexed config keys/values remain unbound caller policy even
+    # when GIT_CONFIG_COUNT is absent; reject before constructing isolated Git.
     if authority_env.intersection(os.environ) or any(
         name.startswith(("GIT_TRACE", "GIT_SSL_", "GIT_PROXY_SSL_",
-                         "GIT_HTTP_", "GIT_CURL_", "LD_", "DYLD_"))
+                         "GIT_HTTP_", "GIT_CURL_", "GIT_CONFIG_KEY_",
+                         "GIT_CONFIG_VALUE_", "LD_", "DYLD_"))
         for name in os.environ
     ):
         # Do not even probe local config with untrusted ambient Git controls:
