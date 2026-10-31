@@ -76,6 +76,33 @@ def test_well_formed_remote_url_authority_remains_supported(tmp_path, url):
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("config_key", ("remote.origin.url", "remote.origin.pushurl"))
+@pytest.mark.parametrize("control", ("\u202e", "\u202a", "\u2066", "\u200e", "\u200b"))
+def test_remote_unicode_format_controls_rejected_before_checkout_git(
+    tmp_path, monkeypatch, config_key, control
+):
+    """Invisible or bidi-format characters cannot qualify a Git remote destination."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", config_key,
+        "https://exa" + control + "mple.invalid/repository.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("format-control remote reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
 def test_local_ignorestat_cannot_override_checkout_cleanliness(tmp_path, monkeypatch):
     """Git's assume-unchanged status policy is not bound by a clean HEAD."""
     path, head = checkout(tmp_path)
