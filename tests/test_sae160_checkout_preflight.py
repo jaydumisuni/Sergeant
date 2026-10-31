@@ -3484,3 +3484,44 @@ def test_remote_tracking_symref_noncanonical_framing_cannot_escape(
     assert result.blockers == ("external_git_metadata",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("tag_policy", ("--tags", "--bogus", ""))
+def test_explicit_remote_tag_policy_cannot_expand_fetch_write_scope(
+    tmp_path, monkeypatch, scope, tag_policy,
+):
+    """A tracking-only refspec does not constrain explicit tag auto-follow."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, "remote.origin.tagOpt", tag_policy)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound tag policy reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+def test_explicit_no_tags_policy_preserves_checkout_admission(tmp_path, scope):
+    """A non-expanding tag policy is not an unbound remote override."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, "remote.origin.tagOpt", "--no-tags")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
