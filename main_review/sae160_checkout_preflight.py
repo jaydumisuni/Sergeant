@@ -743,6 +743,22 @@ def inspect_checkout(
                     ):
                         blockers.append("external_git_metadata")
                         break
+                # A URL-only remote can still be fetched with an explicit
+                # refspec, which can auto-follow reachable tags even without
+                # remote.<name>.fetch. Strict future-fetch preparation must
+                # therefore bind configured fetch URLs as well as refspecs.
+                # Push-only URLs do not confer fetch authority.
+                if require_configured_no_tags and key.endswith(".url"):
+                    remote = key[len("remote."):-len(".url")]
+                    if (
+                        not remote or "\\" in remote
+                        or any(part in ("", ".", "..")
+                               for part in remote.split("/"))
+                    ):
+                        blockers.append("external_git_metadata")
+                        break
+                    future_fetch_remotes.add(remote)
+
         # Fetch refspecs are write authority over local Git references.
         # Ordinary origin tracking may use a forced +refs/heads/* mapping,
         # but a destination outside that remote's tracking namespace could
