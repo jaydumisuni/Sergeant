@@ -3571,3 +3571,76 @@ def test_explicit_disabled_tag_pruning_preserves_checkout_admission(
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+def test_future_fetch_strict_mode_rejects_implicit_tag_autofollow_before_git(
+    tmp_path, monkeypatch, scope,
+):
+    """Default tag auto-follow can write refs/tags despite tracking-only refspecs."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+        git(path, "config", "--worktree", "remote.origin.fetch",
+            "+refs/heads/*:refs/remotes/origin/*")
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("implicit tag auto-follow reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head, require_configured_no_tags=True)
+    assert result.blockers == ("unbound_future_fetch_tag_autofollow",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize(("fetch_scope", "tag_scope"), (
+    ("local", "local"),
+    ("local", "worktree"),
+    ("worktree", "local"),
+    ("worktree", "worktree"),
+))
+def test_future_fetch_strict_mode_accepts_explicit_no_tags_across_scopes(
+    tmp_path, fetch_scope, tag_scope,
+):
+    """Both config files are one authority set, not isolated per-file decisions."""
+    path, head = checkout(tmp_path)
+    if "worktree" in (fetch_scope, tag_scope):
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + fetch_scope, "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*")
+    git(path, "config", "--" + tag_scope, "remote.origin.tagOpt", "--no-tags")
+    result = inspect_checkout(path, head, require_configured_no_tags=True)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+def test_future_fetch_strict_mode_requires_each_configured_fetch_remote(tmp_path):
+    """No-tags on origin cannot qualify a second fetch remote's tag writes."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.tagOpt", "--no-tags")
+    git(path, "config", "--local", "remote.other.fetch",
+        "+refs/heads/*:refs/remotes/other/*")
+    result = inspect_checkout(path, head, require_configured_no_tags=True)
+    assert result.blockers == ("unbound_future_fetch_tag_autofollow",)
+    assert result.observed_head is None
+    git(path, "config", "--local", "remote.other.tagOpt", "--no-tags")
+    result = inspect_checkout(path, head, require_configured_no_tags=True)
+    assert result.blockers == ()
+    assert result.observed_head == head
+
+
+def test_default_checkout_preflight_does_not_claim_future_fetch_tag_safety(tmp_path):
+    """Existing checkout-only API remains compatible and non-authorizing."""
+    path, head = checkout(tmp_path)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"

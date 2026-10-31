@@ -26,7 +26,9 @@ class CheckoutPreflight:
     authority_gain: str = "NONE"
 
 
-def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
+def inspect_checkout(
+    checkout: Path, expected_head: str, *, require_configured_no_tags: bool = False,
+) -> CheckoutPreflight:
     """Return fail-closed, local-only evidence about a checkout's shape."""
     expected = require_git_object_id(expected_head, "SAE-160 expected_head")
     # Preserve the caller's lexical path: resolve() would conceal a symlinked
@@ -583,6 +585,14 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     isolated_git_env["GIT_CONFIG_KEY_1"] = "core.excludesFile"
     isolated_git_env["GIT_CONFIG_VALUE_1"] = os.devnull
 
+    # Optional strict preparation for ordinary future fetches: Git's default
+    # tag auto-follow can create refs/tags outside tracking-only refspecs.
+    # Explicit --no-tags config is required per fetch remote in this mode.
+    # This does NOT bind arbitrary future CLI flags or later config changes;
+    # the default checkout-only preflight retains its existing scope.
+    future_fetch_remotes: set[str] = set()
+    future_fetch_no_tags: set[str] = set()
+
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
     # core.fsmonitor can execute a checkout-controlled program during status;
@@ -785,6 +795,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     blockers.append("external_git_metadata")
                     break
                 fetch_remotes.add(remote)
+            future_fetch_remotes.update(fetch_remotes)
             # A destination under refs/remotes/<remote>/ can still be a Git
             # symbolic ref pointing to refs/heads, refs/tags, or another remote.
             # Git fetch follows that symbolic ref and writes its target. Bind
@@ -854,6 +865,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                         or value != "--no-tags"):
                     blockers.append("external_git_metadata")
                     break
+                future_fetch_no_tags.add(key[len("remote."):-len(".tagopt")])
 
         # Explicit tag-pruning policy can delete refs/tags during a later
         # fetch --prune, even when remote fetch refspecs target only tracking
@@ -893,6 +905,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                         or value.lower() not in {"false", "no", "off", "0"}):
                     blockers.append("external_git_metadata")
                     break
+
+    if (require_configured_no_tags
+            and not future_fetch_remotes.issubset(future_fetch_no_tags)):
+        blockers.append("unbound_future_fetch_tag_autofollow")
 
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
