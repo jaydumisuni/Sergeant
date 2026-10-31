@@ -13,6 +13,7 @@ import os
 import re
 import stat
 import subprocess
+import unicodedata
 
 from .review_world import require_git_object_id
 
@@ -678,8 +679,15 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 # In particular, U+0085 is Unicode whitespace and bypasses
                 # scheme-anchored checks while leaving HEAD/worktree clean.
                 # Neither fetch nor push metadata may borrow that authority.
-                if any(ord(char) < 0x20 or 0x7f <= ord(char) <= 0x9f
-                       for char in url):
+                # Unicode format controls (Cf) can conceal or visually
+                # reorder the reviewed remote destination without changing
+                # the exact checkout HEAD. Reject them before checkout Git.
+                if any(
+                    ord(char) < 0x20
+                    or 0x7f <= ord(char) <= 0x9f
+                    or unicodedata.category(char) == "Cf"
+                    for char in url
+                ):
                     blockers.append("external_git_metadata")
                     break
                 # HTTP userinfo carries a remote authentication identity or
