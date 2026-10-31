@@ -855,6 +855,45 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                     blockers.append("external_git_metadata")
                     break
 
+        # Explicit tag-pruning policy can delete refs/tags during a later
+        # fetch --prune, even when remote fetch refspecs target only tracking
+        # refs. Bind local and worktree policy before any checkout Git probe.
+        # Absent policy is not future-fetch qualification; this check closes
+        # only explicit tag-prune overrides.
+        try:
+            prune_tags_probe = subprocess.run(
+                ["git", "config", "--no-includes", "--file", str(config_file),
+                 "--null", "--get-regexp",
+                 r"^(fetch\.prunetags|remote\..+\.prunetags)$"],
+                capture_output=True, text=True, encoding="utf-8", timeout=10,
+                env=isolated_git_env,
+            )
+        except (OSError, subprocess.TimeoutExpired, UnicodeDecodeError):
+            blockers.append("external_git_metadata")
+            continue
+        if prune_tags_probe.returncode not in (0, 1):
+            blockers.append("external_git_metadata")
+        elif prune_tags_probe.returncode == 0:
+            for record in prune_tags_probe.stdout.split("\0"):
+                if not record:
+                    continue
+                key, separator, value = record.partition("\n")
+                remote = (
+                    key[len("remote."):-len(".prunetags")]
+                    if key.startswith("remote.") and key.endswith(".prunetags")
+                    else None
+                )
+                valid_key = key == "fetch.prunetags" or (
+                    remote is not None and bool(remote)
+                    and "\\" not in remote
+                    and all(part not in ("", ".", "..")
+                            for part in remote.split("/"))
+                )
+                if (not separator or not valid_key
+                        or value.lower() not in {"false", "no", "off", "0"}):
+                    blockers.append("external_git_metadata")
+                    break
+
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
     # before any checkout Git subprocess can execute the new configuration.
