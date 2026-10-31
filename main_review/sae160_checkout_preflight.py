@@ -622,6 +622,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Explicit HTTP TLS verification, backend, protocol/cipher and Schannel
     # revocation/CA policy (including URL scopes) are unbound transport trust
     # decisions even when no external credential file is named.
+    # Explicit HTTP redirect policy can redirect a pinned remote to an
+    # unbound destination; reject local and URL-scoped overrides.
     # Proxy authentication selection, empty GSS negotiation and credential
     # delegation also change the remote authentication authority boundary.
     # Partial-clone/promisor settings can lazily borrow missing objects from a
@@ -638,7 +640,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|ignorestat|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|username|.+\.(helper|username))$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|sslverify|proxysslverify|proxyauthmethod|emptyauth|delegation|sslbackend|sslversion|sslcipherlist|schannelcheckrevoke|schannelusesslcainfo)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|ignorestat|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|username|.+\.(helper|username))$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|followredirects|sslverify|proxysslverify|proxyauthmethod|emptyauth|delegation|sslbackend|sslversion|sslcipherlist|schannelcheckrevoke|schannelusesslcainfo)$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )
@@ -702,6 +704,22 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 ):
                     blockers.append("external_git_metadata")
                     break
+                # A recognized scheme alone is not a destination. Git's
+                # remote metadata must name a host (network transports) or
+                # a path/authority (file transport); a blank URL or query-only
+                # suffix cannot qualify as a bound checkout remote.
+                if transport and transport.group(2) == "://":
+                    destination = url[transport.end():]
+                    authority = re.split(r"[/?#]", destination, maxsplit=1)[0]
+                    if (
+                        transport.group(1) == "file"
+                        and (not destination or destination[0] in "?#")
+                    ) or (
+                        transport.group(1) != "file"
+                        and not authority.rsplit("@", 1)[-1].split(":", 1)[0]
+                    ):
+                        blockers.append("external_git_metadata")
+                        break
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
     # before any checkout Git subprocess can execute the new configuration.
