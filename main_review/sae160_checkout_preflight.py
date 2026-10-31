@@ -751,12 +751,17 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if fetch_probe.returncode not in (0, 1):
             blockers.append("external_git_metadata")
         elif fetch_probe.returncode == 0:
+            fetch_remotes: set[str] = set()
             for record in fetch_probe.stdout.split("\0"):
                 if not record:
                     continue
                 key, separator, refspec = record.partition("\n")
                 remote = key[len("remote."):-len(".fetch")]
-                if not separator or not remote or not refspec:
+                if (
+                    not separator or not remote or not refspec
+                    or "\\" in remote
+                    or any(part in ("", ".", "..") for part in remote.split("/"))
+                ):
                     blockers.append("external_git_metadata")
                     break
                 if refspec.startswith("^"):
@@ -779,6 +784,50 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if not safe:
                     blockers.append("external_git_metadata")
                     break
+                fetch_remotes.add(remote)
+            # A destination under refs/remotes/<remote>/ can still be a Git
+            # symbolic ref pointing to refs/heads, refs/tags, or another remote.
+            # Git fetch follows that symbolic ref and writes its target. Bind
+            # every local tracking alias to its own remote namespace before
+            # any checkout Git probe; ordinary origin/HEAD -> origin/main stays
+            # admissible. The final metadata snapshot also detects later swaps.
+            if not blockers:
+                for remote in sorted(fetch_remotes):
+                    prefix = f"refs/remotes/{remote}/".encode("utf-8")
+                    remote_refs = gitdir / "refs" / "remotes" / remote
+                    if not remote_refs.is_dir():
+                        continue
+                    for ref_file in remote_refs.rglob("*"):
+                        if not ref_file.is_file():
+                            continue
+                        try:
+                            with ref_file.open("rb") as source:
+                                raw = source.read(4097)
+                        except OSError:
+                            blockers.append("external_git_metadata")
+                            break
+                        if len(raw) > 4096:
+                            blockers.append("external_git_metadata")
+                            break
+                        if not raw.startswith(b"ref:"):
+                            continue
+                        # Git also accepts ref:<target> and ref:\t<target>.
+                        # Only canonical ref: <target> framing is qualified.
+                        if not raw.startswith(b"ref: "):
+                            blockers.append("external_git_metadata")
+                            break
+                        target = raw[5:-1] if raw.endswith(b"\n") else b""
+                        suffix = target[len(prefix):]
+                        if (
+                            not target.startswith(prefix) or not suffix
+                            or b"\n" in target
+                            or any(part in (b"", b".", b"..")
+                                   for part in suffix.split(b"/"))
+                        ):
+                            blockers.append("external_git_metadata")
+                            break
+                    if blockers:
+                        break
     # A config probe is safe only for the exact control identities it read.
     # In particular, a late core.fsmonitor/filter injection must be rejected
     # before any checkout Git subprocess can execute the new configuration.
