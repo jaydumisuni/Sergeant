@@ -809,8 +809,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                         if len(raw) > 4096:
                             blockers.append("external_git_metadata")
                             break
-                        if not raw.startswith(b"ref: "):
+                        if not raw.startswith(b"ref:"):
                             continue
+                        # Git also accepts ref:<target> and ref:\t<target>.
+                        # Only canonical ref: <target> framing is qualified.
+                        if not raw.startswith(b"ref: "):
+                            blockers.append("external_git_metadata")
+                            break
                         target = raw[5:-1] if raw.endswith(b"\n") else b""
                         suffix = target[len(prefix):]
                         if (

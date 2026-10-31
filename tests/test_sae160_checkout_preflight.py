@@ -3466,3 +3466,21 @@ def test_remote_tracking_symref_within_its_namespace_remains_supported(tmp_path)
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("prefix", (b"ref:", b"ref:\t", b"ref:  "))
+def test_remote_tracking_symref_noncanonical_framing_cannot_escape(
+    tmp_path, prefix,
+):
+    """Git accepts noncanonical ref: whitespace; no alias may evade custody."""
+    path, head = checkout(tmp_path)
+    ref_file = path / ".git" / "refs" / "remotes" / "origin" / "HEAD"
+    ref_file.write_bytes(prefix + b"refs/heads/localbranch\n")
+    assert git(path, "symbolic-ref", "refs/remotes/origin/HEAD") == (
+        "refs/heads/localbranch"
+    )
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
