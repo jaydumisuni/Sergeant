@@ -3371,3 +3371,52 @@ def test_local_credential_username_identity_rejected_before_checkout_git(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_calls == []
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("refspec", (
+    "+refs/heads/*:refs/heads/*",
+    "+refs/heads/*:refs/tags/*",
+    "+refs/heads/main:HEAD",
+    "+refs/heads/*:refs/remotes/other/*",
+    "+refs/heads/*:refs/remotes/origin/../heads/*",
+))
+def test_remote_fetch_refspec_cannot_retarget_local_refs(
+    tmp_path, monkeypatch, scope, refspec,
+):
+    """A clean checkout cannot authorize fetch writes outside its remote-tracking refs."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, "remote.origin.fetch", refspec)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound fetch refspec reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+@pytest.mark.parametrize("refspec", (
+    "+refs/heads/*:refs/remotes/origin/*",
+    "refs/heads/main:refs/remotes/origin/main",
+    "^refs/heads/excluded",
+))
+def test_remote_fetch_refspec_preserves_remote_tracking_scope(tmp_path, refspec):
+    """Ordinary remote tracking and exclusion remain admissible."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.fetch", refspec)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
