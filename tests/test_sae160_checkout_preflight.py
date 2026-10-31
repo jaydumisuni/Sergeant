@@ -3420,3 +3420,49 @@ def test_remote_fetch_refspec_preserves_remote_tracking_scope(tmp_path, refspec)
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("alias", ("HEAD", "sidecar"))
+@pytest.mark.parametrize("target", (
+    "refs/heads/localbranch",
+    "refs/tags/release",
+    "refs/remotes/other/main",
+))
+def test_remote_tracking_symref_cannot_redirect_fetch_outside_its_namespace(
+    tmp_path, monkeypatch, scope, alias, target,
+):
+    """Git fetch follows tracking symrefs; their targets must remain remote-bound."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, "remote.origin.fetch",
+        "+refs/heads/*:refs/remotes/origin/*")
+    git(path, "symbolic-ref", f"refs/remotes/origin/{alias}", target)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("escaped tracking symref reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
+def test_remote_tracking_symref_within_its_namespace_remains_supported(tmp_path):
+    """Ordinary origin/HEAD and nested remote aliases are not external refs."""
+    path, head = checkout(tmp_path)
+    git(path, "symbolic-ref", "refs/remotes/origin/sidecar",
+        "refs/remotes/origin/main")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
