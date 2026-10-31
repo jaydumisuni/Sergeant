@@ -141,6 +141,37 @@ def test_remote_visible_international_hostname_remains_supported(tmp_path):
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
 
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize(("config_key", "value"), (
+    ("remote.origin.mirror", "true"),
+    ("remote.origin.push", "+refs/heads/*:refs/heads/*"),
+))
+def test_remote_publication_policy_cannot_borrow_unbound_ref_authority(
+    tmp_path, monkeypatch, scope, config_key, value,
+):
+    """Mirror and force-push refspecs are publication authority, not checkout proof."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, config_key, value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("unbound remote publication policy reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
 def test_local_ignorestat_cannot_override_checkout_cleanliness(tmp_path, monkeypatch):
     """Git's assume-unchanged status policy is not bound by a clean HEAD."""
     path, head = checkout(tmp_path)
