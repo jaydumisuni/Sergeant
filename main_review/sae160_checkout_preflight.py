@@ -744,6 +744,20 @@ def inspect_checkout(
                     ord(char) < 0x20
                     or 0x7f <= ord(char) <= 0x9f
                     or unicodedata.category(char) == "Cf"
+                    # Default-ignorable non-Cf scalars can conceal a remote
+                    # destination just as they conceal a remote config name.
+                    # Keep visible Unicode URL paths and ordinary spaces.
+                    or ord(char) in {
+                        0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5,
+                        0x180F, 0x2800, 0x3164, 0xFFA0, 0x2065,
+                    }
+                    or 0x180B <= ord(char) <= 0x180D
+                    or 0xFE00 <= ord(char) <= 0xFE0F
+                    or 0xFFF0 <= ord(char) <= 0xFFF8
+                    or ord(char) == 0xE0000
+                    or 0xE0002 <= ord(char) <= 0xE001F
+                    or 0xE0080 <= ord(char) <= 0xE00FF
+                    or 0xE0100 <= ord(char) <= 0xE0FFF
                     or (ord(char) > 0x7f
                         and unicodedata.category(char).startswith("Z"))
                     for char in url

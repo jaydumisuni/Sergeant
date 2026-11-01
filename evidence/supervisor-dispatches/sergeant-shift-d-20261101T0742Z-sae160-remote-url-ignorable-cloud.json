@@ -1,0 +1,42 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "D",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE-160 standalone-checkout preflight: non-Cf invisible Git remote URL/pushURL destinations",
+  "observed_at_utc": "2026-11-01T07:42:13Z",
+  "before_head": "72317228c9db596a30886cd0bb4ae63b3fae162b",
+  "after_implementation_head": "4c33f26f1018a839b2d65c881a642c67b988dba1",
+  "before_state": "Git remote-name identity denied non-Cf default-ignorable marks but URL/pushURL values admitted visually concealed destination scalars",
+  "after_state": "Remote URL and pushURL control values reject enumerated non-Cf default-ignorable marks; 28 new parametrized native regressions authored; three positive controls preserved; SAE-150 and Genesis remain HOLD",
+  "worker": "Cookpit Supervisor Shift D, authenticated GitHub source-only fallback",
+  "action": "Two project-owned source/test commits and draft PR #286 stacked on exact PR #285 predecessor",
+  "proof": {
+    "preflight": "GitHub exact-head/branch/ancestry inspection; KRATOS Patrol UNVERIFIED",
+    "github_compare": "2 commits ahead, 0 behind; exactly two source/test files changed",
+    "source_test_readback": "MATCH",
+    "disposable_git": "14/14 Git remote URL/pushURL writes accepted for seven non-Cf concealed scalars",
+    "isolated_predicate": "14/14 previous acceptance reproduced and corrected denial; 3/3 positive visible URL controls retained",
+    "native_regressions": "28 negative and 3 positive authored; NOT EXECUTED as native Sergeant pytest",
+    "hosted_ci": "PENDING at receipt creation; not PASS",
+    "independent_review": "PENDING; not qualified",
+    "kratos_worker_lease": "UNVERIFIED; Oracle terminal transport internal failure",
+    "source_git_blob_sha1": "53f51c8754f9ca2cf35fae1d59e0a1a422f64a04",
+    "test_git_blob_sha1": "82ff11e7355fd6c82a024c7849bcdbad69f02bca"
+  },
+  "engineering_health": "SOURCE_ONLY_PROOF_LIMITED",
+  "implementation_movement": "PROJECT_SOURCE_COMMITS_PUBLISHED",
+  "material_movement_at_utc": "2026-11-01T07:41:35Z",
+  "disposition": "SOURCE_PUBLISHED_NATIVE_PROOF_PENDING",
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification",
+    "downstream": "SAE-160 repository-only qualification / Genesis activation",
+    "protected_gate": "No Genesis promotion or external qualification inferred"
+  },
+  "cloud_receipt_authority": "project-owned draft branch; KRATOS local dispatch directory unavailable",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_TERMINAL_ERROR",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/286"
+}
