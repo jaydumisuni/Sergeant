@@ -14,19 +14,19 @@
   "proof": {
     "preflight": "GitHub exact-head/branch/ancestry inspection; KRATOS Patrol UNVERIFIED",
     "github_compare": "2 commits ahead, 0 behind; exactly two source/test files changed",
-    "source_blob_sha256_git": "53f51c8754f9ca2cf35fae1d59e0a1a422f64a04",
-    "test_blob_sha256_git": "82ff11e7355fd6c82a024c7849bcdbad69f02bca",
     "source_test_readback": "MATCH",
     "disposable_git": "14/14 Git remote URL/pushURL writes accepted for seven non-Cf concealed scalars",
     "isolated_predicate": "14/14 previous acceptance reproduced and corrected denial; 3/3 positive visible URL controls retained",
     "native_regressions": "28 negative and 3 positive authored; NOT EXECUTED as native Sergeant pytest",
     "hosted_ci": "PENDING at receipt creation; not PASS",
     "independent_review": "PENDING; not qualified",
-    "kratos_worker_lease": "UNVERIFIED; Oracle terminal transport internal failure"
+    "kratos_worker_lease": "UNVERIFIED; Oracle terminal transport internal failure",
+    "source_git_blob_sha1": "53f51c8754f9ca2cf35fae1d59e0a1a422f64a04",
+    "test_git_blob_sha1": "82ff11e7355fd6c82a024c7849bcdbad69f02bca"
   },
   "engineering_health": "SOURCE_ONLY_PROOF_LIMITED",
   "implementation_movement": "PROJECT_SOURCE_COMMITS_PUBLISHED",
-  "material_movement_at_utc": "2026-11-01T07:41:00Z",
+  "material_movement_at_utc": "2026-11-01T07:41:35Z",
   "disposition": "SOURCE_PUBLISHED_NATIVE_PROOF_PENDING",
   "dependency_linkage": {
     "upstream": "SAE-150 independent external qualification",
