@@ -138,3 +138,47 @@ def test_git_accepted_reserved_default_ignorable_remote_marks_fail_closed(
     assert result.blockers == ("external_git_metadata",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("mark", (
+    "\u034f",       # combining grapheme joiner
+    "\u2800",       # Braille blank
+    "\ufe0f",       # variation selector
+    "\U000e0100",   # supplementary variation selector
+    "\u2065",       # reserved default-ignorable slot
+    "\ufff0",       # reserved specials
+    "\U000e0002",   # reserved tag control
+))
+def test_invisible_remote_url_destinations_fail_closed(
+    tmp_path: Path, scope: str, suffix: str, mark: str,
+) -> None:
+    """A visible remote name cannot launder an invisible fetch/push destination."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    url = f"https://example.invalid/review{mark}path.git"
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", url)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("url", (
+    "https://example.invalid/cafe\u0301.git",
+    "https://example.invalid/\ud55c\uae00.git",
+    "https://example.invalid/ordinary space.git",
+))
+def test_visible_unicode_and_spaces_in_remote_url_remain_supported(
+    tmp_path: Path, url: str,
+) -> None:
+    """The local preflight does not confuse ordinary URL text with hidden marks."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url", url)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
