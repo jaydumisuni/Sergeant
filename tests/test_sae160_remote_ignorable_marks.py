@@ -182,3 +182,36 @@ def test_visible_unicode_and_spaces_in_remote_url_remain_supported(
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
+@pytest.mark.parametrize("separator", (
+    "\u2044",  # fraction slash
+    "\u2215",  # division slash
+    "\u29f8",  # big solidus
+    "\uff0f",  # fullwidth solidus
+    "\u2216",  # set minus
+    "\uff3c",  # fullwidth reverse solidus
+))
+def test_git_accepted_remote_separator_confusables_fail_closed(
+    tmp_path: Path, scope: str, suffix: str, separator: str,
+) -> None:
+    """A visually path-like remote name must not disguise its ref namespace."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    remote = f"source{separator}mirror"
+    value = {
+        "url": "https://example.invalid/remote.git",
+        "fetch": f"+refs/heads/*:refs/remotes/{remote}/*",
+        "tagOpt": "--no-tags",
+        "pruneTags": "false",
+    }[suffix]
+    # Git accepts these names; denial must come from Sergeant, not Git.
+    git(path, "config", "--" + scope, f"remote.{remote}.{suffix}", value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
