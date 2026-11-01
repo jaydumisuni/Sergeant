@@ -662,6 +662,8 @@ def inspect_checkout(
     # core.attributesFile can borrow mutable attribute rules outside the clone.
     # Credential username settings (global or URL-scoped) also supply an
     # unpinned HTTP authentication identity without a credential helper.
+    # core.autocrlf/core.eol can transform checkout source bytes while Git
+    # reports a clean normalized index; reject unbound conversion policy.
     # core.ignoreStat can mark tracked paths assume-unchanged and make a
     # clean Git status insufficient evidence of the on-disk checkout. Reject
     # this unbound local status policy before running checkout Git.
@@ -715,7 +717,7 @@ def inspect_checkout(
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
                  "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|ignorestat|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|username|.+\.(helper|username))$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod|mirror|push)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^branch\..+\.pushremote$|^remote\.pushdefault$|^push\.(default|followtags|autosetupremote)$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|followredirects|sslverify|proxysslverify|proxyauthmethod|emptyauth|delegation|sslbackend|sslversion|sslcipherlist|schannelcheckrevoke|schannelusesslcainfo)$"],
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|ignorestat|autocrlf|eol|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone|sshcommand|gitproxy|askpass|editor)$|^credential\.(helper|username|.+\.(helper|username))$|^filter\..+\.(clean|smudge|process)$|^diff\.(external|.+\.(command|textconv))$|^core\.pager$|^pager\..+$|^sequence\.editor$|^interactive\.difffilter$|^difftool\..+\.cmd$|^mergetool\..+\.cmd$|^merge\..+\.driver$|^core\.alternaterefscommand$|^gpg(\.[^.]+)?\.program$|^gpg\.ssh\.defaultkeycommand$|^gpg\.ssh\.(allowedsignersfile|revocationfile)$|^alias\..+$|^extensions\.partialclone$|^remote\..+\.(promisor|partialclonefilter|uploadpack|receivepack|vcs|proxy|proxyauthmethod|mirror|push)$|^url\..+\.(insteadof|pushinsteadof)$|^protocol\..+\.allow$|^branch\..+\.pushremote$|^remote\.pushdefault$|^push\.(default|followtags|autosetupremote)$|^http(\..+)?\.(sslcainfo|sslcapath|sslcert|sslkey|proxysslcainfo|proxysslcapath|proxysslcert|proxysslkey|pinnedpubkey|cookiefile|extraheader|proxy|followredirects|sslverify|proxysslverify|proxyauthmethod|emptyauth|delegation|sslbackend|sslversion|sslcipherlist|schannelcheckrevoke|schannelusesslcainfo)$"],
                 capture_output=True, text=True, timeout=10,
                 env=isolated_git_env,
             )

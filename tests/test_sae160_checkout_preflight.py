@@ -3799,3 +3799,31 @@ def test_ordinary_branch_remote_tracking_is_still_supported(tmp_path):
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize(("config_key", "value"), (
+    ("core.autocrlf", "true"),
+    ("core.eol", "crlf"),
+))
+def test_local_worktree_checkout_eol_policy_rejected_before_checkout_git(
+    tmp_path, monkeypatch, scope, config_key, value,
+):
+    """Unbound checkout newline conversion cannot qualify source byte custody."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, config_key, value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("unbound newline conversion reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
