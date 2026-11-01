@@ -215,3 +215,44 @@ def test_git_accepted_remote_separator_confusables_fail_closed(
     assert result.blockers == ("external_git_metadata",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scopes", (
+    ("local", "local"),
+    ("worktree", "worktree"),
+    ("local", "worktree"),
+    ("worktree", "local"),
+))
+@pytest.mark.parametrize("reverse", (False, True))
+def test_nfc_colliding_remote_subsections_fail_closed(
+    tmp_path: Path, scopes: tuple[str, str], reverse: bool,
+) -> None:
+    """Git accepts distinct names that normalize to one reviewed identity."""
+    path, head = checkout(tmp_path)
+    if "worktree" in scopes:
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    names = ("review-café", "review-cafe\u0301")
+    if reverse:
+        names = names[::-1]
+    for scope, name in zip(scopes, names):
+        git(path, "config", "--" + scope, f"remote.{name}.url",
+            "https://example.invalid/remote.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+def test_distinct_visible_accented_remote_names_remain_supported(
+    tmp_path: Path,
+) -> None:
+    """NFC collision denial must not become a blanket Unicode ban."""
+    path, head = checkout(tmp_path)
+    for name in ("review-café", "review-cafè"):
+        git(path, "config", "--local", f"remote.{name}.url",
+            "https://example.invalid/remote.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
