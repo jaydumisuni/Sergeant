@@ -3713,6 +3713,58 @@ def test_checkout_rejects_concealed_git_remote_names(
 
 
 @pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("noncharacter", (
+    "\ufdd0", "\ufdef", "\ufffe", "\uffff",
+    "\U0001fffe", "\U0010ffff",
+))
+@pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
+def test_noncharacter_remote_name_never_qualifies_checkout(
+    tmp_path, monkeypatch, scope, noncharacter, suffix,
+):
+    """Git accepts permanently reserved noncharacters in remote identities."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    remote = f"reserved-{noncharacter}name"
+    value = {
+        "url": "https://example.invalid/repo.git",
+        "fetch": f"+refs/heads/*:refs/remotes/{remote}/*",
+        "tagOpt": "--no-tags",
+        "pruneTags": "false",
+    }[suffix]
+    git(path, "config", "--" + scope, f"remote.{remote}.{suffix}", value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    monkeypatch.delenv("SSH_AUTH_SOCK", raising=False)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("noncharacter", (
+    "\ufdd0", "\ufdef", "\ufffe", "\uffff",
+    "\U0001fffe", "\U0010ffff",
+))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+def test_noncharacter_remote_destination_never_qualifies_checkout(
+    tmp_path, monkeypatch, scope, noncharacter, suffix,
+):
+    """Reserved noncharacters cannot conceal the reviewed remote endpoint."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}",
+        f"https://exa{noncharacter}mple.invalid/repo.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    monkeypatch.delenv("SSH_AUTH_SOCK", raising=False)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
 @pytest.mark.parametrize("private_scalar", ("\ue000", "\U000f0000", "\U00100000"))
 @pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
 def test_private_use_remote_name_never_qualifies_checkout(

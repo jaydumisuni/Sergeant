@@ -26,6 +26,13 @@ class CheckoutPreflight:
     authority_gain: str = "NONE"
 
 
+def _unicode_noncharacter(char: str) -> bool:
+    """Reject permanently reserved Unicode scalars in remote identities."""
+    scalar = ord(char)
+    return (0xFDD0 <= scalar <= 0xFDEF
+            or (scalar & 0xFFFF) in (0xFFFE, 0xFFFF))
+
+
 def inspect_checkout(
     checkout: Path, expected_head: str, *, require_configured_no_tags: bool = False,
 ) -> CheckoutPreflight:
@@ -618,6 +625,7 @@ def inspect_checkout(
                 # Private-use glyphs have no stable, reviewable identity
                 # across hosts/fonts, including supplementary planes.
                 or unicodedata.category(char) == "Co"
+                or _unicode_noncharacter(char)
                 # Git also accepts non-Cf default-ignorable fillers and
                 # variation selectors inside remote identities. Do not ban
                 # ordinary visible combining accents: deny only these
@@ -777,6 +785,7 @@ def inspect_checkout(
                     or unicodedata.category(char) == "Cf"
                     # Private-use endpoint glyphs are not portable identities.
                     or unicodedata.category(char) == "Co"
+                    or _unicode_noncharacter(char)
                     # Default-ignorable non-Cf scalars can conceal a remote
                     # destination just as they conceal a remote config name.
                     # Keep visible Unicode URL paths and ordinary spaces.
