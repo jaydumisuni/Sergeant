@@ -614,6 +614,15 @@ def inspect_checkout(
                 or 0x180B <= ord(char) <= 0x180D
                 or 0xFE00 <= ord(char) <= 0xFE0F
                 or 0xE0100 <= ord(char) <= 0xE01EF
+                # Unicode Default_Ignorable_Code_Point also includes reserved
+                # Cn scalars. Git accepts them in remote names despite their
+                # lack of assigned visible glyphs; bind these exact ranges.
+                or ord(char) == 0x2065
+                or 0xFFF0 <= ord(char) <= 0xFFF8
+                or ord(char) == 0xE0000
+                or 0xE0002 <= ord(char) <= 0xE001F
+                or 0xE0080 <= ord(char) <= 0xE00FF
+                or 0xE01F0 <= ord(char) <= 0xE0FFF
                 or (ord(char) > 0x7f
                     and unicodedata.category(char).startswith("Z"))
                 for char in remote
