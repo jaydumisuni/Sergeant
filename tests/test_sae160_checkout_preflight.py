@@ -3768,3 +3768,34 @@ def test_checkout_preserves_visible_hangul_remote_names(tmp_path, scope):
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("key,value", (
+    ("branch.main.pushRemote", "origin"),
+    ("remote.pushDefault", "origin"),
+    ("push.default", "matching"),
+    ("push.followTags", "true"),
+    ("push.autoSetupRemote", "true"),
+))
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+def test_explicit_push_selection_policy_is_unbound(tmp_path, key, value, scope):
+    """Clean HEAD cannot qualify local/worktree future-push routing policy."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, key, value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+def test_ordinary_branch_remote_tracking_is_still_supported(tmp_path):
+    """Normal branch tracking does not itself grant extra push policy."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "branch.main.remote", "origin")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
