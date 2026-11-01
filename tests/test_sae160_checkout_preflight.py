@@ -131,6 +131,43 @@ def test_remote_unicode_separator_cannot_spoof_destination_before_checkout_git(
     assert checkout_calls == []
 
 
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("position", ("name", "url", "pushurl"))
+def test_tifinagh_joiner_remote_identity_rejected_before_checkout_git(
+    tmp_path, monkeypatch, scope, position,
+):
+    """U+2D7F is default-ignorable Mn, not a visible remote identity."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    joiner = "\u2d7f"
+    key = (
+        f"remote.exa{joiner}mple.url" if position == "name"
+        else f"remote.origin.{position}"
+    )
+    value = (
+        "https://example.invalid/repository.git" if position == "name"
+        else f"https://exa{joiner}mple.invalid/repository.git"
+    )
+    git(path, "config", "--" + scope, key, value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    actual_run = subprocess.run
+    checkout_calls = []
+
+    def forbid_checkout_git(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_calls.append(tuple(argv))
+            raise AssertionError("default-ignorable remote reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", forbid_checkout_git)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_calls == []
+
+
 def test_remote_visible_international_hostname_remains_supported(tmp_path):
     """Do not ban legitimate nonseparator Unicode hostname characters."""
     path, head = checkout(tmp_path)
