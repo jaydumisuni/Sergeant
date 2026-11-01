@@ -1,0 +1,31 @@
+{
+  "schema": "ttg.supervisor.dispatch.v1",
+  "project": "srg",
+  "frontier": "SAE-160 repository-only checkout preflight: permanently reserved Unicode noncharacter Git remote identities",
+  "shift": "D",
+  "time_utc": "2026-11-01T18:46:34.380084+00:00",
+  "before_head": "bebc2c8b687ed27c5e52842c038aee165e26710c",
+  "implementation_head": "eeef2a470709f82b5ac8b7f309198c897857eb28",
+  "branch": "supervisor/shift-d-sae160-noncharacter-remote-20261101-2036",
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/293",
+  "worker_action": "Patrol-approved isolated SRG worktree; reproduced 8 pre-fix false admissions; implemented Unicode noncharacter guard and 72 parameterized regression cases",
+  "before_state": "Git-valid remote names and URL values containing U+FDD0, U+FFFE and plane-ending noncharacters returned empty blockers",
+  "after_state": "Both remote name and URL paths fail closed on U+FDD0..U+FDEF and U+FFFE/U+FFFF per Unicode plane; ordinary visible Unicode retained",
+  "proof": {
+    "patrol": "ALLOW",
+    "red_reproduction": "confirmed",
+    "new_tests": "72/72 PASS",
+    "checkout_preflight": "682/682 PASS",
+    "sae160_repository_only": "130/130 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "hosted_exact_head": "PENDING",
+    "independent_review": "PENDING"
+  },
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_REVIEW_PENDING",
+  "authority_gain": "NONE",
+  "dependency_linkage": "SAE-150 SC-2/SC-4 external independent review and protected qualification remain separate gates; SAE-160 repository-only preparation does not grant upstream authority",
+  "production_touched": false,
+  "device_touched": false,
+  "protected_merge": false
+}
