@@ -603,10 +603,17 @@ def inspect_checkout(
                 ord(char) < 0x20
                 or 0x7f <= ord(char) <= 0x9f
                 or unicodedata.category(char) == "Cf"
-                # These Git-accepted default-ignorable/blank glyphs are not
-                # Cf or Unicode separators. They can conceal a second remote
-                # identity inside an otherwise clean local config key.
-                or ord(char) in {0x034F, 0x115F, 0x2800, 0x3164, 0xFFA0}
+                # Git also accepts non-Cf default-ignorable fillers and
+                # variation selectors inside remote identities. Do not ban
+                # ordinary visible combining accents: deny only these
+                # independently identified concealed-identity families.
+                or ord(char) in {
+                    0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5,
+                    0x180F, 0x2800, 0x3164, 0xFFA0,
+                }
+                or 0x180B <= ord(char) <= 0x180D
+                or 0xFE00 <= ord(char) <= 0xFE0F
+                or 0xE0100 <= ord(char) <= 0xE01EF
                 or (ord(char) > 0x7f
                     and unicodedata.category(char).startswith("Z"))
                 for char in remote
