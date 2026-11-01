@@ -632,7 +632,7 @@ def inspect_checkout(
                 # independently identified concealed-identity families.
                 or ord(char) in {
                     0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5,
-                    0x180F, 0x2800, 0x3164, 0xFFA0,
+                    0x180F, 0x2800, 0x2D7F, 0x3164, 0xFFA0,
                 }
                 or 0x180B <= ord(char) <= 0x180D
                 or 0xFE00 <= ord(char) <= 0xFE0F
@@ -791,7 +791,7 @@ def inspect_checkout(
                     # Keep visible Unicode URL paths and ordinary spaces.
                     or ord(char) in {
                         0x034F, 0x115F, 0x1160, 0x17B4, 0x17B5,
-                        0x180F, 0x2800, 0x3164, 0xFFA0, 0x2065,
+                        0x180F, 0x2800, 0x2D7F, 0x3164, 0xFFA0, 0x2065,
                     }
                     or 0x180B <= ord(char) <= 0x180D
                     or 0xFE00 <= ord(char) <= 0xFE0F
