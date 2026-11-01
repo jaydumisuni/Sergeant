@@ -1,0 +1,40 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "E",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_REMOTE_NFKC_IDENTITY_COLLISION_CUSTODY",
+  "observed_at_utc": "2026-11-01T11:53:27.065293+00:00",
+  "before_head": "fa1cffef6a26d7265f8e5a418f6ecb0844d9c083",
+  "after_implementation_head": "0866ae94540cf1a03d012de59c840d5cbfb0e416",
+  "before_state": "NFC collision protection accepted Git-valid compatibility-equivalent remote subsection names as distinct reviewed identities.",
+  "after_state": "NFC and NFKC identity collisions both reject before checkout Git; individual visible compatibility remote names remain supported.",
+  "worker": "Cookpit Supervisor Shift E via authenticated Oracle Live KRATOS terminal",
+  "action": "Patrol ALLOW; project-owned isolated worktree; reproduced RED real-Git collision; 2-file source/test correction; native focused and adjacent tests; non-force push; draft PR #289.",
+  "proof": {
+    "patrol": "ALLOW",
+    "predecessor_reproduction": "RED: review-A and review-Ａ accepted, blockers=()",
+    "focused_identity": "264/264 PASS (24 new negative, 3 positive)",
+    "adjacent_sae160": "689/689 PASS",
+    "git_diff_check": "PASS",
+    "remote_source_head": "0866ae94540cf1a03d012de59c840d5cbfb0e416",
+    "hosted_exact_head_ci": "UNVERIFIED",
+    "independent_review": "PENDING",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "engineering_health": "NATIVE_FOCUSED_PASS_HOSTED_UNVERIFIED_REVIEW_PENDING",
+  "implementation_movement": "MATERIAL_PROJECT_SOURCE_COMMIT_PUBLISHED",
+  "material_movement_at_utc": "2026-11-01T11:53:27.065293+00:00",
+  "disposition": "SOURCE_PUBLISHED_NATIVE_PASS_REVIEW_PENDING",
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification NOT_PROVEN",
+    "downstream": "SAE-160 standalone qualification and Genesis activation HOLD",
+    "control": "Cookpit canonical main profile still references prior worktree; guarded PR #97 pending; no live timer rebound"
+  },
+  "candidate_branch": "supervisor/shift-e-sae160-remote-nfkc-collision-20261101-1348",
+  "candidate_pr": "https://github.com/jaydumisuni/Sergeant/pull/289",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false
+}
