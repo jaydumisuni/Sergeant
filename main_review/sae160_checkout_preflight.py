@@ -593,9 +593,14 @@ def inspect_checkout(
     future_fetch_remotes: set[str] = set()
     future_fetch_no_tags: set[str] = set()
 
+    # Remote subsection identities can differ byte-for-byte while sharing
+    # one NFC display identity. Preserve a single visible decomposed accent,
+    # but never admit two different Git remote names with the same identity.
+    seen_remote_nfc: dict[str, str] = {}
+
     def canonical_remote_name(remote: str) -> bool:
-        """Reject visually concealed remote identities before trusting Git config."""
-        return (
+        """Reject concealed and canonically colliding Git remote identities."""
+        safe = (
             bool(remote)
             and "\\" not in remote
             and all(part not in ("", ".", "..") for part in remote.split("/"))
@@ -633,6 +638,11 @@ def inspect_checkout(
                 for char in remote
             )
         )
+        if not safe:
+            return False
+        normalized = unicodedata.normalize("NFC", remote)
+        incumbent = seen_remote_nfc.setdefault(normalized, remote)
+        return incumbent == remote
 
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
