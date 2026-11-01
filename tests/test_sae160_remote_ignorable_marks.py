@@ -1,11 +1,27 @@
 """SAE-160 must reject concealed remote marks without banning visible accents."""
 
 from pathlib import Path
+import os
 import subprocess
 
 import pytest
 
 from main_review.sae160_checkout_preflight import inspect_checkout
+
+
+@pytest.fixture(autouse=True)
+def _isolate_inherited_loader_controls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exclude CI runner loader and agent settings from checkout fixtures.
+
+    SAE-160's production preflight must continue to reject these overrides.
+    The isolation applies only to this test module, matching the existing
+    SAE-160 repository-only preparation fixture.
+    """
+    for name in tuple(os.environ):
+        if name.startswith(("LD_", "DYLD_")) or name in (
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID"
+        ):
+            monkeypatch.delenv(name, raising=False)
 
 
 def git(path: Path, *args: str) -> str:
@@ -76,4 +92,16 @@ def test_visible_combining_accents_and_hangul_remain_supported(
     result = inspect_checkout(path, head)
     assert result.blockers == ()
     assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+def test_inherited_loader_override_remains_fail_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Fixture isolation must not weaken production ambient-authority denial."""
+    path, head = checkout(tmp_path)
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/untrusted/runner/loader")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
     assert result.authority_gain == "NONE"
