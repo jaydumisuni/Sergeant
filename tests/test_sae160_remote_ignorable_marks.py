@@ -105,3 +105,36 @@ def test_inherited_loader_override_remains_fail_closed(
     assert result.blockers == ("ambient_git_authority_override",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
+@pytest.mark.parametrize("codepoint", (
+    0x2065,  # reserved word-joiner slot
+    0xFFF0, 0xFFF8,  # reserved specials
+    0xE0000,  # reserved tag scalar
+    0xE0002, 0xE001F,  # reserved tag controls
+    0xE0080, 0xE00FF,  # reserved tag extension
+    0xE01F0, 0xE0FFF,  # reserved variation extension
+))
+def test_git_accepted_reserved_default_ignorable_remote_marks_fail_closed(
+    tmp_path: Path, scope: str, suffix: str, codepoint: int,
+) -> None:
+    """Git-accepted unassigned default-ignorable names are not review identities."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    remote = f"hidden{chr(codepoint)}peer"
+    value = {
+        "url": "https://example.invalid/remote.git",
+        "fetch": f"+refs/heads/*:refs/remotes/{remote}/*",
+        "tagOpt": "--no-tags",
+        "pruneTags": "false",
+    }[suffix]
+    # The Git config write must succeed: otherwise rejection proves nothing.
+    git(path, "config", "--" + scope, f"remote.{remote}.{suffix}", value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
