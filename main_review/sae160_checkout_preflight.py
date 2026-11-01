@@ -615,6 +615,9 @@ def inspect_checkout(
                 ord(char) < 0x20
                 or 0x7f <= ord(char) <= 0x9f
                 or unicodedata.category(char) == "Cf"
+                # Private-use glyphs have no stable, reviewable identity
+                # across hosts/fonts, including supplementary planes.
+                or unicodedata.category(char) == "Co"
                 # Git also accepts non-Cf default-ignorable fillers and
                 # variation selectors inside remote identities. Do not ban
                 # ordinary visible combining accents: deny only these
@@ -772,6 +775,8 @@ def inspect_checkout(
                     ord(char) < 0x20
                     or 0x7f <= ord(char) <= 0x9f
                     or unicodedata.category(char) == "Cf"
+                    # Private-use endpoint glyphs are not portable identities.
+                    or unicodedata.category(char) == "Co"
                     # Default-ignorable non-Cf scalars can conceal a remote
                     # destination just as they conceal a remote config name.
                     # Keep visible Unicode URL paths and ordinary spaces.
