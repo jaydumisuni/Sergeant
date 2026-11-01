@@ -3713,6 +3713,52 @@ def test_checkout_rejects_concealed_git_remote_names(
 
 
 @pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("private_scalar", ("\ue000", "\U000f0000", "\U00100000"))
+@pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
+def test_private_use_remote_name_never_qualifies_checkout(
+    tmp_path, monkeypatch, scope, private_scalar, suffix,
+):
+    """Git permits private-use remote names without stable visible identity."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    remote = f"private-{private_scalar}name"
+    value = {
+        "url": "https://example.invalid/remote.git",
+        "fetch": f"+refs/heads/*:refs/remotes/{remote}/*",
+        "tagOpt": "--no-tags",
+        "pruneTags": "false",
+    }[suffix]
+    git(path, "config", "--" + scope, f"remote.{remote}.{suffix}", value)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    monkeypatch.delenv("SSH_AUTH_SOCK", raising=False)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("private_scalar", ("\ue000", "\U000f0000", "\U00100000"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+def test_private_use_remote_url_never_qualifies_checkout(
+    tmp_path, monkeypatch, scope, private_scalar, suffix,
+):
+    """Private-use glyphs cannot conceal an unreviewed fetch/push endpoint."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}",
+        f"https://exa{private_scalar}mple.invalid/remote.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    monkeypatch.delenv("SSH_AUTH_SOCK", raising=False)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
 def test_checkout_preserves_visible_unicode_remote_names(tmp_path, scope):
     """Visible Unicode identities are not confused with hidden controls."""
     path, head = checkout(tmp_path)
