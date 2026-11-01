@@ -256,3 +256,52 @@ def test_distinct_visible_accented_remote_names_remain_supported(
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scopes", (
+    ("local", "local"),
+    ("worktree", "worktree"),
+    ("local", "worktree"),
+    ("worktree", "local"),
+))
+@pytest.mark.parametrize("names", (
+    ("review-A", "review-Ａ"),  # Fullwidth Latin A
+    ("review-1", "review-①"),  # Circled digit one
+    ("review-IV", "review-Ⅳ"),  # Roman numeral four
+))
+@pytest.mark.parametrize("reverse", (False, True))
+def test_nfkc_colliding_remote_subsections_fail_closed(
+    tmp_path: Path, scopes: tuple[str, str],
+    names: tuple[str, str], reverse: bool,
+) -> None:
+    """Git-valid compatibility aliases must not split reviewed remote custody."""
+    path, head = checkout(tmp_path)
+    if "worktree" in scopes:
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    for scope, name in zip(scopes, names[::-1] if reverse else names):
+        git(path, "config", "--" + scope, f"remote.{name}.url",
+            "https://example.invalid/remote.git")
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("names", (
+    ("review-Ａ",),
+    ("review-Ａ", "review-Ｂ"),
+    ("review-①", "review-②"),
+))
+def test_distinct_visible_compatibility_remote_names_remain_supported(
+    tmp_path: Path, names: tuple[str, ...],
+) -> None:
+    """Do not ban standalone visible Unicode compatibility characters."""
+    path, head = checkout(tmp_path)
+    for name in names:
+        git(path, "config", "--local", f"remote.{name}.url",
+            "https://example.invalid/remote.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
