@@ -606,6 +606,7 @@ def inspect_checkout(
     # tracking namespace across local and worktree configuration.
     seen_remote_nfc: dict[str, str] = {}
     seen_remote_nfkc: dict[str, str] = {}
+    seen_remote_folded: dict[str, str] = {}
 
     def canonical_remote_name(remote: str) -> bool:
         """Reject concealed and canonically colliding Git remote identities."""
@@ -661,6 +662,16 @@ def inspect_checkout(
             incumbent = seen.setdefault(normalized, remote)
             if incumbent != remote:
                 return False
+        # Git preserves case-distinct remote subsection keys, but reviewers
+        # and case-insensitive hosts can treat them as the same identity.
+        # Normalize after folding as well, so compatibility/case aliases
+        # cannot split one reviewed remote namespace.
+        folded = unicodedata.normalize(
+            "NFKC", unicodedata.normalize("NFKC", remote).casefold()
+        )
+        incumbent = seen_remote_folded.setdefault(folded, remote)
+        if incumbent != remote:
+            return False
         return True
 
     # Git include directives borrow configuration from another path, even if

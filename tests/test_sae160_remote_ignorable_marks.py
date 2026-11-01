@@ -305,3 +305,49 @@ def test_distinct_visible_compatibility_remote_names_remain_supported(
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scopes", (
+    ("local", "local"),
+    ("worktree", "worktree"),
+    ("local", "worktree"),
+    ("worktree", "local"),
+))
+@pytest.mark.parametrize("names", (
+    ("Review", "review"),
+    ("review-Straße", "review-STRASSE"),
+    ("review-İ", "review-i\u0307"),
+))
+@pytest.mark.parametrize("reverse", (False, True))
+def test_casefold_colliding_remote_subsections_fail_closed(
+    tmp_path: Path, scopes: tuple[str, str],
+    names: tuple[str, str], reverse: bool,
+) -> None:
+    """Distinct Git config keys must not alias one case-insensitive identity."""
+    path, head = checkout(tmp_path)
+    if "worktree" in scopes:
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    for scope, name in zip(scopes, names[::-1] if reverse else names):
+        git(path, "config", "--" + scope, f"remote.{name}.url",
+            "https://example.invalid/remote.git")
+    # Verify Git retains both independent keys: the guard, not Git's parser,
+    # must reject the cross-platform identity collision.
+    config_keys = git(path, "config", "--list", "--name-only").splitlines()
+    assert all(f"remote.{name}.url" in config_keys for name in names)
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+def test_distinct_casefolded_remote_names_remain_supported(tmp_path: Path) -> None:
+    """Visible, noncolliding remote names remain valid."""
+    path, head = checkout(tmp_path)
+    for name in ("review-café", "review-cafè", "review-A"):
+        git(path, "config", "--local", f"remote.{name}.url",
+            "https://example.invalid/remote.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
