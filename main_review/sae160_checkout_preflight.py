@@ -593,10 +593,12 @@ def inspect_checkout(
     future_fetch_remotes: set[str] = set()
     future_fetch_no_tags: set[str] = set()
 
-    # Remote subsection identities can differ byte-for-byte while sharing
-    # one NFC display identity. Preserve a single visible decomposed accent,
-    # but never admit two different Git remote names with the same identity.
+    # Git remote subsection names may differ byte-for-byte while sharing
+    # one canonical or compatibility display identity. Preserve standalone
+    # visible Unicode, but never admit competing aliases for one reviewed
+    # tracking namespace across local and worktree configuration.
     seen_remote_nfc: dict[str, str] = {}
+    seen_remote_nfkc: dict[str, str] = {}
 
     def canonical_remote_name(remote: str) -> bool:
         """Reject concealed and canonically colliding Git remote identities."""
@@ -640,9 +642,15 @@ def inspect_checkout(
         )
         if not safe:
             return False
-        normalized = unicodedata.normalize("NFC", remote)
-        incumbent = seen_remote_nfc.setdefault(normalized, remote)
-        return incumbent == remote
+        for form, seen in (
+            ("NFC", seen_remote_nfc),
+            ("NFKC", seen_remote_nfkc),
+        ):
+            normalized = unicodedata.normalize(form, remote)
+            incumbent = seen.setdefault(normalized, remote)
+            if incumbent != remote:
+                return False
+        return True
 
     # Git include directives borrow configuration from another path, even if
     # that path is not presently active (includeIf) or is currently missing.
