@@ -1,0 +1,41 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "B",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE-160 repository-only preflight: Git remote-name separator confusables",
+  "observed_at_utc": "2026-11-01T09:14:25Z",
+  "before_head": "afc51362a95cc93e11cc9e819707623e9b955877",
+  "after_implementation_head": "65365b9e5369535d705927bf06af6589d316c1d0",
+  "before_state": "Git accepted six Unicode slash/backslash lookalikes in remote config names; ASCII-only remote-name separator denial did not reject them",
+  "after_state": "Exact six Unicode separator confusables denied in canonical_remote_name; 48 negative Git-config regressions authored; visible Unicode controls preserved; SAE-150 and Genesis HOLD",
+  "worker": "Cookpit Supervisor Shift B, authenticated GitHub source-only fallback",
+  "action": "Two project-owned source/test commits, draft PR #287 stacked on exact PR #286 receipt-bearing head",
+  "proof": {
+    "canonical_authority": "Cookpit main:registry.json enables srg; oracle-phase27-prep absent",
+    "preflight": "GitHub exact predecessor, branch and ancestry verified; KRATOS Patrol UNVERIFIED (Oracle Live terminal internal error)",
+    "github_compare": "2 commits ahead, 0 behind; two source/test files changed",
+    "source_test_readback": "MATCH; source blob 9c76e7617fff5ee25d94dbc8ddd75c03a15b88ec; test blob 76a5d4d3ef81960b92ba3224b8098de05b4a0756",
+    "disposable_git": "48/48 Git local/worktree remote key writes accepted for six Unicode separator confusables",
+    "isolated_predicate": "48/48 separator aliases rejected; 3/3 visible remote-name controls preserved",
+    "native_regressions": "48 parametrized negative cases authored; NOT EXECUTED as native Sergeant pytest",
+    "hosted_ci": "PENDING on PR #287; not PASS",
+    "independent_review": "PENDING; not qualified",
+    "kratos_worker_lease": "UNVERIFIED; Oracle terminal internal failure"
+  },
+  "engineering_health": "SOURCE_ONLY_PROOF_LIMITED",
+  "implementation_movement": "PROJECT_SOURCE_COMMITS_PUBLISHED",
+  "material_movement_at_utc": "2026-11-01T09:14:25Z",
+  "disposition": "SOURCE_PUBLISHED_NATIVE_PROOF_PENDING",
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification",
+    "downstream": "SAE-160 repository-only qualification and Genesis activation",
+    "protected_gate": "No Genesis promotion or external qualification inferred"
+  },
+  "cloud_receipt_authority": "Sergeant-owned draft branch; KRATOS local dispatch directory unavailable",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_TERMINAL_ERROR",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/287"
+}

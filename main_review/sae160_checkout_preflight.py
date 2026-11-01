@@ -599,6 +599,11 @@ def inspect_checkout(
             bool(remote)
             and "\\" not in remote
             and all(part not in ("", ".", "..") for part in remote.split("/"))
+            # Git permits Unicode slash/backslash lookalikes in config remote
+            # names. They can render as an apparent tracking namespace path
+            # while remaining distinct keys and refs. Deny only these exact
+            # separator confusables, not ordinary visible Unicode names.
+            and not any(char in "\u2044\u2215\u29f8\uff0f\u2216\uff3c" for char in remote)
             and not any(
                 ord(char) < 0x20
                 or 0x7f <= ord(char) <= 0x9f
