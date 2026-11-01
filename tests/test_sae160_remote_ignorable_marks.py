@@ -351,3 +351,35 @@ def test_distinct_casefolded_remote_names_remain_supported(tmp_path: Path) -> No
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "fetch", "tagOpt", "pruneTags"))
+@pytest.mark.parametrize("codepoint", (
+    0x0378,   # unassigned Greek code point
+    0x2FE0,   # unassigned ideographic description extension
+    0x1D455,  # unassigned mathematical alphanumeric scalar
+))
+def test_git_accepted_unassigned_remote_identity_fails_closed(
+    tmp_path: Path, scope: str, suffix: str, codepoint: int,
+) -> None:
+    """Unassigned Unicode has no stable visible remote identity across hosts."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    remote = f"review{chr(codepoint)}remote"
+    value = {
+        "url": "https://example.invalid/remote.git",
+        "fetch": f"+refs/heads/*:refs/remotes/{remote}/*",
+        "tagOpt": "--no-tags",
+        "pruneTags": "false",
+    }[suffix]
+    git(path, "config", "--" + scope, f"remote.{remote}.{suffix}", value)
+    assert f"remote.{remote}.{suffix}".lower() in git(
+        path, "config", "--list", "--name-only"
+    ).lower()
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"

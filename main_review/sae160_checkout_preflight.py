@@ -626,6 +626,9 @@ def inspect_checkout(
                 # Private-use glyphs have no stable, reviewable identity
                 # across hosts/fonts, including supplementary planes.
                 or unicodedata.category(char) == "Co"
+                # Unassigned scalars have no stable visible identity across
+                # Unicode versions; Git nevertheless admits them as remote keys.
+                or unicodedata.category(char) == "Cn"
                 or _unicode_noncharacter(char)
                 # Git also accepts non-Cf default-ignorable fillers and
                 # variation selectors inside remote identities. Do not ban
