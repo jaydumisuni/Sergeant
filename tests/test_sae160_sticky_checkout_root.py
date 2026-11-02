@@ -104,3 +104,52 @@ def test_sticky_ancestor_exception_requires_root_ownership(
     assert result.blockers == (expected_blocker,)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX ancestry preflight")
+@pytest.mark.parametrize(
+    ("permissions", "owner_is_root"),
+    (
+        (0o1777, False),
+        (0o1770, False),
+        (0o0777, True),
+        (0o0770, True),
+    ),
+)
+def test_unsafe_ancestor_fails_before_git_metadata_walk(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    permissions: int,
+    owner_is_root: bool,
+) -> None:
+    """An unsafe parent must not trigger even a read-only .git tree walk."""
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+
+    original_lstat = Path.lstat
+
+    def simulated_lstat(path: Path) -> os.stat_result:
+        metadata = original_lstat(path)
+        if path == tmp_path:
+            fields = list(metadata)
+            fields[0] = stat.S_IFDIR | permissions
+            fields[4] = 0 if owner_is_root else os.geteuid() + 1
+            return os.stat_result(fields)
+        return metadata
+
+    monkeypatch.setattr(Path, "lstat", simulated_lstat)
+    monkeypatch.setattr(os, "environ", {})
+
+    def unexpected_walk(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("unsafe ancestry must fail before .git traversal")
+
+    def unexpected_git(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("unsafe ancestry must fail before Git")
+
+    monkeypatch.setattr(os, "walk", unexpected_walk)
+    monkeypatch.setattr(subprocess, "run", unexpected_git)
+    result = inspect_checkout(checkout, "a" * 40)
+    assert result.blockers == ("mutable_checkout_ancestry",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"

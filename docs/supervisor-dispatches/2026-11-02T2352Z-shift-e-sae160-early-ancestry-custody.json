@@ -1,0 +1,66 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "E",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_ANCESTRY_PRE_METADATA_FAIL_CLOSED",
+  "time_utc": "2026-11-02T23:52:26Z",
+  "canonical_registry": {
+    "repository": "jaydumisuni/cookpit",
+    "branch": "main",
+    "blob_sha": "b3d88fe65be9b5514b46d1b8d028c844bc4b78eb",
+    "enabled": true
+  },
+  "before_head": "5e97150573e63e9df4e2db6d66fe7853596a76ad",
+  "after_source_head": "da14d165e1a51c41380d951271f02703632a42cb",
+  "branch": "supervisor/shift-e-sae160-ancestry-early-reject-20261103-0148",
+  "prior_pr": "https://github.com/jaydumisuni/Sergeant/pull/308",
+  "before_state": "PR308 has an unresolved CodeRabbit finding on mutable_checkout_ancestry blocker precedence. Existing implementation already returns the ancestry blocker after the .git metadata walk, so the claimed final-result loss is not established; nevertheless an unsafe parent still triggers that unnecessary read of untrusted .git metadata.",
+  "worker_action": "Authenticated GitHub cloud fallback. Add four test-first POSIX owner/sticky/mode regressions that forbid os.walk and subprocess.run on unsafe ancestry; then return the ancestry blocker immediately before any .git metadata traversal.",
+  "after_state": "For root-owned nonsticky 0777/0770 and foreign-owned sticky 01777/01770 parents, the checkout preflight now returns mutable_checkout_ancestry without even starting a Git metadata walk. Trusted root-owned sticky parents retain existing downstream control-file behavior. No SAE-150 or Genesis authority gain.",
+  "implementation_movement": {
+    "material": true,
+    "kind": "review_consumed_into_bounded_source_and_regression_delta",
+    "test_commit": "fb568fde416d1ac6653b620d19953eea8ef13a15",
+    "implementation_commit": "da14d165e1a51c41380d951271f02703632a42cb",
+    "new_negative_cases": 4
+  },
+  "proof": {
+    "exact_predecessor": "VERIFIED_2_AHEAD_0_BEHIND",
+    "github_source_blob": "1955439defb019b371a2bc06d3676cb294b1a997",
+    "github_test_blob": "1298c26d434a9a91956b947e898611443b309aed",
+    "static_order_assertion": "PASS_EARLY_RETURN_BEFORE_OS_WALK",
+    "test_matrix": "FOUR_CASES_SOURCE_READBACK_NOT_NATIVE_EXECUTION",
+    "native_pytest": "UNVERIFIED_KRATOS_ORACLE_TRANSPORT_INTERNAL_FAILURE",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_TRANSPORT_INTERNAL_FAILURE",
+    "independent_review": "PENDING",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "engineering_health": {
+    "source": "VERIFIED",
+    "native": "UNVERIFIED",
+    "review": "PENDING",
+    "external": "HOLD"
+  },
+  "movement_state": "MATERIAL_DELTA_PUBLISHED",
+  "supervisor_pool_initial": {
+    "A": "HEALTHY",
+    "B": "HEALTHY",
+    "C": "HEALTHY",
+    "D": "HEALTHY",
+    "E": "CURRENT_SLOT_WITHIN_GRACE_UNJUDGED"
+  },
+  "nodie_roster": "UNVERIFIED_ORACLE_LIVE_INTERNAL_FAILURE",
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_UNAVAILABLE",
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification not established",
+    "downstream": "SAE-160 source-only preparation; Genesis remains HOLD"
+  },
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_REVIEW_AND_NATIVE_PENDING"
+}

@@ -150,6 +150,10 @@ def inspect_checkout(
                         or not metadata.st_mode & stat.S_ISVTX):
                     blockers.append("mutable_checkout_ancestry")
                     break
+        # Once ancestry custody fails, do not inspect even the local .git tree:
+        # that path is not a trusted authority source for further readback.
+        if blockers:
+            return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
     # Mode 0755 is not sufficient custody for Git metadata: a foreign
     # owner can replace a private ref, object, index or config regardless
     # of its group/world mode. Inspect all .git descendants without
