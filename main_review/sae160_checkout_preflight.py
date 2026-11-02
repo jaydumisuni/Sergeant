@@ -788,8 +788,15 @@ def inspect_checkout(
                     break
                 # URL consumers percent-decode path bytes. Raw Git config
                 # values can therefore conceal the same forbidden Unicode
-                # identity behind ASCII %HH escapes. Validate the one-pass
-                # decoded UTF-8 view, preserving valid encoded visible text.
+                # identity behind ASCII %HH escapes. Require complete
+                # hexadecimal triplets first: unquote() otherwise leaves
+                # malformed percent escapes untouched, granting a remote
+                # spelling that URL consumers can interpret inconsistently.
+                if re.search(r"%(?![0-9A-Fa-f]{2})", url):
+                    blockers.append("external_git_metadata")
+                    break
+                # Validate the one-pass decoded UTF-8 view while preserving
+                # valid encoded visible text and literal escaped percent.
                 try:
                     decoded_url = unquote(url, encoding="utf-8", errors="strict")
                 except UnicodeDecodeError:
