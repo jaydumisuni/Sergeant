@@ -1,0 +1,48 @@
+{
+  "schema": "ttg.srg.supervisor.dispatch.v1",
+  "shift": "A",
+  "project": "srg",
+  "frontier": "SAE160_UNASSIGNED_UNICODE_REMOTE_URL_CUSTODY",
+  "time_utc": "2026-11-02T01:05:14.850370+00:00",
+  "before_head": "d6ac167efac446a1ac4f8642e8fc8edd0149e07c",
+  "after_implementation_head": "59faa4717418c3884088ac6e76b7e9c4c39b8c15",
+  "before_state": "12 Git-accepted local/worktree fetch/push URL cases with unassigned Unicode were admitted despite clean status",
+  "after_state": "All 12 cases fail closed before checkout Git probes; two assigned-Unicode positive controls remain accepted",
+  "worker": "Shift A bounded isolated source implementation; no persistent worker/lease",
+  "action": "Patrol ALLOW; test-first 12 RED + 2 positive PASS; source/test correction; focused and adjacent native tests",
+  "worktree": "/home/kratos/projects/SRG/.workspace/worktrees/sae160-url-unassigned-shift-a-20261102-0300",
+  "branch": "supervisor/shift-a-sae160-unassigned-url-20261102-0300",
+  "proof": {
+    "patrol": "ALLOW",
+    "predecessor": "12 RED, 2 positive PASS",
+    "focused": "327/327 PASS",
+    "adjacent": "519/519 PASS",
+    "checkout_preflight": "688/688 PASS",
+    "combined_native": "1207/1207 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "hosted": "PENDING",
+    "independent_review": "PENDING"
+  },
+  "engineering_health": {
+    "native": "PASS",
+    "hosted": "PENDING",
+    "review": "PENDING",
+    "external": "NOT_PROVEN",
+    "promotion": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "d6ac167efac446a1ac4f8642e8fc8edd0149e07c",
+    "after_implementation_head": "59faa4717418c3884088ac6e76b7e9c4c39b8c15"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 external SC-2/SC-4 independent qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only preparation; Genesis HOLD",
+    "control": "Cookpit PR97 guarded rebind remains draft; no live rebound"
+  },
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "protected_merge": false
+}

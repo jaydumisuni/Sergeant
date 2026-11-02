@@ -797,8 +797,9 @@ def inspect_checkout(
                     ord(char) < 0x20
                     or 0x7f <= ord(char) <= 0x9f
                     or unicodedata.category(char) == "Cf"
-                    # Private-use endpoint glyphs are not portable identities.
-                    or unicodedata.category(char) == "Co"
+                    # Private-use and unassigned endpoint glyphs have no
+                    # stable reviewable identity across hosts/Unicode versions.
+                    or unicodedata.category(char) in {"Co", "Cn"}
                     or _unicode_noncharacter(char)
                     # Default-ignorable non-Cf scalars can conceal a remote
                     # destination just as they conceal a remote config name.

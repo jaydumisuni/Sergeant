@@ -383,3 +383,39 @@ def test_git_accepted_unassigned_remote_identity_fails_closed(
     assert result.blockers == ("external_git_metadata",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("codepoint", (
+    0x0378,   # unassigned Greek code point
+    0x2FE0,   # unassigned ideographic description extension
+    0x1D455,  # unassigned mathematical alphanumeric scalar
+))
+def test_git_accepted_unassigned_remote_url_fails_closed(
+    tmp_path: Path, scope: str, suffix: str, codepoint: int,
+) -> None:
+    """Remote URL destinations must not borrow unassigned Unicode identity."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    url = f"https://example.invalid/review{chr(codepoint)}source.git"
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", url)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == url
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+def test_visible_unicode_remote_url_still_qualifies(tmp_path: Path, suffix: str) -> None:
+    """Ordinary assigned Unicode URL path characters remain supported."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", f"remote.origin.{suffix}",
+        "https://example.invalid/review-café-한글.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
