@@ -14,6 +14,7 @@ import re
 import stat
 import subprocess
 import unicodedata
+from urllib.parse import unquote
 
 from .review_world import require_git_object_id
 
@@ -785,6 +786,15 @@ def inspect_checkout(
                         or not canonical_remote_name(remote)):
                     blockers.append("external_git_metadata")
                     break
+                # URL consumers percent-decode path bytes. Raw Git config
+                # values can therefore conceal the same forbidden Unicode
+                # identity behind ASCII %HH escapes. Validate the one-pass
+                # decoded UTF-8 view, preserving valid encoded visible text.
+                try:
+                    decoded_url = unquote(url, encoding="utf-8", errors="strict")
+                except UnicodeDecodeError:
+                    blockers.append("external_git_metadata")
+                    break
                 # Git config can store C0/C1 Unicode controls in remote URLs.
                 # In particular, U+0085 is Unicode whitespace and bypasses
                 # scheme-anchored checks while leaving HEAD/worktree clean.
@@ -817,7 +827,7 @@ def inspect_checkout(
                     or 0xE0100 <= ord(char) <= 0xE0FFF
                     or (ord(char) > 0x7f
                         and unicodedata.category(char).startswith("Z"))
-                    for char in url
+                    for char in decoded_url
                 ):
                     blockers.append("external_git_metadata")
                     break

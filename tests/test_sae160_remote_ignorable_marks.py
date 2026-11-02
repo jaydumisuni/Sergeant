@@ -419,3 +419,58 @@ def test_visible_unicode_remote_url_still_qualifies(tmp_path: Path, suffix: str)
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("encoded", (
+    "%E2%80%8B",  # zero-width space (Cf)
+    "%E2%80%AE",  # right-to-left override (Cf)
+    "%EF%B8%8F",  # variation selector 16 (Mn)
+    "%CD%8F",     # combining grapheme joiner (Mn)
+    "%CD%B8",     # unassigned Greek scalar U+0378 (Cn)
+    "%C2%85",     # C1 next-line control
+))
+def test_percent_encoded_concealed_remote_url_destination_fails_closed(
+    tmp_path: Path, scope: str, suffix: str, encoded: str,
+) -> None:
+    """Encoded invisible URL identities must not bypass raw Unicode custody."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    url = f"https://example.invalid/review{encoded}path.git"
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", url)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == url
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("encoded", ("%C3%A9", "%20"))
+def test_percent_encoded_visible_remote_url_remains_supported(
+    tmp_path: Path, encoded: str,
+) -> None:
+    """Valid percent-encoded visible Unicode and ordinary space remain valid."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url",
+        f"https://example.invalid/review{encoded}path.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("encoded", ("%FF", "%C3%28"))
+def test_malformed_percent_encoded_remote_url_fails_closed(
+    tmp_path: Path, encoded: str,
+) -> None:
+    """Invalid UTF-8 URL escapes cannot establish a reviewable destination."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url",
+        f"https://example.invalid/review{encoded}path.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
