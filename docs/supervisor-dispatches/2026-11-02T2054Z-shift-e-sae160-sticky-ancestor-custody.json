@@ -1,0 +1,64 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "E",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_STICKY_ANCESTOR_OWNER_PARITY",
+  "time_utc": "2026-11-02T20:54:14Z",
+  "canonical_registry": {
+    "repository": "jaydumisuni/cookpit",
+    "branch": "main",
+    "blob_sha": "b3d88fe65be9b5514b46d1b8d028c844bc4b78eb",
+    "enabled": true
+  },
+  "before_head": "a7e87405e02753ddbc57c12b2cbc602c65878a7e",
+  "after_source_head": "ffa04f6354ec693ab72dbc278ffce507c421d941",
+  "branch": "supervisor/shift-e-sae160-sticky-ancestor-parity-20261102-2248",
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/307",
+  "before_state": "PR306 tested rejection of root-owned peer-writable sticky checkout roots, but lacked complementary root-owned sticky ancestor acceptance and foreign-owned sticky ancestor rejection cases.",
+  "worker_action": "GitHub cloud fallback: add three POSIX synthetic owner/mode ancestry cases to the project-owned SAE-160 checkout preflight test, stacked on exact PR306 source head.",
+  "after_state": "Root-owned 01777/01770 sticky ancestors are asserted to pass ancestry custody but fail the intentionally incomplete checkout at a later control-file gate; foreign-owned 01777 sticky ancestor must fail at mutable_checkout_ancestry before Git.",
+  "proof": {
+    "github_source_readback": "PASS_cf298dcad5d7fc7b731195d681fe6d349d48cce8",
+    "github_test_readback": "PASS_43a79fd877d61f088183e582d0ccbdabc486087c",
+    "isolated_permission_semantics": "PASS_4_OF_4_JS_MODEL_NOT_NATIVE_PYTEST",
+    "native_pytest": "UNVERIFIED_KRATOS_ORACLE_TRANSPORT_FAILED",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_TRANSPORT_FAILED",
+    "hosted_exact_head_ci": "NOT_YET_OBSERVED",
+    "independent_exact_head_review": "PENDING",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "kind": "tracked_regression_implementation_delta",
+    "before_head": "a7e87405e02753ddbc57c12b2cbc602c65878a7e",
+    "after_source_head": "ffa04f6354ec693ab72dbc278ffce507c421d941",
+    "new_synthetic_cases": 3
+  },
+  "engineering_health": {
+    "cloud_source": "VERIFIED",
+    "native": "UNVERIFIED",
+    "review": "PENDING",
+    "external": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 external independent qualification not proven",
+    "downstream": "SAE-160 repository-only preparation; Genesis remains HOLD"
+  },
+  "supervisor_pool_initial": {
+    "A": "HEALTHY",
+    "B": "HEALTHY",
+    "C": "LATE_BUT_COMPLETED",
+    "D": "HEALTHY",
+    "E": "CURRENT_SLOT_WITHIN_GRACE_UNJUDGED"
+  },
+  "nodie_roster": "UNVERIFIED_ORACLE_LIVE_INTERNAL_FAILURE",
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_NATIVE_AND_REVIEW_PENDING"
+}
