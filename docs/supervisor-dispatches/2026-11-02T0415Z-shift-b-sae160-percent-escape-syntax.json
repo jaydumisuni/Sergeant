@@ -1,0 +1,49 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "B",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_REMOTE_URL_MALFORMED_PERCENT_ESCAPE_IDENTITY_CUSTODY",
+  "time_utc": "2026-11-02T04:15:37.030921+00:00",
+  "before_head": "c5ccf38d56a71d745a9b8e079bbdd421c60eb02d",
+  "after_implementation_head": "ea99398c279746dc60d5d42a85d1d1bd39f7e99d",
+  "before_state": "20 Git-accepted malformed percent escapes in remote url/pushurl qualified clean checkout; two valid escapes qualified",
+  "after_state": "20 malformed percent-escape identities fail closed; two valid escapes continue to qualify",
+  "worker": "Shift B bounded isolated project-owned implementation; no persistent worker/lease",
+  "action": "Direct Oracle Live source-only terminal; headless Patrol GUI unavailable; test-first RED; minimal validation patch; native tests; project-owned receipt",
+  "worktree": "/home/kratos/projects/SRG/.workspace/worktrees/sae160-percent-escape-shift-b-20261102-0612",
+  "branch": "supervisor/shift-b-sae160-percent-escape-syntax-20261102-0612",
+  "proof": {
+    "patrol_gui": "UNVERIFIED_NO_X_SERVER",
+    "predecessor": "20 RED 2 positive PASS",
+    "corrected_focus": "377/377 PASS",
+    "native": "1195/1195 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "remote_exact_head": "PENDING_PUBLICATION",
+    "hosted": "UNVERIFIED",
+    "independent_review": "PENDING"
+  },
+  "engineering_health": {
+    "native": "PASS",
+    "hosted": "UNVERIFIED",
+    "review": "PENDING",
+    "external": "NOT_PROVEN",
+    "promotion": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "c5ccf38d56a71d745a9b8e079bbdd421c60eb02d",
+    "after_implementation_head": "ea99398c279746dc60d5d42a85d1d1bd39f7e99d"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent SC-2/SC-4 external qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only preparation; Genesis HOLD",
+    "control": "Cookpit PR97 guarded proposal only; no live rebound"
+  },
+  "disposition": "MATERIAL_SOURCE_LOCAL_NATIVE_PASS_PUBLICATION_PENDING",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "protected_merge": false
+}
