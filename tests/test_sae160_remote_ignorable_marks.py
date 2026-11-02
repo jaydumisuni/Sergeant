@@ -551,7 +551,13 @@ def test_valid_percent_escape_remote_url_identity_remains_supported(
 
 @pytest.mark.parametrize("scope", ("local", "worktree"))
 @pytest.mark.parametrize("suffix", ("url", "pushurl"))
-@pytest.mark.parametrize("path_value", ("/srv/50%off.git", "../repo%ZZ.git"))
+@pytest.mark.parametrize("path_value", (
+    "/srv/50%off.git", "../repo%ZZ.git",
+    "/srv/repo%FF.git",  # Literal non-UTF-8 percent triplet
+    "../repo%C3%28.git",  # Literal malformed UTF-8 sequence
+    "git@example.invalid:repo%FF.git",  # SCP-like remote, not URL-decoded
+    "/srv/repo%E2%80%8B.git",  # Literal triplet is not a zero-width glyph
+))
 def test_bare_local_path_remote_with_literal_percent_remains_supported(
     tmp_path: Path, scope: str, suffix: str, path_value: str,
 ) -> None:

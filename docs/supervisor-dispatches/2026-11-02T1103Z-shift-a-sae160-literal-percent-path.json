@@ -1,0 +1,48 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "A",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_LITERAL_PERCENT_PATH_REMOTE_CUSTODY",
+  "time_utc": "2026-11-02T11:03:00Z",
+  "before_head": "02093191c9e035232f4c8b23fb1d388e44a1b229",
+  "implementation_head": "fb9e6ebcc4e7c293b4186f0ffe0667687481a127",
+  "worktree": "cloud GitHub project-owned branch; KRATOS project worktree unavailable",
+  "branch": "supervisor/shift-a-sae160-literal-percent-20261102-1300",
+  "before_state": "Strict urllib.parse.unquote UTF-8 decoding applied to Git bare-path and SCP-like remote values; valid literal %FF and %C3%28 triplets were rejected, and literal %E2%80%8B was treated as an invisible glyph.",
+  "after_state": "URL-form remotes retain strict percent-triplet UTF-8 and concealed-identity checks; non-URL Git path remotes retain literal percent sequences. Added 16 Git-config-backed positive regression cases.",
+  "action": "Cloud source-only correction on exact PR #301 predecessor; two project source/test files committed; draft PR #302 opened.",
+  "proof": {
+    "git_config_literal_readback": "PASS in isolated non-KRATOS fixture",
+    "python_predecessor_unquote_mismatch": "REPRODUCED in isolated non-KRATOS fixture",
+    "source_diff": "PUBLISHED; exact-head readback pending",
+    "native_sae160_suite": "UNVERIFIED_KRATOS_UNAVAILABLE",
+    "patrol": "UNVERIFIED_KRATOS_UNAVAILABLE",
+    "hosted_ci": "UNVERIFIED_PENDING",
+    "independent_review": "PENDING",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "02093191c9e035232f4c8b23fb1d388e44a1b229",
+    "source_head": "fb9e6ebcc4e7c293b4186f0ffe0667687481a127",
+    "time_utc": "2026-11-02T11:03:00Z"
+  },
+  "engineering_health": {
+    "local_native": "UNVERIFIED",
+    "hosted": "UNVERIFIED",
+    "review": "PENDING",
+    "SAE150": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 external SC-2/SC-4 qualification NOT_PROVEN",
+    "downstream": "SAE-160 source-only preparation; Genesis HOLD"
+  },
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false
+}

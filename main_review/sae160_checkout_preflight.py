@@ -790,14 +790,21 @@ def inspect_checkout(
                 # Require complete hex triplets there before one-pass UTF-8
                 # validation. Bare local Git paths are not URL-decoded and
                 # may legitimately contain literal malformed percent text.
-                if (re.match(r"^[^:/\s]+://", url)
+                is_url_form = re.match(r"^[^:/\s]+://", url) is not None
+                if (is_url_form
                         and re.search(r"%(?![0-9A-Fa-f]{2})", url)):
                     blockers.append("external_git_metadata")
                     break
-                # Validate the one-pass decoded UTF-8 view while preserving
-                # valid encoded visible text and literal escaped percent.
+                # Git does not percent-decode bare paths or scp-like remotes.
+                # Decoding those literals can invent invisible characters or
+                # reject valid local filenames containing non-UTF-8 triplets.
+                # Decode only URL-form transports; retain strict UTF-8 and
+                # concealed-identity checks before any checkout Git probe.
                 try:
-                    decoded_url = unquote(url, encoding="utf-8", errors="strict")
+                    decoded_url = (
+                        unquote(url, encoding="utf-8", errors="strict")
+                        if is_url_form else url
+                    )
                 except UnicodeDecodeError:
                     blockers.append("external_git_metadata")
                     break
