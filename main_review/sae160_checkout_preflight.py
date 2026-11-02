@@ -615,6 +615,18 @@ def inspect_checkout(
             bool(remote)
             and "\\" not in remote
             and all(part not in ("", ".", "..") for part in remote.split("/"))
+            # A Git config subsection can name a remote that cannot form a
+            # refs/remotes/<name>/HEAD tracking ref. A clean checkout and
+            # git remote -v still accept those misleading remote labels.
+            # Enforce the relevant Git refname lexical restrictions without
+            # invoking an additional checkout-controlled Git command.
+            and not any(char in " ~^:?*[" for char in remote)
+            and ".." not in remote
+            and "@{" not in remote
+            and not any(
+                part.startswith(".") or part.endswith(".lock")
+                for part in remote.split("/")
+            )
             # Git permits Unicode slash/backslash lookalikes in config remote
             # names. They can render as an apparent tracking namespace path
             # while remaining distinct keys and refs. Deny only these exact
