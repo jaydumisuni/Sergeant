@@ -95,6 +95,59 @@ def test_visible_combining_accents_and_hangul_remain_supported(
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("remote", (
+    "review space", "review~v1", "review^v1", "review:mirror",
+    "review?1", "review[1]", "review*", "review.lock",
+    "review@{1}", "review..alias", ".review",
+    "review/.shadow", "review/.lock",
+))
+def test_git_config_remote_with_invalid_tracking_ref_fails_closed(
+    tmp_path: Path, scope: str, suffix: str, remote: str,
+) -> None:
+    """Git-config-valid labels must also name a valid remote ref namespace."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    key = f"remote.{remote}.{suffix}"
+    value = "https://example.invalid/review.git"
+    git(path, "config", "--" + scope, key, value)
+    assert git(path, "config", "--" + scope, "--get", key) == value
+    assert subprocess.run(
+        ["git", "check-ref-format", f"refs/remotes/{remote}/HEAD"],
+        capture_output=True,
+    ).returncode != 0
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("remote", (
+    "review-café", "review-A", "review/foo", "review.", "review@home",
+))
+def test_git_valid_remote_refname_controls_remain_supported(
+    tmp_path: Path, scope: str, remote: str,
+) -> None:
+    """The refname guard must not reject valid visible remote identities."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.{remote}.url",
+        "https://example.invalid/review.git")
+    assert subprocess.run(
+        ["git", "check-ref-format", f"refs/remotes/{remote}/HEAD"],
+        capture_output=True,
+    ).returncode == 0
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
 def test_inherited_loader_override_remains_fail_closed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
