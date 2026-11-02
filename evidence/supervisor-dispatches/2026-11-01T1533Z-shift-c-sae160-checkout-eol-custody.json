@@ -1,0 +1,36 @@
+{
+  "schema": "ttg.sergeant.supervisor.dispatch.v1",
+  "shift": "C",
+  "project": "srg",
+  "frontier": "SAE160_LOCAL_WORKTREE_CHECKOUT_EOL_POLICY_CUSTODY",
+  "observed_at_utc": "2026-11-01T15:33:00Z",
+  "before_head": "db1b5beb19e113b289f33b5884b84b3b6da57b17",
+  "before_state": "Clean Git checkout with local/worktree core.autocrlf or core.eol overrides reached checkout Git probes.",
+  "worker": "Shift C Oracle Live KRATOS, isolated project-owned worktree",
+  "action": "Patrol ALLOW; 4 RED regression cases; reject unbound newline-conversion policy in pre-Git config probe; 766 native tests; publish draft PR #291.",
+  "after_implementation_head": "b4add9fb5806b917d170d05432bf1a05fb234193",
+  "after_state": "4 adversarial config fixtures rejected before checkout Git; no qualification or promotion authority gained.",
+  "proof": {
+    "patrol": "ALLOW",
+    "predecessor": "4/4 RED",
+    "focused": "4/4 PASS",
+    "native": "766/766 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "remote_source_head": "b4add9fb5806b917d170d05432bf1a05fb234193",
+    "independent_review": "PENDING",
+    "hosted_ci": "UNVERIFIED"
+  },
+  "engineering_health": "NATIVE_766_PASS_REMOTE_SOURCE_MATCH_HOSTED_UNVERIFIED_REVIEW_PENDING",
+  "implementation_movement": "MATERIAL_SOURCE_HEAD_ADVANCED",
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification NOT_PROVEN",
+    "downstream": "SAE-160 full qualification and Genesis activation HOLD",
+    "control": "Cookpit guarded SRG rebind PR #97 remains unmerged"
+  },
+  "candidate_pr": "https://github.com/jaydumisuni/Sergeant/pull/291",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "SOURCE_PUBLISHED_NATIVE_PASS_REVIEW_PENDING"
+}

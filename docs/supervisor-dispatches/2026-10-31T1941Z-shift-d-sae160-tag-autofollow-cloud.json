@@ -1,0 +1,82 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.cloud.v1",
+  "shift": "D",
+  "project": "srg",
+  "project_repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE-160 optional configured no-tags preflight for ordinary future fetch",
+  "canonical_registry": {
+    "repository": "jaydumisuni/cookpit",
+    "ref": "main",
+    "file": "registry.json",
+    "blob_sha": "b3d88fe65be9b5514b46d1b8d028c844bc4b78eb",
+    "project_enabled": true,
+    "oracle_phase27_enabled": false
+  },
+  "before": {
+    "head": "e2a886eea78419d666237cbb7fe751b08fb5bba0",
+    "branch": "supervisor/shift-d-sae160-prunetags-custody-20261031-2033",
+    "state": "SAE-160 repository-only preparation; implicit Git tag auto-follow unqualified"
+  },
+  "action": {
+    "kind": "cloud_source_only_implementation",
+    "worker": "Shift D authenticated GitHub fallback",
+    "branch": "supervisor/shift-d-sae160-future-fetch-no-tags-20261031-2138",
+    "description": "Add opt-in preflight requiring explicit remote.*.tagOpt=--no-tags for each configured fetch remote across local/worktree configs",
+    "files": [
+      "main_review/sae160_checkout_preflight.py",
+      "tests/test_sae160_checkout_preflight.py"
+    ],
+    "new_test_cases": 8
+  },
+  "after": {
+    "implementation_head": "ba56b31eb71f424803215457281efd586fc2f998",
+    "pr": 280,
+    "source_blob_sha": "c3ebcc85cbcfd8debe3d170747442c86d02e7b28",
+    "test_blob_sha": "04fb6a0a8b9d2dfb010cc31e25f0d608dcffce9f",
+    "source_test_readback": "MATCH",
+    "ancestry": "2 ahead 0 behind",
+    "project_branch_published": true
+  },
+  "proof": {
+    "disposable_real_git_default_tag_autofollow": "REPRODUCED",
+    "disposable_real_git_explicit_no_tags": "PREVENTED_TAG_WRITE",
+    "independent_cross_scope_config_framing": "PASS",
+    "new_project_tests": "AUTHORED_NOT_EXECUTED",
+    "native_project_pytest": "UNVERIFIED",
+    "kratos_patrol": "UNVERIFIED",
+    "hosted_exact_head_ci": "UNVERIFIED",
+    "independent_review": "PENDING",
+    "external_qualification": "NOT_PROVEN"
+  },
+  "health": "ORACLE_CLOUD_ROSTER_FAILED;KRATOS_TERMINAL_FAILED;GITHUB_AVAILABLE",
+  "movement": "SOURCE_HEAD_ADVANCED",
+  "supervisor_pool": {
+    "A": "HEALTHY",
+    "B": "HEALTHY",
+    "C": "HEALTHY",
+    "D": "CURRENT_SLOT_WITHIN_GRACE",
+    "E": "HEALTHY",
+    "all_enabled": true,
+    "schedules_changed": false
+  },
+  "nodie": {
+    "roster": "UNVERIFIED",
+    "geographic_location": "NOT_CONFIRMED",
+    "device_touched": false
+  },
+  "dependency": {
+    "upstream": "SAE-160 safe repository-only preparation",
+    "gated_by": "SAE-150 external independent qualification",
+    "downstream": "Genesis HOLD"
+  },
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "protected_merge": false,
+  "local_cookpit_attention_reconciled": false,
+  "local_dispatch_receipt_reconciled": false,
+  "disposition": "SOURCE_PUBLISHED_CLOUD_RECEIPT_NATIVE_PENDING",
+  "observed_at_utc": "2026-10-31T19:41:00Z",
+  "reconciliation": [
+    "When Oracle terminal returns, verify canonical origin/main registry and exact project branch; Patrol-preflight the real isolated SAE-160 workspace; run native pytest focused and adjacent; reconcile local attention and dispatch once; do not rebound guarded Cookpit PR #97 or merge without independent authorization."
+  ]
+}

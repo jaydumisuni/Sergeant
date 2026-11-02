@@ -1,0 +1,50 @@
+{
+  "schema": "ttg.sergeant.supervisor.dispatch.v1",
+  "shift": "E",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_CASEFOLD_REMOTE_SUBSECTION_IDENTITY_CUSTODY",
+  "time_utc": "2026-11-01T21:52:11.580923+00:00",
+  "before_head": "c170419adf998f0eb5dd04fa148077281483ac23",
+  "before_state": "24 Git-accepted, clean-checkout casefold aliases across local/worktree config were admitted by repository-only preflight",
+  "after_implementation_head": "07e7808857227ac9d7156139b9c19e8095fc5164",
+  "after_state": "NFKC+casefold identity collisions rejected before checkout Git; standalone noncolliding visible Unicode remains accepted",
+  "worker": "Shift E bounded isolated source patch; no persistent worker or lease claimed",
+  "action": "Patrol allow; test-first 24 RED; 25 focused PASS; 1107 native PASS; compile and diff check; candidate source commit",
+  "branch": "supervisor/shift-e-sae160-remote-casefold-20261101-2348",
+  "worktree": "/home/kratos/projects/SRG/.workspace/worktrees/sae160-remote-casefold-shift-e-20261101-2348",
+  "base_branch": "supervisor/shift-b-sae160-tifinagh-joiner-20261101-2212",
+  "proof": {
+    "patrol": "ALLOW",
+    "before_defect": "24 RED, 1 positive PASS",
+    "focused": "25/25 PASS",
+    "native_checkout_and_repository_only": "1107/1107 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "hosted": "PENDING",
+    "independent_review": "PENDING"
+  },
+  "engineering_health": {
+    "native": "PASS",
+    "hosted": "UNVERIFIED",
+    "review": "PENDING",
+    "external": "NOT_PROVEN",
+    "promotion": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "c170419adf998f0eb5dd04fa148077281483ac23",
+    "after_implementation_head": "07e7808857227ac9d7156139b9c19e8095fc5164",
+    "time_utc": "2026-11-01T21:52:11.580923+00:00"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external SC-2/SC-4 qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only preparation; Genesis HOLD",
+    "control": "Cookpit guarded PR97 rebind pending; live binding unchanged"
+  },
+  "disposition": "MATERIAL_SOURCE_IMPLEMENTED_NATIVE_PASS_REVIEW_PENDING",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "protected_merge": false
+}

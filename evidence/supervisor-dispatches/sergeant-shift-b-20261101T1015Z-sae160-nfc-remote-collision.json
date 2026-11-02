@@ -1,0 +1,41 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "B",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE-160 repository-only preflight: NFC-colliding remote subsection identities",
+  "observed_at_utc": "2026-11-01T10:15:21Z",
+  "before_head": "25a96851490deed195274678056407cd7e0896eb",
+  "after_implementation_head": "f36e24c6c3ade53911454ff3e5c05e589d6c19e1",
+  "before_state": "Disposable real-Git clone with distinct composed/decomposed remote names passed inspect_checkout with no blockers",
+  "after_state": "Different Git remote subsection spellings that normalize to one NFC identity fail closed; single decomposed and distinct accented identities remain permitted",
+  "worker": "Cookpit Supervisor Shift B via Oracle Live KRATOS direct terminal",
+  "action": "Patrol-approved isolated Sergeant worktree; reproduced defect, implemented canonical identity collision guard and nine regressions, published draft PR #288 stacked on PR #287",
+  "proof": {
+    "canonical_authority": "Cookpit origin/main:registry.json enables srg; oracle-phase27-prep absent",
+    "patrol": "ALLOW; inside registered project SRG",
+    "predecessor": "exact HEAD clean before edits",
+    "defect_reproduction": "BEFORE: no blockers; observed HEAD matches on NFC-colliding remote subsections",
+    "native_targeted": "9/9 PASS",
+    "native_affected_module": "237/237 PASS",
+    "native_sae160_preparation": "130/130 PASS",
+    "git_diff_check": "PASS",
+    "remote_compare": "1 ahead, 0 behind at implementation head; source/test only",
+    "independent_review": "PENDING; draft PR #288",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "engineering_health": "FOCUSED_NATIVE_PASS_REVIEW_PENDING",
+  "implementation_movement": "MATERIAL_PROJECT_SOURCE_COMMIT_PUBLISHED",
+  "material_movement_at_utc": "2026-11-01T10:15:21Z",
+  "disposition": "SOURCE_PUBLISHED_NATIVE_PASS_REVIEW_PENDING",
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification remains NOT_PROVEN",
+    "downstream": "SAE-160 clean-clone qualification and Genesis activation remain HOLD",
+    "protected_gate": "No Genesis activation or external qualification inferred"
+  },
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/288",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false
+}

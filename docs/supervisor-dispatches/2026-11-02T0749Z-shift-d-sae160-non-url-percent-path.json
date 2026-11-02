@@ -1,0 +1,51 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "D",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_NON_URL_REMOTE_LITERAL_PERCENT_TRIPLET_IDENTITY",
+  "time_utc": "2026-11-02T07:49:04.606Z",
+  "before_head": "e19cf1f0b4c13b1e43279b552c896e74135027e9",
+  "after_implementation_head": "4dfb15ae8ddf4896b08bd4a15696125a7b77e245",
+  "before_state": "Git accepts literal %E2%80%8B / %EF%B8%8F in local and SCP-style remote pathnames, but SAE-160 percent-decodes all remote values and incorrectly rejects these visible literal path bytes.",
+  "after_state": "One-pass percent decoding is limited to scheme:// URL-form remotes; raw Unicode validation remains for all remote values; 12 parametrized regression cases added for local/worktree and url/pushurl.",
+  "worker": "Shift D cloud-only bounded project-owned source implementation; no persistent worker/lease",
+  "action": "Recover exact PR299 and SAE-160 roadmap/handoff; inspect unresolved review thread; isolated GitHub branch from exact PR299 head; apply minimal source/test fix; synthetic Git config and decode proof; read back exact source/test diff",
+  "branch": "supervisor/shift-d-sae160-literal-percent-path-20261102-0936",
+  "worktree": "CLOUD_GITHUB_BRANCH_ONLY_KRATOS_UNAVAILABLE",
+  "proof": {
+    "oracle_live_cloud_roster": "UNVERIFIED_TOOL_INTERNAL_ERROR",
+    "kratos_terminal": "UNAVAILABLE_TOOL_INTERNAL_ERROR",
+    "patrol": "UNVERIFIED_KRATOS_UNAVAILABLE",
+    "git_config_synthetic": "PASS: Git accepted two non-URL literal percent-triplet paths; raw Unicode had no hidden mark; one-pass decoded view had concealed mark",
+    "synthetic_patch_cases": "PASS: 3 non-URL values accepted, 2 percent-encoded URL values rejected, malformed URL rejected",
+    "source_diff": "VERIFIED_GITHUB_COMPARE: 2 commits ahead, 0 behind; only preflight and test files changed",
+    "native_pytest": "UNVERIFIED_NOT_RUN",
+    "python_compile": "UNVERIFIED_NOT_RUN",
+    "hosted_exact_head": "PENDING",
+    "independent_review": "PENDING"
+  },
+  "engineering_health": {
+    "source": "PUBLISHED",
+    "native": "UNVERIFIED",
+    "hosted": "PENDING",
+    "review": "PENDING",
+    "external": "NOT_PROVEN",
+    "promotion": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "e19cf1f0b4c13b1e43279b552c896e74135027e9",
+    "after_implementation_head": "4dfb15ae8ddf4896b08bd4a15696125a7b77e245"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent SC-2/SC-4 qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only preparation; Genesis HOLD",
+    "control": "Cookpit PR97 guarded proposal only; no live timer rebound"
+  },
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_NATIVE_UNVERIFIED_REVIEW_PENDING",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "protected_merge": false
+}

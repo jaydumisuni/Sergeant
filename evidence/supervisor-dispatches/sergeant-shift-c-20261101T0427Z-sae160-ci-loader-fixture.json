@@ -1,0 +1,77 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.cloud.v1",
+  "shift": "C",
+  "project": "srg",
+  "project_repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE-160 exact-head hosted CI failure: test-only inherited loader isolation",
+  "canonical_registry": {
+    "repository": "jaydumisuni/cookpit",
+    "ref": "main",
+    "file": "registry.json",
+    "blob_sha": "b3d88fe65be9b5514b46d1b8d028c844bc4b78eb",
+    "project_enabled": true,
+    "oracle_phase27_enabled": false
+  },
+  "before": {
+    "head": "7a5af5f4de43ec029a0f055a9496b34f2b8202cb",
+    "pr": 284,
+    "ci_run": 41266550908,
+    "ci": "FAIL 68 new SAE-160 cases; 2593 pass 2 xfail; all 68 returned ambient_git_authority_override from inherited runner LD_LIBRARY_PATH"
+  },
+  "action": {
+    "kind": "cloud_source_only_test_implementation",
+    "worker": "Shift C authenticated GitHub fallback",
+    "branch": "supervisor/shift-e-sae160-ignorable-remote-marks-20261101-0448",
+    "changed_file": "tests/test_sae160_remote_ignorable_marks.py",
+    "change": "Autouse test-only isolation of runner LD_/DYLD_ and SSH agent overrides, mirroring existing SAE-160 repository-only test fixture; new regression proves injected LD_LIBRARY_PATH still blocks in production preflight",
+    "production_source_changed": false
+  },
+  "after": {
+    "implementation_head": "5993b450c26811dab4505d29b3ccad218a5e4ae1",
+    "test_blob_sha": "13ef439158cf9a5108e92bf2d1efde7934745ab5",
+    "source_test_readback": "MATCH",
+    "pr": 284,
+    "branch_published": true
+  },
+  "proof": {
+    "previous_exact_head_hosted_ci": "FAIL_68_NEW_CASES",
+    "failure_log": "https://github.com/jaydumisuni/Sergeant/actions/runs/41266550908",
+    "new_exact_head_hosted_ci": "PENDING",
+    "native_sergeant_pytest": "UNVERIFIED",
+    "kratos_patrol": "UNVERIFIED",
+    "independent_review": "PENDING",
+    "external_qualification": "NOT_PROVEN"
+  },
+  "health": {
+    "nodie_roster": "UNVERIFIED_ORACLE_INTERNAL_ERROR",
+    "kratos_terminal": "UNAVAILABLE_ORACLE_INTERNAL_ERROR",
+    "github": "AVAILABLE",
+    "supervisor_pool": {
+      "A": "HEALTHY",
+      "B": "HEALTHY",
+      "C": "CURRENT_SLOT_WITHIN_GRACE",
+      "D": "HEALTHY",
+      "E": "HEALTHY",
+      "missed": 0,
+      "catchups": 0,
+      "all_enabled": true,
+      "schedules_changed": false
+    }
+  },
+  "movement": "CI_FAILURE_CONSUMED_IN_TRACKED_TEST_DELTA",
+  "dependency": {
+    "upstream": "SAE-160 repository-only preparation",
+    "gated_by": "SAE-150 independent external qualification",
+    "downstream": "Genesis HOLD"
+  },
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "protected_merge": false,
+  "local_cookpit_attention_reconciled": false,
+  "local_dispatch_receipt_reconciled": false,
+  "disposition": "SOURCE_PUBLISHED_HOSTED_REQUALIFICATION_PENDING",
+  "observed_at_utc": "2026-11-01T04:27:17Z",
+  "reconciliation": [
+    "On KRATOS return verify canonical origin/main and Sergeant exact candidate, run Patrol/preflight on SAE-160 worktree, focused native pytest, reconcile cloud receipt and local attention without duplicate PASS. Keep SAE-150 and Genesis HOLD."
+  ]
+}

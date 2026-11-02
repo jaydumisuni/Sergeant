@@ -1,0 +1,54 @@
+{
+  "schema_version": "sergeant.sae150-genesis-lane-cardinality-authority-amendment-proposal.v1",
+  "lifecycle_state": "AUTHORITY_PROPOSAL",
+  "target_node": "SAE-150",
+  "target_branch": "roadmap/sae150-genesis-qualification-20260912",
+  "base_sae150_head": "ddf1b8b63680e124654fc6f0f541a3326c8f03c7",
+  "authority_gain_before_guarded_merge": "none",
+  "explicit_owner_root_approval_required": true,
+  "guarded_merge_required": true,
+  "consumption_authorized_before_guarded_merge": false,
+  "sources": {
+    "founding_architecture": {
+      "path": "docs/58-sergeant-assurance-evolution-founding-architecture.md",
+      "blob": "b7d7ea0cec987046ece2aecb554cc29d86aa447b"
+    },
+    "frozen_roadmap": {
+      "path": "docs/59-sergeant-assurance-evolution-roadmap.md",
+      "blob": "f54dd414da2c01284c94a3f7349030da0cda4457"
+    },
+    "sae20_proven": {
+      "path": "docs/85-sae20-proven-lifecycle-closeout-manifest.json",
+      "blob": "292590bb429a0bbd7e5376afa3a79698e3705345"
+    },
+    "spike_ext_proven": {
+      "path": "docs/69-spike-ext-proven-lifecycle-closeout-manifest.json",
+      "blob": "5a42072517efef7c1e621f12a99e9e2cbf610281"
+    }
+  },
+  "proposed_ratification": {
+    "lane_id": "genesis-independent",
+    "minimum_instances": 2,
+    "minimum_distinct_source_classes": 2,
+    "independence_required": true,
+    "accepted_source_classes": [
+      "SC-1",
+      "SC-2",
+      "SC-3",
+      "SC-4",
+      "SC-6"
+    ],
+    "excluded_standalone_source_classes": [
+      "SC-5"
+    ]
+  },
+  "effect_if_approved_and_guarded_merged": {
+    "lane_cardinality_ratified": true,
+    "removes_only_blocker": "GENESIS_LANE_CARDINALITY_UNRATIFIED",
+    "materially_independent_external_evidence_created": false,
+    "provenance_verifier_rooted": false,
+    "genesis_activated": false,
+    "normal_verdict_authority_changed": false,
+    "candidate_merge_authorized": false
+  }
+}

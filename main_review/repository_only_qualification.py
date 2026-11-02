@@ -1,0 +1,260 @@
+"""SAE-160 repository-only qualification preparation.
+
+This module is intentionally preparatory. It can determine whether the complete
+SAE-160 evidence census is present and internally coherent, but it cannot freeze
+or activate Genesis authority. SAE-150 remains an explicit prerequisite.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, replace
+from typing import Iterable
+
+from .review_world import (
+    ReviewWorldError,
+    require_full_sha256,
+    require_git_object_id,
+    sha256_id,
+)
+
+SAE150_PROVISIONAL_STATE = "GENESIS_PROVISIONAL"
+SAE150_COMPLETE_STATE = "GENESIS_QUALIFICATION_PACKAGE_CANDIDATE"
+SAE150_STATES = (SAE150_PROVISIONAL_STATE, SAE150_COMPLETE_STATE)
+SAE160_READY = "READY_FOR_INDEPENDENT_QUALIFICATION"
+SAE160_WAITING_SAE150 = "PREPARED_WAITING_SAE150"
+SAE160_INCOMPLETE = "PREPARATION_INCOMPLETE"
+
+REQUIRED_EVIDENCE_KINDS = (
+    "clean_clone",
+    "no_private_helper",
+    "no_hidden_mutable_workspace_authority",
+    "exact_package_install_path",
+    "model_disabled",
+    "cpu_operation",
+    "rust_independence",
+    "external_provenance",
+    "complete_qualification_corpus",
+    "exact_head_hostile_review",
+    "no_unresolved_mandatory_threads",
+)
+
+
+class RepositoryOnlyQualificationError(ReviewWorldError):
+    """Raised when SAE-160 preparation evidence is malformed."""
+
+
+@dataclass(frozen=True)
+class RepositoryOnlyEvidence:
+    """One exact, content-addressed SAE-160 evidence item."""
+
+    kind: str
+    subject_generation: str
+    basis_id: str
+    passed: bool
+    evidence_id: str
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        kind: str,
+        subject_generation: str,
+        basis_id: str,
+        passed: bool,
+    ) -> "RepositoryOnlyEvidence":
+        if cls is not RepositoryOnlyEvidence:
+            raise RepositoryOnlyQualificationError("non-canonical SAE-160 evidence factory")
+        if type(kind) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
+        if kind not in REQUIRED_EVIDENCE_KINDS:
+            raise RepositoryOnlyQualificationError(f"unknown SAE-160 evidence kind: {kind}")
+        if type(subject_generation) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 subject_generation")
+        if type(basis_id) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 basis_id")
+        try:
+            generation = require_git_object_id(subject_generation, "SAE-160 subject_generation")
+            basis = require_full_sha256(basis_id, "SAE-160 basis_id")
+        except (TypeError, ValueError, ReviewWorldError) as exc:
+            raise RepositoryOnlyQualificationError(str(exc)) from exc
+        if not isinstance(passed, bool):
+            raise RepositoryOnlyQualificationError("passed must be boolean")
+        body = {
+            "schema_version": "sergeant.sae160.repository-only-evidence.v1",
+            "kind": kind,
+            "subject_generation": generation,
+            "basis_id": basis,
+            "passed": passed,
+        }
+        return cls(
+            kind=kind,
+            subject_generation=generation,
+            basis_id=basis,
+            passed=passed,
+            evidence_id=sha256_id(body),
+        )
+
+
+@dataclass(frozen=True)
+class RepositoryOnlyPreparation:
+    """Fail-closed SAE-160 preparation result with no authority gain."""
+
+    state: str
+    subject_generation: str
+    sae150_state: str
+    sae150_package_id: str
+    satisfied: tuple[str, ...]
+    missing: tuple[str, ...]
+    failed: tuple[str, ...]
+    blockers: tuple[str, ...]
+    evidence_ids: tuple[str, ...]
+    evidence_by_kind: tuple[tuple[str, str], ...]
+    authority_gain: str
+    preparation_id: str
+
+
+def evaluate_repository_only_preparation(
+    *,
+    subject_generation: str,
+    sae150_state: str,
+    sae150_package_id: str,
+    evidence: Iterable[RepositoryOnlyEvidence],
+) -> RepositoryOnlyPreparation:
+    """Evaluate exact-head SAE-160 readiness without freezing or activating authority."""
+    if type(subject_generation) is not str:
+        raise RepositoryOnlyQualificationError("non-string SAE-160 subject_generation")
+    if type(sae150_package_id) is not str:
+        raise RepositoryOnlyQualificationError("non-string SAE-160 sae150_package_id")
+    try:
+        generation = require_git_object_id(subject_generation, "subject_generation")
+        package_id = require_full_sha256(sae150_package_id, "sae150_package_id")
+    except (TypeError, ValueError, ReviewWorldError) as exc:
+        raise RepositoryOnlyQualificationError(str(exc)) from exc
+
+    if type(sae150_state) is not str or not sae150_state.strip(" "):
+        raise RepositoryOnlyQualificationError("sae150_state must be a non-empty string")
+    canonical_sae150_state = sae150_state.strip(" ")
+    if canonical_sae150_state not in SAE150_STATES:
+        raise RepositoryOnlyQualificationError(f"unknown sae150_state: {canonical_sae150_state}")
+
+    if isinstance(evidence, (str, bytes)):
+        raise RepositoryOnlyQualificationError("evidence must be a non-string iterable")
+
+    try:
+        iterator = iter(evidence)
+    except Exception as exc:
+        raise RepositoryOnlyQualificationError(
+            "evidence must be an iterable of canonical SAE-160 records"
+        ) from exc
+
+    by_kind: dict[str, RepositoryOnlyEvidence] = {}
+    evidence_ids: set[str] = set()
+    basis_ids: set[str] = set()
+    # Validate each item before pulling another: invalid evidence must not
+    # trigger later collector side effects. The extra pull bounds streams.
+    for _ in range(len(REQUIRED_EVIDENCE_KINDS) + 1):
+        try:
+            row = next(iterator)
+        except StopIteration:
+            break
+        except Exception as exc:
+            raise RepositoryOnlyQualificationError(
+                "evidence must be an iterable of canonical SAE-160 records"
+            ) from exc
+        if type(row) is not RepositoryOnlyEvidence:
+            raise RepositoryOnlyQualificationError("evidence contains non-canonical SAE-160 records")
+        # Freeze the record before validation and hashing: a collector may
+        # mutate its original frozen instance via object.__setattr__.
+        try:
+            row = replace(row)
+        except (AttributeError, TypeError) as exc:
+            raise RepositoryOnlyQualificationError(
+                "incomplete canonical SAE-160 evidence record"
+            ) from exc
+        if type(row.kind) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence kind")
+        if type(row.subject_generation) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence subject_generation")
+        if type(row.basis_id) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence basis_id")
+        if type(row.evidence_id) is not str:
+            raise RepositoryOnlyQualificationError("non-string SAE-160 evidence identity")
+        if row.kind not in REQUIRED_EVIDENCE_KINDS:
+            raise RepositoryOnlyQualificationError(
+                f"unknown SAE-160 evidence kind: {row.kind}"
+            )
+        try:
+            require_full_sha256(row.basis_id, "SAE-160 basis_id")
+        except (TypeError, ValueError, ReviewWorldError) as exc:
+            raise RepositoryOnlyQualificationError(str(exc)) from exc
+        if not isinstance(row.passed, bool):
+            raise RepositoryOnlyQualificationError("passed must be boolean")
+        if row.subject_generation != generation:
+            raise RepositoryOnlyQualificationError(
+                "SAE-160 evidence subject_generation does not match exact candidate"
+            )
+        expected_id = sha256_id({
+            "schema_version": "sergeant.sae160.repository-only-evidence.v1",
+            "kind": row.kind,
+            "subject_generation": row.subject_generation,
+            "basis_id": row.basis_id,
+            "passed": row.passed,
+        })
+        if row.evidence_id != expected_id:
+            raise RepositoryOnlyQualificationError("SAE-160 evidence identity is non-canonical")
+        if row.kind in by_kind:
+            raise RepositoryOnlyQualificationError(f"duplicate SAE-160 evidence kind: {row.kind}")
+        if row.evidence_id in evidence_ids:
+            raise RepositoryOnlyQualificationError("duplicate SAE-160 evidence identity")
+        if row.basis_id in basis_ids:
+            raise RepositoryOnlyQualificationError("duplicate SAE-160 evidence basis")
+        # Only the validated snapshot enters the preparation census.
+        by_kind[row.kind] = row
+        evidence_ids.add(row.evidence_id)
+        basis_ids.add(row.basis_id)
+
+    satisfied = tuple(
+        kind for kind in REQUIRED_EVIDENCE_KINDS
+        if kind in by_kind and by_kind[kind].passed
+    )
+    missing = tuple(kind for kind in REQUIRED_EVIDENCE_KINDS if kind not in by_kind)
+    failed = tuple(kind for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind and not by_kind[kind].passed)
+    blockers = [*missing, *failed]
+    sae150_incomplete = canonical_sae150_state != SAE150_COMPLETE_STATE
+    if sae150_incomplete:
+        blockers.append("sae150_prerequisite")
+
+    if missing or failed:
+        state = SAE160_INCOMPLETE
+    elif sae150_incomplete:
+        state = SAE160_WAITING_SAE150
+    else:
+        state = SAE160_READY
+
+    body = {
+        "schema_version": "sergeant.sae160.repository-only-preparation.v1",
+        "state": state,
+        "subject_generation": generation,
+        "sae150_state": canonical_sae150_state,
+        "sae150_package_id": package_id,
+        "satisfied": list(satisfied),
+        "missing": list(missing),
+        "failed": list(failed),
+        "blockers": sorted(blockers),
+        "evidence_ids": sorted(evidence_ids),
+        "evidence_by_kind": [[kind, by_kind[kind].evidence_id] for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind],
+        "authority_gain": "NONE",
+    }
+    return RepositoryOnlyPreparation(
+        state=state,
+        subject_generation=generation,
+        sae150_state=canonical_sae150_state,
+        sae150_package_id=package_id,
+        satisfied=satisfied,
+        missing=missing,
+        failed=failed,
+        blockers=tuple(sorted(blockers)),
+        evidence_ids=tuple(sorted(evidence_ids)),
+        evidence_by_kind=tuple((kind, by_kind[kind].evidence_id) for kind in REQUIRED_EVIDENCE_KINDS if kind in by_kind),
+        authority_gain="NONE",
+        preparation_id=sha256_id(body),
+    )

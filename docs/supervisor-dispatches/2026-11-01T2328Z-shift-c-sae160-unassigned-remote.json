@@ -1,0 +1,36 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "C",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_UNASSIGNED_UNICODE_REMOTE_IDENTITY_CUSTODY",
+  "time_utc": "2026-11-01T23:28:44Z",
+  "before_head": "2a419e0a53093161f5209561b6a0ffe191f248d5",
+  "before_state": "Git accepts three unassigned Unicode scalars in local/worktree remote metadata; checkout preflight accepted a clean checkout (24 adversarial fixtures RED)",
+  "after_implementation_head": "105d3cf1fc8e81f7232de9c3959c1981b8ea5210",
+  "after_state": "Unassigned Unicode remote subsection identities rejected before checkout Git probes; 24 adversarial cases and visible Unicode positive controls pass",
+  "worker": "Shift C bounded isolated project-owned implementation, no persistent lease",
+  "action": "Patrol check ALLOW; test-first 24 RED; 35 tracked source/test lines; native regression 1131 PASS; source commit",
+  "worktree": "/home/kratos/projects/SRG/.workspace/worktrees/sae160-unassigned-remote-shift-c-20261102-0124",
+  "branch": "supervisor/shift-c-sae160-unassigned-remote-20261102-0124",
+  "proof": {
+    "patrol": "ALLOW",
+    "predecessor": "24 RED",
+    "native": "1131/1131 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "remote_exact_head": "PENDING_PUBLICATION",
+    "independent_review": "PENDING",
+    "hosted": "NOT_RUN"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent SC-2/SC-4 external qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only prep; Genesis HOLD",
+    "control": "Cookpit PR97 guarded rebind pending; live timer unchanged"
+  },
+  "disposition": "MATERIAL_SOURCE_COMMITTED_REVIEW_AND_REMOTE_PUBLICATION_PENDING",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "protected_merge": false
+}

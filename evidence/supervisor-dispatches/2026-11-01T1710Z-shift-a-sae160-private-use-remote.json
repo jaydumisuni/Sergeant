@@ -1,0 +1,36 @@
+{
+  "schema": "ttg.sergeant.supervisor.dispatch.v1",
+  "shift": "A",
+  "project": "srg",
+  "frontier": "SAE160_PRIVATE_USE_REMOTE_IDENTITY_CUSTODY",
+  "observed_at_utc": "2026-11-01T17:10:00Z",
+  "before_head": "967077780b8a5ec01a922c5f5bdbe56952b565e7",
+  "before_state": "Git accepted Unicode private-use glyphs in local/worktree remote names and fetch/push URL identities without rejection by repository-only checkout preflight.",
+  "worker": "Shift A via Oracle Live KRATOS, isolated SRG project-owned worktree",
+  "action": "Patrol ALLOW; predecessor RED reproduced; reject Unicode category Co in remote names and URLs; 36 new cases PASS; 802 native SAE160/SAE150/Genesis tests PASS; non-force push; draft PR #292.",
+  "after_implementation_head": "8510da6f1f96b50e9ddd50597a625e17fc7ad61f",
+  "after_state": "Remote name/URL private-use identity ambiguity rejected before checkout Git probes; authority_gain remains NONE.",
+  "proof": {
+    "patrol": "ALLOW",
+    "predecessor": "2/2 RED sampled; standalone reproduction admitted private-use remote name",
+    "focused": "36/36 PASS",
+    "native": "802/802 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "remote_source_head": "8510da6f1f96b50e9ddd50597a625e17fc7ad61f",
+    "independent_review": "PENDING",
+    "hosted_ci": "QUEUED_OR_IN_PROGRESS_NOT_PASS"
+  },
+  "engineering_health": "NATIVE_802_PASS_SOURCE_REMOTE_MATCH_HOSTED_IN_PROGRESS_REVIEW_PENDING_SAE150_HOLD",
+  "implementation_movement": "MATERIAL_SOURCE_HEAD_ADVANCED",
+  "dependency_linkage": {
+    "upstream": "SAE-150 external independent qualification NOT_PROVEN",
+    "downstream": "SAE-160 full qualification and Genesis activation HOLD",
+    "control": "Cookpit SRG guarded rebind PR #97 pending; no live rebind"
+  },
+  "candidate_pr": "https://github.com/jaydumisuni/Sergeant/pull/292",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_NATIVE_PASS_REVIEW_AND_HOSTED_PENDING"
+}

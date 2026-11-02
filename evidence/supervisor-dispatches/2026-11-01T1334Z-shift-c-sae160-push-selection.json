@@ -1,0 +1,40 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "C",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_UNBOUND_PUSH_SELECTION_CONFIG",
+  "observed_at_utc": "2026-11-01T13:34:52.743635+00:00",
+  "before_head": "57af127fec015bc89b31ba63eb896ac2bd23fdd4",
+  "after_implementation_head": "34426c3967260f210d7e84f46199856f67879971",
+  "before_state": "Explicit local/worktree branch/remote/global push-selection controls accepted by repository-only checkout preflight.",
+  "after_state": "Five explicit push-selection config families fail closed before checkout Git; normal branch tracking remains valid.",
+  "worker": "Shift C via authenticated Oracle Live KRATOS terminal; isolated SRG worktree",
+  "action": "Patrol ALLOW; RED real Git fixture; two-file source and regression correction; native focused and adjacent qualification; non-force branch push; draft PR #290",
+  "proof": {
+    "patrol": "ALLOW SRG",
+    "red": "branch.main.pushRemote accepted on predecessor",
+    "focused": "11/11 PASS",
+    "native_sae160": "964/964 PASS",
+    "git_diff_check": "PASS",
+    "remote_source_head": "34426c3967260f210d7e84f46199856f67879971",
+    "independent_review": "PENDING",
+    "hosted_ci": "UNVERIFIED",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "engineering_health": "NATIVE_PASS_HOSTED_UNVERIFIED_REVIEW_PENDING",
+  "implementation_movement": "MATERIAL_SOURCE_COMMIT_PUBLISHED",
+  "material_movement_at_utc": "2026-11-01T13:34:52.743635+00:00",
+  "disposition": "SOURCE_PUBLISHED_NATIVE_PASS_REVIEW_PENDING",
+  "dependency_linkage": {
+    "upstream": "SAE-150 external independent qualification NOT_PROVEN",
+    "downstream": "SAE-160 full qualification and Genesis activation HOLD",
+    "control": "Cookpit guarded SRG worktree rebind PR #97 pending; live binding unchanged"
+  },
+  "candidate_branch": "supervisor/shift-c-sae160-push-selector-20261101-1524",
+  "candidate_pr": "https://github.com/jaydumisuni/Sergeant/pull/290",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false
+}

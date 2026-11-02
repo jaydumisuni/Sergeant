@@ -1,0 +1,65 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.cloud.v1",
+  "shift": "D",
+  "project": "srg",
+  "project_repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE-160 repository-only explicit tag-prune authority custody",
+  "canonical_registry": {
+    "repository": "jaydumisuni/cookpit",
+    "ref": "main",
+    "file": "registry.json",
+    "project_enabled": true,
+    "oracle_phase27_enabled": false
+  },
+  "before": {
+    "head": "e59cabf2486c4bdd63cb6445f61202659577ce1c",
+    "branch": "supervisor/shift-c-sae160-tagopt-20261031-1922",
+    "state": "SAE-160 preparation; independent review pending; no Genesis authority"
+  },
+  "action": {
+    "kind": "cloud_source_only_implementation",
+    "worker": "Shift D authenticated GitHub fallback",
+    "branch": "supervisor/shift-d-sae160-prunetags-custody-20261031-2033",
+    "description": "Reject local/worktree explicit fetch.pruneTags and remote.*.pruneTags policies that can delete local tag refs outside remote tracking namespace",
+    "files": [
+      "main_review/sae160_checkout_preflight.py",
+      "tests/test_sae160_checkout_preflight.py"
+    ],
+    "adversarial_cases": 24,
+    "positive_cases": 16
+  },
+  "after": {
+    "implementation_head": "e1a6a6e42f97b1c5444b954ae3fc5340ad2899df",
+    "tree": "67b2c6fcc07d91052128af24e5befa5dda5ec991",
+    "pr": 279,
+    "source_blobs_verified": true,
+    "project_branch_published": true
+  },
+  "proof": {
+    "real_git_tag_deletion_reproductions": "2/2 PASS",
+    "isolated_git_config_parser": "40/40 PASS",
+    "github_source_test_readback": "PASS",
+    "native_project_pytest": "UNVERIFIED",
+    "kratos_patrol": "UNVERIFIED",
+    "hosted_exact_head_ci": "QUEUED_OR_IN_PROGRESS",
+    "independent_review": "PENDING",
+    "physical_or_external_qualification": "NOT_PROVEN"
+  },
+  "health": "CLOUD_TRANSPORT_AVAILABLE_ORACLE_ROSTER_FAILED",
+  "movement": "SOURCE_HEAD_ADVANCED",
+  "dependency": {
+    "upstream": "SAE-160 safe preparatory implementation",
+    "gated_by": "SAE-150 independent external qualification",
+    "downstream": "Genesis remains HOLD"
+  },
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "protected_merge": false,
+  "local_cookpit_attention_reconciled": false,
+  "local_dispatch_receipt_reconciled": false,
+  "disposition": "SOURCE_PUBLISHED_CLOUD_RECEIPT_NATIVE_PENDING",
+  "observed_at_utc": "2026-10-31T18:36:41Z",
+  "reconciliation": [
+    "On KRATOS recovery verify canonical origin/main registry and project-owned branch/head; run Patrol on actual isolated SAE-160 workspace; run focused and relevant native pytest; reconcile local attention/dispatch exactly once; do not rebound guarded Cookpit PR #97 without approval."
+  ]
+}
