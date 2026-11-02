@@ -786,10 +786,16 @@ def inspect_checkout(
                         or not canonical_remote_name(remote)):
                     blockers.append("external_git_metadata")
                     break
-                # URL consumers percent-decode path bytes. Raw Git config
-                # values can therefore conceal the same forbidden Unicode
-                # identity behind ASCII %HH escapes. Validate the one-pass
-                # decoded UTF-8 view, preserving valid encoded visible text.
+                # URL-form remotes may be percent-decoded by URL consumers.
+                # Require complete hex triplets there before one-pass UTF-8
+                # validation. Bare local Git paths are not URL-decoded and
+                # may legitimately contain literal malformed percent text.
+                if (re.match(r"^[^:/\s]+://", url)
+                        and re.search(r"%(?![0-9A-Fa-f]{2})", url)):
+                    blockers.append("external_git_metadata")
+                    break
+                # Validate the one-pass decoded UTF-8 view while preserving
+                # valid encoded visible text and literal escaped percent.
                 try:
                     decoded_url = unquote(url, encoding="utf-8", errors="strict")
                 except UnicodeDecodeError:
@@ -839,8 +845,14 @@ def inspect_checkout(
                 # authenticated HTTP endpoint despite the extra slash.
                 # Require a nonempty authority immediately after // rather
                 # than trusting the first slash to delimit credentials.
-                if (re.match(r"^https?:///", url)
-                        or re.match(r"^https?://[^/?#]*@", url)):
+                # Percent-encoded @ can convert a reviewed host into HTTP
+                # userinfo after URL decoding (host%40other-host). Check both
+                # original and one-pass decoded authority; encoded @ in the
+                # path remains ordinary visible repository-path punctuation.
+                if any(
+                    re.match(r"^https?:///|^https?://[^/?#]*@", candidate)
+                    for candidate in (url, decoded_url)
+                ):
                     blockers.append("external_git_metadata")
                     break
                 transport = re.match(

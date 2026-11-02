@@ -474,3 +474,95 @@ def test_malformed_percent_encoded_remote_url_fails_closed(
     assert result.blockers == ("external_git_metadata",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("invalid_escape", ("%", "%0", "%G0", "%2G", "%%41"))
+def test_invalid_percent_escape_remote_url_identity_fails_closed(
+    tmp_path: Path, scope: str, suffix: str, invalid_escape: str,
+) -> None:
+    """Malformed URL escapes cannot establish stable checkout remote identity."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    url = f"https://example.invalid/review{invalid_escape}path.git"
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", url)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == url
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("encoded", ("%25", "%41"))
+def test_valid_percent_escape_remote_url_identity_remains_supported(
+    tmp_path: Path, encoded: str,
+) -> None:
+    """Valid escaped percent and visible ASCII preserve checkout-only proof."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "remote.origin.url",
+        f"https://example.invalid/review{encoded}path.git")
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("path_value", ("/srv/50%off.git", "../repo%ZZ.git"))
+def test_bare_local_path_remote_with_literal_percent_remains_supported(
+    tmp_path: Path, scope: str, suffix: str, path_value: str,
+) -> None:
+    """Git local-path remotes are not URL-decoded; literal percent is valid."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", path_value)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == path_value
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("url", (
+    "https://user%3Asecret%40example.invalid/repo.git",
+    "https://example.invalid%40attacker.invalid/repo.git",
+    "https://user%40example.invalid/repo.git",
+))
+def test_encoded_http_userinfo_in_remote_authority_fails_closed(
+    tmp_path: Path, scope: str, suffix: str, url: str,
+) -> None:
+    """Encoded @ can move the reviewed HTTP authority into userinfo."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", url)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == url
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("url", (
+    "https://example.invalid/repo%40visible.git",
+    "https://example.invalid/repo%3Avisible.git",
+))
+def test_encoded_http_path_punctuation_remains_supported(
+    tmp_path: Path, suffix: str, url: str,
+) -> None:
+    """Encoded path punctuation is not HTTP userinfo or a host alias."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", f"remote.origin.{suffix}", url)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
