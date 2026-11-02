@@ -1,0 +1,40 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "B",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_REVIEW_FINDING_LOCAL_PERCENT_REMOTE_PATH_FALSE_POSITIVE",
+  "time_utc": "2026-11-02T06:22:32.686200+00:00",
+  "before_head": "8d747ae9b1a0af6baf21e11a6efc42e3b567f7f0",
+  "after_implementation_head": "21afb4e62393aedc788247590465f75b8cff9c88",
+  "before_state": "PR299 review identified local Git path false positive: literal malformed percent rejected despite no URL decoding",
+  "after_state": "Malformed percent guard restricted to scheme:// URL-form remote; bare local paths preserved; URL negative controls remain",
+  "worker": "Shift B bounded review-consumption source step, no persistent worker",
+  "action": "Consume CodeRabbit PR299 exact-head review finding; 8 RED first; source correction; 1265 native PASS",
+  "worktree": "/home/kratos/projects/SRG/.workspace/worktrees/sae160-percent-escape-shift-b-20261102-0612",
+  "branch": "supervisor/shift-b-sae160-percent-escape-syntax-20261102-0612",
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/299",
+  "review_finding": "https://github.com/jaydumisuni/Sergeant/pull/299#discussion_r4438880058",
+  "proof": {
+    "predecessor": "8 RED local-path controls; 377 deselected",
+    "corrected_focused": "385/385 PASS",
+    "sae160_genesis_sae150": "192/192 PASS",
+    "native_total": "1265/1265 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "patrol": "UNVERIFIED_NO_X_SERVER",
+    "hosted_exact_head": "PENDING_NEW_COMMIT",
+    "independent_review": "FINDING_CONSUMED_RE_REVIEW_PENDING",
+    "external_sae150": "NOT_PROVEN"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE150 SC-2/SC-4 independent external qualification NOT_PROVEN",
+    "downstream": "SAE160 repository-only preparation; Genesis HOLD",
+    "control": "Cookpit PR97 guarded proposal; no live rebound"
+  },
+  "disposition": "REVIEW_FINDING_CONSUMED_MATERIAL_SOURCE_DELTA_NATIVE_PASS_REVIEW_PENDING",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "protected_merge": false
+}
