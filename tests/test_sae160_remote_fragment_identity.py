@@ -7,10 +7,25 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+import os
 
 import pytest
 
 from main_review.sae160_checkout_preflight import inspect_checkout
+
+
+@pytest.fixture(autouse=True)
+def _isolate_runner_transport_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep CI loader, proxy, and credential overrides out of Git fixtures."""
+    for name in tuple(os.environ):
+        if name.startswith(("LD_", "DYLD_", "GIT_HTTP_", "GIT_CURL_")) or name in (
+            "SSH_AUTH_SOCK", "SSH_AGENT_PID", "GIT_TERMINAL_PROMPT",
+            "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+            "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+            "SSL_CERT_FILE", "SSL_CERT_DIR", "CURL_CA_BUNDLE",
+            "SSLKEYLOGFILE",
+        ):
+            monkeypatch.delenv(name, raising=False)
 
 
 def git(path: Path, *args: str) -> str:
