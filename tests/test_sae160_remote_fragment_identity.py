@@ -131,3 +131,27 @@ def test_fixture_ignores_global_commit_signing_policy(tmp_path: Path, monkeypatc
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize(
+    "ambient_name",
+    sorted(_REJECTED_AMBIENT_NAMES)
+    + [prefix + "SAE160_PROBE" for prefix in _REJECTED_AMBIENT_PREFIXES],
+)
+def test_ambient_transport_overrides_fail_before_checkout_git(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, ambient_name: str
+) -> None:
+    """Even an empty inherited override is authority, not checkout evidence."""
+    path, head = checkout(tmp_path)
+    # Use an empty value to verify presence-based rejection rather than
+    # relying on a truthy string or Git's own interpretation of the setting.
+    monkeypatch.setenv(ambient_name, "")
+
+    def unexpected_git_probe(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("ambient authority must be rejected before git")
+
+    monkeypatch.setattr(subprocess, "run", unexpected_git_probe)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
