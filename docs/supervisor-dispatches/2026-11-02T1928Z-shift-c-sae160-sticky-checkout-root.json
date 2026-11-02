@@ -1,0 +1,61 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "C",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_STICKY_CHECKOUT_ROOT_CUSTODY",
+  "time_utc": "2026-11-02T19:28:24Z",
+  "canonical_cookpit_registry_blob": "b3d88fe65be9b5514b46d1b8d028c844bc4b78eb",
+  "canonical_cookpit_main_prior_verified": "aa49182ce91c5261ac49d04d9d297fea6fe39b8d",
+  "before_head": "a34f0a0ff1bdae9fb3010247875fd42d9360a433",
+  "after_source_head": "15dbb725adcb6859bf1ff7dd694e2e7ff3b2a261",
+  "branch": "supervisor/shift-c-sae160-sticky-checkout-root-20261102-2124",
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/306",
+  "before_state": "Root-owned sticky directory exception applied to the checkout root as well as ancestors; peer-writable checkout root could be treated as immutable workspace custody despite non-atomic clean status.",
+  "worker_action": "Cloud GitHub source-only correction on exact PR305 predecessor: disallow peer-writable checkout root even when root-owned and sticky, while preserving trusted root-owned sticky ancestor exception; add 2 synthetic POSIX permission regressions.",
+  "after_state": "Initial preflight, pre-Git ancestry recheck and final readback distinguish checkout root from sticky ancestors. Both synthetic cases require fail-closed mutable_checkout_ancestry without Git subprocess.",
+  "proof": {
+    "source_blob_readback": "PASS_cf298dcad5d7fc7b731195d681fe6d349d48cce8",
+    "test_blob_readback": "PASS_a084d31f1a996e2fbeef3d19451c161fff4cf09a",
+    "static_contract_assertions": "PASS_8_OF_8",
+    "github_pr_exact_head": "PASS_15dbb725adcb6859bf1ff7dd694e2e7ff3b2a261",
+    "native_pytest": "UNVERIFIED_KRATOS_ORACLE_TRANSPORT_FAILED",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_TRANSPORT_FAILED",
+    "hosted_exact_head_ci": "QUEUED_OR_IN_PROGRESS_NOT_PASS",
+    "independent_exact_head_review": "PENDING"
+  },
+  "implementation_movement": {
+    "material": true,
+    "kind": "tracked_source_and_test_delta",
+    "before_head": "a34f0a0ff1bdae9fb3010247875fd42d9360a433",
+    "after_source_head": "15dbb725adcb6859bf1ff7dd694e2e7ff3b2a261",
+    "added_synthetic_cases": 2
+  },
+  "engineering_health": {
+    "source_readback": "PASS",
+    "native": "UNVERIFIED",
+    "hosted": "PENDING",
+    "review": "PENDING",
+    "sae150": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only preparatory custody; Genesis HOLD"
+  },
+  "supervisor_pool": {
+    "A": "HEALTHY",
+    "B": "HEALTHY",
+    "C": "CURRENT_SLOT_WITHIN_GRACE_NOT_JUDGED",
+    "D": "HEALTHY",
+    "E": "LATE_BUT_COMPLETED"
+  },
+  "nodie_roster": "UNVERIFIED_ORACLE_LIVE_INTERNAL_FAILURE",
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_NATIVE_AND_REVIEW_PENDING"
+}
