@@ -51,3 +51,48 @@ def test_root_owned_sticky_checkout_root_fails_before_git(
     assert result.blockers == ("mutable_checkout_ancestry",)
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX sticky directory custody")
+@pytest.mark.parametrize(
+    ("permissions", "owner_is_root", "expected_blocker"),
+    (
+        (0o1777, True, "unverified_git_control_custody"),
+        (0o1770, True, "unverified_git_control_custody"),
+        (0o1777, False, "mutable_checkout_ancestry"),
+    ),
+)
+def test_sticky_ancestor_exception_requires_root_ownership(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    permissions: int,
+    owner_is_root: bool,
+    expected_blocker: str,
+) -> None:
+    """Trusted sticky ancestors remain permitted; foreign-owned ones do not."""
+    checkout = tmp_path / "checkout"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+
+    original_lstat = Path.lstat
+
+    def simulated_lstat(path: Path) -> os.stat_result:
+        metadata = original_lstat(path)
+        if path == tmp_path:
+            fields = list(metadata)
+            fields[0] = stat.S_IFDIR | permissions
+            fields[4] = 0 if owner_is_root else os.geteuid() + 1
+            return os.stat_result(fields)
+        return metadata
+
+    monkeypatch.setattr(Path, "lstat", simulated_lstat)
+    monkeypatch.setattr(os, "environ", {})
+
+    def unexpected_git(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("incomplete synthetic checkout must not invoke Git")
+
+    monkeypatch.setattr(subprocess, "run", unexpected_git)
+    result = inspect_checkout(checkout, "a" * 40)
+    assert result.blockers == (expected_blocker,)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
