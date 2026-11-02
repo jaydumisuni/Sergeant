@@ -122,7 +122,7 @@ def test_fixture_ignores_global_commit_signing_policy(tmp_path: Path, monkeypatc
     """A runner's global gpgSign setting must not break fixture setup."""
     home = tmp_path / "home"
     home.mkdir()
-    (home / ".gitconfig").write_text("[commit]\\n    gpgSign = true\\n")
+    (home / ".gitconfig").write_text("[commit]\n    gpgSign = true\n")
     monkeypatch.setenv("HOME", str(home))
     workspace = tmp_path / "workspace"
     workspace.mkdir()
