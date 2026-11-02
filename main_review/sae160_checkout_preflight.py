@@ -817,6 +817,11 @@ def inspect_checkout(
                     # stable reviewable identity across hosts/Unicode versions.
                     or unicodedata.category(char) in {"Co", "Cn"}
                     or _unicode_noncharacter(char)
+                    # These assigned slash/backslash lookalikes are allowed
+                    # by Git but can render as path delimiters in remote
+                    # destination evidence. Apply the same narrow exclusion
+                    # already enforced for remote subsection identities.
+                    or char in "\u2044\u2215\u29f8\uff0f\u2216\uff3c"
                     # Default-ignorable non-Cf scalars can conceal a remote
                     # destination just as they conceal a remote config name.
                     # Keep visible Unicode URL paths and ordinary spaces.

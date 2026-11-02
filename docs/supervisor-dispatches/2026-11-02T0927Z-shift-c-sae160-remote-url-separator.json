@@ -1,0 +1,46 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "C",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_REMOTE_URL_SEPARATOR_LOOKALIKE_CUSTODY",
+  "time_utc": "2026-11-02T09:28:15.305376Z",
+  "before_head": "e19cf1f0b4c13b1e43279b552c896e74135027e9",
+  "implementation_head": "60d28942990d2ad7807ceef1e3b3017e5014a3fb",
+  "worktree": "/home/kratos/projects/SRG/.workspace/worktrees/sae160-url-separator-shift-c-20261102-1124",
+  "branch": "supervisor/shift-c-sae160-url-separator-20261102-1124",
+  "before_state": "Clean exact predecessor admitted Git remote URL separator confusables in url and pushurl",
+  "after_state": "Six Unicode slash/backslash lookalikes rejected in raw and percent-decoded URL identities; visible international URLs remain permitted",
+  "action": "12 predecessor adversarial failures reproduced; bounded source fix and 16 new regression cases; source-only candidate",
+  "proof": {
+    "predecessor": "12 RED",
+    "sae160_three_module_suite": "1219/1219 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "patrol": "UNVERIFIED_GUI_NO_X_SERVER",
+    "hosted_ci": "UNVERIFIED_PENDING",
+    "independent_review": "PENDING",
+    "physical_or_external": "NOT_PROVEN"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "e19cf1f0b4c13b1e43279b552c896e74135027e9",
+    "source_head": "60d28942990d2ad7807ceef1e3b3017e5014a3fb",
+    "time_utc": "2026-11-02T09:28:15.305376Z"
+  },
+  "engineering_health": {
+    "focused": "PASS",
+    "hosted": "UNVERIFIED",
+    "review": "PENDING",
+    "SAE150": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE150 external SC-2/SC-4 qualification NOT_PROVEN",
+    "downstream": "SAE160 source-only preparation; Genesis HOLD"
+  },
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false
+}

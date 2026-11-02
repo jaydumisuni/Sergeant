@@ -421,6 +421,30 @@ def test_visible_unicode_remote_url_still_qualifies(tmp_path: Path, suffix: str)
     assert result.authority_gain == "NONE"
 
 
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("separator", (
+    "\u2044",  # fraction slash
+    "\u2215",  # division slash
+    "\u29f8",  # big solidus
+    "\uff0f",  # fullwidth solidus
+    "\u2216",  # set minus
+    "\uff3c",  # fullwidth reverse solidus
+))
+def test_git_accepted_remote_url_separator_lookalikes_fail_closed(
+    tmp_path: Path, suffix: str, separator: str,
+) -> None:
+    """Remote destinations cannot conceal path separators with visible aliases."""
+    path, head = checkout(tmp_path)
+    url = f"https://example.invalid/review{separator}source.git"
+    git(path, "config", "--local", f"remote.origin.{suffix}", url)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == url
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize("scope", ("local", "worktree"))
 @pytest.mark.parametrize("suffix", ("url", "pushurl"))
 @pytest.mark.parametrize("encoded", (
@@ -442,6 +466,21 @@ def test_percent_encoded_concealed_remote_url_destination_fails_closed(
     git(path, "config", "--" + scope, f"remote.origin.{suffix}", url)
     assert git(path, "config", "--get", f"remote.origin.{suffix}") == url
     assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("encoded", ("%E2%88%95", "%EF%BC%BC"))
+def test_percent_encoded_separator_lookalikes_fail_closed(
+    tmp_path: Path, suffix: str, encoded: str,
+) -> None:
+    """One-pass URL decoding must not hide path-delimiter lookalikes."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", f"remote.origin.{suffix}",
+        f"https://example.invalid/review{encoded}source.git")
     result = inspect_checkout(path, head)
     assert result.blockers == ("external_git_metadata",)
     assert result.observed_head is None
