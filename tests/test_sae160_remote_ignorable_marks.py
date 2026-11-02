@@ -526,3 +526,43 @@ def test_bare_local_path_remote_with_literal_percent_remains_supported(
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("url", (
+    "https://user%3Asecret%40example.invalid/repo.git",
+    "https://example.invalid%40attacker.invalid/repo.git",
+    "https://user%40example.invalid/repo.git",
+))
+def test_encoded_http_userinfo_in_remote_authority_fails_closed(
+    tmp_path: Path, scope: str, suffix: str, url: str,
+) -> None:
+    """Encoded @ can move the reviewed HTTP authority into userinfo."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", url)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == url
+    assert git(path, "status", "--porcelain", "--untracked-files=all") == ""
+    result = inspect_checkout(path, head)
+    assert result.blockers == ("external_git_metadata",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("url", (
+    "https://example.invalid/repo%40visible.git",
+    "https://example.invalid/repo%3Avisible.git",
+))
+def test_encoded_http_path_punctuation_remains_supported(
+    tmp_path: Path, suffix: str, url: str,
+) -> None:
+    """Encoded path punctuation is not HTTP userinfo or a host alias."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", f"remote.origin.{suffix}", url)
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"

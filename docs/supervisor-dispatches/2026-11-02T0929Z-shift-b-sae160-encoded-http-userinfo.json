@@ -1,0 +1,31 @@
+{
+  "schema": "ttg.supervisor.project-dispatch.v1",
+  "project": "srg",
+  "shift": "B",
+  "time_utc": "2026-11-02T09:29:34.502271+00:00",
+  "frontier": "SAE160_REMOTE_HTTP_PERCENT_ENCODED_USERINFO_IDENTITY",
+  "before_head": "e19cf1f0b4c13b1e43279b552c896e74135027e9",
+  "branch": "supervisor/shift-b-sae160-percent-escape-syntax-20261102-0612",
+  "candidate_pr": "https://github.com/jaydumisuni/Sergeant/pull/299",
+  "action": "Reject percent-decoded HTTP userinfo/host ambiguity for local/worktree fetch and push remotes while preserving encoded path punctuation.",
+  "red_proof": "12/12 adversarial real-Git cases failed against predecessor; 4 positive controls added.",
+  "proof": {
+    "focused": "401/401 PASS",
+    "native_selection": "1281/1281 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "patrol": "xvfb-run patrol --help exited 0; no explicit ALLOW proof"
+  },
+  "review": "PENDING exact-head independent review",
+  "hosted_ci": "NOT VERIFIED for new head",
+  "sae150_external": "NOT PROVEN",
+  "genesis": "HOLD",
+  "authority_gain": "NONE",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "protected_merge": false,
+  "dependency_linkage": {
+    "upstream": "SAE-150 SC-2/SC-4 independent qualification remains external",
+    "downstream": "SAE-160 source-only preflight, no Genesis admission"
+  }
+}
