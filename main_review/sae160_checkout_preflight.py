@@ -130,8 +130,9 @@ def inspect_checkout(
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
     # A private .git directory is not sufficient if another principal owns
     # or can rewrite the checkout root or one of its ancestor directories.
-    # A trusted root-owned sticky directory (such as /tmp) is the exception:
-    # the sticky bit prevents peers from replacing someone else's entry.
+    # A trusted root-owned sticky *ancestor* (such as /tmp) is the exception:
+    # the sticky bit protects its checkout entry. The checkout root itself
+    # must never be peer-writable: peers could add untracked inputs inside it.
     # This is POSIX-specific custody evidence, not Windows qualification.
     if os.name == "posix":
         trusted_owners = {0, os.geteuid()}
@@ -145,7 +146,8 @@ def inspect_checkout(
                 blockers.append("mutable_checkout_ancestry")
                 break
             if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
-                if metadata.st_uid != 0 or not metadata.st_mode & stat.S_ISVTX:
+                if (directory == root or metadata.st_uid != 0
+                        or not metadata.st_mode & stat.S_ISVTX):
                     blockers.append("mutable_checkout_ancestry")
                     break
     # Mode 0755 is not sufficient custody for Git metadata: a foreign
@@ -1176,7 +1178,9 @@ def inspect_checkout(
     # checkout root immediately before the first checkout Git subprocess:
     # a newly peer-writable or foreign-owned root must not become a trusted
     # snapshot merely because its changed identity stays stable thereafter.
-    def checkout_root_custody_safe(metadata: os.stat_result) -> bool:
+    def checkout_directory_custody_safe(
+        metadata: os.stat_result, *, is_checkout_root: bool = False
+    ) -> bool:
         if not stat.S_ISDIR(metadata.st_mode):
             return False
         if os.name != "posix":
@@ -1184,7 +1188,8 @@ def inspect_checkout(
         if metadata.st_uid not in trusted_owners:
             return False
         if metadata.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
-            return metadata.st_uid == 0 and bool(metadata.st_mode & stat.S_ISVTX)
+            return (not is_checkout_root and metadata.st_uid == 0
+                    and bool(metadata.st_mode & stat.S_ISVTX))
         return True
 
     # The initial ancestry walk precedes metadata/config inspection. Recheck
@@ -1193,7 +1198,9 @@ def inspect_checkout(
     def checkout_ancestry_custody_safe() -> bool:
         try:
             return all(
-                checkout_root_custody_safe(directory.lstat())
+                checkout_directory_custody_safe(
+                    directory.lstat(), is_checkout_root=(directory == root)
+                )
                 for directory in (root, *root.parents)
             )
         except OSError:
@@ -1238,7 +1245,7 @@ def inspect_checkout(
 
     try:
         root_metadata = root.lstat()
-        if not checkout_root_custody_safe(root_metadata):
+        if not checkout_directory_custody_safe(root_metadata, is_checkout_root=True):
             return CheckoutPreflight(expected, head, ("mutable_checkout_ancestry",))
         tracked_custody: dict[Path, tuple[int, ...]] = {
             root: custody_identity(root_metadata)
