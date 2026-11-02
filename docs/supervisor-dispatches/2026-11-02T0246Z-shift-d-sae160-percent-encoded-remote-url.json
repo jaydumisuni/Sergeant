@@ -1,0 +1,51 @@
+{
+  "schema": "ttg.srg.supervisor.dispatch.v1",
+  "shift": "D",
+  "project": "srg",
+  "frontier": "SAE160_PERCENT_ENCODED_REMOTE_URL_IDENTITY_CUSTODY",
+  "time_utc": "2026-11-02T02:46:24.050903+00:00",
+  "before_head": "1d919782abb60e5d91bedf4a7e5a1a23b6643b03",
+  "after_implementation_head": "007598a7a50e05d1887d3820e2399f467e63e486",
+  "before_state": "24 Git-accepted local/worktree percent-encoded invisible/control/unassigned fetch/push URL cases passed checkout preflight despite clean Git status",
+  "after_state": "24 encoded hidden/control/unassigned URL cases reject before checkout Git probes; 2 encoded visible controls accepted; 2 invalid UTF-8 encodings reject",
+  "worker": "Shift D bounded isolated project-owned implementation; no persistent worker/lease",
+  "action": "Patrol ALLOW; 24 test-first RED; one-pass UTF-8 URL percent-decoding before existing Unicode identity guard; focused and adjacent tests; nonforce branch push and draft PR",
+  "worktree": "/home/kratos/projects/SRG/.workspace/worktrees/sae160-encoded-url-shift-d-20261102-0436",
+  "branch": "supervisor/shift-d-sae160-encoded-url-20261102-0436",
+  "pull_request": "https://github.com/jaydumisuni/Sergeant/pull/298",
+  "proof": {
+    "patrol": "ALLOW",
+    "predecessor": "24 RED; 2 positive PASS",
+    "focused": "355/355 PASS",
+    "repository_only": "130/130 PASS",
+    "checkout_preflight": "688/688 PASS",
+    "combined_native": "1173/1173 PASS",
+    "python_compile": "PASS",
+    "git_diff_check": "PASS",
+    "source_remote_head": "MATCH at 007598a",
+    "hosted": "PENDING; NOT_PASS",
+    "independent_review": "PENDING"
+  },
+  "engineering_health": {
+    "native": "PASS",
+    "hosted": "PENDING",
+    "review": "PENDING",
+    "external": "NOT_PROVEN",
+    "promotion": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "1d919782abb60e5d91bedf4a7e5a1a23b6643b03",
+    "after_head": "007598a7a50e05d1887d3820e2399f467e63e486",
+    "time_utc": "2026-11-02T02:46:24.050903+00:00"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 external SC-2/SC-4 independent qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only preparation; Genesis HOLD",
+    "control": "Cookpit PR97 guarded control binding proposal only; no live rebound"
+  },
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "protected_merge": false
+}
