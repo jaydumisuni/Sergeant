@@ -1,0 +1,58 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "D",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_AMBIENT_GIT_TRANSPORT_EARLY_REJECTION_MATRIX",
+  "time_utc": "2026-11-02T17:45:10Z",
+  "canonical_cookpit_main": "aa49182ce91c5261ac49d04d9d297fea6fe39b8d",
+  "before_head": "649a5ea6109086e7077d8662f88cefe68ce1e4f1",
+  "after_source_head": "cc3207b54ebfd368dfdcfe028a5337c8a78f1305",
+  "branch": "supervisor/shift-d-sae160-ambient-override-matrix-20261102-1936",
+  "before_state": "PR #304 consumed CodeRabbit fixture isolation findings but the 51 exact-name and 9 namespace ambient preflight rejection cases lacked a direct per-name no-Git regression matrix",
+  "worker_action": "GitHub cloud source-only branch: append parameterized 60-case empty-value inherited-override matrix to the project-owned SAE-160 HTTP-fragment test; fail if a Git subprocess starts before the authority blocker",
+  "after_state": "All 51 exact ambient authority names and 9 prefix namespaces have executable regression obligations requiring ambient_git_authority_override, observed_head=None, authority_gain=NONE and zero Git subprocess probes",
+  "proof": {
+    "production_guard_vs_test_fixture": "STATIC_PARITY_51_EXACT_9_PREFIX",
+    "github_test_blob_readback": "PASS_a8ee085c54f6f2562b8d19aad5804226451e165f",
+    "github_source_commit_readback": "PASS_cc3207b54ebfd368dfdcfe028a5337c8a78f1305",
+    "native_pytest": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "hosted_exact_head_ci": "PENDING_NOT_PASS",
+    "independent_exact_head_review": "PENDING"
+  },
+  "implementation_movement": {
+    "material": true,
+    "kind": "tracked_source_test_delta",
+    "before_head": "649a5ea6109086e7077d8662f88cefe68ce1e4f1",
+    "after_source_head": "cc3207b54ebfd368dfdcfe028a5337c8a78f1305",
+    "added_test_cases": 60
+  },
+  "engineering_health": {
+    "source_readback": "PASS",
+    "native": "UNVERIFIED",
+    "hosted": "PENDING",
+    "review": "PENDING",
+    "sae150": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 SC-2/SC-4 independent external qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only preparatory checkout authority proof; Genesis HOLD"
+  },
+  "supervisor_pool": {
+    "A": "HEALTHY",
+    "B": "HEALTHY",
+    "C": "HEALTHY",
+    "D": "CURRENT_SLOT_WITHIN_GRACE_NOT_JUDGED",
+    "E": "HEALTHY"
+  },
+  "nodie_roster": "UNVERIFIED_ORACLE_LIVE_INTERNAL_FAILURE",
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_TEST_PUBLISHED_STATIC_READBACK_PASS_NATIVE_AND_REVIEW_PENDING"
+}
