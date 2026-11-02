@@ -802,6 +802,14 @@ def inspect_checkout(
                 # Require complete hex triplets there before one-pass UTF-8
                 # validation. Bare local Git paths are not URL-decoded and
                 # may legitimately contain literal malformed percent text.
+                # HTTP(S) URL fragments are client-side only: Git config
+                # preserves them, but they do not select distinct fetched
+                # repository evidence. Reject literal # before decoding;
+                # %23 inside a URL path and literal # in non-HTTP Git paths
+                # remain distinct, valid source identities.
+                if re.match(r"^https?://", url) and "#" in url:
+                    blockers.append("external_git_metadata")
+                    break
                 is_url_form = re.match(r"^[^:/\s]+://", url) is not None
                 if (is_url_form
                         and re.search(r"%(?![0-9A-Fa-f]{2})", url)):

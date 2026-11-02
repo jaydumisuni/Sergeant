@@ -1,0 +1,55 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "A",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_HTTP_REMOTE_FRAGMENT_REVIEW_FIXTURE_ISOLATION",
+  "time_utc": "2026-11-02T15:59:32.823Z",
+  "canonical_cookpit_main": "aa49182ce91c5261ac49d04d9d297fea6fe39b8d",
+  "before_head": "6e362b373faf827c9dc48aa88a003a2d672a6398",
+  "source_head": "a41bfaf2baabacbcbcd0b4e1bc6998734c5d68fe",
+  "branch": "supervisor/shift-d-sae160-http-fragment-20261102-1636",
+  "worktree": "GitHub project-owned source branch; KRATOS unavailable through Oracle Live",
+  "before_state": "CodeRabbit PR #304 exact-head review found two fixture correctness gaps: incomplete ambient override clearing and inherited global Git commit signing",
+  "action": "Consumed both review findings in project-owned test fixture; isolated 51 exact ambient Git/SSH/proxy/loader controls and 9 guarded prefixes, scoped Git subprocess configuration to fixture only, and added global gpgSign regression",
+  "after_state": "Source test fixture now clears all preflight-rejected ambient controls and isolates init/config/commit/clone from user/system Git configuration without passing fixture-only overrides to inspect_checkout",
+  "review_findings": [
+    "https://github.com/jaydumisuni/Sergeant/pull/304#discussion_r4443698823",
+    "https://github.com/jaydumisuni/Sergeant/pull/304#discussion_r4443698842"
+  ],
+  "proof": {
+    "github_exact_source_readback": "PASS",
+    "guard_name_parity": "STATIC_PASS_51_EXACT_9_PREFIX",
+    "fixture_git_subprocess_isolation": "STATIC_PASS_3_SITES",
+    "global_signing_fixture": "STATIC_PASS",
+    "native_pytest": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "hosted_ci": "IN_PROGRESS_NOT_PASS",
+    "independent_exact_head_review": "PENDING"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "6e362b373faf827c9dc48aa88a003a2d672a6398",
+    "after_source_head": "a41bfaf2baabacbcbcd0b4e1bc6998734c5d68fe",
+    "kind": "review_findings_consumed_into_candidate"
+  },
+  "engineering_health": {
+    "source_readback": "PASS",
+    "native": "UNVERIFIED",
+    "hosted": "IN_PROGRESS",
+    "review": "PENDING",
+    "sae150": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 SC-2/SC-4 independent external qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only safe preparation; Genesis HOLD"
+  },
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_REVIEW_FIX_PUBLISHED_STATIC_READBACK_PASS_NATIVE_AND_EXACT_HEAD_REVIEW_PENDING"
+}

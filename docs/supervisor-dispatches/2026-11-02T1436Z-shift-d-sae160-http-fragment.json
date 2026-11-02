@@ -1,0 +1,52 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "D",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_HTTP_REMOTE_FRAGMENT_CUSTODY",
+  "time_utc": "2026-11-02T14:36:15.988Z",
+  "before_head": "ae7eacf08c9dd20532b584c3387d9d28a09ea924",
+  "source_head": "b5dba5e2b7a4ad06b11b735ae1c6d4fd0de960d9",
+  "branch": "supervisor/shift-d-sae160-http-fragment-20261102-1636",
+  "worktree": "GitHub project-owned cloud branch; KRATOS worktree unavailable via Oracle Live",
+  "before_state": "HTTP(S) remote URL and pushURL with literal fragment accepted as distinct Git config identity despite fragment not being sent to HTTPS server",
+  "action": "Added 16 negative and 16 positive SAE-160 checkout regression cases, fail-closed literal HTTP(S) URL fragment validation, and isolated CI fixture environment; draft PR #304 stacked on exact PR #303",
+  "after_state": "Literal # fragments in HTTP(S) fetch and push remote destinations are rejected before checkout Git probes; encoded %23 path bytes, query parameters and non-HTTP literal # remain accepted",
+  "proof": {
+    "canonical_cookpit_main": "aa49182ce91c5261ac49d04d9d297fea6fe39b8d",
+    "canonical_registry": "eight enabled projects; oracle-phase27-prep absent",
+    "synthetic_git_config": "PASS: Git config stores literal fragments in both HTTP(S) URL and pushURL (non-KRATOS isolated fixture)",
+    "github_exact_source_and_test_readback": "PASS at source commit b4281684; test fixture subsequently updated at b5dba5; final readback required",
+    "native_pytest": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "hosted_exact_head_ci": "NO_RUNS_RETURNED_AT_LAST_CHECK",
+    "independent_review": "PENDING",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "ae7eacf08c9dd20532b584c3387d9d28a09ea924",
+    "source_head": "b5dba5e2b7a4ad06b11b735ae1c6d4fd0de960d9",
+    "time_utc": "2026-11-02T14:36:15.988Z"
+  },
+  "engineering_health": {
+    "local_native": "UNVERIFIED",
+    "hosted": "UNVERIFIED",
+    "review": "PENDING",
+    "sae150": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 SC-2/SC-4 external qualification NOT_PROVEN",
+    "downstream": "SAE-160 source-only safe preparation; Genesis HOLD"
+  },
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "guarded_control_binding": "Existing Cookpit PR #97; no live rebound or unreviewed control-plane mutation",
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_CLOUD_VERIFIED_NATIVE_PENDING"
+}
