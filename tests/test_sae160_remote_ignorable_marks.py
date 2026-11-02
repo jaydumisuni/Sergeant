@@ -526,3 +526,25 @@ def test_bare_local_path_remote_with_literal_percent_remains_supported(
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("path_value", (
+    "/srv/review%E2%80%8Bsource.git",
+    "../review%EF%B8%8Fsource.git",
+    "git@example.invalid:review%E2%80%8Bsource.git",
+))
+def test_literal_percent_triplets_in_non_url_remote_remain_supported(
+    tmp_path: Path, scope: str, suffix: str, path_value: str,
+) -> None:
+    """Local and SCP-like paths are not percent-decoded by Git URL consumers."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", path_value)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == path_value
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
