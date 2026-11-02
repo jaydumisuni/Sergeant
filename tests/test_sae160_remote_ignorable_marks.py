@@ -508,3 +508,21 @@ def test_valid_percent_escape_remote_url_identity_remains_supported(
     assert result.blockers == ()
     assert result.observed_head == head
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("scope", ("local", "worktree"))
+@pytest.mark.parametrize("suffix", ("url", "pushurl"))
+@pytest.mark.parametrize("path_value", ("/srv/50%off.git", "../repo%ZZ.git"))
+def test_bare_local_path_remote_with_literal_percent_remains_supported(
+    tmp_path: Path, scope: str, suffix: str, path_value: str,
+) -> None:
+    """Git local-path remotes are not URL-decoded; literal percent is valid."""
+    path, head = checkout(tmp_path)
+    if scope == "worktree":
+        git(path, "config", "--local", "extensions.worktreeConfig", "true")
+    git(path, "config", "--" + scope, f"remote.origin.{suffix}", path_value)
+    assert git(path, "config", "--get", f"remote.origin.{suffix}") == path_value
+    result = inspect_checkout(path, head)
+    assert result.blockers == ()
+    assert result.observed_head == head
+    assert result.authority_gain == "NONE"
