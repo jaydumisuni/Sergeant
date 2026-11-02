@@ -1,0 +1,65 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "B",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_STICKY_ANCESTOR_MODE_MATRIX",
+  "time_utc": "2026-11-02T22:12:37.342Z",
+  "canonical_registry": {
+    "repository": "jaydumisuni/cookpit",
+    "branch": "main",
+    "commit": "aa49182ce91c5261ac49d04d9d297fea6fe39b8d",
+    "blob_sha": "b3d88fe65be9b5514b46d1b8d028c844bc4b78eb",
+    "enabled": true
+  },
+  "before_head": "173e90ef9f58213cd22b1ca493cb8e91b3f2bba0",
+  "after_source_head": "9220fc8f7e3714aca424a7071e180318d9240114",
+  "branch": "supervisor/shift-b-sae160-sticky-ancestor-mode-matrix-20261103-0012",
+  "prior_pr": "https://github.com/jaydumisuni/Sergeant/pull/307",
+  "before_state": "PR307 proved root-owned sticky ancestors and one foreign-owned sticky ancestor, but did not cover the root-owned nonsticky peer-writable parent or foreign-owned group-sticky parent permutations.",
+  "worker_action": "Authenticated GitHub cloud fallback; extend SAE-160 POSIX owner/sticky/mode regression matrix in project-owned test on a branch stacked on exact PR307 head.",
+  "after_state": "Six ancestor owner/mode cases: root-owned 01777/01770 allowed past ancestry and fail at incomplete control-file gate; foreign-owned 01777/01770 and root-owned nonsticky 0777/0770 rejected before Git as mutable_checkout_ancestry.",
+  "implementation_movement": {
+    "material": true,
+    "kind": "tracked_regression_delta",
+    "new_cases": 3,
+    "after_source_head": "9220fc8f7e3714aca424a7071e180318d9240114"
+  },
+  "proof": {
+    "exact_predecessor": "PASS",
+    "github_source_readback": "PASS_485ee72376277047ed4ae3ef3a4a6ef2fd14b0bd",
+    "git_ancestry": "PASS_1_AHEAD_0_BEHIND",
+    "declared_ancestor_matrix": "6_CASES_SOURCE_READBACK_NOT_NATIVE_EXECUTION",
+    "predecessor_exact_head_hosted_ci": "8_WORKFLOWS_SUCCESS",
+    "native_pytest": "UNVERIFIED_KRATOS_ORACLE_TERMINAL_INTERNAL_FAILURE",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_TERMINAL_INTERNAL_FAILURE",
+    "independent_review": "PENDING",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "engineering_health": {
+    "source": "VERIFIED",
+    "native": "UNVERIFIED",
+    "review": "PENDING",
+    "external": "HOLD"
+  },
+  "supervisor_pool_initial": {
+    "A": "HEALTHY",
+    "B": "PREVIOUS_SLOT_HEALTHY_CURRENT_SLOT_NOT_DUE",
+    "C": "HEALTHY",
+    "D": "HEALTHY",
+    "E": "HEALTHY"
+  },
+  "nodie_roster": "UNVERIFIED_ORACLE_LIVE_INTERNAL_FAILURE",
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_UNAVAILABLE",
+  "dependency_linkage": {
+    "upstream": "SAE-150 independent external qualification not established",
+    "downstream": "SAE-160 source-only preparation; Genesis remains HOLD"
+  },
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_NATIVE_AND_REVIEW_PENDING"
+}

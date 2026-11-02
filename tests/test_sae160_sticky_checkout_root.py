@@ -57,9 +57,17 @@ def test_root_owned_sticky_checkout_root_fails_before_git(
 @pytest.mark.parametrize(
     ("permissions", "owner_is_root", "expected_blocker"),
     (
+        # Root-owned sticky parents protect the checkout entry, including
+        # when either world or group write permission is present.
         (0o1777, True, "unverified_git_control_custody"),
         (0o1770, True, "unverified_git_control_custody"),
+        # Sticky does not grant custody when the ancestor is foreign-owned.
         (0o1777, False, "mutable_checkout_ancestry"),
+        (0o1770, False, "mutable_checkout_ancestry"),
+        # Root ownership alone is insufficient for a peer-writable parent:
+        # without sticky, another principal can replace the checkout entry.
+        (0o0777, True, "mutable_checkout_ancestry"),
+        (0o0770, True, "mutable_checkout_ancestry"),
     ),
 )
 def test_sticky_ancestor_exception_requires_root_ownership(
