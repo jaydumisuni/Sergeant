@@ -1,0 +1,51 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "D",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_GIT_REMOTE_REFNAME_CUSTODY",
+  "time_utc": "2026-11-02T12:38:25Z",
+  "before_head": "1104142b07f4c539bdda5473926a4ed2a32cb864",
+  "implementation_head": "08cfecf26e962a467d87c15fbfcd0325be811e6f",
+  "branch": "supervisor/shift-d-sae160-remote-refname-20261102-1436",
+  "worktree": "Cloud GitHub project-owned branch; KRATOS isolated worktree unavailable via Oracle Live",
+  "before_state": "Git config permits remote subsection names with whitespace, refname metacharacters, .lock, dot-prefixed components, and '..' that cannot form refs/remotes/<name>/HEAD; SAE-160 canonical_remote_name accepted those names.",
+  "action": "Source-only fail-closed Git remote tracking-ref lexical guard and 52 negative plus 10 positive regression cases; draft PR #303 stacked on exact PR #302 predecessor.",
+  "after_state": "Remote subsection identity rejects 13 Git-refname-invalid families before checkout Git probes; visible international and valid Git tracking namespace controls remain accepted.",
+  "proof": {
+    "synthetic_git_config": "PASS: 13/13 invalid names accepted by Git config in isolated non-KRATOS fixture",
+    "synthetic_git_check_ref_format": "PASS: 13/13 invalid and 5/5 valid names matched expected Git refname verdict",
+    "github_source_and_test_blob_readback": "PASS at exact implementation head",
+    "native_sae160_pytest": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "patrol": "UNVERIFIED_KRATOS_ORACLE_UNAVAILABLE",
+    "hosted_exact_head_ci": "QUEUED_OR_IN_PROGRESS_NOT_PASS",
+    "independent_review": "PENDING",
+    "sae150_external": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "implementation_movement": {
+    "material": true,
+    "before_head": "1104142b07f4c539bdda5473926a4ed2a32cb864",
+    "source_head": "08cfecf26e962a467d87c15fbfcd0325be811e6f",
+    "time_utc": "2026-11-02T12:38:25Z"
+  },
+  "engineering_health": {
+    "local_native": "UNVERIFIED",
+    "hosted": "PENDING",
+    "review": "PENDING",
+    "sae150": "NOT_PROVEN",
+    "genesis": "HOLD"
+  },
+  "dependency_linkage": {
+    "upstream": "SAE-150 SC-2/SC-4 independent external qualification NOT_PROVEN",
+    "downstream": "SAE-160 repository-only safe preparation; Genesis HOLD"
+  },
+  "local_dispatch_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "local_attention_reconciliation": "QUEUED_KRATOS_ORACLE_UNAVAILABLE",
+  "guarded_control_binding": "Existing draft Cookpit PR #97; no live rebound or unreviewed control-plane mutation",
+  "protected_merge": false,
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false,
+  "disposition": "MATERIAL_SOURCE_PUBLISHED_CLOUD_VERIFIED_NATIVE_PENDING"
+}
