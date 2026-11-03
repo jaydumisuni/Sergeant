@@ -686,3 +686,27 @@ def test_mutable_commit_graph_metadata_rejected_before_checkout_git(tmp_path, mo
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+def test_symlinked_refs_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """Top-level refs alias must be rejected before checkout Git executes."""
+    path, head = checkout(tmp_path)
+    refs = path / ".git" / "refs"
+    outside = tmp_path / "external-refs"
+    refs.rename(outside)
+    refs.symlink_to(outside, target_is_directory=True)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("aliased refs reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
