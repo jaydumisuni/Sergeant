@@ -46,6 +46,10 @@ def test_root_owned_sticky_checkout_root_fails_before_git(
     def unexpected_git(*_args: object, **_kwargs: object) -> None:
         raise AssertionError("peer-writable checkout root must fail before Git")
 
+    def unexpected_walk(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("peer-writable checkout root must fail before .git traversal")
+
+    monkeypatch.setattr(os, "walk", unexpected_walk)
     monkeypatch.setattr(subprocess, "run", unexpected_git)
     result = inspect_checkout(checkout, "a" * 40)
     assert result.blockers == ("mutable_checkout_ancestry",)
