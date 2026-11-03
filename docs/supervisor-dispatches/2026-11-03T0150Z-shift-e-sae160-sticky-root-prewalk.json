@@ -1,0 +1,25 @@
+{
+  "schema": "ttg.cookpit.supervisor.dispatch.v1",
+  "shift": "E",
+  "project": "srg",
+  "repository": "jaydumisuni/Sergeant",
+  "frontier": "SAE160_STICKY_CHECKOUT_ROOT_PRE_WALK_REGRESSION",
+  "time_utc": "2026-11-03T01:50:23Z",
+  "canonical_registry": "jaydumisuni/cookpit main registry.json",
+  "before_head": "ff581ced35f5a9447a970831b1a779e7dbe80d30",
+  "after_source_head": "3b3362b52a42133452aa2440bcbd37e7b4b4ee2a",
+  "worker_action": "Cloud source-only: extend two existing POSIX sticky-checkout-root regressions to fail if os.walk starts before ancestry rejection",
+  "proof": {
+    "source_blob": "cd7864e4ff5f0c246d52965d450d1e5f3fb806a0",
+    "native_pytest": "UNVERIFIED",
+    "patrol": "UNVERIFIED",
+    "independent_review": "PENDING"
+  },
+  "health": "NATIVE_UNVERIFIED",
+  "movement": "BOUNDED_TRACKED_TEST_DELTA",
+  "nodie_roster": "UNVERIFIED_ORACLE_LIVE_INTERNAL_FAILURE",
+  "dependency_linkage": "SAE-160 preparatory only; SAE-150 and Genesis HOLD",
+  "production_touched": false,
+  "stolen_device_touched": false,
+  "supervisor_schedules_changed": false
+}
