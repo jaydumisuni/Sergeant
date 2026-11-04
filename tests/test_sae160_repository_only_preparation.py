@@ -1316,3 +1316,29 @@ def test_checkout_preflight_rejects_external_worktree_config(tmp_path):
     result = inspect_checkout(clone, head)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_pack_directory(tmp_path):
+    """A mutable pack directory can replace objects despite private pack files."""
+    import subprocess
+    from main_review.sae160_checkout_preflight import inspect_checkout
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init", "-q", str(origin)], check=True)
+    (origin / "fixture.txt").write_text("fixture")
+    subprocess.run(["git", "-C", str(origin), "add", "fixture.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(origin), "-c", "user.name=Test",
+         "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
+        check=True,
+    )
+    clone = tmp_path / "standalone"
+    subprocess.run(["git", "clone", "--no-hardlinks", "-q", str(origin), str(clone)], check=True)
+    head = subprocess.check_output(["git", "-C", str(clone), "rev-parse", "HEAD"], text=True).strip()
+    assert inspect_checkout(clone, head).blockers == ()
+    pack = clone / ".git" / "objects" / "pack"
+    pack.chmod(pack.stat().st_mode | 0o020)
+    result = inspect_checkout(clone, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"

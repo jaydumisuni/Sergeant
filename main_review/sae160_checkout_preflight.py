@@ -150,6 +150,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         blockers.append("external_object_store")
     pack = objects / "pack"
     if pack.is_dir():
+        # The pack directory itself is object authority: a peer-writable
+        # directory permits pack replacement even when current files are private.
+        if pack.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
         for entry in pack.iterdir():
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_object_store")
