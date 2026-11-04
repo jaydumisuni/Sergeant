@@ -751,3 +751,29 @@ def test_pack_adjunct_subtree_rejected_before_checkout_git(tmp_path, monkeypatch
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+def test_pack_adjunct_hardlink_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A nested pack adjunct hardlink cannot borrow external object authority."""
+    path, head = checkout(tmp_path)
+    external = tmp_path / "external-object"
+    external.write_bytes(b"untrusted")
+    adjunct = path / ".git" / "objects" / "pack" / "multi-pack-index.d"
+    adjunct.mkdir()
+    (adjunct / "chain").hardlink_to(external)
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted hardlink reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_object_store" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
