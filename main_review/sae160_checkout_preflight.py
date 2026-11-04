@@ -161,6 +161,22 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 blockers.append("mutable_git_authority_permissions")
                 break
+            # Pack adjunct directories (for example multi-pack-index metadata)
+            # must not introduce a writable or externally aliased subtree.
+            if entry.is_dir():
+                for nested in entry.rglob("*"):
+                    if nested.is_symlink() or (nested.is_file() and nested.stat().st_nlink > 1):
+                        blockers.append("external_object_store")
+                        break
+                    if (nested.is_file() or nested.is_dir()) and (
+                        nested.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH)
+                    ):
+                        blockers.append("mutable_git_authority_permissions")
+                        break
+                if entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                    blockers.append("mutable_git_authority_permissions")
+                if blockers:
+                    break
     # Loose Git objects can also borrow mutable external authority via symlinks
     # or hardlinks; checking pack files alone is insufficient.
     if objects.is_dir():

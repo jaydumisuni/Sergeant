@@ -713,3 +713,41 @@ def test_symlinked_refs_directory_rejected_before_checkout_git(tmp_path, monkeyp
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("kind", ("nested_directory", "nested_file", "nested_symlink"))
+def test_pack_adjunct_subtree_rejected_before_checkout_git(tmp_path, monkeypatch, kind):
+    """Untrusted pack adjuncts cannot borrow mutable object authority."""
+    path, head = checkout(tmp_path)
+    adjunct = path / ".git" / "objects" / "pack" / "multi-pack-index.d"
+    adjunct.mkdir()
+    if kind == "nested_directory":
+        target = adjunct / "chain"
+        target.mkdir()
+        target.chmod(target.stat().st_mode | 0o020)
+        expected = "mutable_git_authority_permissions"
+    elif kind == "nested_file":
+        target = adjunct / "chain"
+        target.write_bytes(b"untrusted")
+        target.chmod(target.stat().st_mode | 0o020)
+        expected = "mutable_git_authority_permissions"
+    else:
+        target = adjunct / "chain"
+        target.symlink_to(tmp_path)
+        expected = "external_object_store"
+
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted pack adjunct reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert expected in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
