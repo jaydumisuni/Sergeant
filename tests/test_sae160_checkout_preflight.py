@@ -777,3 +777,13 @@ def test_pack_adjunct_hardlink_rejected_before_checkout_git(tmp_path, monkeypatc
     assert result.observed_head is None
     assert checkout_commands == []
     assert result.authority_gain == "NONE"
+
+
+def test_peer_writable_object_info_directory_fails_closed(tmp_path):
+    path, head = checkout(tmp_path)
+    info = path / ".git" / "objects" / "info"
+    info.chmod(info.stat().st_mode | 0o020)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"

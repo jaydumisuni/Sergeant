@@ -203,6 +203,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # history/status. Reject aliases and peer-writable files or directories at
     # every depth before issuing any checkout Git command.
     info = objects / "info"
+    if info.is_dir() and info.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        blockers.append("mutable_git_authority_permissions")
     if info.is_dir():
         for entry in info.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
