@@ -1342,3 +1342,31 @@ def test_checkout_preflight_rejects_peer_writable_pack_directory(tmp_path):
     result = inspect_checkout(clone, head)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("relative", ["refs/heads", "refs/tags"])
+def test_checkout_preflight_rejects_peer_writable_ref_directory(tmp_path, relative):
+    """A peer-writable ref directory permits authority replacement before Git reads."""
+    import subprocess
+    from main_review.sae160_checkout_preflight import inspect_checkout
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init", "-q", str(origin)], check=True)
+    (origin / "fixture.txt").write_text("fixture")
+    subprocess.run(["git", "-C", str(origin), "add", "fixture.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(origin), "-c", "user.name=Test",
+         "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"],
+        check=True,
+    )
+    clone = tmp_path / "standalone"
+    subprocess.run(["git", "clone", "--no-hardlinks", "-q", str(origin), str(clone)], check=True)
+    head = subprocess.check_output(["git", "-C", str(clone), "rev-parse", "HEAD"], text=True).strip()
+    assert inspect_checkout(clone, head).blockers == ()
+    refdir = clone / ".git" / relative
+    refdir.mkdir(parents=True, exist_ok=True)
+    refdir.chmod(refdir.stat().st_mode | 0o020)
+    result = inspect_checkout(clone, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
