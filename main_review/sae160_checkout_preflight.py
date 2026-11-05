@@ -44,6 +44,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         key.startswith("GIT_CONFIG_") for key in os.environ
     ):
         blockers.append("ambient_git_authority_override")
+    # A peer-writable checkout root permits replacement of tracked source files
+    # between exact-head inspection and qualification, even with private .git.
+    if root.is_dir() and root.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        blockers.append("mutable_checkout_root_permissions")
     gitdir = root / ".git"
     if (
         not root.is_dir()

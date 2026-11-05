@@ -1426,3 +1426,25 @@ def test_checkout_preflight_rejects_ambient_git_object_and_ref_redirection(
     result = inspect_checkout(checkout, "0" * 40)
     assert "ambient_git_authority_override" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_checkout_root(tmp_path):
+    """Private Git metadata cannot qualify a peer-mutable source checkout."""
+    import subprocess
+    from main_review.sae160_checkout_preflight import inspect_checkout
+
+    origin = tmp_path / "origin"
+    origin.mkdir()
+    subprocess.run(["git", "init", "-q", str(origin)], check=True)
+    (origin / "fixture.txt").write_text("fixture")
+    subprocess.run(["git", "-C", str(origin), "add", "fixture.txt"], check=True)
+    subprocess.run(["git", "-C", str(origin), "-c", "user.name=Test",
+                    "-c", "user.email=test@example.invalid", "commit", "-qm", "fixture"], check=True)
+    clone = tmp_path / "standalone"
+    subprocess.run(["git", "clone", "--no-hardlinks", "-q", str(origin), str(clone)], check=True)
+    head = subprocess.check_output(["git", "-C", str(clone), "rev-parse", "HEAD"], text=True).strip()
+    assert inspect_checkout(clone, head).blockers == ()
+    clone.chmod(clone.stat().st_mode | 0o020)
+    result = inspect_checkout(clone, head)
+    assert "mutable_checkout_root_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
