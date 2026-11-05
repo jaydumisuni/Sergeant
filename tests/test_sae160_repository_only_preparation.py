@@ -1406,3 +1406,23 @@ def test_checkout_preflight_rejects_inherited_git_config_sources(tmp_path, monke
     result = inspect_checkout(checkout, "0" * 40)
     assert "ambient_git_authority_override" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable,value", [
+    ("GIT_NAMESPACE", "shadow-authority"),
+    ("GIT_ALTERNATE_OBJECT_DIRECTORIES", "/tmp/untrusted-objects"),
+    ("GIT_OBJECT_DIRECTORY", "/tmp/untrusted-primary-objects"),
+])
+def test_checkout_preflight_rejects_ambient_git_object_and_ref_redirection(
+    tmp_path, monkeypatch, variable, value
+):
+    """External object stores or ref namespaces cannot qualify checkout authority."""
+    from main_review.sae160_checkout_preflight import inspect_checkout
+
+    monkeypatch.setenv(variable, value)
+    checkout = tmp_path / "standalone"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+    result = inspect_checkout(checkout, "0" * 40)
+    assert "ambient_git_authority_override" in result.blockers
+    assert result.authority_gain == "NONE"
