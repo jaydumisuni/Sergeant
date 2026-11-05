@@ -1465,3 +1465,19 @@ def test_checkout_preflight_rejects_ambient_git_trace_output(tmp_path, monkeypat
     result = inspect_checkout(checkout, "0" * 40)
     assert "ambient_git_authority_override" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_does_not_spawn_git_under_ambient_trace(tmp_path, monkeypatch):
+    """Fail closed before invoking Git with inherited trace destinations."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    monkeypatch.setenv("GIT_TRACE2_EVENT", str(tmp_path / "untrusted-trace"))
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git executed under ambient trace"))
+    checkout = tmp_path / "standalone"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "ambient_git_authority_override" in result.blockers
+    assert result.authority_gain == "NONE"
+    assert not (tmp_path / "untrusted-trace").exists()

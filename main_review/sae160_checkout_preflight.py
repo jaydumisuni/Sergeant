@@ -44,6 +44,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         key.startswith(("GIT_CONFIG_", "GIT_TRACE", "GIT_TRACE2")) for key in os.environ
     ):
         blockers.append("ambient_git_authority_override")
+    # Never invoke Git under inherited authority/trace overrides, even for
+    # a diagnostic config probe: those variables can trigger external writes.
+    if "ambient_git_authority_override" in blockers:
+        return CheckoutPreflight(expected, None, tuple(blockers))
     # A peer-writable checkout root permits replacement of tracked source files
     # between exact-head inspection and qualification, even with private .git.
     if root.is_dir() and root.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
