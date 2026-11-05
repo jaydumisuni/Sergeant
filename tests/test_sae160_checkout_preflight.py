@@ -809,3 +809,25 @@ def test_peer_writable_object_info_directory_fails_closed(tmp_path):
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_peer_writable_object_store_root_fails_closed(tmp_path, monkeypatch):
+    """A writable object-store parent can replace otherwise private shards."""
+    path, head = checkout(tmp_path)
+    objects = path / ".git" / "objects"
+    objects.chmod(objects.stat().st_mode | 0o020)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("mutable object-store root reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []

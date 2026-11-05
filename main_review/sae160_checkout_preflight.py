@@ -157,6 +157,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if config_probe.returncode not in (0, 1) or config_probe.stdout.strip():
             blockers.append("external_git_metadata")
     objects = gitdir / "objects"
+    # The object-store root itself must not be peer-writable: an attacker
+    # could replace object shards after local metadata inspection.
+    if objects.is_dir() and objects.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        blockers.append("mutable_git_authority_permissions")
     if objects.is_symlink() or not objects.is_dir():
         blockers.append("external_object_store")
     if (objects / "info").is_symlink() or (objects / "pack").is_symlink():
