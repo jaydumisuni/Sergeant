@@ -1370,3 +1370,20 @@ def test_checkout_preflight_rejects_peer_writable_ref_directory(tmp_path, relati
     result = inspect_checkout(clone, head)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable,value", [
+    ("GIT_CONFIG_KEY_0", "core.fsmonitor"),
+    ("GIT_CONFIG_VALUE_0", "malicious"),
+    ("GIT_CONFIG_NOSYSTEM", "0"),
+])
+def test_checkout_preflight_rejects_numbered_git_config_environment(tmp_path, monkeypatch, variable, value):
+    """Ambient numbered Git config can redirect checkout authority."""
+    from main_review.sae160_checkout_preflight import inspect_checkout
+    monkeypatch.setenv(variable, value)
+    checkout = tmp_path / "standalone"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+    result = inspect_checkout(checkout, "0" * 40)
+    assert "ambient_git_authority_override" in result.blockers
+    assert result.authority_gain == "NONE"

@@ -38,7 +38,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         "GIT_NAMESPACE", "GIT_CONFIG_COUNT", "GIT_CONFIG_PARAMETERS",
         "GIT_CONFIG", "GIT_CONFIG_GLOBAL", "GIT_CONFIG_SYSTEM",
     }
-    if authority_env.intersection(os.environ):
+    # Numbered GIT_CONFIG_KEY_n/VALUE_n and GIT_CONFIG_NOSYSTEM can alter
+    # Git configuration even without the fixed-name overrides above.
+    if authority_env.intersection(os.environ) or any(
+        key.startswith("GIT_CONFIG_") for key in os.environ
+    ):
         blockers.append("ambient_git_authority_override")
     gitdir = root / ".git"
     if (
