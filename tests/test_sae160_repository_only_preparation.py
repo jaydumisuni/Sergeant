@@ -1448,3 +1448,20 @@ def test_checkout_preflight_rejects_peer_writable_checkout_root(tmp_path):
     result = inspect_checkout(clone, head)
     assert "mutable_checkout_root_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable,value", [
+    ("GIT_TRACE", "/tmp/checkout-trace"),
+    ("GIT_TRACE2_EVENT", "/tmp/checkout-trace-events"),
+    ("GIT_TRACE2_PERF", "/tmp/checkout-trace-perf"),
+])
+def test_checkout_preflight_rejects_ambient_git_trace_output(tmp_path, monkeypatch, variable, value):
+    """Preflight Git must not write traces to an inherited external destination."""
+    from main_review.sae160_checkout_preflight import inspect_checkout
+    monkeypatch.setenv(variable, value)
+    checkout = tmp_path / "standalone"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+    result = inspect_checkout(checkout, "0" * 40)
+    assert "ambient_git_authority_override" in result.blockers
+    assert result.authority_gain == "NONE"
