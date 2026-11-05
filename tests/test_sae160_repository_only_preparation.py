@@ -1396,6 +1396,9 @@ def test_checkout_preflight_rejects_numbered_git_config_environment(tmp_path, mo
     ("GIT_CONFIG_SYSTEM", "/tmp/external-system-gitconfig"),
     ("GIT_EXEC_PATH", "/tmp/untrusted-git-helpers"),
     ("GIT_ATTR_SOURCE", "external-attributes"),
+    ("GIT_SHALLOW_FILE", "/tmp/external-shallow"),
+    ("GIT_REPLACE_REF_BASE", "refs/alternate-replace/"),
+    ("GIT_NO_REPLACE_OBJECTS", "1"),
     ("GIT_CONFIG", "/tmp/external-config"),
 ])
 def test_checkout_preflight_rejects_inherited_git_config_sources(tmp_path, monkeypatch, variable, value):
