@@ -1387,3 +1387,22 @@ def test_checkout_preflight_rejects_numbered_git_config_environment(tmp_path, mo
     result = inspect_checkout(checkout, "0" * 40)
     assert "ambient_git_authority_override" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("variable,value", [
+    ("GIT_CONFIG_COUNT", "1"),
+    ("GIT_CONFIG_PARAMETERS", "'core.fsmonitor=malicious'"),
+    ("GIT_CONFIG_GLOBAL", "/tmp/external-gitconfig"),
+    ("GIT_CONFIG_SYSTEM", "/tmp/external-system-gitconfig"),
+    ("GIT_CONFIG", "/tmp/external-config"),
+])
+def test_checkout_preflight_rejects_inherited_git_config_sources(tmp_path, monkeypatch, variable, value):
+    """Inherited Git config sources must never qualify checkout authority."""
+    from main_review.sae160_checkout_preflight import inspect_checkout
+    monkeypatch.setenv(variable, value)
+    checkout = tmp_path / "standalone"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+    result = inspect_checkout(checkout, "0" * 40)
+    assert "ambient_git_authority_override" in result.blockers
+    assert result.authority_gain == "NONE"
