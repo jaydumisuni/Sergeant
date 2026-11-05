@@ -779,6 +779,28 @@ def test_pack_adjunct_hardlink_rejected_before_checkout_git(tmp_path, monkeypatc
     assert result.authority_gain == "NONE"
 
 
+def test_peer_writable_object_info_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """Object-info directory mutation must fail before invoking checkout Git."""
+    path, head = checkout(tmp_path)
+    info = path / ".git" / "objects" / "info"
+    info.chmod(info.stat().st_mode | 0o020)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("peer-writable object-info reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert checkout_commands == []
+    assert result.authority_gain == "NONE"
+
+
 def test_peer_writable_object_info_directory_fails_closed(tmp_path):
     path, head = checkout(tmp_path)
     info = path / ".git" / "objects" / "info"
