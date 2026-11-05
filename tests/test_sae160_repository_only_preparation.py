@@ -1454,6 +1454,8 @@ def test_checkout_preflight_rejects_peer_writable_checkout_root(tmp_path):
     ("GIT_TRACE", "/tmp/checkout-trace"),
     ("GIT_TRACE2_EVENT", "/tmp/checkout-trace-events"),
     ("GIT_TRACE2_PERF", "/tmp/checkout-trace-perf"),
+    ("GIT_TRACE_SETUP", "/tmp/checkout-trace-setup"),
+    ("GIT_TRACE_PACKET", "/tmp/checkout-trace-packet"),
 ])
 def test_checkout_preflight_rejects_ambient_git_trace_output(tmp_path, monkeypatch, variable, value):
     """Preflight Git must not write traces to an inherited external destination."""
