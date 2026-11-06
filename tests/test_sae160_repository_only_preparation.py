@@ -1579,3 +1579,19 @@ def test_checkout_preflight_rejects_aliased_nested_reflog_before_git(tmp_path, m
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_nested_reflog_before_git(tmp_path, monkeypatch):
+    """A mutable nested reflog is not standalone checkout authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    log = checkout / ".git" / "logs" / "refs" / "heads" / "candidate"
+    log.parent.mkdir(parents=True)
+    log.write_text("reflog fixture\n")
+    log.chmod(log.stat().st_mode | 0o020)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable reflog"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
