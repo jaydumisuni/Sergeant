@@ -1562,3 +1562,20 @@ def test_checkout_preflight_rejects_nested_info_hardlink_before_git(tmp_path, mo
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_aliased_nested_reflog_before_git(tmp_path, monkeypatch):
+    """A reflog hardlink must not redirect future ref writes outside checkout."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    log = checkout / ".git" / "logs" / "refs" / "heads" / "candidate"
+    log.parent.mkdir(parents=True)
+    log.write_text("reflog fixture\n")
+    os.link(log, tmp_path / "external-reflog")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased reflog"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"

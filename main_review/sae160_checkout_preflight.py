@@ -140,6 +140,21 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Git reflogs are writable control metadata. An aliased log can redirect
+    # a later ref update outside the standalone checkout even if refs are local.
+    logs_dir = gitdir / "logs"
+    if logs_dir.is_symlink():
+        blockers.append("external_git_metadata")
+    elif logs_dir.is_dir():
+        if logs_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+        for entry in logs_dir.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_git_metadata")
+                break
+            if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # A known local metadata blocker must stop before even the diagnostic
     # git-config probe; no Git subprocess is safe under aliased authority.
     if blockers:
