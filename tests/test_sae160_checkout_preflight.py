@@ -852,3 +852,24 @@ def test_symlinked_config_never_invokes_config_parser(tmp_path, monkeypatch):
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_hardlinked_config_never_invokes_config_parser(tmp_path, monkeypatch):
+    """Rejected hardlinked metadata cannot be parsed through its checkout alias."""
+    path, head = checkout(tmp_path)
+    config = path / ".git" / "config"
+    external = tmp_path / "external-config"
+    import os
+    os.link(config, external)
+    actual_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "config", "--no-includes"]:
+            raise AssertionError("hardlinked Git config was parsed")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
