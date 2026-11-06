@@ -1456,6 +1456,8 @@ def test_checkout_preflight_rejects_peer_writable_checkout_root(tmp_path):
 
 
 @pytest.mark.parametrize("variable,value", [
+    ("GIT_CEILING_DIRECTORIES", "/tmp/checkout-ceiling"),
+    ("GIT_DISCOVERY_ACROSS_FILESYSTEM", "1"),
     ("GIT_TRACE", "/tmp/checkout-trace"),
     ("GIT_TRACE2_EVENT", "/tmp/checkout-trace-events"),
     ("GIT_TRACE2_PERF", "/tmp/checkout-trace-perf"),
