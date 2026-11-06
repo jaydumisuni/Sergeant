@@ -873,3 +873,28 @@ def test_hardlinked_config_never_invokes_config_parser(tmp_path, monkeypatch):
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("trace_key", ("GIT_TRACE", "GIT_TRACE_SETUP", "GIT_TRACE2_EVENT", "GIT_TRACE2_PERF"))
+def test_ambient_git_trace_sinks_rejected_before_checkout_git(tmp_path, monkeypatch, trace_key):
+    """Untrusted tracing destinations must never receive checkout diagnostics."""
+    path, head = checkout(tmp_path)
+    destination = tmp_path / "untrusted-git-trace"
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if argv and argv[0] == "git":
+            checkout_commands.append(list(argv))
+            raise AssertionError("ambient trace sink reached Git")
+        return actual_run(argv, *args, **kwargs)
+
+    with monkeypatch.context() as scoped:
+        scoped.setenv(trace_key, str(destination))
+        scoped.setattr(subprocess, "run", guarded_run)
+        result = inspect_checkout(path, head)
+    assert result.blockers == ("ambient_git_authority_override",)
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
+    assert not destination.exists()
