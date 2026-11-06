@@ -831,3 +831,24 @@ def test_peer_writable_object_store_root_fails_closed(tmp_path, monkeypatch):
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
+
+
+def test_symlinked_config_never_invokes_config_parser(tmp_path, monkeypatch):
+    """Rejected external config cannot be read even by the diagnostic parser."""
+    path, head = checkout(tmp_path)
+    config = path / ".git" / "config"
+    external = tmp_path / "external-config"
+    config.rename(external)
+    config.symlink_to(external)
+    actual_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "config", "--no-includes"]:
+            raise AssertionError("external Git config was parsed")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"

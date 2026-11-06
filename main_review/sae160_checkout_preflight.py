@@ -145,6 +145,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         config_file = gitdir / config_name
         if not config_file.exists() or not config_file.is_file():
             continue
+        # Already rejected aliases must never be read through git config.
+        if config_file.is_symlink() or config_file.stat().st_nlink > 1:
+            continue
         try:
             config_probe = subprocess.run(
                 ["git", "config", "--no-includes", "--file", str(config_file),
