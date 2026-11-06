@@ -1506,3 +1506,22 @@ def test_checkout_preflight_rejects_hardlinked_nested_ref_before_git(tmp_path, m
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_skips_config_probe_after_aliased_ref(tmp_path, monkeypatch):
+    """A valid local config cannot authorize Git after an aliased ref is found."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    ref = gitdir / "refs" / "heads" / "candidate"
+    ref.parent.mkdir(parents=True)
+    ref.write_text("0" * 40 + "\n")
+    os.link(ref, tmp_path / "external-ref")
+    (gitdir / "config").write_text("[core]\n\trepositoryformatversion = 0\n")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked after known metadata blocker"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
