@@ -1488,3 +1488,21 @@ def test_checkout_preflight_does_not_spawn_git_under_ambient_trace(tmp_path, mon
     assert "ambient_git_authority_override" in result.blockers
     assert result.authority_gain == "NONE"
     assert not (tmp_path / "untrusted-trace").exists()
+
+
+def test_checkout_preflight_rejects_hardlinked_nested_ref_before_git(tmp_path, monkeypatch):
+    """A branch ref aliased outside the clone cannot become standalone authority."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    ref = checkout / ".git" / "refs" / "heads" / "review" / "candidate"
+    ref.parent.mkdir(parents=True)
+    ref.write_text("0" * 40 + "\n")
+    external = tmp_path / "external-ref"
+    os.link(ref, external)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased ref"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
