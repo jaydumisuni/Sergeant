@@ -55,6 +55,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # between exact-head inspection and qualification, even with private .git.
     if root.is_dir() and root.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
         blockers.append("mutable_checkout_root_permissions")
+    # A peer-writable immediate parent can replace the entire checkout
+    # directory between inspection and use, regardless of root permissions.
+    # A sticky parent (such as /tmp) still allows replacement by the owner
+    # of the entry, so it is not sufficient authority for this preflight.
+    if root.parent.is_dir() and root.parent.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+        blockers.append("mutable_checkout_parent_permissions")
     gitdir = root / ".git"
     if (
         not root.is_dir()

@@ -1527,3 +1527,20 @@ def test_checkout_preflight_skips_config_probe_after_aliased_ref(tmp_path, monke
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_parent_before_git(tmp_path, monkeypatch):
+    """An attacker may replace a private checkout through its mutable parent."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    parent = tmp_path / "mutable-parent"
+    parent.mkdir()
+    checkout = parent / "standalone"
+    checkout.mkdir()
+    (checkout / ".git").mkdir()
+    parent.chmod(parent.stat().st_mode | 0o020)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git executed under mutable parent"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_checkout_parent_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
