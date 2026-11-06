@@ -1544,3 +1544,21 @@ def test_checkout_preflight_rejects_peer_writable_parent_before_git(tmp_path, mo
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_checkout_parent_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_nested_info_hardlink_before_git(tmp_path, monkeypatch):
+    """Externally aliased sparse-checkout rules cannot qualify standalone authority."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    info = checkout / ".git" / "info"
+    info.mkdir(parents=True)
+    rules = info / "sparse-checkout"
+    rules.write_text("/*\n")
+    os.link(rules, tmp_path / "external-sparse-rules")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased sparse rules"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
