@@ -898,3 +898,18 @@ def test_ambient_git_trace_sinks_rejected_before_checkout_git(tmp_path, monkeypa
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
     assert not destination.exists()
+
+
+def test_checkout_preflight_rejects_peer_writable_info_directory_before_git(tmp_path, monkeypatch):
+    """Peer-writable .git/info can swap attributes and sparse-checkout authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    info = checkout / ".git" / "info"
+    info.mkdir(parents=True)
+    info.chmod(info.stat().st_mode | 0o020)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked under mutable info"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"

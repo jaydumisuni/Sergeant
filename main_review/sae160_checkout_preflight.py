@@ -129,6 +129,10 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if info_dir.is_symlink():
         blockers.append("external_git_metadata")
     elif info_dir.is_dir():
+        # The directory itself can be replaced by peers even when its current
+        # attribute and sparse-checkout files are private.
+        if info_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
         for entry in info_dir.rglob("*"):
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
