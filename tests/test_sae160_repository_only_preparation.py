@@ -1595,3 +1595,35 @@ def test_checkout_preflight_rejects_peer_writable_nested_reflog_before_git(tmp_p
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_aliased_hook_before_git(tmp_path, monkeypatch):
+    """A default hook aliased outside checkout cannot qualify for later actions."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    hook = checkout / ".git" / "hooks" / "pre-commit"
+    hook.parent.mkdir(parents=True)
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    os.link(hook, tmp_path / "external-hook")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased hook"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_mutable_hook_directory_before_git(tmp_path, monkeypatch):
+    """Peer-writable hook control directory must fail closed without Git."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    hooks = checkout / ".git" / "hooks"
+    hooks.mkdir(parents=True)
+    hooks.chmod(hooks.stat().st_mode | 0o020)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable hooks"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"

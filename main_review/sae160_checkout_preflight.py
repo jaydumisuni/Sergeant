@@ -159,6 +159,24 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Default Git hooks are executable checkout control metadata. Even if
+    # this read-only preflight does not execute hooks, accepting an externally
+    # aliased hook would make the qualified checkout unsafe for later actions.
+    hooks_dir = gitdir / "hooks"
+    if hooks_dir.is_symlink():
+        blockers.append("external_git_metadata")
+    elif hooks_dir.is_dir():
+        if hooks_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+        for entry in hooks_dir.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_git_metadata")
+                break
+            if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (
+                stat.S_IWGRP | stat.S_IWOTH
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # A known local metadata blocker must stop before even the diagnostic
     # git-config probe; no Git subprocess is safe under aliased authority.
     if blockers:
