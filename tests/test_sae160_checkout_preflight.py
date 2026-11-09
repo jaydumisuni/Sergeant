@@ -937,3 +937,27 @@ def test_peer_writable_nested_git_info_directory_rejected_before_checkout_git(tm
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
+
+
+def test_peer_writable_nested_object_info_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """Nested commit-graph metadata cannot be replaced by a peer before Git runs."""
+    path, head = checkout(tmp_path)
+    nested = path / ".git" / "objects" / "info" / "commit-graphs"
+    nested.mkdir(parents=True)
+    (nested / "fixture").write_text("untrusted\n")
+    nested.chmod(0o777)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("mutable commit-graph directory reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
