@@ -913,3 +913,27 @@ def test_checkout_preflight_rejects_peer_writable_info_directory_before_git(tmp_
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_peer_writable_nested_git_info_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """Nested info metadata must not be replaceable by another local principal."""
+    path, head = checkout(tmp_path)
+    nested = path / ".git" / "info" / "auxiliary"
+    nested.mkdir()
+    (nested / "attributes").write_text("*.txt -text\n")
+    nested.chmod(0o777)
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("peer-writable Git info reached checkout Git")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
