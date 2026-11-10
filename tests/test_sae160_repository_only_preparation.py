@@ -1662,3 +1662,21 @@ def test_checkout_preflight_rejects_symlinked_info_directory_before_git(tmp_path
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_symlinked_reflog_directory_before_git(tmp_path, monkeypatch):
+    """An external reflog directory cannot supply standalone Git authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    gitdir.mkdir(parents=True)
+    external = tmp_path / "external-logs"
+    external.mkdir()
+    (external / "HEAD").write_text("external reflog\n")
+    (gitdir / "logs").symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external reflogs"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
