@@ -1680,3 +1680,21 @@ def test_checkout_preflight_rejects_symlinked_reflog_directory_before_git(tmp_pa
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_symlinked_nested_ref_directory_before_git(tmp_path, monkeypatch):
+    """A nested ref namespace may not resolve through an external directory."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    refs = checkout / ".git" / "refs" / "heads"
+    refs.mkdir(parents=True)
+    external = tmp_path / "external-ref-namespace"
+    external.mkdir()
+    (external / "candidate").write_text("0" * 40 + "\n")
+    (refs / "review").symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external ref namespace"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
