@@ -961,3 +961,26 @@ def test_peer_writable_nested_object_info_directory_rejected_before_checkout_git
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
+
+
+@pytest.mark.parametrize("control_name", ["FETCH_HEAD", "ORIG_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"])
+def test_external_pseudoref_alias_rejected_before_checkout_git(tmp_path, monkeypatch, control_name):
+    """Mutable pseudo-refs must not import external authority into a standalone checkout."""
+    path, head = checkout(tmp_path)
+    external = tmp_path / ("external-" + control_name)
+    external.write_text(head + "\n")
+    control = path / ".git" / control_name
+    if control.exists():
+        control.unlink()
+    control.symlink_to(external)
+    original_run = subprocess.run
+
+    def watched_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("untrusted checkout Git executed")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", watched_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"

@@ -84,7 +84,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             break
     # Git control metadata can silently borrow authority from another checkout
     # even when the object store itself is local and the observed HEAD matches.
-    for name in ("config", "config.worktree", "HEAD", "index", "packed-refs", "refs", "shallow"):
+    for name in ("config", "config.worktree", "HEAD", "index", "packed-refs", "refs", "shallow",
+                 "FETCH_HEAD", "ORIG_HEAD", "MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"):
         entry = gitdir / name
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
