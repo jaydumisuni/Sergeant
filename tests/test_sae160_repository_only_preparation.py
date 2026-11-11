@@ -1746,3 +1746,18 @@ def test_checkout_preflight_rejects_symlinked_nested_reflog_directory_before_git
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_nested_reflog_directory_before_git(tmp_path, monkeypatch):
+    """A peer-writable nested reflog namespace cannot qualify standalone authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "logs" / "refs" / "heads" / "review"
+    nested.mkdir(parents=True)
+    nested.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable reflog namespace"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
