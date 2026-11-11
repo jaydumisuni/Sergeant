@@ -1728,3 +1728,21 @@ def test_checkout_preflight_rejects_dangling_commondir_before_git(tmp_path, monk
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "shared_git_directory" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_symlinked_nested_reflog_directory_before_git(tmp_path, monkeypatch):
+    """A nested reflog namespace cannot escape checkout authority via symlink."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    heads = checkout / ".git" / "logs" / "refs" / "heads"
+    heads.mkdir(parents=True)
+    external = tmp_path / "external-reflog-namespace"
+    external.mkdir()
+    (external / "candidate").write_text("external reflog\n")
+    (heads / "review").symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external nested reflog"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
