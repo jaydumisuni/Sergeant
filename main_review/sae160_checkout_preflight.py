@@ -59,8 +59,19 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # directory between inspection and use, regardless of root permissions.
     # A sticky parent (such as /tmp) still allows replacement by the owner
     # of the entry, so it is not sufficient authority for this preflight.
-    if root.parent.is_dir() and root.parent.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
-        blockers.append("mutable_checkout_parent_permissions")
+    # Every ancestor is part of the path's custody. A peer-writable
+    # grandparent can replace an otherwise private parent directory.
+    child = root
+    for ancestor in root.parents:
+        if ancestor.is_dir():
+            mode = ancestor.stat().st_mode
+            if mode & (stat.S_IWGRP | stat.S_IWOTH):
+                # Sticky shared roots protect an entry owned by this process
+                # from replacement by other unprivileged principals.
+                if not (mode & stat.S_ISVTX and child.stat().st_uid == os.getuid()):
+                    blockers.append("mutable_checkout_parent_permissions")
+                    break
+        child = ancestor
     gitdir = root / ".git"
     if (
         not root.is_dir()

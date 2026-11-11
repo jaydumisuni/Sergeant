@@ -984,3 +984,17 @@ def test_external_pseudoref_alias_rejected_before_checkout_git(tmp_path, monkeyp
     result = inspect_checkout(path, head)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_peer_writable_checkout_grandparent_rejected(tmp_path):
+    """A private immediate parent does not protect a replaceable ancestor."""
+    nested = tmp_path / "writable-grandparent" / "private-parent"
+    nested.mkdir(parents=True)
+    path, head = checkout(nested)
+    (tmp_path / "writable-grandparent").chmod(0o777)
+    try:
+        result = inspect_checkout(path, head)
+        assert "mutable_checkout_parent_permissions" in result.blockers
+        assert result.authority_gain == "NONE"
+    finally:
+        (tmp_path / "writable-grandparent").chmod(0o755)
