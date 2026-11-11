@@ -261,11 +261,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 if shard.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                     blockers.append("mutable_git_authority_permissions")
                     break
-                for entry in shard.iterdir():
+                # Reject aliases and mutable metadata at every nested depth,
+                # not only immediate loose-object children.
+                for entry in shard.rglob("*"):
                     if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                         blockers.append("external_object_store")
                         break
-                    if entry.is_file() and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                    if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
                         blockers.append("mutable_git_authority_permissions")
                         break
                 if blockers:

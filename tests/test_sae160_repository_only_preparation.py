@@ -1761,3 +1761,20 @@ def test_checkout_preflight_rejects_peer_writable_nested_reflog_directory_before
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_nested_loose_object_alias_before_git(tmp_path, monkeypatch):
+    """Nested loose-object metadata cannot borrow an external object store."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "objects" / "ab" / "nested"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-object"
+    external.write_text("untrusted object")
+    (nested / "payload").symlink_to(external)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external loose object"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_object_store" in result.blockers
+    assert result.authority_gain == "NONE"
