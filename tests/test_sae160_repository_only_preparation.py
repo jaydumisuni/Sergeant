@@ -1713,3 +1713,18 @@ def test_checkout_preflight_rejects_peer_writable_nested_ref_directory_before_gi
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_dangling_commondir_before_git(tmp_path, monkeypatch):
+    """A broken shared-directory alias is still non-standalone Git authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    gitdir.mkdir(parents=True)
+    (gitdir / "commondir").symlink_to(tmp_path / "missing-external-gitdir")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on shared metadata alias"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "shared_git_directory" in result.blockers
+    assert result.authority_gain == "NONE"
