@@ -1820,3 +1820,37 @@ def test_checkout_preflight_disables_implicit_promisor_fetch(monkeypatch, tmp_pa
 def test_sae150_state_rejects_excessive_padding_before_canonicalization():
     with pytest.raises(RepositoryOnlyQualificationError, match="bounded token length"):
         evaluate(complete_evidence(), state=" " * 200 + SAE150_COMPLETE_STATE)
+
+
+def test_checkout_preflight_rejects_hardlinked_nested_reflog_before_git(tmp_path, monkeypatch):
+    """A reflog hardlink can mutate an external log despite private directories."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "logs" / "refs" / "heads"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-reflog"
+    external.write_text("old ref\n")
+    __import__("os").link(external, nested / "candidate")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on hardlinked reflog"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_nested_hook_before_git(tmp_path, monkeypatch):
+    """An executable hook under private parents must not be peer-writable."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "hooks" / "nested"
+    nested.mkdir(parents=True)
+    hook = nested / "post-checkout"
+    hook.write_text("#!/bin/sh\nexit 0\n")
+    hook.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable hook"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
