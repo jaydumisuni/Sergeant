@@ -998,3 +998,14 @@ def test_peer_writable_checkout_grandparent_rejected(tmp_path):
         assert result.authority_gain == "NONE"
     finally:
         (tmp_path / "writable-grandparent").chmod(0o755)
+
+
+def test_top_level_object_store_hardlink_is_rejected(tmp_path):
+    """Even non-shard object-store entries must not borrow external storage."""
+    path, head = checkout(tmp_path)
+    external = tmp_path / "outside-object-metadata"
+    external.write_bytes(b"external mutable metadata")
+    (path / ".git" / "objects" / "unexpected-metadata").hardlink_to(external)
+    result = inspect_checkout(path, head)
+    assert "external_object_store" in result.blockers
+    assert result.authority_gain == "NONE"

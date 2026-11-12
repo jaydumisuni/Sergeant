@@ -265,8 +265,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for shard in objects.iterdir():
             if shard.name in {"info", "pack"}:
                 continue
-            if shard.is_symlink():
+            if shard.is_symlink() or (shard.is_file() and shard.stat().st_nlink > 1):
                 blockers.append("external_object_store")
+                break
+            if shard.is_file() and shard.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                blockers.append("mutable_git_authority_permissions")
                 break
             if shard.is_dir():
                 if shard.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
