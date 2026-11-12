@@ -1057,3 +1057,22 @@ def test_peer_writable_nested_rerere_cache_rejected_before_git(tmp_path, monkeyp
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_peer_writable_nested_hook_directory_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A peer-replaceable nested hook must not reach checkout Git."""
+    path, head = checkout(tmp_path)
+    nested = path / ".git" / "hooks" / "auxiliary"
+    nested.mkdir(parents=True)
+    (nested / "pre-commit").write_text("#!/bin/sh\nexit 0\n")
+    nested.chmod(0o777)
+    original_run = subprocess.run
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("mutable nested hook reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
