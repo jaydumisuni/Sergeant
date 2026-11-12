@@ -189,6 +189,24 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Rerere cache entries can affect a later conflict resolution. Treat this
+    # checkout-owned Git control tree with the same alias/permission custody
+    # rules as hooks and reflogs, before any checkout Git invocation.
+    rerere_dir = gitdir / "rr-cache"
+    if rerere_dir.is_symlink():
+        blockers.append("external_git_metadata")
+    elif rerere_dir.is_dir():
+        if rerere_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+        for entry in rerere_dir.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_git_metadata")
+                break
+            if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (
+                stat.S_IWGRP | stat.S_IWOTH
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # A known local metadata blocker must stop before even the diagnostic
     # git-config probe; no Git subprocess is safe under aliased authority.
     if blockers:

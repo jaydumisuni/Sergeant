@@ -1009,3 +1009,30 @@ def test_top_level_object_store_hardlink_is_rejected(tmp_path):
     result = inspect_checkout(path, head)
     assert "external_object_store" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
+def test_rerere_cache_external_alias_rejected_before_git(tmp_path, monkeypatch, alias_kind):
+    """Rerere conflict-resolution records must not borrow external authority."""
+    path, head = checkout(tmp_path)
+    cache = path / ".git" / "rr-cache" / "fixture"
+    cache.mkdir(parents=True)
+    external = tmp_path / "outside-rerere"
+    external.write_text("external resolution\n")
+    record = cache / "postimage"
+    if alias_kind == "symlink":
+        record.symlink_to(external)
+    else:
+        record.hardlink_to(external)
+    original_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("external rerere cache reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
