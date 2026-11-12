@@ -1890,3 +1890,37 @@ def test_checkout_preflight_rejects_hardlinked_nested_hook_before_git(tmp_path, 
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_hardlinked_rerere_cache_before_git(tmp_path, monkeypatch):
+    """Rerere conflict-resolution records must not borrow external mutable storage."""
+    from main_review import sae160_checkout_preflight as preflight
+    import os
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "rr-cache" / "conflict-id"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-rerere"
+    external.write_bytes(b"external conflict resolution")
+    os.link(external, nested / "postimage")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased rerere cache"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_rerere_parent_before_git(tmp_path, monkeypatch):
+    """A mutable rerere directory can replace private conflict-resolution entries."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "rr-cache" / "conflict-id"
+    nested.mkdir(parents=True)
+    (nested / "postimage").write_bytes(b"local conflict resolution")
+    nested.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable rerere parent"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
