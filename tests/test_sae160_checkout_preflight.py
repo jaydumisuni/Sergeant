@@ -1036,3 +1036,24 @@ def test_rerere_cache_external_alias_rejected_before_git(tmp_path, monkeypatch, 
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_peer_writable_nested_rerere_cache_rejected_before_git(tmp_path, monkeypatch):
+    """A mutable rerere subdirectory can replace conflict resolutions without aliases."""
+    path, head = checkout(tmp_path)
+    cache = path / ".git" / "rr-cache" / "fixture"
+    cache.mkdir(parents=True)
+    (cache / "postimage").write_text("untrusted resolution\n")
+    cache.chmod(0o777)
+    original_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("mutable rerere cache reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
