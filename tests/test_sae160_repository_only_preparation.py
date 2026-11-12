@@ -1924,3 +1924,19 @@ def test_checkout_preflight_rejects_peer_writable_rerere_parent_before_git(tmp_p
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_peer_writable_nested_object_directory_before_git(tmp_path, monkeypatch):
+    """Mutable nested object directories must not become Git authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "objects" / "ab" / "nested"
+    nested.mkdir(parents=True)
+    (nested / "payload").write_bytes(b"local object")
+    nested.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: __import__("pytest").fail("Git invoked on mutable object directory"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
