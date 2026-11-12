@@ -1854,3 +1854,21 @@ def test_checkout_preflight_rejects_peer_writable_nested_hook_before_git(tmp_pat
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_hardlinked_nested_object_before_git(tmp_path, monkeypatch):
+    """A hardlinked loose object must not inherit authority from external storage."""
+    from main_review import sae160_checkout_preflight as preflight
+    import os
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "objects" / "ab" / "nested"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-object"
+    external.write_bytes(b"untrusted object")
+    os.link(external, nested / "payload")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on hardlinked object"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_object_store" in result.blockers
+    assert result.authority_gain == "NONE"
