@@ -320,6 +320,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     isolated_git_env = os.environ.copy()
     isolated_git_env["GIT_CONFIG_NOSYSTEM"] = "1"
     isolated_git_env["GIT_CONFIG_GLOBAL"] = os.devnull
+    # A read-only exact-head preflight must not download missing promisor objects.
+    isolated_git_env["GIT_NO_LAZY_FETCH"] = "1"
 
     def git(*args: str) -> str | None:
         try:

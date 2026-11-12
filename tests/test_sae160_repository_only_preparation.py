@@ -1795,3 +1795,23 @@ def test_checkout_preflight_rejects_nested_hook_symlink_before_git(tmp_path, mon
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_disables_implicit_promisor_fetch(monkeypatch, tmp_path):
+    """Exact-head inspection must not fetch missing objects as a side effect."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    (checkout / ".git" / "objects" / "info").mkdir(parents=True)
+    (checkout / ".git" / "objects" / "pack").mkdir()
+    observed = []
+
+    def record_git(argv, **kwargs):
+        observed.append(kwargs.get("env", {}))
+        return __import__("subprocess").CompletedProcess(argv, 1, stdout="", stderr="")
+
+    monkeypatch.setattr(preflight.subprocess, "run", record_git)
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert result.authority_gain == "NONE"
+    assert observed
+    assert all(env.get("GIT_NO_LAZY_FETCH") == "1" for env in observed if env)
