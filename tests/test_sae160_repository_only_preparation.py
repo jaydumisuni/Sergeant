@@ -1815,3 +1815,8 @@ def test_checkout_preflight_disables_implicit_promisor_fetch(monkeypatch, tmp_pa
     assert result.authority_gain == "NONE"
     assert observed
     assert all(env.get("GIT_NO_LAZY_FETCH") == "1" for env in observed if env)
+
+
+def test_sae150_state_rejects_excessive_padding_before_canonicalization():
+    with pytest.raises(RepositoryOnlyQualificationError, match="bounded token length"):
+        evaluate(complete_evidence(), state=" " * 200 + SAE150_COMPLETE_STATE)

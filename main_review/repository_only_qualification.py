@@ -132,6 +132,8 @@ def evaluate_repository_only_preparation(
 
     if type(sae150_state) is not str or not sae150_state.strip(" "):
         raise RepositoryOnlyQualificationError("sae150_state must be a non-empty string")
+    if len(sae150_state) > 128:
+        raise RepositoryOnlyQualificationError("sae150_state exceeds bounded token length")
     canonical_sae150_state = sae150_state.strip(" ")
     if canonical_sae150_state not in SAE150_STATES:
         raise RepositoryOnlyQualificationError(f"unknown sae150_state: {canonical_sae150_state}")
