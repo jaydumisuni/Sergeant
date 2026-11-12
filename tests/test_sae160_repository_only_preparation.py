@@ -1872,3 +1872,21 @@ def test_checkout_preflight_rejects_hardlinked_nested_object_before_git(tmp_path
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_object_store" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_hardlinked_nested_hook_before_git(tmp_path, monkeypatch):
+    """A hardlinked hook must not borrow executable authority from outside Git metadata."""
+    from main_review import sae160_checkout_preflight as preflight
+    import os
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "hooks" / "nested"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-hook"
+    external.write_text("#!/bin/sh\nexit 0\n")
+    os.link(external, nested / "post-checkout")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on hardlinked hook"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
