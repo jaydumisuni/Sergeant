@@ -2029,6 +2029,23 @@ def test_checkout_preflight_rejects_nested_module_symlink_before_git(tmp_path, m
     assert result.authority_gain == "NONE"
 
 
+def test_checkout_preflight_rejects_deep_module_object_symlink_before_git(tmp_path, monkeypatch):
+    """A deeper submodule object path must not escape the repository before Git runs."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "modules" / "component" / "objects"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-module-objects"
+    external.mkdir()
+    (nested / "pack").symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external module object storage"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
 def test_checkout_preflight_rejects_peer_writable_nested_module_before_git(tmp_path, monkeypatch):
     """Submodule metadata writable by peers cannot qualify as local authority."""
     from main_review import sae160_checkout_preflight as preflight
