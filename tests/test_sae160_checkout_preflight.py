@@ -1076,3 +1076,18 @@ def test_peer_writable_nested_hook_directory_rejected_before_checkout_git(tmp_pa
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_missing_checkout_under_sticky_parent_fails_closed(tmp_path):
+    missing = tmp_path / "missing-checkout"
+    result = inspect_checkout(missing, "f" * 40)
+    assert result.blockers == ("not_standalone_checkout",)
+    assert result.authority_gain == "NONE"
+
+
+def test_dangling_checkout_symlink_fails_closed(tmp_path):
+    dangling = tmp_path / "dangling-checkout"
+    dangling.symlink_to(tmp_path / "absent-target", target_is_directory=True)
+    result = inspect_checkout(dangling, "f" * 40)
+    assert result.blockers == ("not_standalone_checkout",)
+    assert result.authority_gain == "NONE"
