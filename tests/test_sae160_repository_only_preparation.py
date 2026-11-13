@@ -2098,3 +2098,21 @@ def test_checkout_preflight_rejects_legacy_git_control_alias_before_git(tmp_path
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("operation_name", ["sequencer", "rebase-merge", "rebase-apply"])
+def test_checkout_preflight_rejects_operation_control_alias_before_git(tmp_path, monkeypatch, operation_name):
+    """In-progress Git operation state must not borrow external authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    operation = checkout / ".git" / operation_name
+    operation.mkdir(parents=True)
+    external = tmp_path / "external-operation-control"
+    external.write_text("external")
+    (operation / "alias").symlink_to(external)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external operation control"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
