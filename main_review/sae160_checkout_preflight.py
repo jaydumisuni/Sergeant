@@ -229,33 +229,6 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     if blockers:
         return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
 
-    # Git include directives borrow configuration from another path, even if
-    # that path is not presently active (includeIf) or is currently missing.
-    # core.fsmonitor can execute a checkout-controlled program during status;
-    # reject it before issuing any Git operation that may invoke that program.
-    # Checkout-controlled filter commands can also execute during Git status.
-    # core.attributesFile can borrow mutable attribute rules outside the clone.
-    # Read only the local file with includes explicitly disabled; an invalid
-    # config cannot establish standalone authority either.
-    for config_name in ("config", "config.worktree"):
-        config_file = gitdir / config_name
-        if not config_file.exists() or not config_file.is_file():
-            continue
-        # Already rejected aliases must never be read through git config.
-        if config_file.is_symlink() or config_file.stat().st_nlink > 1:
-            continue
-        try:
-            config_probe = subprocess.run(
-                ["git", "config", "--no-includes", "--file", str(config_file),
-                 "--name-only", "--get-regexp",
-                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$"],
-                capture_output=True, text=True, timeout=10,
-            )
-        except (OSError, subprocess.TimeoutExpired):
-            blockers.append("external_git_metadata")
-            continue
-        if config_probe.returncode not in (0, 1) or config_probe.stdout.strip():
-            blockers.append("external_git_metadata")
     objects = gitdir / "objects"
     # The object-store root itself must not be peer-writable: an attacker
     # could replace object shards after local metadata inspection.
@@ -349,6 +322,37 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Never invoke checkout Git while its configuration or metadata can
     # redirect authority or execute an external filesystem monitor.
     # Local metadata inspection is sufficient to reject this candidate.
+    if blockers:
+        return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
+
+    # Git include directives borrow configuration from another path, even if
+    # that path is not presently active (includeIf) or is currently missing.
+    # core.fsmonitor can execute a checkout-controlled program during status;
+    # reject it before issuing any Git operation that may invoke that program.
+    # Checkout-controlled filter commands can also execute during Git status.
+    # core.attributesFile can borrow mutable attribute rules outside the clone.
+    # Read only the local file with includes explicitly disabled; an invalid
+    # config cannot establish standalone authority either.
+    for config_name in ("config", "config.worktree"):
+        config_file = gitdir / config_name
+        if not config_file.exists() or not config_file.is_file():
+            continue
+        # Already rejected aliases must never be read through git config.
+        if config_file.is_symlink() or config_file.stat().st_nlink > 1:
+            continue
+        try:
+            config_probe = subprocess.run(
+                ["git", "config", "--no-includes", "--file", str(config_file),
+                 "--name-only", "--get-regexp",
+                 r"^(include|includeif)\..*|^core\.(fsmonitor|excludesfile|attributesfile|worktree|hookspath|sparsecheckout|sparsecheckoutcone)$|^filter\..+\.(clean|smudge|process)$"],
+                capture_output=True, text=True, timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            blockers.append("external_git_metadata")
+            continue
+        if config_probe.returncode not in (0, 1) or config_probe.stdout.strip():
+            blockers.append("external_git_metadata")
+
     if blockers:
         return CheckoutPreflight(expected, None, tuple(sorted(set(blockers))))
 

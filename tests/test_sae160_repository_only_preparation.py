@@ -2059,3 +2059,24 @@ def test_checkout_preflight_rejects_peer_writable_nested_module_before_git(tmp_p
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_object_alias_before_config_git(tmp_path, monkeypatch):
+    """Object-store aliases must be rejected before even a local config probe invokes Git."""
+    from main_review import sae160_checkout_preflight as preflight
+    import os
+
+    checkout = tmp_path / "standalone"
+    objects = checkout / ".git" / "objects"
+    (objects / "info").mkdir(parents=True)
+    (objects / "pack").mkdir()
+    (checkout / ".git" / "config").write_text("[core]\nrepositoryformatversion = 0\n")
+    external = tmp_path / "external-object"
+    external.write_bytes(b"external")
+    (objects / "ab").mkdir()
+    os.link(external, objects / "ab" / "payload")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked before object custody check"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_object_store" in result.blockers
+    assert result.authority_gain == "NONE"
