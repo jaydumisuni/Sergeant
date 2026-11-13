@@ -1958,3 +1958,21 @@ def test_checkout_preflight_rejects_symlinked_nested_rerere_directory_before_git
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_nested_hook_symlink_before_git(tmp_path, monkeypatch):
+    """Nested hook directories cannot redirect executable Git metadata outside checkout."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    hooks = checkout / ".git" / "hooks"
+    hooks.mkdir(parents=True)
+    external = tmp_path / "external-hooks"
+    external.mkdir()
+    (external / "pre-commit").write_text("#!/bin/sh\nexit 0\n")
+    (hooks / "auxiliary").symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external hook directory"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
