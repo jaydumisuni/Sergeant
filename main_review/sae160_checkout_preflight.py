@@ -207,6 +207,23 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             ):
                 blockers.append("mutable_git_authority_permissions")
                 break
+    # Submodule Git directories are checkout-owned control metadata too.
+    # A linked or peer-writable module store must not inherit authority.
+    modules_dir = gitdir / "modules"
+    if modules_dir.is_symlink():
+        blockers.append("external_git_metadata")
+    elif modules_dir.is_dir():
+        if modules_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+            blockers.append("mutable_git_authority_permissions")
+        for entry in modules_dir.rglob("*"):
+            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                blockers.append("external_git_metadata")
+                break
+            if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (
+                stat.S_IWGRP | stat.S_IWOTH
+            ):
+                blockers.append("mutable_git_authority_permissions")
+                break
     # A known local metadata blocker must stop before even the diagnostic
     # git-config probe; no Git subprocess is safe under aliased authority.
     if blockers:
