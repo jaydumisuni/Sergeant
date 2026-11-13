@@ -1091,3 +1091,27 @@ def test_dangling_checkout_symlink_fails_closed(tmp_path):
     result = inspect_checkout(dangling, "f" * 40)
     assert result.blockers == ("not_standalone_checkout",)
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("control_name", ["BISECT_START", "BISECT_LOG", "AUTO_MERGE"])
+def test_external_bisect_and_merge_control_alias_rejected(tmp_path, monkeypatch, control_name):
+    """Bisect and ort merge metadata must not borrow mutable external control files."""
+    path, head = checkout(tmp_path)
+    external = tmp_path / ("external-" + control_name)
+    external.write_text(head + "\n")
+    control = path / ".git" / control_name
+    if control.exists():
+        control.unlink()
+    control.symlink_to(external)
+    original_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("external operation metadata reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
