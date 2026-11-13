@@ -135,7 +135,7 @@ def test_ambient_git_authority_override_is_not_standalone(tmp_path, monkeypatch)
     external.mkdir()
     for key in (
         "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
-        "GIT_INDEX_FILE", "GIT_CONFIG_COUNT", "GIT_CONFIG_GLOBAL",
+        "GIT_INDEX_FILE", "GIT_CONFIG_COUNT", "GIT_CONFIG_GLOBAL", "GIT_TEMPLATE_DIR",
     ):
         with monkeypatch.context() as scoped:
             scoped.setenv(key, str(external))
