@@ -963,7 +963,7 @@ def test_peer_writable_nested_object_info_directory_rejected_before_checkout_git
     assert checkout_commands == []
 
 
-@pytest.mark.parametrize("control_name", ["FETCH_HEAD", "ORIG_HEAD", "MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"])
+@pytest.mark.parametrize("control_name", ["FETCH_HEAD", "ORIG_HEAD", "MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "AUTO_MERGE", "BISECT_START", "BISECT_LOG"])
 def test_external_pseudoref_alias_rejected_before_checkout_git(tmp_path, monkeypatch, control_name):
     """Mutable pseudo-refs must not import external authority into a standalone checkout."""
     path, head = checkout(tmp_path)
