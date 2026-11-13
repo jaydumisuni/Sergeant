@@ -1940,3 +1940,21 @@ def test_checkout_preflight_rejects_peer_writable_nested_object_directory_before
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_symlinked_nested_rerere_directory_before_git(tmp_path, monkeypatch):
+    """A nested rerere conflict directory must not redirect resolution to external storage."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    cache = checkout / ".git" / "rr-cache"
+    cache.mkdir(parents=True)
+    external = tmp_path / "external-conflict-cache"
+    external.mkdir()
+    (external / "postimage").write_bytes(b"external resolution")
+    (cache / "conflict-id").symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on external rerere directory"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
