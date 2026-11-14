@@ -2148,3 +2148,21 @@ def test_checkout_preflight_rejects_peer_writable_nested_operation_state_before_
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("operation_name", ["sequencer", "rebase-merge", "rebase-apply"])
+def test_checkout_preflight_rejects_nested_operation_alias_before_git(tmp_path, monkeypatch, operation_name):
+    """Nested operation state must not redirect checkout authority outside the repository."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / operation_name / "nested"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-nested-operation"
+    external.write_text("external")
+    (nested / "alias").symlink_to(external)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on nested external operation state"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
