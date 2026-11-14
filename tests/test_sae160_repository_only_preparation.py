@@ -2168,7 +2168,7 @@ def test_checkout_preflight_rejects_nested_operation_alias_before_git(tmp_path, 
     assert result.authority_gain == "NONE"
 
 
-@pytest.mark.parametrize("message_name", ["MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG", "COMMIT_EDITMSG"])
+@pytest.mark.parametrize("message_name", ["MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG", "COMMIT_EDITMSG", "BISECT_NAMES"])
 def test_checkout_preflight_rejects_git_operation_message_alias_before_git(tmp_path, monkeypatch, message_name):
     """Git operation message templates must not borrow external filesystem authority."""
     from main_review import sae160_checkout_preflight as preflight
@@ -2186,7 +2186,7 @@ def test_checkout_preflight_rejects_git_operation_message_alias_before_git(tmp_p
     assert result.authority_gain == "NONE"
 
 
-@pytest.mark.parametrize("message_name", ["MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG", "COMMIT_EDITMSG"])
+@pytest.mark.parametrize("message_name", ["MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG", "COMMIT_EDITMSG", "BISECT_NAMES"])
 def test_checkout_preflight_rejects_peer_writable_git_operation_message_before_git(tmp_path, monkeypatch, message_name):
     """Peer-writable operation messages cannot be trusted as checkout metadata."""
     from main_review import sae160_checkout_preflight as preflight
