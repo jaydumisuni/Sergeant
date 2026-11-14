@@ -2202,3 +2202,22 @@ def test_checkout_preflight_rejects_peer_writable_git_operation_message_before_g
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("message_name", ["MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG", "COMMIT_EDITMSG", "BISECT_NAMES", "BISECT_EXPECTED_REV", "REBASE_AUTOSTASH", "MERGE_AUTOSTASH", "AUTO_MERGE"])
+def test_checkout_preflight_rejects_hardlinked_git_operation_message_before_git(tmp_path, monkeypatch, message_name):
+    """A hardlinked operation message must not borrow another checkout's authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    gitdir.mkdir(parents=True)
+    external = tmp_path / "external-operation-message"
+    external.write_text("external control message")
+    import os
+    os.link(external, gitdir / message_name)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on hardlinked operation metadata"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
