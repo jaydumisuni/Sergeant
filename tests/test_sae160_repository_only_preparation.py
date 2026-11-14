@@ -2166,3 +2166,21 @@ def test_checkout_preflight_rejects_nested_operation_alias_before_git(tmp_path, 
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("message_name", ["MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG"])
+def test_checkout_preflight_rejects_git_operation_message_alias_before_git(tmp_path, monkeypatch, message_name):
+    """Git operation message templates must not borrow external filesystem authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    gitdir.mkdir(parents=True)
+    external = tmp_path / "external-operation-message"
+    external.write_text("external")
+    (gitdir / message_name).symlink_to(external)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased operation message"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"

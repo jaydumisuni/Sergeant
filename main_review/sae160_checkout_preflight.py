@@ -101,7 +101,8 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # even when the object store itself is local and the observed HEAD matches.
     for name in ("config", "config.worktree", "HEAD", "index", "packed-refs", "refs", "shallow",
                  "FETCH_HEAD", "ORIG_HEAD", "MERGE_HEAD", "REBASE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD",
-                 "BISECT_START", "BISECT_LOG", "BISECT_EXPECTED_REV", "REBASE_AUTOSTASH", "MERGE_AUTOSTASH", "AUTO_MERGE"):
+                 "BISECT_START", "BISECT_LOG", "BISECT_EXPECTED_REV", "REBASE_AUTOSTASH", "MERGE_AUTOSTASH", "AUTO_MERGE",
+                 "MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG"):
         entry = gitdir / name
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
