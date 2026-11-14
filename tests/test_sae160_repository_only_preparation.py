@@ -2132,3 +2132,19 @@ def test_checkout_preflight_rejects_peer_writable_operation_control_before_git(t
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("operation_name", ["sequencer", "rebase-merge", "rebase-apply"])
+def test_checkout_preflight_rejects_peer_writable_nested_operation_state_before_git(tmp_path, monkeypatch, operation_name):
+    """A writable descendant of Git operation state must not authorize checkout inspection."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / operation_name / "nested"
+    nested.mkdir(parents=True)
+    nested.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable nested operation state"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
