@@ -2116,3 +2116,19 @@ def test_checkout_preflight_rejects_operation_control_alias_before_git(tmp_path,
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("operation_name", ["sequencer", "rebase-merge", "rebase-apply"])
+def test_checkout_preflight_rejects_peer_writable_operation_control_before_git(tmp_path, monkeypatch, operation_name):
+    """Mutable in-progress operation metadata must never become checkout authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    operation = checkout / ".git" / operation_name
+    operation.mkdir(parents=True)
+    operation.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable operation control"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
