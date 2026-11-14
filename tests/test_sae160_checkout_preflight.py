@@ -1115,3 +1115,24 @@ def test_external_bisect_and_merge_control_alias_rejected(tmp_path, monkeypatch,
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("control_name", ("BISECT_EXPECTED_REV", "REBASE_AUTOSTASH", "MERGE_AUTOSTASH"))
+def test_peer_writable_operation_pseudoref_rejected_before_git(tmp_path, monkeypatch, control_name):
+    """Peer-writable operation pseudo-refs cannot establish standalone authority."""
+    path, head = checkout(tmp_path)
+    control = path / ".git" / control_name
+    control.write_text(head + "\n")
+    control.chmod(0o666)
+    original_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("mutable operation pseudo-ref reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
