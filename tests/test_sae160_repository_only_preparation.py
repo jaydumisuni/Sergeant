@@ -2221,3 +2221,22 @@ def test_checkout_preflight_rejects_hardlinked_git_operation_message_before_git(
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("operation_name", ["sequencer", "rebase-merge", "rebase-apply"])
+def test_checkout_preflight_rejects_hardlinked_nested_operation_state_before_git(tmp_path, monkeypatch, operation_name):
+    """Nested operation hardlinks must not import another checkout's control state."""
+    from main_review import sae160_checkout_preflight as preflight
+    import os
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / operation_name / "nested"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-operation-control"
+    external.write_text("external")
+    os.link(external, nested / "alias")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on hardlinked operation state"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
