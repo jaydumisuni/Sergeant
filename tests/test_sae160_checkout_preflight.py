@@ -1012,14 +1012,15 @@ def test_top_level_object_store_hardlink_is_rejected(tmp_path):
 
 
 @pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
-def test_rerere_cache_external_alias_rejected_before_git(tmp_path, monkeypatch, alias_kind):
+@pytest.mark.parametrize("record_name", ["preimage", "postimage", "thisimage"])
+def test_rerere_cache_external_alias_rejected_before_git(tmp_path, monkeypatch, alias_kind, record_name):
     """Rerere conflict-resolution records must not borrow external authority."""
     path, head = checkout(tmp_path)
     cache = path / ".git" / "rr-cache" / "fixture"
     cache.mkdir(parents=True)
     external = tmp_path / "outside-rerere"
     external.write_text("external resolution\n")
-    record = cache / "postimage"
+    record = cache / record_name
     if alias_kind == "symlink":
         record.symlink_to(external)
     else:
