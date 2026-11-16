@@ -2240,3 +2240,21 @@ def test_checkout_preflight_rejects_hardlinked_nested_operation_state_before_git
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_checkout_preflight_rejects_hardlinked_nested_module_metadata_before_git(tmp_path, monkeypatch):
+    """Nested submodule metadata hardlinks cannot import external checkout authority."""
+    from main_review import sae160_checkout_preflight as preflight
+    import os
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / "modules" / "component" / "nested"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-module-control"
+    external.write_text("external module control")
+    os.link(external, nested / "alias")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on hardlinked module metadata"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
