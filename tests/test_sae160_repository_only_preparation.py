@@ -2298,3 +2298,28 @@ def test_checkout_preflight_rejects_linked_worktree_admin_alias_before_git(tmp_p
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("root_kind", ["symlink", "peer_writable"])
+def test_checkout_preflight_rejects_mutable_worktrees_root_before_git(tmp_path, monkeypatch, root_kind):
+    """The linked-worktree administrative root itself must retain local custody."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    gitdir.mkdir(parents=True)
+    worktrees = gitdir / "worktrees"
+    if root_kind == "symlink":
+        external = tmp_path / "external-worktrees"
+        external.mkdir()
+        worktrees.symlink_to(external, target_is_directory=True)
+    else:
+        worktrees.mkdir()
+        worktrees.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable worktrees root"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    expected = ("external_git_metadata" if root_kind == "symlink"
+                else "mutable_git_authority_permissions")
+    assert expected in result.blockers
+    assert result.authority_gain == "NONE"
