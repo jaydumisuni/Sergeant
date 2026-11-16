@@ -2259,6 +2259,25 @@ def test_checkout_preflight_rejects_hardlinked_nested_module_metadata_before_git
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
 
+
+@pytest.mark.parametrize("admin_name", ["gitdir", "commondir", "HEAD"])
+def test_checkout_preflight_rejects_peer_writable_linked_worktree_admin_before_git(tmp_path, monkeypatch, admin_name):
+    """Mutable linked-worktree administration must not authorize Git inspection."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    admin = checkout / ".git" / "worktrees" / "other"
+    admin.mkdir(parents=True)
+    control = admin / admin_name
+    control.write_text("untrusted worktree control")
+    control.chmod(0o666)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable worktree administration"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
 def test_checkout_preflight_rejects_linked_worktree_admin_alias_before_git(tmp_path, monkeypatch, alias_kind):
     """Administrative linked-worktree metadata cannot borrow external authority."""
