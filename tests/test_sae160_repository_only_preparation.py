@@ -2258,3 +2258,24 @@ def test_checkout_preflight_rejects_hardlinked_nested_module_metadata_before_git
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+@pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
+def test_checkout_preflight_rejects_linked_worktree_admin_alias_before_git(tmp_path, monkeypatch, alias_kind):
+    """Administrative linked-worktree metadata cannot borrow external authority."""
+    from main_review import sae160_checkout_preflight as preflight
+    import os
+
+    checkout = tmp_path / "standalone"
+    admin = checkout / ".git" / "worktrees" / "other"
+    admin.mkdir(parents=True)
+    external = tmp_path / "external-worktree-admin"
+    external.write_text("external")
+    if alias_kind == "symlink":
+        (admin / "gitdir").symlink_to(external)
+    else:
+        os.link(external, admin / "gitdir")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased worktree administration"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
