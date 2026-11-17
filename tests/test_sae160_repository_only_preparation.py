@@ -278,7 +278,7 @@ def test_sae150_state_is_canonicalized_before_identity_and_readiness():
     assert padded.preparation_id == canonical.preparation_id
 
 
-@pytest.mark.parametrize("padding", ["\u00a0", "\u2003", "\t", "\n", "\r"])
+@pytest.mark.parametrize("padding", ["\u00a0", "\u2003", "\u2028", "\u2029", "\t", "\n", "\r"])
 def test_sae150_state_rejects_non_ascii_and_control_whitespace(padding):
     """Authority tokens must not silently normalize non-space separators."""
     with pytest.raises(RepositoryOnlyQualificationError, match="unknown sae150_state"):
