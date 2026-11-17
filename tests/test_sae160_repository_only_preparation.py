@@ -2506,3 +2506,32 @@ def test_checkout_preflight_rejects_peer_writable_nested_legacy_admin_before_git
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+@pytest.mark.parametrize("special_kind", ["fifo", "socket"])
+def test_checkout_preflight_rejects_nested_legacy_special_file_before_git(tmp_path, monkeypatch, legacy_name, special_kind):
+    """Nested legacy administration cannot expose special-file Git control inputs."""
+    import os
+    import socket
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / legacy_name / "nested"
+    nested.mkdir(parents=True)
+    control = nested / "control"
+    if special_kind == "fifo":
+        os.mkfifo(control)
+        endpoint = None
+    else:
+        endpoint = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        endpoint.bind(str(control))
+    try:
+        monkeypatch.setattr(preflight.subprocess, "run",
+                            lambda *args, **kwargs: pytest.fail("Git invoked on nested special-file control"))
+        result = preflight.inspect_checkout(checkout, "0" * 40)
+    finally:
+        if endpoint is not None:
+            endpoint.close()
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
