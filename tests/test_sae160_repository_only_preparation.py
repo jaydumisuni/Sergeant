@@ -2452,3 +2452,21 @@ def test_checkout_preflight_rejects_fifo_legacy_admin_entry_before_git(tmp_path,
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+def test_checkout_preflight_rejects_unix_socket_legacy_control_before_git(tmp_path, monkeypatch, legacy_name):
+    """A socket under legacy Git administration must not be trusted as a control file."""
+    import socket
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    legacy_dir = checkout / ".git" / legacy_name
+    legacy_dir.mkdir(parents=True)
+    with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as endpoint:
+        endpoint.bind(str(legacy_dir / "control"))
+        monkeypatch.setattr(preflight.subprocess, "run",
+                            lambda *args, **kwargs: pytest.fail("Git invoked on socket legacy administration"))
+        result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
