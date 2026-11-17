@@ -2489,3 +2489,20 @@ def test_checkout_preflight_rejects_nested_legacy_admin_alias_before_git(tmp_pat
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+def test_checkout_preflight_rejects_peer_writable_nested_legacy_admin_before_git(tmp_path, monkeypatch, legacy_name):
+    """A mutable nested legacy directory cannot replace control metadata before Git executes."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / legacy_name / "nested"
+    nested.mkdir(parents=True)
+    (nested / "control").write_text("private control")
+    nested.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on peer-writable legacy metadata"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
