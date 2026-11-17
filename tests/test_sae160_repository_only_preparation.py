@@ -2342,6 +2342,25 @@ def test_checkout_preflight_rejects_nested_worktree_admin_mutable_directory_befo
     assert result.authority_gain == "NONE"
 
 
+
+@pytest.mark.parametrize("nested_name", ["modules", "worktrees"])
+def test_checkout_preflight_rejects_aliased_nested_admin_root_before_git(tmp_path, monkeypatch, nested_name):
+    """Git administrative roots must not resolve to external control trees."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    gitdir.mkdir(parents=True)
+    external = tmp_path / ("external-" + nested_name)
+    external.mkdir()
+    (gitdir / nested_name).symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased administrative root"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize("nested_name", ["modules", "worktrees"])
 def test_checkout_preflight_rejects_peer_writable_nested_admin_directory_before_git(tmp_path, monkeypatch, nested_name):
     """A peer-writable nested Git administrative directory cannot supply checkout authority."""
