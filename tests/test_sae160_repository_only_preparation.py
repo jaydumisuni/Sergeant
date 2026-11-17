@@ -2417,3 +2417,21 @@ def test_checkout_preflight_rejects_peer_writable_legacy_admin_directory_before_
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+def test_checkout_preflight_rejects_aliased_legacy_admin_root_before_git(tmp_path, monkeypatch, legacy_name):
+    """Legacy Git administrative directory roots must remain inside the checkout."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    gitdir = checkout / ".git"
+    gitdir.mkdir(parents=True)
+    external = tmp_path / ("external-" + legacy_name)
+    external.mkdir()
+    (gitdir / legacy_name).symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on aliased legacy administration"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
