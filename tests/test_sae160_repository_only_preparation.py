@@ -2340,3 +2340,20 @@ def test_checkout_preflight_rejects_nested_worktree_admin_mutable_directory_befo
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("nested_name", ["modules", "worktrees"])
+def test_checkout_preflight_rejects_peer_writable_nested_admin_directory_before_git(tmp_path, monkeypatch, nested_name):
+    """A peer-writable nested Git administrative directory cannot supply checkout authority."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / nested_name / "component"
+    nested.mkdir(parents=True)
+    (nested / "control").write_text("private control")
+    nested.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable nested Git administration"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
