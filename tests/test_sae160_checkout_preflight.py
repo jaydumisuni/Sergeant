@@ -1158,3 +1158,24 @@ def test_hardlinked_operation_pseudoref_rejected_before_git(tmp_path, monkeypatc
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("control_name", ("BISECT_EXPECTED_REV", "REBASE_AUTOSTASH", "MERGE_AUTOSTASH"))
+def test_symlinked_operation_pseudoref_rejected_before_git(tmp_path, monkeypatch, control_name):
+    """Operation pseudo-refs cannot delegate checkout authority through an external symlink."""
+    path, head = checkout(tmp_path)
+    external = tmp_path / ("external-symlink-" + control_name)
+    external.write_text(head + "\n")
+    (path / ".git" / control_name).symlink_to(external)
+    original_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("symlinked operation pseudo-ref reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
