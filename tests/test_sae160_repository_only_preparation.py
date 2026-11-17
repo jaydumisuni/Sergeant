@@ -2323,3 +2323,20 @@ def test_checkout_preflight_rejects_mutable_worktrees_root_before_git(tmp_path, 
                 else "mutable_git_authority_permissions")
     assert expected in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("admin_name", ["gitdir", "commondir", "HEAD"])
+def test_checkout_preflight_rejects_nested_worktree_admin_mutable_directory_before_git(tmp_path, monkeypatch, admin_name):
+    """A peer-writable administrative ancestor can replace private control files."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    admin = checkout / ".git" / "worktrees" / "other"
+    admin.mkdir(parents=True)
+    (admin / admin_name).write_text("private control")
+    admin.chmod(0o777)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on mutable worktree ancestor"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.authority_gain == "NONE"
