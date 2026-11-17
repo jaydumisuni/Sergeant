@@ -1,12 +1,26 @@
 """SAE-160 standalone checkout preflight cannot grant qualification."""
 from __future__ import annotations
 
-from pathlib import Path
+import os
 import subprocess
+from pathlib import Path
 
 import pytest
 
 from main_review.sae160_checkout_preflight import inspect_checkout
+
+
+@pytest.fixture(autouse=True)
+def private_checkout_fixture_permissions():
+    """Use private checkout fixture defaults independently of worker umask.
+
+    Explicitly permission-mutated fixtures must still fail closed.
+    """
+    previous = os.umask(0o077)
+    try:
+        yield
+    finally:
+        os.umask(previous)
 
 
 def git(path: Path, *args: str) -> str:

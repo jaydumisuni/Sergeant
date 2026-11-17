@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import replace
 
 import pytest
@@ -18,6 +19,20 @@ from main_review.repository_only_qualification import (
 )
 
 HEAD = "a" * 40
+
+
+@pytest.fixture(autouse=True)
+def private_checkout_fixture_permissions():
+    """Keep Git-clone fixtures private regardless of the worker's umask.
+
+    This changes fixture creation only. Tests that deliberately chmod paths
+    peer-writable still exercise the production preflight rejection.
+    """
+    previous = os.umask(0o077)
+    try:
+        yield
+    finally:
+        os.umask(previous)
 
 
 def evidence(
