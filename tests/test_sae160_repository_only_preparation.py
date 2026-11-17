@@ -2376,3 +2376,27 @@ def test_checkout_preflight_rejects_peer_writable_nested_admin_directory_before_
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "mutable_git_authority_permissions" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+@pytest.mark.parametrize("alias_kind", ["symlink", "hardlink"])
+def test_checkout_preflight_rejects_linked_legacy_git_control_before_git(tmp_path, monkeypatch, legacy_name, alias_kind):
+    """Legacy Git control metadata must not borrow an external file identity."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    legacy_dir = checkout / ".git" / legacy_name
+    legacy_dir.mkdir(parents=True)
+    external = tmp_path / "external-control"
+    external.write_text("untrusted")
+    control = legacy_dir / "control"
+    if alias_kind == "symlink":
+        control.symlink_to(external)
+    else:
+        os.link(external, control)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on linked legacy control"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
