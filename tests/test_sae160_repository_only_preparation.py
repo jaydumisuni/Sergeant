@@ -2435,3 +2435,20 @@ def test_checkout_preflight_rejects_aliased_legacy_admin_root_before_git(tmp_pat
     result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+def test_checkout_preflight_rejects_fifo_legacy_admin_entry_before_git(tmp_path, monkeypatch, legacy_name):
+    """Nonregular legacy control entries must not become Git input streams."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    legacy_dir = checkout / ".git" / legacy_name
+    legacy_dir.mkdir(parents=True)
+    os.mkfifo(legacy_dir / "control")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on FIFO legacy administration"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
