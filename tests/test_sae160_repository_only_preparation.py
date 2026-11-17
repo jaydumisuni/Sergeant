@@ -2470,3 +2470,22 @@ def test_checkout_preflight_rejects_unix_socket_legacy_control_before_git(tmp_pa
         result = preflight.inspect_checkout(checkout, "0" * 40)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+def test_checkout_preflight_rejects_nested_legacy_admin_alias_before_git(tmp_path, monkeypatch, legacy_name):
+    """Nested legacy metadata must not escape the checkout through a directory alias."""
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    legacy_dir = checkout / ".git" / legacy_name
+    legacy_dir.mkdir(parents=True)
+    external = tmp_path / "external-legacy-control"
+    external.mkdir()
+    (external / "control").write_text("untrusted")
+    (legacy_dir / "nested").symlink_to(external, target_is_directory=True)
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on nested aliased legacy administration"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
