@@ -2508,6 +2508,26 @@ def test_checkout_preflight_rejects_peer_writable_nested_legacy_admin_before_git
     assert result.authority_gain == "NONE"
 
 
+
+@pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
+def test_checkout_preflight_rejects_nested_legacy_hardlink_before_git(tmp_path, monkeypatch, legacy_name):
+    """A nested legacy control cannot borrow an external inode through a hardlink."""
+    import os
+    from main_review import sae160_checkout_preflight as preflight
+
+    checkout = tmp_path / "standalone"
+    nested = checkout / ".git" / legacy_name / "nested"
+    nested.mkdir(parents=True)
+    external = tmp_path / "external-legacy-control"
+    external.write_text("untrusted")
+    os.link(external, nested / "control")
+    monkeypatch.setattr(preflight.subprocess, "run",
+                        lambda *args, **kwargs: pytest.fail("Git invoked on hardlinked nested legacy control"))
+    result = preflight.inspect_checkout(checkout, "0" * 40)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
+
+
 @pytest.mark.parametrize("legacy_name", ["branches", "remotes"])
 @pytest.mark.parametrize("special_kind", ["fifo", "socket"])
 def test_checkout_preflight_rejects_nested_legacy_special_file_before_git(tmp_path, monkeypatch, legacy_name, special_kind):
