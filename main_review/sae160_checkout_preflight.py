@@ -53,7 +53,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         return CheckoutPreflight(expected, None, tuple(blockers))
     # Reject missing and dangling paths before ancestor custody checks: a
     # sticky shared ancestor would otherwise stat a nonexistent child.
-    if not root.is_dir():
+    if root.is_symlink() or not root.is_dir():
         return CheckoutPreflight(expected, None, ("not_standalone_checkout",))
     # A peer-writable checkout root permits replacement of tracked source files
     # between exact-head inspection and qualification, even with private .git.
