@@ -1193,3 +1193,21 @@ def test_symlinked_operation_pseudoref_rejected_before_git(tmp_path, monkeypatch
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_fifo_hook_control_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A hook FIFO must not enter an accepted standalone checkout."""
+    path, head = checkout(tmp_path)
+    os.mkfifo(path / ".git" / "hooks" / "pre-commit")
+    original_run = subprocess.run
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("nonregular hook control reached checkout Git")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"

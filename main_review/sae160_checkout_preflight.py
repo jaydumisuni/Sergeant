@@ -187,7 +187,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if hooks_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
         for entry in hooks_dir.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            mode = entry.lstat().st_mode
+            # Hook control trees must contain only local regular files and
+            # directories; FIFOs, sockets and devices are not bounded inputs.
+            if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)) or (
+                stat.S_ISREG(mode) and entry.stat().st_nlink > 1
+            ):
                 blockers.append("external_git_metadata")
                 break
             if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (
