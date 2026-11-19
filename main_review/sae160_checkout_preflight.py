@@ -312,6 +312,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if pack.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
         for entry in pack.iterdir():
+            # A FIFO, socket or device inside object authority is not a
+            # bounded local pack input, even if it is neither a link nor a file.
+            mode = entry.lstat().st_mode
+            if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+                blockers.append("external_object_store")
+                break
             if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_object_store")
                 break
