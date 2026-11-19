@@ -1263,3 +1263,21 @@ def test_nonregular_operation_control_rejected_before_checkout_git(tmp_path, mon
     assert "external_git_metadata" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+@pytest.mark.parametrize("relative", [
+    "objects/pack/auxiliary/nonregular",
+    "objects/info/auxiliary/nonregular",
+])
+def test_nonregular_nested_object_metadata_rejected_before_checkout_git(tmp_path, monkeypatch, relative):
+    """Nested pack and info object metadata must reject FIFOs before Git inspection."""
+    path, head = checkout(tmp_path)
+    entry = path / ".git" / relative
+    entry.parent.mkdir(parents=True, exist_ok=True)
+    os.mkfifo(entry)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("checkout Git must not read nonregular object metadata")
+    monkeypatch.setattr("main_review.sae160_checkout_preflight.subprocess.run", forbidden)
+    result = inspect_checkout(path, head)
+    assert "external_object_store" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
