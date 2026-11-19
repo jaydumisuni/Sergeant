@@ -355,6 +355,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         for shard in objects.iterdir():
             if shard.name in {"info", "pack"}:
                 continue
+            # An object-store top-level entry must be a regular file or
+            # directory; FIFOs/sockets/devices are not bounded Git inputs.
+            shard_mode = shard.lstat().st_mode
+            if not (stat.S_ISREG(shard_mode) or stat.S_ISDIR(shard_mode)):
+                blockers.append("external_object_store")
+                break
             if shard.is_symlink() or (shard.is_file() and shard.stat().st_nlink > 1):
                 blockers.append("external_object_store")
                 break

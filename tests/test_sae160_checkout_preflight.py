@@ -1281,3 +1281,20 @@ def test_nonregular_nested_object_metadata_rejected_before_checkout_git(tmp_path
     assert "external_object_store" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+
+def test_special_top_level_object_entry_is_rejected(tmp_path, monkeypatch):
+    """A FIFO in objects/ must fail before any checkout Git invocation."""
+    path, head = checkout(tmp_path)
+    os.mkfifo(path / ".git" / "objects" / "unbounded")
+    original_run = subprocess.run
+
+    def watched_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            raise AssertionError("untrusted checkout Git executed")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", watched_run)
+    result = inspect_checkout(path, head)
+    assert "external_object_store" in result.blockers
+    assert result.authority_gain == "NONE"
