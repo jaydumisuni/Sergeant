@@ -1229,3 +1229,18 @@ def test_fifo_pack_control_rejected_before_checkout_git(tmp_path, monkeypatch):
     assert "external_object_store" in result.blockers
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
+
+@pytest.mark.parametrize("relative", [
+    "refs/heads/extra", "info/extra", "logs/extra",
+    "rr-cache/extra", "modules/extra",
+])
+def test_nonregular_nested_git_control_metadata_rejected_before_git(tmp_path, monkeypatch, relative):
+    path, head = checkout(tmp_path)
+    entry = path / ".git" / relative
+    entry.parent.mkdir(parents=True, exist_ok=True)
+    os.mkfifo(entry)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("checkout Git must not execute on nonregular metadata")
+    monkeypatch.setattr("main_review.sae160_checkout_preflight.subprocess.run", forbidden)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers

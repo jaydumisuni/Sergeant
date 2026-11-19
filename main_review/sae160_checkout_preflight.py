@@ -130,7 +130,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         blockers.append("external_git_metadata")
     if refs.is_dir() and not refs.is_symlink():
         for entry in refs.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if not (stat.S_ISREG(entry.lstat().st_mode) or stat.S_ISDIR(entry.lstat().st_mode)) or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
                 break
             # Git can resolve a nested ref through directories writable by
@@ -152,7 +152,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if info_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
         for entry in info_dir.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if not (stat.S_ISREG(entry.lstat().st_mode) or stat.S_ISDIR(entry.lstat().st_mode)) or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
                 break
             # A peer-writable exclude/attributes file (or its parent) can
@@ -171,7 +171,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if logs_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
         for entry in logs_dir.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if not (stat.S_ISREG(entry.lstat().st_mode) or stat.S_ISDIR(entry.lstat().st_mode)) or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
                 break
             if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
@@ -210,7 +210,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if rerere_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
         for entry in rerere_dir.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if not (stat.S_ISREG(entry.lstat().st_mode) or stat.S_ISDIR(entry.lstat().st_mode)) or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
                 break
             if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (
@@ -227,7 +227,7 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         if modules_dir.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
             blockers.append("mutable_git_authority_permissions")
         for entry in modules_dir.rglob("*"):
-            if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+            if not (stat.S_ISREG(entry.lstat().st_mode) or stat.S_ISDIR(entry.lstat().st_mode)) or (entry.is_file() and entry.stat().st_nlink > 1):
                 blockers.append("external_git_metadata")
                 break
             if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (
