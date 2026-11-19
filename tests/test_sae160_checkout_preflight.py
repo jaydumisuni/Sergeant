@@ -1322,3 +1322,12 @@ def test_setid_git_control_file_rejected_before_checkout_git(tmp_path, monkeypat
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
+
+
+@pytest.mark.parametrize("key", ["core.pager", "core.editor", "core.sshCommand", "core.askPass", "credential.helper"])
+def test_external_git_command_config_is_not_standalone_authority(tmp_path, key):
+    path, head = checkout(tmp_path)
+    git(path, "config", key, "external-helper --run")
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.authority_gain == "NONE"
