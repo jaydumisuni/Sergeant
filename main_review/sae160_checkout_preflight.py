@@ -368,10 +368,15 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                 # Reject aliases and mutable metadata at every nested depth,
                 # not only immediate loose-object children.
                 for entry in shard.rglob("*"):
-                    if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+                    entry_mode = entry.lstat().st_mode
+                    # A loose-object shard must contain only regular objects
+                    # and directories. FIFOs/sockets are unbounded Git inputs.
+                    if not (stat.S_ISREG(entry_mode) or stat.S_ISDIR(entry_mode)) or (
+                        stat.S_ISREG(entry_mode) and entry.stat().st_nlink > 1
+                    ):
                         blockers.append("external_object_store")
                         break
-                    if (entry.is_file() or entry.is_dir()) and entry.stat().st_mode & (stat.S_IWGRP | stat.S_IWOTH):
+                    if entry_mode & (stat.S_IWGRP | stat.S_IWOTH):
                         blockers.append("mutable_git_authority_permissions")
                         break
                 if blockers:

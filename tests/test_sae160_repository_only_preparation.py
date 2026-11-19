@@ -2570,3 +2570,47 @@ def test_checkout_preflight_rejects_nested_legacy_special_file_before_git(tmp_pa
             endpoint.close()
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("special_kind", ["fifo", "socket"])
+def test_checkout_preflight_rejects_nested_loose_object_special_file_before_git(
+    tmp_path, monkeypatch, special_kind
+):
+    """Special files inside loose-object shards must not reach Git inspection."""
+    import os
+    import socket
+    from main_review import sae160_checkout_preflight as preflight
+
+    import tempfile
+    from pathlib import Path
+
+    # Keep AF_UNIX socket path below the Linux 108-byte limit.
+    with tempfile.TemporaryDirectory(prefix="sae160-", dir="/tmp") as short_root:
+        checkout = Path(short_root) / "standalone"
+        nested = checkout / ".git" / "objects" / "ab" / "nested"
+        _check_nested_loose_object_special_file(checkout, nested, monkeypatch, special_kind)
+
+
+def _check_nested_loose_object_special_file(checkout, nested, monkeypatch, special_kind):
+    import os
+    import socket
+    from main_review import sae160_checkout_preflight as preflight
+    nested.mkdir(parents=True)
+    entry = nested / "object"
+    endpoint = None
+    if special_kind == "fifo":
+        os.mkfifo(entry)
+    else:
+        endpoint = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        endpoint.bind(str(entry))
+    try:
+        monkeypatch.setattr(
+            preflight.subprocess, "run",
+            lambda *args, **kwargs: pytest.fail("Git invoked on special loose-object metadata"),
+        )
+        result = preflight.inspect_checkout(checkout, "0" * 40)
+    finally:
+        if endpoint is not None:
+            endpoint.close()
+    assert "external_object_store" in result.blockers
+    assert result.authority_gain == "NONE"
