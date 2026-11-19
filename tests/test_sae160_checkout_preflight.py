@@ -1298,3 +1298,27 @@ def test_special_top_level_object_entry_is_rejected(tmp_path, monkeypatch):
     result = inspect_checkout(path, head)
     assert "external_object_store" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+@pytest.mark.parametrize("special_bit", [0o4000, 0o2000])
+def test_setid_git_control_file_rejected_before_checkout_git(tmp_path, monkeypatch, special_bit):
+    """A privileged Git control file is not acceptable standalone review authority."""
+    path, head = checkout(tmp_path)
+    config = path / ".git" / "config"
+    config.chmod(0o600 | special_bit)
+    assert config.stat().st_mode & special_bit
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted checkout Git invoked")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "mutable_git_authority_permissions" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
