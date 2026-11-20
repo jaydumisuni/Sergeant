@@ -115,6 +115,11 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Git split-index sharedindex.* files are index authority, not ordinary
     # checkout data. Reject symlink and hardlink aliases before checkout Git.
     for entry in gitdir.glob("sharedindex.*"):
+        # A FIFO/device/socket masquerading as split-index authority could
+        # block or redirect subsequent Git reads; only local regular files qualify.
+        if not stat.S_ISREG(entry.lstat().st_mode):
+            blockers.append("external_git_metadata")
+            break
         if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
             blockers.append("external_git_metadata")
             break

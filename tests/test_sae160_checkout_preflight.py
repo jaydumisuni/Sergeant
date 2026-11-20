@@ -1362,3 +1362,24 @@ def test_alternate_refs_command_is_rejected_before_checkout_git(tmp_path, monkey
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
+
+
+def test_split_index_fifo_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A split-index FIFO must never be opened by Git during preflight."""
+    path, head = checkout(tmp_path)
+    os.mkfifo(path / ".git" / "sharedindex.untrusted")
+    original_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("checkout Git invoked on unbounded split index")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
