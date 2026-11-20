@@ -1331,3 +1331,24 @@ def test_external_git_command_config_is_not_standalone_authority(tmp_path, key):
     result = inspect_checkout(path, head)
     assert "external_git_metadata" in result.blockers
     assert result.authority_gain == "NONE"
+
+
+def test_alternate_refs_command_is_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """A local alternateRefsCommand is executable Git authority, not inert metadata."""
+    path, head = checkout(tmp_path)
+    git(path, "config", "--local", "core.alternateRefsCommand", "/nonexistent/alternate-ref-helper")
+    actual_run = subprocess.run
+    checkout_commands = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted checkout Git invoked")
+        return actual_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []
