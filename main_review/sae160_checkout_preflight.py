@@ -404,9 +404,13 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
             if entry_mode & (stat.S_IWGRP | stat.S_IWOTH):
                 blockers.append("mutable_git_authority_permissions")
                 break
-    alternates = objects / "info" / "alternates"
-    if alternates.exists() or alternates.is_symlink():
-        blockers.append("external_object_alternates")
+    # HTTP alternates are also an external object-source declaration. Even
+    # when Git does not fetch them during this preflight, a standalone
+    # checkout must not carry an alternate object authority for later use.
+    for alternate_name in ("alternates", "http-alternates"):
+        alternates = objects / "info" / alternate_name
+        if alternates.exists() or alternates.is_symlink():
+            blockers.append("external_object_alternates")
     # A dangling commondir symlink is still an external authority binding.
     # Path.exists() follows the link and would silently miss that case.
     commondir = gitdir / "commondir"

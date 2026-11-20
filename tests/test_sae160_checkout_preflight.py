@@ -74,6 +74,16 @@ def test_external_object_alternates_are_not_accepted(tmp_path):
     assert "external_object_alternates" in result.blockers
 
 
+def test_http_object_alternates_are_not_standalone_authority(tmp_path):
+    path, head = checkout(tmp_path)
+    alternate = path / ".git" / "objects" / "info" / "http-alternates"
+    alternate.write_text("https://example.invalid/objects\n")
+    result = inspect_checkout(path, head)
+    assert "external_object_alternates" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+
+
 def test_directory_without_git_identity_fails_closed(tmp_path):
     result = inspect_checkout(tmp_path, "f" * 40)
     assert result.blockers == ("not_standalone_checkout",)
