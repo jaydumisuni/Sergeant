@@ -1406,3 +1406,31 @@ def test_fifo_top_level_git_config_rejected_before_checkout_git(tmp_path, monkey
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert calls == []
+
+
+@pytest.mark.parametrize("control_name", ["info", "pack"])
+def test_object_control_directory_replaced_by_regular_file_fails_closed(
+    tmp_path, control_name, monkeypatch
+):
+    path, head = checkout(tmp_path)
+    control = path / ".git" / "objects" / control_name
+    # An empty object-store control directory can be replaced without
+    # changing the checked-out source or HEAD.
+    assert not list(control.iterdir())
+    control.rmdir()
+    control.write_text("not a directory\n")
+    original_run = subprocess.run
+    checkout_commands = []
+
+    def watched_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            checkout_commands.append(list(argv))
+            raise AssertionError("untrusted checkout Git executed")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", watched_run)
+    result = inspect_checkout(path, head)
+    assert "external_object_store" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert checkout_commands == []

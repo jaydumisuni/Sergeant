@@ -319,8 +319,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
         blockers.append("mutable_git_authority_permissions")
     if objects.is_symlink() or not objects.is_dir():
         blockers.append("external_object_store")
-    if (objects / "info").is_symlink() or (objects / "pack").is_symlink():
-        blockers.append("external_object_store")
+    # Git expects these object-store authorities to be directories. A regular
+    # file, FIFO or device at either path is not a standalone object store,
+    # even if no alternates or pack entries are visible to the traversal.
+    for control_dir in (objects / "info", objects / "pack"):
+        if control_dir.is_symlink() or not control_dir.is_dir():
+            blockers.append("external_object_store")
     pack = objects / "pack"
     if pack.is_dir():
         # The pack directory itself is object authority: a peer-writable
