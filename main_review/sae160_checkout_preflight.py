@@ -104,7 +104,12 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
                  "BISECT_START", "BISECT_LOG", "BISECT_NAMES", "BISECT_EXPECTED_REV", "REBASE_AUTOSTASH", "MERGE_AUTOSTASH", "AUTO_MERGE",
                  "MERGE_MSG", "SQUASH_MSG", "TAG_EDITMSG", "COMMIT_EDITMSG"):
         entry = gitdir / name
-        if entry.is_symlink() or (entry.is_file() and entry.stat().st_nlink > 1):
+        # Git may open these control files before status is known. A FIFO or
+        # device is not bounded checkout metadata and must never reach Git.
+        if entry.is_symlink() or (name != "refs" and entry.exists() and not stat.S_ISREG(entry.lstat().st_mode)):
+            blockers.append("external_git_metadata")
+            break
+        if entry.is_file() and entry.stat().st_nlink > 1:
             blockers.append("external_git_metadata")
             break
         # Control files can be modified by other local principals even when

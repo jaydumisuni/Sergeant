@@ -1383,3 +1383,26 @@ def test_split_index_fifo_rejected_before_checkout_git(tmp_path, monkeypatch):
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
+
+
+def test_fifo_top_level_git_config_rejected_before_checkout_git(tmp_path, monkeypatch):
+    """An unbounded Git config stream cannot become checkout authority."""
+    path, head = checkout(tmp_path)
+    config = path / ".git" / "config"
+    config.unlink()
+    os.mkfifo(config)
+    original_run = subprocess.run
+    calls = []
+
+    def guarded_run(argv, *args, **kwargs):
+        if list(argv[:3]) == ["git", "-C", str(path)]:
+            calls.append(list(argv))
+            raise AssertionError("checkout Git must not read FIFO config")
+        return original_run(argv, *args, **kwargs)
+
+    monkeypatch.setattr(subprocess, "run", guarded_run)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
+    assert calls == []
