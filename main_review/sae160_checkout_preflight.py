@@ -136,7 +136,9 @@ def inspect_checkout(checkout: Path, expected_head: str) -> CheckoutPreflight:
     # Nested refs are authority too: a symlinked or hardlinked branch/tag ref
     # can redirect an otherwise local checkout to externally mutable metadata.
     refs = gitdir / "refs"
-    if refs.is_symlink():
+    # A FIFO/device/regular file at the refs control-directory path must
+    # fail before invoking Git, just like a symlinked refs directory.
+    if refs.is_symlink() or (refs.exists() and not refs.is_dir()):
         blockers.append("external_git_metadata")
     if refs.is_dir() and not refs.is_symlink():
         for entry in refs.rglob("*"):

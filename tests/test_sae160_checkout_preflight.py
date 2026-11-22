@@ -1434,3 +1434,29 @@ def test_object_control_directory_replaced_by_regular_file_fails_closed(
     assert result.observed_head is None
     assert result.authority_gain == "NONE"
     assert checkout_commands == []
+
+
+@pytest.mark.parametrize("replacement", ["fifo", "regular_file"])
+def test_non_directory_refs_control_path_fails_before_git(tmp_path, monkeypatch, replacement):
+    path, head = checkout(tmp_path)
+    refs = path / ".git" / "refs"
+    for child in sorted(refs.rglob("*"), reverse=True):
+        if child.is_dir():
+            child.rmdir()
+        else:
+            child.unlink()
+    refs.rmdir()
+    if replacement == "fifo":
+        os.mkfifo(refs)
+    else:
+        refs.write_text("not a refs directory\n")
+
+    def forbidden_git(*args, **kwargs):
+        raise AssertionError("Git must not inspect an invalid refs control path")
+
+    monkeypatch.setattr(subprocess, "run", forbidden_git)
+    monkeypatch.setattr(subprocess, "check_output", forbidden_git)
+    result = inspect_checkout(path, head)
+    assert "external_git_metadata" in result.blockers
+    assert result.observed_head is None
+    assert result.authority_gain == "NONE"
